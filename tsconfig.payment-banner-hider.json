@@ -20,6 +20,7 @@
   "include": [
     "standalone-scripts/payment-banner-hider/src/**/*.ts",
     "standalone-scripts/payment-banner-hider/src/**/*.d.ts",
+    "standalone-scripts/types/**/*.ts",
     "standalone-scripts/types/**/*.d.ts"
   ],
   "exclude": ["node_modules", "standalone-scripts/payment-banner-hider/dist"]

@@ -182,7 +182,7 @@ interface InjectCtx {
  * Falls back to `prepend` only when the container has no <button> child
  * (e.g., empty toolbar shell during cold-load).
  */
-function insertBeforeFirstButton(container: Element, ...wrappers: HTMLElement[]): void {
+export function insertBeforeFirstButton(container: Element, ...wrappers: HTMLElement[]): void {
   // Match the first child that either IS a button or WRAPS a button
   // (Lovable shells use both patterns: bare <button> or <div type="button"><button/></div>).
   // We must skip our own previously-injected wrappers so re-injections stay idempotent.

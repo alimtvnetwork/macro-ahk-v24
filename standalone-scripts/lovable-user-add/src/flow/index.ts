@@ -11,3 +11,7 @@ export { StepAStepCode } from "./step-a-types";
 export type { StepARequest, StepAResult, StepAStepOutcome } from "./step-a-types";
 export { extractWorkspaceId } from "./extract-workspace-id";
 export { toStepAApiRole } from "./role-api-mapper";
+export { runStepB } from "./run-step-b";
+export { StepBStepCode } from "./step-b-types";
+export type { StepBRequest, StepBResult, StepBStepOutcome } from "./step-b-types";
+export { shouldRunStepB } from "./should-run-step-b";

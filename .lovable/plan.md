@@ -18,7 +18,7 @@ _Nothing currently in progress._
 | 2 | Per-script migration to shared `ProjectInstruction` types (Priority 0.2–0.6) | Low | checklist ready |
 | 3 | Installer hardening v0.3 — sign `checksums.txt` (minisign or cosign) | Low | spec §7.1.4 rule 5 |
 | 4 | Mirror AC-2 main-branch fallback in `install.ps1` | Medium | spec §2 step 5 |
-| 5 | Wire `check:installer-contract` into `.github/workflows/installer-tests.yml` | Medium | spec §13 |
+| 5 | Wire `check:installer-contract` into `.github/workflows/installer-tests.yml` | Medium | `.lovable/cicd-issues/01-installer-contract-not-in-ci.md` |
 
 ### 🔍 Review items (rules already stored — verify enforcement)
 

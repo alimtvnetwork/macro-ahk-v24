@@ -709,10 +709,88 @@ jobs:
           path: standalone-scripts/prompts/
 
       - name: Download Payment Banner Hider dist
+        id: download-payment-banner-hider
         uses: actions/download-artifact@v4
         with:
           name: payment-banner-hider-dist
           path: standalone-scripts/payment-banner-hider/dist/
+
+      # ── Artifact traceability ───────────────────────────────────
+      # When a downstream step says "bundle missing", the first
+      # question is always: WHICH artifact did we actually pull?
+      # Resolve the exact `artifact-id` and `archive_download_url`
+      # via the GitHub REST API and print them so a reviewer can
+      # one-click open the artifact in the Actions UI without having
+      # to grep through the run page. Also exported as step outputs
+      # so later steps can reference them in their own summaries.
+      - name: Resolve payment-banner-hider artifact URL + id
+        id: trace-payment-banner-hider-artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARTIFACT_NAME: payment-banner-hider-dist
+        run: |
+          set -euo pipefail
+
+          echo "── Resolving artifact metadata for '${ARTIFACT_NAME}' ──"
+          echo "   repo:    ${GITHUB_REPOSITORY}"
+          echo "   run_id:  ${GITHUB_RUN_ID}"
+
+          # List artifacts for this run, pick the one we just downloaded.
+          # Using `gh api` (preinstalled on ubuntu runners) keeps this
+          # zero-dep — no extra `actions/github-script` setup required.
+          ARTIFACT_JSON=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts?per_page=100" \
+            --jq ".artifacts[] | select(.name == \"${ARTIFACT_NAME}\")")
+
+          if [ -z "${ARTIFACT_JSON}" ]; then
+            echo "::error title=Artifact metadata lookup failed::Could not find artifact '${ARTIFACT_NAME}' on run ${GITHUB_RUN_ID}. The download step reported success but the API does not list it — this usually means the upload step in 'build-payment-banner-hider' did not run or used a different name."
+            exit 1
+          fi
+
+          ARTIFACT_ID=$(echo "${ARTIFACT_JSON}" | jq -r '.id')
+          ARTIFACT_SIZE=$(echo "${ARTIFACT_JSON}" | jq -r '.size_in_bytes')
+          ARTIFACT_SHA=$(echo "${ARTIFACT_JSON}" | jq -r '.workflow_run.head_sha // "unknown"')
+          ARTIFACT_EXPIRES=$(echo "${ARTIFACT_JSON}" | jq -r '.expires_at')
+          # `archive_download_url` is the API URL (requires auth).
+          # The browser-friendly URL is the one humans can click.
+          ARCHIVE_DOWNLOAD_URL=$(echo "${ARTIFACT_JSON}" | jq -r '.archive_download_url')
+          BROWSER_DOWNLOAD_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts/${ARTIFACT_ID}"
+
+          echo "✅ Artifact resolved"
+          echo "   artifact_name:        ${ARTIFACT_NAME}"
+          echo "   artifact_id:          ${ARTIFACT_ID}"
+          echo "   size_in_bytes:        ${ARTIFACT_SIZE}"
+          echo "   head_sha:             ${ARTIFACT_SHA}"
+          echo "   expires_at:           ${ARTIFACT_EXPIRES}"
+          echo "   archive_download_url: ${ARCHIVE_DOWNLOAD_URL}"
+          echo "   browser_download_url: ${BROWSER_DOWNLOAD_URL}"
+
+          # Export for later steps (e.g. the assertion summary table).
+          {
+            echo "artifact_name=${ARTIFACT_NAME}"
+            echo "artifact_id=${ARTIFACT_ID}"
+            echo "artifact_size=${ARTIFACT_SIZE}"
+            echo "archive_download_url=${ARCHIVE_DOWNLOAD_URL}"
+            echo "browser_download_url=${BROWSER_DOWNLOAD_URL}"
+          } >> "$GITHUB_OUTPUT"
+
+          # Top-of-summary block so the trace is the FIRST thing a
+          # reviewer sees on a failed run, not buried after build logs.
+          {
+            echo "## 🔗 Artifact trace — \`${ARTIFACT_NAME}\`"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Artifact name | \`${ARTIFACT_NAME}\` |"
+            echo "| Artifact ID | \`${ARTIFACT_ID}\` |"
+            echo "| Size (bytes) | \`${ARTIFACT_SIZE}\` |"
+            echo "| Head SHA | \`${ARTIFACT_SHA}\` |"
+            echo "| Expires at | \`${ARTIFACT_EXPIRES}\` |"
+            echo "| Browser URL (one-click) | [${BROWSER_DOWNLOAD_URL}](${BROWSER_DOWNLOAD_URL}) |"
+            echo "| API archive URL | \`${ARCHIVE_DOWNLOAD_URL}\` |"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # ── Pre-build artifact assertion ────────────────────────────
       # Hard gate run BEFORE `pnpm run build:extension` so a missing
@@ -724,6 +802,11 @@ jobs:
       # produces an inline `::error file=…::` annotation on the PR.
       - name: Assert payment-banner-hider dist artifact present
         shell: bash
+        env:
+          ARTIFACT_NAME: ${{ steps.trace-payment-banner-hider-artifact.outputs.artifact_name }}
+          ARTIFACT_ID: ${{ steps.trace-payment-banner-hider-artifact.outputs.artifact_id }}
+          ARTIFACT_BROWSER_URL: ${{ steps.trace-payment-banner-hider-artifact.outputs.browser_download_url }}
+          ARTIFACT_API_URL: ${{ steps.trace-payment-banner-hider-artifact.outputs.archive_download_url }}
         run: |
           set -euo pipefail
           DIST_DIR="$(pwd)/standalone-scripts/payment-banner-hider/dist"
@@ -732,9 +815,12 @@ jobs:
 
           echo "── Asserting payment-banner-hider dist before extension build ──"
           echo "DIST_DIR=${DIST_DIR}"
+          echo "Source artifact: ${ARTIFACT_NAME} (id=${ARTIFACT_ID})"
+          echo "  browser URL: ${ARTIFACT_BROWSER_URL}"
+          echo "  API URL:     ${ARTIFACT_API_URL}"
 
           if [ ! -d "$DIST_DIR" ]; then
-            echo "::error file=standalone-scripts/payment-banner-hider/dist,title=Payment Banner Hider dist directory missing::Expected directory ${DIST_DIR} after downloading artifact 'payment-banner-hider-dist' from job 'build-payment-banner-hider'. The download step likely failed silently — verify the upstream upload-artifact step ran."
+            echo "::error file=standalone-scripts/payment-banner-hider/dist,title=Payment Banner Hider dist directory missing::Expected directory ${DIST_DIR} after downloading artifact '${ARTIFACT_NAME}' (id=${ARTIFACT_ID}) from job 'build-payment-banner-hider'. Browser URL: ${ARTIFACT_BROWSER_URL}. The download step likely failed silently — verify the upstream upload-artifact step ran."
             exit 1
           fi
 
@@ -742,18 +828,18 @@ jobs:
           ls -la "$DIST_DIR"
 
           if [ ! -f "$BUNDLE" ]; then
-            echo "::error file=standalone-scripts/payment-banner-hider/dist/payment-banner-hider.js,title=payment-banner-hider.js missing from dist artifact::Expected ${BUNDLE} but it was not found. Files actually present: $(ls "$DIST_DIR" | tr '\n' ' '). Check vite.config.payment-banner-hider.ts → build.rollupOptions.output.entryFileNames is 'payment-banner-hider.js' (not hashed)."
+            echo "::error file=standalone-scripts/payment-banner-hider/dist/payment-banner-hider.js,title=payment-banner-hider.js missing from dist artifact::Expected ${BUNDLE} but it was not found. Source artifact: ${ARTIFACT_NAME} (id=${ARTIFACT_ID}) — open ${ARTIFACT_BROWSER_URL} to inspect what was actually uploaded. Files actually present: $(ls "$DIST_DIR" | tr '\n' ' '). Check vite.config.payment-banner-hider.ts → build.rollupOptions.output.entryFileNames is 'payment-banner-hider.js' (not hashed)."
             exit 1
           fi
 
           if [ ! -f "$INSTRUCTION" ]; then
-            echo "::error file=standalone-scripts/payment-banner-hider/dist/instruction.json,title=instruction.json missing from dist artifact::Expected ${INSTRUCTION}. Check that scripts/compile-instruction.mjs ran during build:payment-banner-hider."
+            echo "::error file=standalone-scripts/payment-banner-hider/dist/instruction.json,title=instruction.json missing from dist artifact::Expected ${INSTRUCTION}. Source artifact: ${ARTIFACT_NAME} (id=${ARTIFACT_ID}) — open ${ARTIFACT_BROWSER_URL} to inspect. Check that scripts/compile-instruction.mjs ran during build:payment-banner-hider."
             exit 1
           fi
 
           BYTES=$(wc -c < "$BUNDLE" | tr -d ' ')
           if [ "$BYTES" -lt 100 ]; then
-            echo "::error file=standalone-scripts/payment-banner-hider/dist/payment-banner-hider.js,title=payment-banner-hider.js suspiciously small (${BYTES} bytes)::Bundle exists but is < 100 bytes — likely a build error produced an empty file. Re-run build-payment-banner-hider."
+            echo "::error file=standalone-scripts/payment-banner-hider/dist/payment-banner-hider.js,title=payment-banner-hider.js suspiciously small (${BYTES} bytes)::Bundle exists but is < 100 bytes — likely a build error produced an empty file. Source artifact: ${ARTIFACT_NAME} (id=${ARTIFACT_ID}). Open ${ARTIFACT_BROWSER_URL} to inspect. Re-run build-payment-banner-hider."
             exit 1
           fi
 
@@ -775,7 +861,10 @@ jobs:
             echo "| Size (bytes) | \`${BYTES}\` |"
             echo "| SHA-256 | \`${SHA}\` |"
             echo "| Version | \`${VERSION}\` |"
-            echo "| Source artifact | \`payment-banner-hider-dist\` |"
+            echo "| Source artifact name | \`${ARTIFACT_NAME}\` |"
+            echo "| Source artifact ID | \`${ARTIFACT_ID}\` |"
+            echo "| Artifact (one-click) | [${ARTIFACT_BROWSER_URL}](${ARTIFACT_BROWSER_URL}) |"
+            echo "| Artifact (API) | \`${ARTIFACT_API_URL}\` |"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build Chrome extension

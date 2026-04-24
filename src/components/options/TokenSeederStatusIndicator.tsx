@@ -45,9 +45,50 @@ interface TokenSeederDiagnostics {
 const POLL_INTERVAL_MS = 5_000;
 const TICK_INTERVAL_MS = 500;
 
+type ErrorCategory = "host-permission" | "scripting-blocked" | "restricted-scheme" | "other";
+
+const CATEGORY_LABELS: Record<ErrorCategory, string> = {
+    "host-permission": "Host permission",
+    "scripting-blocked": "Scripting blocked",
+    "restricted-scheme": "Restricted scheme",
+    other: "Other",
+};
+
+function categorizeCode(code: string): ErrorCategory {
+    switch (code) {
+        case "RESPECTIVE_HOST_PERMISSION":
+        case "MISSING_HOST_PERMISSION":
+        case "NO_HOST_PATTERN":
+        case "PERMISSION_NOT_GRANTED":
+            return "host-permission";
+        case "PAGE_CONTENTS_BLOCKED":
+        case "EXTENSIONS_GALLERY_BLOCKED":
+        case "GENERIC_CANNOT_SCRIPT":
+            return "scripting-blocked";
+        case "RESTRICTED_SCHEME":
+            return "restricted-scheme";
+        default:
+            return "other";
+    }
+}
+
 function formatRemaining(ms: number): string {
     if (ms <= 0) return "ready";
     return `${Math.ceil(ms / 1000)}s`;
+}
+
+function formatRetryTimestamp(ts: number): string {
+    try {
+        return new Intl.DateTimeFormat("en-GB", {
+            timeZone: "Asia/Kuala_Lumpur",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false,
+        }).format(new Date(ts));
+    } catch {
+        return new Date(ts).toISOString();
+    }
 }
 
 function formatOrigin(url: string): string {
@@ -91,11 +132,32 @@ export function TokenSeederStatusIndicator() {
 
     const targets = data?.targets ?? [];
 
-    const nextRetryMs = useMemo(() => {
-        if (targets.length === 0) return 0;
-        const remainings = targets.map((t) => Math.max(0, t.cooldownMs - (now - t.lastFailureAt)));
-        return Math.min(...remainings);
+    const { nextRetryMs, nextRetryAt } = useMemo(() => {
+        if (targets.length === 0) return { nextRetryMs: 0, nextRetryAt: 0 };
+        let minRemaining = Number.POSITIVE_INFINITY;
+        let minRetryAt = 0;
+        for (const t of targets) {
+            const retryAt = t.lastFailureAt + t.cooldownMs;
+            const remaining = Math.max(0, retryAt - now);
+            if (remaining < minRemaining) {
+                minRemaining = remaining;
+                minRetryAt = retryAt;
+            }
+        }
+        return {
+            nextRetryMs: minRemaining === Number.POSITIVE_INFINITY ? 0 : minRemaining,
+            nextRetryAt: minRetryAt,
+        };
     }, [targets, now]);
+
+    const categoryCounts = useMemo(() => {
+        const counts = new Map<ErrorCategory, number>();
+        for (const t of targets) {
+            const cat = categorizeCode(t.code);
+            counts.set(cat, (counts.get(cat) ?? 0) + 1);
+        }
+        return counts;
+    }, [targets]);
 
     if (targets.length === 0) {
         return null;
@@ -103,13 +165,27 @@ export function TokenSeederStatusIndicator() {
 
     const isReady = nextRetryMs <= 0;
 
+    const categorySummary = Array.from(categoryCounts.entries())
+        .map(([cat, count]) => `${CATEGORY_LABELS[cat]}: ${count}`)
+        .join(" · ");
+
+    const retryLine = isReady
+        ? "Retrying on next poll."
+        : `Next retry at ${formatRetryTimestamp(nextRetryAt)} MYT (in ${formatRemaining(nextRetryMs)}).`;
+
+    const tooltip =
+        `${targets.length} tab(s) blocked Chrome scripting access.\n` +
+        `Categories — ${categorySummary || "Unknown"}.\n` +
+        `${retryLine}\n` +
+        `Click to view per-tab details.`;
+
     return (
         <Collapsible open={open} onOpenChange={setOpen}>
             <CollapsibleTrigger asChild>
                 <button
                     type="button"
                     className="flex w-full items-center justify-between rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-left transition-colors hover:bg-warning/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    title={`${targets.length} tab(s) blocked Chrome scripting access. Click to view details.`}
+                    title={tooltip}
                     aria-label="Toggle token seeder failure details"
                 >
                     <div className="flex items-center gap-2 min-w-0">

@@ -1,5 +1,6 @@
 /**
- * Lovable Common — XPath + delay defaults + shared LovableApiClient.
+ * Lovable Common — XPath + delay defaults, shared LovableApiClient,
+ * and the shared XPath/delay editor (P18).
  *
  * Consumed at runtime by lovable-owner-switch and lovable-user-add.
  */
@@ -22,4 +23,11 @@ export type {
     UpdateMembershipRoleRequest,
     WorkspaceSummary,
 } from "./api/lovable-api-types";
+
+export {
+    mountXPathEditor, buildDefaultEditorRows,
+    buildEditorTable, readEditorRows,
+    TITLE_EDITOR, LABEL_RESET, LABEL_SAVE,
+} from "./ui";
+export type { XPathEditorOptions, XPathEditorRow } from "./ui";
 

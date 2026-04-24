@@ -14,9 +14,8 @@ _Nothing currently in progress — TS Migration V2 backlog fully cleared at v2.2
 
 | # | Item | Priority | Reference |
 |---|---|---|---|
-| 1 | **AC-2 main-branch fallback in installer** — implement spec §2 step 5 (currently exits 5 instead of falling through with `🌿` banner) | Medium | `.lovable/memory/suggestions/20260424-1900-suggestion-installer-ac2-main-branch-fallback.md` |
-| 2 | Per-script migration to shared `ProjectInstruction` types (Priority 0.2–0.6) | Low | checklist ready |
-| 3 | Installer hardening v0.3 — sign `checksums.txt` (minisign or cosign) | Low | spec §7.1.4 rule 5 |
+| 1 | Per-script migration to shared `ProjectInstruction` types (Priority 0.2–0.6) | Low | checklist ready |
+| 2 | Installer hardening v0.3 — sign `checksums.txt` (minisign or cosign) | Low | spec §7.1.4 rule 5 |
 
 
 ---
@@ -34,10 +33,11 @@ _Nothing currently in progress — TS Migration V2 backlog fully cleared at v2.2
 
 ## ✅ Completed
 
-### Session 2026-04-24 — Installer hardening v0.2 (SHA-256) + SDK self-test popup panel + installer audit + handler-guards regression + sql.js types
+### Session 2026-04-24 — AC-2 main-branch fallback + Installer hardening v0.2 (SHA-256) + SDK self-test popup panel + installer audit + handler-guards regression + sql.js types
 
 | Task | Result |
 |---|---|
+| **AC-2 — main-branch fallback in `install.sh`** (spec §2 step 5) | ✅ — `fetch_latest_version()` now distinguishes HTTP 200+empty / 404 (→ `__MAIN_BRANCH__` sentinel + `🌿 Discovery mode — main branch (no releases found)` banner, exit 0) from 5xx/network (→ exit 5 unchanged). New `download_main_branch_tarball()` fetches `archive/refs/heads/<MAIN_BRANCH>.tar.gz`; `install_extension()` handles tar.gz with `--strip-components=1`. VERSION file records `<branch>@HEAD`. Mock server: `MOCK_ZERO_RELEASES=1\|404` + new tarball route + ustar `buildFakeTarGz()`. **AC-2 added (12 new assertions, 2 sub-cases)**; mock-server suite **62/62** passing, resolver **46/46** (mock curl rewritten to honor `-o`/`-w '%{http_code}'`), Vitest **484/484**. Spec §2.2 rule 2 + AC-2 row updated. |
 | **Installer hardening v0.2 — SHA-256 checksum verification** | ✅ — `install.sh` `verify_checksum()` + `install.ps1` `Test-Checksum` fetch `checksums.txt` from same release, compare SHA-256 (sha256sum/shasum/openssl/Get-FileHash), exit 6 on mismatch, soft-warn on missing/no-tool. Mock server emits `checksums.txt` with `MOCK_CHECKSUM_MODE=correct\|wrong\|missing`. **3 new ACs (AC-21/22/23) + 12 assertions**; mock-server suite **51/51** passing. Spec §7.1 added (Checksum verification contract) + AC-21/22/23 in §9. |
 
 

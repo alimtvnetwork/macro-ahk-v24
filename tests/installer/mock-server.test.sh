@@ -10,6 +10,7 @@
 #
 # Coverage:
 #   AC-1   No flag, releases exist → API lookup + install latest
+#   AC-2   No flag, ZERO releases (200+{} or 404) → main-branch tarball
 #   AC-3   URL-pin resolves + downloads from mock /releases/download/
 #   AC-4   --version vX.Y.Z resolves + downloads from mock
 #   AC-5   --version vX.Y.Z + 404 asset → exit 4 (missing-asset path)
@@ -436,6 +437,63 @@ else
     printf '  \033[31m✗\033[0m AC-23 manifest.json missing in %s\n' "${INSTALL_DIR}"
     FAIL_COUNT=$((FAIL_COUNT + 1))
     FAIL_LINES+=("AC-23 install still extracted manifest.json")
+fi
+stop_all_mocks
+
+
+# ── AC-2: no flag, no URL hint, ZERO releases → main-branch fallback ──
+# Spec §2 step 5 — when the release host is reachable but reports zero
+# releases, the installer MUST fall through to a main-branch tarball with
+# a 🌿 banner instead of exiting 5. Two sub-cases mirror what GitHub does
+# in the wild: 200 + empty body, and 404 ("Not Found" for /releases/latest).
+
+printf '\n\033[36m▸ AC-2 — zero releases (200 + {}) → main-branch fallback\033[0m\n'
+
+start_mock "MOCK_ZERO_RELEASES=1"
+INSTALL_DIR="$(mktemp_install_dir)"
+out="$(unset MARCO_INSTALLER_URL; MARCO_API_BASE="${MOCK_BASE}" MARCO_DOWNLOAD_BASE="${MOCK_BASE}" \
+    bash "${INSTALLER}" --dir "${INSTALL_DIR}" 2>&1)"
+rc=$?
+assert_eq        "AC-2 (200+{}) install exit code"        "0"                      "${rc}"
+assert_contains  "AC-2 (200+{}) main-branch banner"       "main branch"            "${out}"
+assert_contains  "AC-2 (200+{}) leaf icon"                "🌿"                     "${out}"
+assert_contains  "AC-2 (200+{}) tarball download line"    "main-branch tarball"    "${out}"
+assert_not_contains "AC-2 (200+{}) no exit-5 mention"     "Spec §2.3"              "${out}"
+if [ -f "${INSTALL_DIR}/manifest.json" ]; then
+    printf '  \033[32m✓\033[0m AC-2 (200+{}) manifest.json extracted\n'
+    PASS_COUNT=$((PASS_COUNT + 1))
+else
+    printf '  \033[31m✗\033[0m AC-2 (200+{}) manifest.json missing in %s\n' "${INSTALL_DIR}"
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+    FAIL_LINES+=("AC-2 (200+{}) manifest.json extracted")
+fi
+if [ -f "${INSTALL_DIR}/VERSION" ] && grep -q '@HEAD' "${INSTALL_DIR}/VERSION"; then
+    printf '  \033[32m✓\033[0m AC-2 (200+{}) VERSION marks main@HEAD\n'
+    PASS_COUNT=$((PASS_COUNT + 1))
+else
+    printf '  \033[31m✗\033[0m AC-2 (200+{}) VERSION not main@HEAD\n'
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+    FAIL_LINES+=("AC-2 (200+{}) VERSION marks main@HEAD")
+fi
+stop_all_mocks
+
+printf '\n\033[36m▸ AC-2 — zero releases (404) → main-branch fallback\033[0m\n'
+
+start_mock "MOCK_ZERO_RELEASES=404"
+INSTALL_DIR="$(mktemp_install_dir)"
+out="$(unset MARCO_INSTALLER_URL; MARCO_API_BASE="${MOCK_BASE}" MARCO_DOWNLOAD_BASE="${MOCK_BASE}" \
+    bash "${INSTALLER}" --dir "${INSTALL_DIR}" 2>&1)"
+rc=$?
+assert_eq        "AC-2 (404) install exit code"           "0"                      "${rc}"
+assert_contains  "AC-2 (404) main-branch banner"          "main branch"            "${out}"
+assert_contains  "AC-2 (404) tarball download line"       "main-branch tarball"    "${out}"
+if [ -f "${INSTALL_DIR}/manifest.json" ]; then
+    printf '  \033[32m✓\033[0m AC-2 (404) manifest.json extracted\n'
+    PASS_COUNT=$((PASS_COUNT + 1))
+else
+    printf '  \033[31m✗\033[0m AC-2 (404) manifest.json missing\n'
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+    FAIL_LINES+=("AC-2 (404) manifest.json extracted")
 fi
 stop_all_mocks
 

@@ -52,8 +52,16 @@ set -euo pipefail
 
 REPO="alimtvnetwork/macro-ahk-v23"
 VERSION_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$'
+# Sentinel returned by fetch_latest_version when the API responds 200 OK
+# but reports zero releases. Triggers spec §2 step 5 main-branch fallback
+# (AC-2) — distinct from a network/5xx failure which still exits 5.
+MAIN_BRANCH_SENTINEL="__MAIN_BRANCH__"
+# Default branch used by the main-branch fallback. Override per repo via
+# MARCO_MAIN_BRANCH env var or by editing this line.
+MAIN_BRANCH="${MARCO_MAIN_BRANCH:-main}"
 TMP_DIR=""
 URL_PINNED=0
+MAIN_FALLBACK=0
 DRY_RUN=0
 NO_SIBLING_DISCOVERY=0
 ENABLE_SIBLING_DISCOVERY_FLAG=0   # set by --enable-sibling-discovery
@@ -151,27 +159,71 @@ version_from_url() {
 fetch_latest_version() {
     step "Resolving latest release from github.com/${REPO}..."
     local url="${MARCO_API_BASE}/repos/${REPO}/releases/latest"
-    local tag=""
+    local body_file="${TMP_DIR:-/tmp}/marco-latest-$$.json"
+    local http_code="000"
+    local fetcher=""
 
-    # `|| true` keeps `set -e` from killing the function before the empty-tag
-    # guard fires. The guard below is the single exit-5 path per spec §2.3.
+    # Two-stage probe: capture HTTP status separately from body so we can
+    # distinguish (per spec §2 step 5 + §2.3):
+    #   - 200 OK + tag_name        → return tag (happy path, AC-1/AC-7)
+    #   - 200 OK + no tag_name     → return MAIN_BRANCH_SENTINEL (AC-2)
+    #   - 404 (no releases at all) → return MAIN_BRANCH_SENTINEL (AC-2)
+    #   - 5xx / network / no curl  → exit 5 (AC-8)
     if command -v curl >/dev/null 2>&1; then
-        tag="$(curl -fsSL "${url}" 2>/dev/null | grep '"tag_name"' | head -1 \
-            | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || true)"
+        fetcher="curl"
+        # -w writes status to stdout AFTER body goes to -o file. We do
+        # NOT use -f here — we want the body even on non-2xx, AND we
+        # need the actual code to differentiate 404 from 5xx.
+        http_code="$(curl -sSL -o "${body_file}" -w '%{http_code}' \
+            "${url}" 2>/dev/null || echo "000")"
     elif command -v wget >/dev/null 2>&1; then
-        tag="$(wget -qO- "${url}" 2>/dev/null | grep '"tag_name"' | head -1 \
-            | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || true)"
+        fetcher="wget"
+        # wget --server-response prints "HTTP/1.x <code>" to stderr; capture
+        # both stdout body and the last response code.
+        local wget_stderr
+        wget_stderr="$(wget -qO "${body_file}" --server-response "${url}" 2>&1 || true)"
+        # Last "HTTP/" line wins (in case of redirects).
+        http_code="$(printf '%s\n' "${wget_stderr}" \
+            | awk '/^[[:space:]]*HTTP\// {code=$2} END {print (code ? code : "000")}')"
     else
         err "Neither curl nor wget found — cannot fetch latest release."
         exit 5
     fi
 
-    if [ -z "${tag}" ]; then
-        err "Failed to determine latest version from GitHub API (network or rate-limit)."
-        err "Spec §2.3: discovery-mode API failure exits 5."
-        exit 5
-    fi
-    echo "${tag}"
+    case "${http_code}" in
+        2*)
+            # 200 OK — parse tag_name. Empty body or missing field means
+            # the host knows the repo but reports zero releases.
+            local tag=""
+            if [ -s "${body_file}" ]; then
+                tag="$(grep '"tag_name"' "${body_file}" | head -1 \
+                    | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || true)"
+            fi
+            rm -f "${body_file}" 2>/dev/null || true
+            if [ -n "${tag}" ]; then
+                echo "${tag}"
+                return 0
+            fi
+            # 200 OK with no tag → zero releases. Spec §2 step 5 / AC-2.
+            MAIN_FALLBACK=1
+            echo "${MAIN_BRANCH_SENTINEL}"
+            return 0
+            ;;
+        404)
+            # 404 on /releases/latest = "no published releases" per GitHub
+            # API contract. Treat as zero-releases → main-branch fallback.
+            rm -f "${body_file}" 2>/dev/null || true
+            MAIN_FALLBACK=1
+            echo "${MAIN_BRANCH_SENTINEL}"
+            return 0
+            ;;
+        *)
+            rm -f "${body_file}" 2>/dev/null || true
+            err "Failed to determine latest version from GitHub API (HTTP ${http_code} via ${fetcher})."
+            err "Spec §2.3: discovery-mode API failure exits 5."
+            exit 5
+            ;;
+    esac
 }
 
 resolve_version() {
@@ -220,6 +272,16 @@ download() {
 
 download_asset() {
     local version="$1"
+
+    # Spec §2 step 5 / AC-2: when fetch_latest_version returned the
+    # main-branch sentinel, switch to the source tarball off the default
+    # branch instead of a release ZIP. Discovery mode only — strict mode
+    # never reaches this branch (it would have exited 4 earlier).
+    if [ "${version}" = "${MAIN_BRANCH_SENTINEL}" ]; then
+        download_main_branch_tarball
+        return $?
+    fi
+
     local asset_name="marco-extension-${version}.zip"
     local asset_url="${MARCO_DOWNLOAD_BASE}/${REPO}/releases/download/${version}/${asset_name}"
     local archive_path="${TMP_DIR}/${asset_name}"
@@ -237,6 +299,30 @@ download_asset() {
     verify_checksum "${version}" "${asset_name}" "${archive_path}"
     echo "${archive_path}"
 }
+
+# Fetch the source tarball from the configured main branch. Used as the
+# spec §2 step 5 / AC-2 fallback when the release host is reachable but
+# reports zero releases. NOT subject to checksums.txt (the file lives in
+# releases, not in branches), and NOT subject to exit 4 — a missing main
+# branch is a network/tooling problem and exits 5 (spec §2.3).
+download_main_branch_tarball() {
+    local archive_name="${REPO##*/}-${MAIN_BRANCH}.tar.gz"
+    local archive_url="${MARCO_DOWNLOAD_BASE}/${REPO}/archive/refs/heads/${MAIN_BRANCH}.tar.gz"
+    local archive_path="${TMP_DIR}/${archive_name}"
+
+    step "Downloading main-branch tarball (${MAIN_BRANCH})..."
+    if ! download "${archive_url}" "${archive_path}"; then
+        err "Main-branch tarball download failed."
+        err "URL: ${archive_url}"
+        err ""
+        err "Spec §2.3: discovery-mode network failure exits 5."
+        exit 5
+    fi
+
+    ok "Downloaded successfully."
+    echo "${archive_path}"
+}
+
 
 # ── Checksum verification (spec/14-update §7.1, §8 rule 2) ──────────
 #
@@ -327,12 +413,27 @@ install_extension() {
     fi
     mkdir -p "${install_dir}"
 
-    if command -v unzip >/dev/null 2>&1; then
-        unzip -qo "${archive_path}" -d "${install_dir}"
-    else
-        err "unzip not found. Install via apt/brew and retry."
-        exit 6
-    fi
+    # Spec §2 step 5 / AC-2: main-branch fallback ships a .tar.gz that
+    # extracts to <repo>-<branch>/... — a single wrapper directory that
+    # we strip so the install dir layout matches a release ZIP.
+    case "${archive_path}" in
+        *.tar.gz|*.tgz)
+            if ! command -v tar >/dev/null 2>&1; then
+                err "tar not found — required for main-branch tarball install."
+                exit 6
+            fi
+            # --strip-components=1 collapses the wrapper dir.
+            tar -xzf "${archive_path}" -C "${install_dir}" --strip-components=1
+            ;;
+        *)
+            if command -v unzip >/dev/null 2>&1; then
+                unzip -qo "${archive_path}" -d "${install_dir}"
+            else
+                err "unzip not found. Install via apt/brew and retry."
+                exit 6
+            fi
+            ;;
+    esac
 
     local file_count
     file_count="$(find "${install_dir}" -type f | wc -l | tr -d ' ')"
@@ -347,7 +448,13 @@ install_extension() {
         exit 6
     fi
 
-    echo "${version}" > "${install_dir}/VERSION"
+    # On main-branch fallback the "version" string is the sentinel — write
+    # a human-meaningful tag instead so downstream tools see something useful.
+    local recorded_version="${version}"
+    if [ "${version}" = "${MAIN_BRANCH_SENTINEL}" ]; then
+        recorded_version="${MAIN_BRANCH}@HEAD"
+    fi
+    echo "${recorded_version}" > "${install_dir}/VERSION"
     ok "Installed ${file_count} files to ${install_dir}"
 }
 
@@ -667,12 +774,16 @@ main() {
 
     # Per spec §2.1 / §2.2 — banner identifying mode + version on first line.
     # Strict mode = URL-pinned OR explicit semver --version (NOT 'latest').
+    # Main-branch fallback (AC-2) gets its own 🌿 banner.
     local mode_banner
     local is_explicit_pin=0
     if [ -n "${VERSION_OVERRIDE}" ] && [ "${VERSION_OVERRIDE}" != "latest" ]; then
         is_explicit_pin=1
     fi
-    if [ "${URL_PINNED}" -eq 1 ] || [ "${is_explicit_pin}" -eq 1 ]; then
+    if [ "${version}" = "${MAIN_BRANCH_SENTINEL}" ]; then
+        MAIN_FALLBACK=1
+        mode_banner="🌿 Discovery mode — main branch (no releases found)"
+    elif [ "${URL_PINNED}" -eq 1 ] || [ "${is_explicit_pin}" -eq 1 ]; then
         mode_banner="🔒 Strict mode — pinned to ${version}"
     else
         mode_banner="🌊 Discovery mode — resolved ${version}"

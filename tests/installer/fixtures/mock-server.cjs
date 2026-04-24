@@ -26,6 +26,15 @@
 //                        Probed via HEAD /repos/:owner/:repo
 //   MOCK_MISSING_ASSETS  CSV of versions whose ZIP returns 404 (strict-mode
 //                        exit-4 testing), e.g. "v9.9.9,v0.0.1"
+//   MOCK_ZERO_RELEASES   "1" → /releases/latest returns 200 + "{}" body
+//                        (host reachable, repo has zero releases). Triggers
+//                        the spec §2 step 5 / AC-2 main-branch fallback.
+//                        "404" → /releases/latest returns 404 (GitHub's
+//                        actual contract for "no releases yet"), which the
+//                        installer also treats as zero-releases.
+//   MOCK_MAIN_BRANCH     Branch name advertised at the tarball route
+//                        (default "main"). The route served is
+//                        /:owner/:repo/archive/refs/heads/:branch.tar.gz.
 //   MOCK_CHECKSUM_MODE   "correct"  (default) → checksums.txt lists the real
 //                                    SHA-256 of the served ZIP for ${tag}.
 //                        "wrong"    → checksums.txt lists a deterministic but
@@ -52,6 +61,7 @@
 const http = require('http');
 const crypto = require('crypto');
 const fs = require('fs');
+const zlib = require('zlib');
 const path = require('path');
 
 const PORT = parseInt(process.env.MOCK_PORT || '0', 10);
@@ -61,6 +71,8 @@ const SIBLINGS = parseSiblings(process.env.MOCK_SIBLINGS || '');
 const MISSING_ASSETS = new Set(
     (process.env.MOCK_MISSING_ASSETS || '').split(',').map(s => s.trim()).filter(Boolean)
 );
+const ZERO_RELEASES = process.env.MOCK_ZERO_RELEASES || '';
+const MAIN_BRANCH = process.env.MOCK_MAIN_BRANCH || 'main';
 const CHECKSUM_MODE = (process.env.MOCK_CHECKSUM_MODE || 'correct').toLowerCase();
 const PORT_FILE = process.env.MOCK_PORT_FILE || path.join(process.cwd(), '.mock-port');
 const LOG = process.env.MOCK_LOG === '1';
@@ -158,6 +170,57 @@ function crc32(buf) {
     return (c ^ -1) >>> 0;
 }
 
+// Build a minimal ustar tar archive containing two entries:
+//   <wrapper>/                  (directory)
+//   <wrapper>/manifest.json     (file with the same JSON the ZIP carries)
+// Then gzip-wrap it so the route returns a valid `.tar.gz` matching what
+// codeload.github.com serves for /archive/refs/heads/<branch>.tar.gz.
+// `wrapper` mirrors GitHub's "<repo>-<branch>" naming so install.sh's
+// --strip-components=1 collapses it cleanly. Used by the AC-2
+// (main-branch fallback) path.
+function buildFakeTarGz(wrapper) {
+    const manifest = JSON.stringify({
+        manifest_version: 3,
+        name: 'Marco Mock (main)',
+        version: '0.0.0-main',
+    });
+    const blocks = [];
+    blocks.push(makeTarHeader(`${wrapper}/`, 0, '5'));   // directory
+    const fileBuf = Buffer.from(manifest);
+    blocks.push(makeTarHeader(`${wrapper}/manifest.json`, fileBuf.length, '0'));
+    blocks.push(padTo512(fileBuf));
+    // Two 512-byte zero blocks terminate a tar archive.
+    blocks.push(Buffer.alloc(1024));
+    const tar = Buffer.concat(blocks);
+    return zlib.gzipSync(tar);
+}
+
+function padTo512(buf) {
+    const pad = (512 - (buf.length % 512)) % 512;
+    return pad === 0 ? buf : Buffer.concat([buf, Buffer.alloc(pad)]);
+}
+
+function makeTarHeader(name, size, typeflag) {
+    // ustar header is 512 bytes. We populate name, mode, uid, gid, size,
+    // mtime, typeflag, magic, version. Checksum is computed last.
+    const header = Buffer.alloc(512);
+    header.write(name.slice(0, 100), 0, 100, 'utf8');
+    header.write('0000644 \0', 100, 8, 'utf8');     // mode
+    header.write('0000000 \0', 108, 8, 'utf8');     // uid
+    header.write('0000000 \0', 116, 8, 'utf8');     // gid
+    header.write(size.toString(8).padStart(11, '0') + ' ', 124, 12, 'utf8');
+    header.write('00000000000 ', 136, 12, 'utf8');  // mtime (epoch)
+    // Checksum field — fill with spaces for the calculation, write later.
+    header.write('        ', 148, 8, 'utf8');
+    header.write(typeflag, 156, 1, 'utf8');
+    header.write('ustar\0', 257, 6, 'utf8');
+    header.write('00', 263, 2, 'utf8');
+    let sum = 0;
+    for (let i = 0; i < 512; i++) sum += header[i];
+    header.write(sum.toString(8).padStart(6, '0') + '\0 ', 148, 8, 'utf8');
+    return header;
+}
+
 const server = http.createServer((req, res) => {
     log(req.method, req.url);
     const url = new URL(req.url, 'http://localhost');
@@ -171,6 +234,18 @@ const server = http.createServer((req, res) => {
         }
         if (API_FAIL === '1') {
             res.writeHead(503, { 'content-type': 'application/json' });
+            return res.end('{}');
+        }
+        // AC-2 — repo reachable but reports zero releases.
+        // ZERO_RELEASES === '404' mirrors GitHub's actual behavior; '1'
+        // returns a 200 with an empty-object body. install.sh treats
+        // both as the main-branch trigger.
+        if (ZERO_RELEASES === '404') {
+            res.writeHead(404, { 'content-type': 'application/json' });
+            return res.end('{"message":"Not Found"}');
+        }
+        if (ZERO_RELEASES === '1' || ZERO_RELEASES.toLowerCase() === 'true') {
+            res.writeHead(200, { 'content-type': 'application/json' });
             return res.end('{}');
         }
         res.writeHead(200, { 'content-type': 'application/json' });
@@ -225,6 +300,28 @@ const server = http.createServer((req, res) => {
             'content-length': zip.length,
         });
         return res.end(zip);
+    }
+
+
+    // ── GET /:owner/:repo/archive/refs/heads/:branch.tar.gz ──────────
+    // Spec §2 step 5 / AC-2 — main-branch fallback target. Mirrors
+    // codeload.github.com's tarball route. Served only when the requested
+    // branch matches MAIN_BRANCH (default "main"); other branches 404 so
+    // wrong-branch installs surface as exit 5 cleanly.
+    const tarMatch = url.pathname.match(/^\/([^/]+)\/([^/]+)\/archive\/refs\/heads\/(.+)\.tar\.gz$/);
+    if (tarMatch && req.method === 'GET') {
+        const repo = tarMatch[2];
+        const branch = tarMatch[3];
+        if (branch !== MAIN_BRANCH) {
+            res.writeHead(404, { 'content-type': 'text/plain' });
+            return res.end('Not Found');
+        }
+        const tarball = buildFakeTarGz(`${repo}-${branch}`);
+        res.writeHead(200, {
+            'content-type': 'application/gzip',
+            'content-length': tarball.length,
+        });
+        return res.end(tarball);
     }
 
 

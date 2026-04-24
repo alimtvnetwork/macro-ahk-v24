@@ -408,6 +408,14 @@ function reportRoundTrip(
             `FAIL — ${failures.length}/${checks} round-trip checks failed: ${failures.join("; ")}`,
         );
     }
+    /* Mirror to background so the popup can render the latest result. */
+    void sendSelfTestReport(roundTripSurfaceFromFn(fn), failures.length === 0, failures);
+}
+
+function roundTripSurfaceFromFn(fn: string): "kv" | "files" | "gkv" {
+    if (fn === FN_KV) return "kv";
+    if (fn === FN_FILES) return "files";
+    return "gkv";
 }
 
 function finalize(
@@ -428,5 +436,39 @@ function finalize(
             `FAIL — ${failures.length}/${checks} checks failed: ${failures.join("; ")}`,
         );
     }
+    /* Mirror sync result to background — pass version only here so the
+       popup can show the SDK build that produced the latest snapshot. */
+    void sendSelfTestReport("sync", pass, failures, version);
     return { pass, failures, checks };
 }
+
+/* ================================================================== */
+/*  Background mirror — fire-and-forget                                */
+/* ================================================================== */
+
+/**
+ * Push a single self-test row to the background's `SDK_SELFTEST_REPORT`
+ * handler so the popup can render a ✅/❌ panel with the last-run timestamp.
+ *
+ * Failures here are intentionally silent: the in-page NamespaceLogger has
+ * already reported PASS/FAIL via console.* and a transport hiccup must not
+ * itself look like a self-test failure to the user.
+ */
+async function sendSelfTestReport(
+    surface: "sync" | "kv" | "files" | "gkv",
+    pass: boolean,
+    failures: string[],
+    version?: string,
+): Promise<void> {
+    try {
+        await sendMessage("SDK_SELFTEST_REPORT", {
+            surface,
+            pass,
+            failures,
+            version: version ?? "",
+        });
+    } catch {
+        /* swallow — see jsdoc above */
+    }
+}
+

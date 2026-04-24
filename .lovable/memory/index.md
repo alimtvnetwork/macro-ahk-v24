@@ -20,6 +20,9 @@ Updated: just now
 - **Error Handling**: Defensive property access (`?.`, `??`) required. CQ14 (braces), CQ15 (newlines).
 - **Auth Contract**: Use single-path `getBearerToken()` contract. No legacy auth methods.
 - **Installer Contract**: All install scripts MUST conform to `spec/14-update/01-generic-installer-behavior.md` — strict on `--version`/release-URL, latest→main fallback otherwise, opt-in parallel sibling-repo discovery.
+- **CI/CD Issues**: Logged in `.lovable/cicd-issues/XX-name.md` and indexed in `.lovable/cicd-index.md`. Stay in folder after resolution (set `## Status ✅ Resolved`); do NOT move to `solved-issues/`.
+- **Write-Memory Protocol**: Current = `.lovable/prompts/03-write-memory.md` (v3.0). Adds CI/CD folder + verbatim-spec capture.
+- **Pre-Write Check**: Read `mem://standards/pre-write-check` and the relevant standards index entries before creating/rewriting any file under `standalone-scripts/`, `src/`, `chrome-extension/`, or `scripts/`.
 
 ## Memories
 - [Timezone](mem://localization/timezone) — Asia/Kuala_Lumpur for local timezone formatting
@@ -99,3 +102,10 @@ Updated: just now
 - [Screen-scoped variables rule](mem://architecture/screen-scoped-variables-rule) — Per-screen XPath/selector configs must never collide; HomepageDashboardVariables is the first instance
 - [Deferred workstreams](mem://preferences/deferred-workstreams) — React tests, manual Chrome testing, P Store, cross-project sync — DO NOT auto-recommend
 - [Session 2026-04-23 — TS Migration V2 cleared](mem://workflow/14-session-2026-04-23-ts-migration-v2-cleared) — v2.225.0; Phases 02/03/04/05 complete; suite 445/445 passing
+- [Session 2026-04-24 — Installer contract + AC-2 + Banner-hider RCA](mem://workflow/15-session-2026-04-24-installer-contract-and-banner-hider-rca) — v2.228.0; shared installer contract; AC-2 main-branch fallback; SHA-256 checksums; Issue 98 RCA documented (refactor pending)
+- [Payment-banner-hider violations RCA (2026-04-24)](mem://rca/01-2026-04-24-payment-banner-hider-violations) — Why 8 standards were violated at once; fix is procedural (always run pre-write-check)
+- [No unjustified requestAnimationFrame](mem://standards/no-unjustified-raf) — `requestAnimationFrame` is default-deny without a justifying comment
+- [No CSS !important](mem://standards/no-css-important) — Never use `!important`; use scoping for specificity
+- [No error swallowing](mem://standards/no-error-swallowing) — `catch` may not silently `return null/undefined`; rethrow or log via `Logger.error()`
+- [Class-based standalone scripts](mem://standards/class-based-standalone-scripts) — Every `standalone-scripts/*/src/index.ts` exports a single default class
+- [Pre-write check](mem://standards/pre-write-check) — Mandatory standards review + sibling-file scan before writing/rewriting

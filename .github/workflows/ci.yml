@@ -105,6 +105,51 @@ jobs:
         run: node scripts/check-contract-checkers-wired.mjs
 
   # ════════════════════════════════════════════════════════════
+  # Job 0a3: PascalCase instruction migration — fast-fail guard
+  #
+  # Phase 2 of the instruction-manifest migration split the canonical
+  # `dist/instruction.json` (pure PascalCase) from a transitional
+  # `dist/instruction.compat.json` (camelCase snapshot, allowed only
+  # for the vite copyProjectScripts plugin). The migration only holds
+  # if every runtime consumer reads PascalCase keys from the canonical
+  # file. A single regression — a `instruction.displayName` slipping
+  # through — silently returns `undefined`, then gets masked by
+  # `?? defaults` and only surfaces weeks later as a missing script
+  # or empty config injection.
+  #
+  # `scripts/check-pascalcase-instruction-migration.mjs` enforces three
+  # things in one pass with no deps:
+  #
+  #   CHECK A — every standalone-scripts/<name>/src/instruction.ts
+  #             contains only PascalCase object-literal keys.
+  #   CHECK B — instruction.compat.json is read only from the
+  #             documented allowlist (Phase 2c will empty it).
+  #   CHECK C — every file that reads canonical instruction.json
+  #             uses PascalCase property access on instruction-tree
+  #             receivers (`instruction`, `instructionManifest`, …).
+  #
+  # Listed in build-extension's `needs:` (below) so a regression
+  # cannot reach main even if downstream builds re-pass.
+  # ════════════════════════════════════════════════════════════
+  pascalcase-instruction-migration:
+    name: Preflight · PascalCase Instruction Migration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Assert PascalCase contract on instruction sources + readers
+        run: node scripts/check-pascalcase-instruction-migration.mjs
+
+  # ════════════════════════════════════════════════════════════
   # Job 0a2: Standalone Registry Report — fast-fail orchestration guard
   #
   # Runs `scripts/report-standalone-registry.mjs --strict` so the very
@@ -932,7 +977,7 @@ jobs:
   # ════════════════════════════════════════════════════════════
   build-extension:
     name: Build · Chrome Extension
-    needs: [spec-links, contract-checkers-wired, report-standalone-registry, typecheck-standalone, lint-standalone, build-sdk, build-xpath, build-payment-banner-hider, build-macro-controller, build-prompts]
+    needs: [spec-links, contract-checkers-wired, pascalcase-instruction-migration, report-standalone-registry, typecheck-standalone, lint-standalone, build-sdk, build-xpath, build-payment-banner-hider, build-macro-controller, build-prompts]
     runs-on: ubuntu-latest
 
     steps:

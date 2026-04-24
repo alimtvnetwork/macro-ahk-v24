@@ -256,6 +256,10 @@ export enum MessageType {
     LIBRARY_GET_VERSIONS = "LIBRARY_GET_VERSIONS",
     LIBRARY_ROLLBACK_VERSION = "LIBRARY_ROLLBACK_VERSION",
     LIBRARY_CASCADE_GROUP_SETTINGS = "LIBRARY_CASCADE_GROUP_SETTINGS",
+
+    // ─── SDK Self-Test (Popup ✅/❌ panel) ───
+    SDK_SELFTEST_REPORT = "SDK_SELFTEST_REPORT",
+    GET_SDK_SELFTEST = "GET_SDK_SELFTEST",
 }
 
 /* ------------------------------------------------------------------ */
@@ -515,7 +519,10 @@ export type MessageRequest =
     | { type: MessageType.IMPORT_AUTOMATION_CHAINS; project?: string; chains: Record<string, JsonValue>[] }
     // ─── Cache Management (Issue 88) ───
     | { type: MessageType.INVALIDATE_CACHE }
-    | { type: MessageType.GET_CACHE_STATS };
+    | { type: MessageType.GET_CACHE_STATS }
+    // ─── SDK Self-Test (Popup ✅/❌ panel) ───
+    | { type: MessageType.SDK_SELFTEST_REPORT; surface: "sync" | "kv" | "files" | "gkv"; pass: boolean; failures: string[]; version: string }
+    | { type: MessageType.GET_SDK_SELFTEST };
 
 /* ------------------------------------------------------------------ */
 /*  User Script Logging & Data Bridge (Spec 42)                       */

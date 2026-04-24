@@ -16,8 +16,10 @@ _Nothing currently in progress — TS Migration V2 backlog fully cleared at v2.2
 |---|---|---|---|
 | 1 | Vitest regression suite for handler-guards (missing-field payloads → clean `{ isOk:false }`) | Medium | `.lovable/suggestions.md` |
 | 2 | Surface latest sdkSelfTest + kv/files/gkv round-trip results in popup (✅/❌ + last-run timestamp) | Medium | `.lovable/suggestions.md` |
-| 3 | **Audit `scripts/install.{ps1,sh}` against generic installer spec** — verify §2 resolver order, §3 exit-code mapping, §5 CLI surface (`--no-sibling-discovery`, `--dry-run`); add CI fixtures for AC-1…AC-9 | High | `spec/14-update/01-generic-installer-behavior.md`, `mem://constraints/generic-installer-contract` |
-| 4 | Release installer hardening v0.2 — checksum verification + signing | Medium | `mem://workflow/13-next-commands` |
+| 3 | Release installer hardening v0.2 — checksum verification + signing | Medium | `mem://workflow/13-next-commands` |
+| 4 | **AC-2 main-branch fallback in installer** — implement spec §2 step 5 (currently exits 5 instead of falling through with `🌿` banner) | Medium | `.lovable/memory/suggestions/20260424-1900-suggestion-installer-ac2-main-branch-fallback.md` |
+| 5 | Pre-existing resolver-suite failure: `SIBLING_NAME_PATTERN` from `install.config.sh` not sourced when test cwd ≠ repo root (1/46 fail) | Low | `tests/installer/resolver.test.sh:357` |
+
 
 ---
 

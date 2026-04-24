@@ -129,6 +129,10 @@ Draft types: `standalone-scripts/types/instruction/` (one type per file, awaitin
 | **0.10** — `.d.ts` `unknown` lint coverage | Extend the no-`unknown` ESLint rule to `.d.ts` files under `standalone-scripts/types/`. | Independent |
 | **0.11** — `PaymentBannerHider` class refactor | External CSS file, no `!important`, no error swallowing, single-class entry; consume `XPathRegistry` from migrated instruction. | Blocked on 0.3 |
 | **0.12** — Standalone-script scaffolder CLI | `pnpm new:standalone <name>` generates `instruction.ts`, vite/tsconfig, dist gitignore, CI build/e2e jobs, registry entries — using the new types. | Blocked on 0.1 |
+| **0.13** — Banner-hider RCA follow-up | RCA at `spec/03-error-manage/01-error-resolution/03-retrospectives/2026-04-24-payment-banner-hider-rca.md`. 7 new memory standards (`pre-write-check`, `no-css-important`, `no-error-swallowing`, `no-type-casting`, `class-based-standalone-scripts`, `standalone-scripts-css-in-own-file`, `blank-line-before-return`) — registered in `mem://index`. | Memory updated; lint rules pending in 0.8 |
+| **0.14** — Banner-hider runtime enums | Add `BannerLifecyclePhase` and `BannerEventName` to `standalone-scripts/types/runtime/enums/`. Replace every magic string in the rewritten `index.ts`. | Blocked on 0.11 |
+| **0.15** — Typed DOM helpers in SDK | Add `RiseupAsiaMacroExt.Dom.queryHtmlElement(selector): HTMLElement \| undefined` and `queryAllHtmlElements(...)` so callsites never need `as HTMLElement`. | Blocked on 0.7 |
+| **0.16** — `RiseupAsiaMessage<TPayload>` discriminated type | Replace every `as unknown as Message` cast with a typed dispatcher keyed on `kind: BannerEventName`-style enums. | Blocked on 0.15 |
 
 ### Priority 1: E2E Verification (Blocked — Manual)
 

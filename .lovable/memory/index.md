@@ -77,6 +77,13 @@ Updated: just now
 - [No CI notifications](mem://constraints/no-ci-notifications) — Never send emails/notifications for CI build events
 - [Namespace database creation](mem://features/namespace-database-creation) — Dot-separated namespaces, max 25, System.* reserved
 - [Error logging via namespace logger](mem://standards/error-logging-via-namespace-logger.md) — Use Logger.error(), no swallowed errors
+- [Pre-write standards check](mem://standards/pre-write-check) — Read standards + sibling file before writing any new code
+- [No CSS !important](mem://standards/no-css-important) — Forbidden in CSS, LESS, and CSS-in-string-literal
+- [No error swallowing](mem://standards/no-error-swallowing) — Catch must Logger.error() and rethrow / Result.err — never silent return
+- [No type casting](mem://standards/no-type-casting) — `as T`, `as unknown as T` forbidden in standalone-scripts; fix upstream type
+- [Class-based standalone scripts](mem://standards/class-based-standalone-scripts) — Single default class entry; sub-responsibilities injected via constructor
+- [Standalone scripts CSS in own file](mem://standards/standalone-scripts-css-in-own-file) — External .css file referenced from instruction.assets.css
+- [Blank line before return](mem://standards/blank-line-before-return) — Visual separation for every non-trivial return
 - [Unknown usage policy](mem://standards/unknown-usage-policy) — Restrictions on `unknown`, fully typed functions
 - [Formatting and logic](mem://standards/formatting-and-logic) — CQ14 braces, boolean extraction, defensive property access
 - [Config defaults extraction](mem://architecture/config-defaults-extraction) — Extract default configurations into named constants

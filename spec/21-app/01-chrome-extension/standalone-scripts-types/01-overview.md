@@ -106,3 +106,124 @@ These match `00-readme.md` and the questions in the closing summary — re-state
 - The runtime `PaymentBannerHider` class refactor (separate plan item — covered by the prior banner RCA).
 - The Logger `unknown` cleanup in `riseup-namespace.d.ts` (separate plan item — depends on `CaughtError`/`JsonValue` audit).
 - The standalone-script scaffolder CLI (separate plan item).
+
+---
+
+## 11. Class architecture (added 2026-04-24)
+
+Every standalone script entry point MUST follow the class shape captured in `mem://standards/class-based-standalone-scripts`:
+
+```ts
+// standalone-scripts/payment-banner-hider/src/index.ts
+import { PaymentBannerSelectors } from "./payment-banner-selectors";
+import { PaymentBannerView } from "./payment-banner-view";
+
+export default class PaymentBannerHider {
+    private readonly selectors: PaymentBannerSelectors;
+    private readonly view: PaymentBannerView;
+
+    constructor(
+        selectors: PaymentBannerSelectors = new PaymentBannerSelectors(),
+        view: PaymentBannerView = new PaymentBannerView(),
+    ) {
+        this.selectors = selectors;
+        this.view = view;
+    }
+
+    public start(): void { /* ... */ }
+    public stop(): void { /* ... */ }
+}
+
+new PaymentBannerHider().start();
+```
+
+Constraints:
+
+- Single default class export.
+- Cohesive sub-responsibilities (selector resolution, view, telemetry, settings IO) become their own classes injected through the constructor with default instances — so tests can substitute fakes.
+- No top-level free functions for behaviour. Top-level allowed: the default class, the bootstrap `new …().start()`, and `type` re-exports.
+
+## 12. CSS in its own file (added 2026-04-24)
+
+Every script that needs styling ships a sibling CSS file (`mem://standards/standalone-scripts-css-in-own-file`):
+
+```
+standalone-scripts/payment-banner-hider/
+├── css/
+│   └── payment-banner-hider.css
+└── src/
+    └── instruction.ts   ← assets.css: [{ file: "css/payment-banner-hider.css", injectInto: AssetInjectTarget.Head }]
+```
+
+Hide / show MUST be implemented as a class toggle on a stable `data-marco-banner-hider` attribute, paired with a CSS `transition`. Example:
+
+```css
+[data-marco-banner-hider] {
+    transition: opacity 200ms ease;
+}
+
+[data-marco-banner-hider].marco-banner-hider--hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+[data-marco-banner-hider].marco-banner-hider--removed {
+    display: none;
+}
+```
+
+`!important` is forbidden (`mem://standards/no-css-important`). If specificity is losing, fix the selector — never escalate.
+
+## 13. Enums live in the global types folder (added 2026-04-24)
+
+Any closed-set string used by a standalone script MUST be declared as an enum in `standalone-scripts/types/` and imported by name. Examples:
+
+- `BannerLifecyclePhase { Visible, Hiding, Hidden, Removed }` — replaces `"fading"` / `"hidden"` magic strings.
+- `BannerEventName { BannerDetected, BannerHidden, BannerRestored }` — replaces ad-hoc message strings.
+
+These join the existing instruction-side enums (`InjectionWorld`, `XPathKind`, `MatchType`, `AssetInjectTarget`, `InjectionRunAt`) under `standalone-scripts/types/instruction/enums/` and a new sibling `standalone-scripts/types/runtime/enums/` for purely runtime concepts.
+
+## 14. No type casts (added 2026-04-24)
+
+`as T`, `as unknown as T`, and `<T>x` are forbidden in `standalone-scripts/` (`mem://standards/no-type-casting`). If a cast feels necessary, the upstream type is wrong. Concretely for the banner-hider:
+
+| Wrong | Right |
+|---|---|
+| `document.querySelector(sel) as HTMLElement` | `RiseupAsiaMacroExt.Dom.queryHtmlElement(sel): HTMLElement \| undefined` (added once, reused everywhere) |
+| `(payload as unknown as BannerMessage)` | `RiseupAsiaMessage<BannerMessage>` discriminated by `kind: BannerEventName` |
+| `(window as Window & { … })` | Extend `RiseupAsiaMacroExtNamespace` in the global `.d.ts` |
+
+Every cast removed in the migration must be replaced with a typed helper that lives in the SDK or the global types.
+
+## 15. No error swallowing (added 2026-04-24)
+
+Every `catch` block in a standalone script must call `RiseupAsiaMacroExt.Logger?.error(functionName, message, caught)` and either rethrow or return a typed `Result.err(...)`. Returning `null` / `undefined` / a fallback object is forbidden (`mem://standards/no-error-swallowing`).
+
+Blank line before `return` is required (`mem://standards/blank-line-before-return`).
+
+## 16. Hide strategy (added 2026-04-24)
+
+The banner hide flow is a CSS class toggle plus a `transitionend` listener. No `requestAnimationFrame`. No JS state machine. Pseudocode:
+
+```ts
+public hide(element: HTMLElement): void {
+    element.classList.add("marco-banner-hider--hidden");
+    element.addEventListener(
+        "transitionend",
+        () => element.classList.add("marco-banner-hider--removed"),
+        { once: true },
+    );
+}
+```
+
+Three CSS rules + one method = full feature. `Q5` in §5 covers whether a generic `StandaloneScript` runtime base class should standardise this lifecycle across scripts.
+
+## 17. Pre-write standards check (added 2026-04-24)
+
+Per `mem://standards/pre-write-check`, the agent MUST, before writing any standalone-script file:
+
+1. List `.lovable/memory/standards/` and read every standard whose name overlaps the change.
+2. Read at least one sibling file in the target folder to inherit local pattern.
+3. Restate in the response which standards apply and how the new file complies.
+
+This precondition exists because the 2026-04-24 banner-hider RCA traced every defect to a memory rule the agent already had access to but did not consult.

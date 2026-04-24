@@ -9,17 +9,18 @@
  * instruction.json is the SOLE source of truth — script-manifest.json
  * is no longer required.
  *
- * ── PascalCase migration (Phase 2a) ──
+ * ── PascalCase storage layer (Phase 2c) ──
  *
- * The emitted seed-manifest.json uses PascalCase keys end-to-end, matching
- * `ProjectInstruction` / `SeedManifest` (TS type). Reading from instruction.json
- * prefers PascalCase keys and falls back to legacy camelCase aliases (still
- * dual-emitted by `compile-instruction.mjs`) so a half-migrated tree still
- * builds. The fallback is removed in Phase 2c.
+ * The emitted seed-manifest.json uses PascalCase keys end-to-end,
+ * matching `ProjectInstruction` / `SeedManifest` (TS type). The reader
+ * below requires the input `instruction.json` to be the canonical
+ * PascalCase artifact emitted by `scripts/compile-instruction.mjs`
+ * (Phase 2b) — no camelCase fallback. The transitional
+ * `instruction.compat.json` is consumed only by the vite copy plugin.
  *
- * SchemaVersion bumped 1 → 2: PascalCase key rename. The runtime seeder
- * (`src/background/manifest-seeder.ts`) accepts both versions for one
- * release (see SUPPORTED_SCHEMA_VERSIONS there).
+ * SchemaVersion is pinned to 2: PascalCase rename. The runtime seeder
+ * (`src/background/manifest-seeder.ts`) only accepts v2; v1
+ * (camelCase) was removed alongside this script's compat read.
  *
  * Usage:
  *   node scripts/generate-seed-manifest.mjs [--out <path>]
@@ -36,22 +37,39 @@ import { execFileSync } from "node:child_process";
 const ROOT = resolve(import.meta.dirname, "..");
 const STANDALONE_DIR = join(ROOT, "standalone-scripts");
 
-/** Bumped to 2 when PascalCase rename landed (Phase 2a). */
+/** Pinned to 2 when PascalCase rename landed (Phase 2a). v1 (camelCase)
+ * is no longer emitted; v1 manifests are not accepted by the runtime
+ * seeder either (see manifest-seeder.ts SUPPORTED_SCHEMA_VERSIONS). */
 const SCHEMA_VERSION = 2;
 
 /* ------------------------------------------------------------------ */
-/*  Reader helpers — prefer PascalCase, fall back to camelCase          */
-/*  during the Phase 2a→2c migration window. Both spellings are still   */
-/*  dual-emitted by compile-instruction.mjs.                            */
+/*  Reader — PascalCase only                                            */
+/*                                                                      */
+/*  Phase 2c (storage layer) requires the input instruction.json to be  */
+/*  the canonical PascalCase artifact emitted by compile-instruction.   */
+/*  No camelCase fallback. A missing key is a hard error visible in the */
+/*  build log; do NOT add `pick(obj, "Pascal", "camel")` lenience here. */
 /* ------------------------------------------------------------------ */
 
-/** Read the first defined value from `obj` for any of `keys`. */
-function pick(obj, ...keys) {
-    if (!obj || typeof obj !== "object") return undefined;
-    for (const key of keys) {
-        if (key in obj && obj[key] !== undefined) return obj[key];
+/** Read a required PascalCase key. Throws with a precise location if missing/undefined. */
+function need(obj, key, location) {
+    if (!obj || typeof obj !== "object") {
+        throw new Error(`[generate-seed-manifest] ${location}: expected object, got ${typeof obj}`);
     }
-    return undefined;
+    if (!(key in obj) || obj[key] === undefined) {
+        throw new Error(
+            `[generate-seed-manifest] ${location}: missing required PascalCase key "${key}". ` +
+            `Re-run \`node scripts/compile-instruction.mjs <project>\` to regenerate ` +
+            `instruction.json from the source instruction.ts.`,
+        );
+    }
+    return obj[key];
+}
+
+/** Read an optional PascalCase key. Returns the value or `fallback` (default undefined). */
+function opt(obj, key, fallback = undefined) {
+    if (!obj || typeof obj !== "object") return fallback;
+    return key in obj && obj[key] !== undefined ? obj[key] : fallback;
 }
 
 /* ------------------------------------------------------------------ */

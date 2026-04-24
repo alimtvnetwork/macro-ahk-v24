@@ -796,76 +796,23 @@ jobs:
       # Hard gate run BEFORE `pnpm run build:extension` so a missing
       # payment-banner-hider artifact fails fast with a precise
       # error pointing at the exact file the extension build expects.
-      # Historically `check-standalone-dist.mjs` (chained inside
-      # build:extension) caught this — but only after ~30s of
-      # unrelated setup work. This step short-circuits in <1s and
-      # produces an inline `::error file=…::` annotation on the PR.
+      # Uses the shared `scripts/assert-standalone-dist.mjs` helper
+      # so the same precise failure pattern can be reused for every
+      # other standalone artifact (sdk, xpath, macro-controller, …)
+      # by adding one short step per artifact instead of duplicating
+      # 60 lines of inline shell.
       - name: Assert payment-banner-hider dist artifact present
-        shell: bash
-        env:
-          ARTIFACT_NAME: ${{ steps.trace-payment-banner-hider-artifact.outputs.artifact_name }}
-          ARTIFACT_ID: ${{ steps.trace-payment-banner-hider-artifact.outputs.artifact_id }}
-          ARTIFACT_BROWSER_URL: ${{ steps.trace-payment-banner-hider-artifact.outputs.browser_download_url }}
-          ARTIFACT_API_URL: ${{ steps.trace-payment-banner-hider-artifact.outputs.archive_download_url }}
         run: |
-          set -euo pipefail
-          DIST_DIR="$(pwd)/standalone-scripts/payment-banner-hider/dist"
-          BUNDLE="${DIST_DIR}/payment-banner-hider.js"
-          INSTRUCTION="${DIST_DIR}/instruction.json"
-
-          echo "── Asserting payment-banner-hider dist before extension build ──"
-          echo "DIST_DIR=${DIST_DIR}"
-          echo "Source artifact: ${ARTIFACT_NAME} (id=${ARTIFACT_ID})"
-          echo "  browser URL: ${ARTIFACT_BROWSER_URL}"
-          echo "  API URL:     ${ARTIFACT_API_URL}"
-
-          if [ ! -d "$DIST_DIR" ]; then
-            echo "::error file=standalone-scripts/payment-banner-hider/dist,title=Payment Banner Hider dist directory missing::Expected directory ${DIST_DIR} after downloading artifact '${ARTIFACT_NAME}' (id=${ARTIFACT_ID}) from job 'build-payment-banner-hider'. Browser URL: ${ARTIFACT_BROWSER_URL}. The download step likely failed silently — verify the upstream upload-artifact step ran."
-            exit 1
-          fi
-
-          echo "── Contents of dist dir ──"
-          ls -la "$DIST_DIR"
-
-          if [ ! -f "$BUNDLE" ]; then
-            echo "::error file=standalone-scripts/payment-banner-hider/dist/payment-banner-hider.js,title=payment-banner-hider.js missing from dist artifact::Expected ${BUNDLE} but it was not found. Source artifact: ${ARTIFACT_NAME} (id=${ARTIFACT_ID}) — open ${ARTIFACT_BROWSER_URL} to inspect what was actually uploaded. Files actually present: $(ls "$DIST_DIR" | tr '\n' ' '). Check vite.config.payment-banner-hider.ts → build.rollupOptions.output.entryFileNames is 'payment-banner-hider.js' (not hashed)."
-            exit 1
-          fi
-
-          if [ ! -f "$INSTRUCTION" ]; then
-            echo "::error file=standalone-scripts/payment-banner-hider/dist/instruction.json,title=instruction.json missing from dist artifact::Expected ${INSTRUCTION}. Source artifact: ${ARTIFACT_NAME} (id=${ARTIFACT_ID}) — open ${ARTIFACT_BROWSER_URL} to inspect. Check that scripts/compile-instruction.mjs ran during build:payment-banner-hider."
-            exit 1
-          fi
-
-          BYTES=$(wc -c < "$BUNDLE" | tr -d ' ')
-          if [ "$BYTES" -lt 100 ]; then
-            echo "::error file=standalone-scripts/payment-banner-hider/dist/payment-banner-hider.js,title=payment-banner-hider.js suspiciously small (${BYTES} bytes)::Bundle exists but is < 100 bytes — likely a build error produced an empty file. Source artifact: ${ARTIFACT_NAME} (id=${ARTIFACT_ID}). Open ${ARTIFACT_BROWSER_URL} to inspect. Re-run build-payment-banner-hider."
-            exit 1
-          fi
-
-          VERSION=$(node -p "require('${INSTRUCTION}').version")
-          SHA=$(sha256sum "$BUNDLE" | awk '{print $1}')
-
-          echo "✅ payment-banner-hider dist verified"
-          echo "   path:    ${BUNDLE}"
-          echo "   bytes:   ${BYTES}"
-          echo "   sha256:  ${SHA}"
-          echo "   version: ${VERSION}"
-
-          {
-            echo "## ✅ Pre-build assertion — Payment Banner Hider dist"
-            echo ""
-            echo "| Field | Value |"
-            echo "|-------|-------|"
-            echo "| Bundle path | \`${BUNDLE}\` |"
-            echo "| Size (bytes) | \`${BYTES}\` |"
-            echo "| SHA-256 | \`${SHA}\` |"
-            echo "| Version | \`${VERSION}\` |"
-            echo "| Source artifact name | \`${ARTIFACT_NAME}\` |"
-            echo "| Source artifact ID | \`${ARTIFACT_ID}\` |"
-            echo "| Artifact (one-click) | [${ARTIFACT_BROWSER_URL}](${ARTIFACT_BROWSER_URL}) |"
-            echo "| Artifact (API) | \`${ARTIFACT_API_URL}\` |"
-          } >> "$GITHUB_STEP_SUMMARY"
+          node scripts/assert-standalone-dist.mjs \
+            --script-name payment-banner-hider \
+            --dist-dir standalone-scripts/payment-banner-hider/dist \
+            --bundle payment-banner-hider.js \
+            --artifact-name "${{ steps.trace-payment-banner-hider-artifact.outputs.artifact_name }}" \
+            --artifact-id "${{ steps.trace-payment-banner-hider-artifact.outputs.artifact_id }}" \
+            --artifact-url "${{ steps.trace-payment-banner-hider-artifact.outputs.browser_download_url }}" \
+            --artifact-api-url "${{ steps.trace-payment-banner-hider-artifact.outputs.archive_download_url }}" \
+            --vite-config standalone-scripts/payment-banner-hider/vite.config.ts \
+            --min-bytes 100
 
       - name: Build Chrome extension
         run: pnpm run build:extension

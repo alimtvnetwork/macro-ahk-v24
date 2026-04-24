@@ -413,13 +413,23 @@ function readProjects(db: Database): StoredProject[] {
       id: resolveUid(obj),
       schemaVersion: (col(obj, "SchemaVersion", "schema_version") as number) ?? 1,
       name: (col(obj, "Name", "name") as string),
+      slug: (obj["Slug"] as string) ?? undefined,
       version: (col(obj, "Version", "version") as string),
       description: (col(obj, "Description", "description") as string) ?? undefined,
       targetUrls: safeJsonParse(col(obj, "TargetUrls", "target_urls") as string, []),
       scripts: safeJsonParse(col(obj, "Scripts", "scripts") as string, []),
       configs: safeJsonParse(col(obj, "Configs", "configs") as string, []),
+      // v5: read both cookies (modern) and cookieRules (deprecated). v4
+      // bundles lack the Cookies column entirely — safeJsonParse(null, [])
+      // returns [], which matches the runtime "no bindings" sentinel.
+      cookies: safeJsonParse(obj["Cookies"] as string ?? null, []),
       cookieRules: safeJsonParse(col(obj, "CookieRules", "cookie_rules") as string, []),
+      dependencies: safeJsonParse(obj["Dependencies"] as string ?? null, []),
       settings: safeJsonParse(col(obj, "Settings", "settings") as string, {}),
+      isGlobal: obj["IsGlobal"] === 1,
+      // Default to TRUE when column absent (v4 bundles) — preserves the
+      // pre-v5 behaviour where every imported project was deletable.
+      isRemovable: obj["IsRemovable"] == null ? true : obj["IsRemovable"] === 1,
       createdAt: (col(obj, "CreatedAt", "created_at") as string),
       updatedAt: (col(obj, "UpdatedAt", "updated_at") as string),
     } as StoredProject;
@@ -447,6 +457,10 @@ function readScripts(db: Database): StoredScript[] {
       configBinding: (col(obj, "ConfigBinding", "config_binding") as string) ?? undefined,
       isIife: col(obj, "IsIife", "is_iife") === 1,
       hasDomUsage: col(obj, "HasDomUsage", "has_dom_usage") === 1,
+      // v5 — auto-update fields. Absent in v4 bundles (returns undefined,
+      // which the runtime treats as "auto-update disabled").
+      updateUrl: (obj["UpdateUrl"] as string) ?? undefined,
+      lastUpdateCheck: (obj["LastUpdateCheck"] as string) ?? undefined,
       createdAt: (col(obj, "CreatedAt", "created_at") as string),
       updatedAt: (col(obj, "UpdatedAt", "updated_at") as string),
     } as StoredScript;
@@ -489,6 +503,9 @@ function readPrompts(db: Database): PromptEntry[] {
       const obj = Object.fromEntries(cols.map((c: SqlValue, i: number) => [c, row[i]]));
       return {
         id: resolveUid(obj),
+        // v5 — Slug column is now actually written. v4 bundles return
+        // undefined here, which the Task Next resolver treats as "no slug".
+        slug: (obj["Slug"] as string) ?? undefined,
         name: (col(obj, "Name", "name") as string),
         text: (col(obj, "Text", "text") as string),
         order: (col(obj, "RunOrder", "run_order") as number) ?? 0,

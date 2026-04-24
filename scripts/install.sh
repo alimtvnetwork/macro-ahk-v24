@@ -159,27 +159,71 @@ version_from_url() {
 fetch_latest_version() {
     step "Resolving latest release from github.com/${REPO}..."
     local url="${MARCO_API_BASE}/repos/${REPO}/releases/latest"
-    local tag=""
+    local body_file="${TMP_DIR:-/tmp}/marco-latest-$$.json"
+    local http_code="000"
+    local fetcher=""
 
-    # `|| true` keeps `set -e` from killing the function before the empty-tag
-    # guard fires. The guard below is the single exit-5 path per spec §2.3.
+    # Two-stage probe: capture HTTP status separately from body so we can
+    # distinguish (per spec §2 step 5 + §2.3):
+    #   - 200 OK + tag_name        → return tag (happy path, AC-1/AC-7)
+    #   - 200 OK + no tag_name     → return MAIN_BRANCH_SENTINEL (AC-2)
+    #   - 404 (no releases at all) → return MAIN_BRANCH_SENTINEL (AC-2)
+    #   - 5xx / network / no curl  → exit 5 (AC-8)
     if command -v curl >/dev/null 2>&1; then
-        tag="$(curl -fsSL "${url}" 2>/dev/null | grep '"tag_name"' | head -1 \
-            | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || true)"
+        fetcher="curl"
+        # -w writes status to stdout AFTER body goes to -o file. We do
+        # NOT use -f here — we want the body even on non-2xx, AND we
+        # need the actual code to differentiate 404 from 5xx.
+        http_code="$(curl -sSL -o "${body_file}" -w '%{http_code}' \
+            "${url}" 2>/dev/null || echo "000")"
     elif command -v wget >/dev/null 2>&1; then
-        tag="$(wget -qO- "${url}" 2>/dev/null | grep '"tag_name"' | head -1 \
-            | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || true)"
+        fetcher="wget"
+        # wget --server-response prints "HTTP/1.x <code>" to stderr; capture
+        # both stdout body and the last response code.
+        local wget_stderr
+        wget_stderr="$(wget -qO "${body_file}" --server-response "${url}" 2>&1 || true)"
+        # Last "HTTP/" line wins (in case of redirects).
+        http_code="$(printf '%s\n' "${wget_stderr}" \
+            | awk '/^[[:space:]]*HTTP\// {code=$2} END {print (code ? code : "000")}')"
     else
         err "Neither curl nor wget found — cannot fetch latest release."
         exit 5
     fi
 
-    if [ -z "${tag}" ]; then
-        err "Failed to determine latest version from GitHub API (network or rate-limit)."
-        err "Spec §2.3: discovery-mode API failure exits 5."
-        exit 5
-    fi
-    echo "${tag}"
+    case "${http_code}" in
+        2*)
+            # 200 OK — parse tag_name. Empty body or missing field means
+            # the host knows the repo but reports zero releases.
+            local tag=""
+            if [ -s "${body_file}" ]; then
+                tag="$(grep '"tag_name"' "${body_file}" | head -1 \
+                    | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || true)"
+            fi
+            rm -f "${body_file}" 2>/dev/null || true
+            if [ -n "${tag}" ]; then
+                echo "${tag}"
+                return 0
+            fi
+            # 200 OK with no tag → zero releases. Spec §2 step 5 / AC-2.
+            MAIN_FALLBACK=1
+            echo "${MAIN_BRANCH_SENTINEL}"
+            return 0
+            ;;
+        404)
+            # 404 on /releases/latest = "no published releases" per GitHub
+            # API contract. Treat as zero-releases → main-branch fallback.
+            rm -f "${body_file}" 2>/dev/null || true
+            MAIN_FALLBACK=1
+            echo "${MAIN_BRANCH_SENTINEL}"
+            return 0
+            ;;
+        *)
+            rm -f "${body_file}" 2>/dev/null || true
+            err "Failed to determine latest version from GitHub API (HTTP ${http_code} via ${fetcher})."
+            err "Spec §2.3: discovery-mode API failure exits 5."
+            exit 5
+            ;;
+    esac
 }
 
 resolve_version() {

@@ -110,6 +110,26 @@ All critical AHK features implemented. 44 issue write-ups documented. 26 enginee
 
 ## Remaining Backlog
 
+### Priority 0: Standalone Scripts — Global Instruction Types (2026-04-24)
+
+Spec: `spec/21-app/01-chrome-extension/standalone-scripts-types/01-overview.md`
+Draft types: `standalone-scripts/types/instruction/` (one type per file, awaiting Q1–Q5 sign-off).
+
+| Task | Description | Status |
+|------|-------------|--------|
+| **0.1** — Review Q1–Q5 | Decide enum-vs-`as const`, optional-vs-required `xpaths`, `EmptySettings` naming, field renames, runtime base class. | Awaiting reviewer |
+| **0.2** — Wire `compile-instruction.mjs` | Emit legacy keys (`world`, `isIife`, `inject`) for one release while runtime migrates. | Blocked on 0.1 |
+| **0.3** — Migrate `payment-banner-hider/src/instruction.ts` | Import `ProjectInstruction<EmptySettings>`; delete local interface. | Blocked on 0.1 |
+| **0.4** — Migrate `xpath/src/instruction.ts` | Same as 0.3; introduce `XPathRegistry` for the script's own selectors. | Blocked on 0.1 |
+| **0.5** — Migrate `marco-sdk/src/instruction.ts` | Same as 0.3; shared `ProjectInstruction` re-export removed. | Blocked on 0.1 |
+| **0.6** — Migrate `macro-controller/src/instruction.ts` | Add `MacroControllerSettings` type next to controller; pass to `ProjectInstruction<MacroControllerSettings>`. | Blocked on 0.1 |
+| **0.7** — Logger `unknown` cleanup | Replace `unknown` in `riseup-namespace.d.ts` with `CaughtError` / `ReadonlyArray<JsonValue>`. | Independent |
+| **0.8** — ESLint `id-denylist` rule | Ban `fn`, `cb`, `el`, `msg`, `cfg`, `ctx`, `obj`, `arr`, `str`, `num`, `tmp`, `val` repo-wide. | Independent |
+| **0.9** — ESLint `consistent-type-definitions` | Scope `["error", "type"]` to `standalone-scripts/types/instruction/` first; widen later. | Independent |
+| **0.10** — `.d.ts` `unknown` lint coverage | Extend the no-`unknown` ESLint rule to `.d.ts` files under `standalone-scripts/types/`. | Independent |
+| **0.11** — `PaymentBannerHider` class refactor | External CSS file, no `!important`, no error swallowing, single-class entry; consume `XPathRegistry` from migrated instruction. | Blocked on 0.3 |
+| **0.12** — Standalone-script scaffolder CLI | `pnpm new:standalone <name>` generates `instruction.ts`, vite/tsconfig, dist gitignore, CI build/e2e jobs, registry entries — using the new types. | Blocked on 0.1 |
+
 ### Priority 1: E2E Verification (Blocked — Manual)
 
 | Task | Description | Status |

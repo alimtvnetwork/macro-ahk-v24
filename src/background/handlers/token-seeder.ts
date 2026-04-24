@@ -211,10 +211,12 @@ async function readSupabaseJwtFromTab(tabId: number): Promise<string | null> {
     } catch (readError) {
         if (isTabAccessDeniedError(readError)) {
             const tabUrl = await getTabUrl(tabId);
+            const reason = readError instanceof Error ? readError.message : String(readError);
             warnInaccessibleTabOnce(
                 tabId,
                 tabUrl ?? "unknown-tab-url",
-                readError instanceof Error ? readError.message : String(readError),
+                reason,
+                classifyAccessDeniedError(reason),
             );
         }
         return null;

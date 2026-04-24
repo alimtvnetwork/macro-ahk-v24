@@ -410,7 +410,7 @@ function reportProject(name, result) {
                 `│  error:           ${res.parseError}\n` +
                 `└──────────────────────────────────────────────────────────────\n`,
             );
-            annotate(fileRel, `Invalid JSON: ${res.parseError}`);
+            annotateFile(fileRel, `Invalid JSON in ${fileRel}: ${res.parseError}`);
             failures.push({ project: name, label: label.trim(), shape, fileRel, fileAbs, kind: "parse-error", count: 1 });
             exit = 1;
             continue;
@@ -429,7 +429,16 @@ function reportProject(name, result) {
                 `│  override:        INSTRUCTION_CASING_MAX_NODES / INSTRUCTION_CASING_MAX_DEPTH env vars\n` +
                 `└──────────────────────────────────────────────────────────────\n`,
             );
-            annotate(fileRel, `Walker aborted: ${explain}. Likely a runaway/oversized artifact — investigate compile-instruction.mjs output.`);
+            // Walker-aborted: emit the file-level summary AND per-key
+            // annotations for whatever partial violations were collected
+            // before the abort, so devs still see exact offending keys.
+            annotateFile(fileRel, `Walker aborted on ${fileRel}: ${explain}. Likely a runaway/oversized artifact — investigate compile-instruction.mjs output.`);
+            if (res.violations.length > 0) {
+                const emitted = annotateKeys(fileRel, res.violations, shape);
+                if (res.violations.length > emitted) {
+                    annotateFile(fileRel, `… and ${res.violations.length - emitted} more ${shape}-shape violation(s) before walker abort (run with --json or set INSTRUCTION_CASING_MAX_ANNOTATIONS for the full list).`);
+                }
+            }
             failures.push({ project: name, label: label.trim(), shape, fileRel, fileAbs, kind: "walker-aborted", count: res.violations.length });
             exit = 1;
             continue;
@@ -464,9 +473,25 @@ function reportProject(name, result) {
         }
         process.stderr.write(`└──────────────────────────────────────────────────────────────\n`);
 
-        annotate(
+        // Per-key GitHub Actions annotations: one ::error per
+        // offending JSON-pointer key, capped at MAX_ANNOTATIONS so a
+        // totally-broken file can't drown the Actions UI. When the
+        // cap kicks in, append a single summary annotation pointing
+        // at the file with the truncated-count and a how-to-see-all
+        // hint. Followed by a final file-level summary annotation
+        // that names the artifact + total violation count, so the
+        // PR Files Changed view always has at least one inline marker
+        // even when --json mode or local runs would skip per-key ones.
+        const emittedKeys = annotateKeys(fileRel, res.violations, shape);
+        if (res.violations.length > emittedKeys) {
+            annotateFile(
+                fileRel,
+                `… and ${res.violations.length - emittedKeys} more ${shape}-shape violation(s) in ${fileRel} (showing first ${emittedKeys}; run --json or raise INSTRUCTION_CASING_MAX_ANNOTATIONS for the full list).`,
+            );
+        }
+        annotateFile(
             fileRel,
-            `${res.violations.length} ${shape}-shape violation(s). First offender: ${res.violations[0].path} → "${res.violations[0].key}". ` +
+            `${res.violations.length} ${shape}-shape violation(s) in ${fileRel}. First offender: ${res.violations[0].path} → "${res.violations[0].key}". ` +
             `Fix compile-instruction.mjs or the source instruction.ts so this artifact stays pure ${shape}.`,
         );
         failures.push({ project: name, label: label.trim(), shape, fileRel, fileAbs, kind: "casing", count: res.violations.length });

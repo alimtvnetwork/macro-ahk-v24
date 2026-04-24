@@ -31,7 +31,7 @@ const instruction: ProjectInstruction = {
     schemaVersion: "1.0",
     name: "payment-banner-hider",
     displayName: "Payment Banner Hider",
-    version: "1.0.0",
+    version: "2.230.0",
     description: "Auto-hides the Lovable 'Payment issue detected.' sticky banner with a smooth CSS3 fade.",
     world: "MAIN",
     isGlobal: true,
@@ -51,7 +51,9 @@ const instruction: ProjectInstruction = {
         settings: {},
     },
     assets: {
-        css: [],
+        css: [
+            { file: "payment-banner-hider.css", inject: "head" },
+        ],
         configs: [],
         scripts: [
             {

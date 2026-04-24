@@ -32,6 +32,7 @@
     "check:installer-contract": "node scripts/check-installer-contract.mjs",
     "check:installer-constants-clean": "node scripts/check-installer-constants-clean.mjs",
     "check:contract-checkers-wired": "node scripts/check-contract-checkers-wired.mjs",
+    "check:pascalcase-instruction-migration": "node scripts/check-pascalcase-instruction-migration.mjs",
     "installer:contract:gen": "node scripts/generate-installer-constants.mjs",
     "build:wasm-checksum": "node scripts/compute-wasm-checksum.mjs",
     "build:extension": "node scripts/check-manifest-version.mjs && node scripts/check-manifest-permissions.mjs && node scripts/check-axios-version.mjs && node scripts/lint-const-reassign.mjs && node scripts/check-no-bg-dynamic-import.mjs && node scripts/check-spec-links.mjs && node scripts/compile-instruction.mjs standalone-scripts/marco-sdk && node scripts/compile-instruction.mjs standalone-scripts/xpath && node scripts/compile-instruction.mjs standalone-scripts/payment-banner-hider && node scripts/compile-instruction.mjs standalone-scripts/macro-controller && node scripts/check-standalone-dist.mjs && node scripts/check-version-sync.mjs && pnpm run build:prompts && vite build --config vite.config.extension.ts && node scripts/compute-wasm-checksum.mjs && node scripts/check-built-manifest-csp.mjs",

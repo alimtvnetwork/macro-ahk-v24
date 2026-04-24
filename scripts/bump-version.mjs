@@ -128,6 +128,25 @@ function getTargets(ver) {
         { pattern: /("version"\s*:\s*")[\d.]+(")/,          replacement: `$1${ver}$2` },
       ],
     },
+    {
+      // P20 — Lovable Owner Switch / User Add / Common (registered for unified bump)
+      path: "standalone-scripts/lovable-common/src/instruction.ts",
+      replacements: [
+        { pattern: /(version:\s*")[\d.]+(")/,               replacement: `$1${ver}$2` },
+      ],
+    },
+    {
+      path: "standalone-scripts/lovable-owner-switch/src/instruction.ts",
+      replacements: [
+        { pattern: /(version:\s*")[\d.]+(")/,               replacement: `$1${ver}$2` },
+      ],
+    },
+    {
+      path: "standalone-scripts/lovable-user-add/src/instruction.ts",
+      replacements: [
+        { pattern: /(version:\s*")[\d.]+(")/,               replacement: `$1${ver}$2` },
+      ],
+    },
   ];
 }
 

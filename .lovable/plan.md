@@ -14,10 +14,27 @@ _Nothing currently in progress._
 
 | # | Item | Priority | Reference |
 |---|---|---|---|
-| 1 | Per-script migration to shared `ProjectInstruction` types (Priority 0.2–0.6) | Low | checklist ready |
-| 2 | Installer hardening v0.3 — sign `checksums.txt` (minisign or cosign) | Low | spec §7.1.4 rule 5 |
-| 3 | Mirror AC-2 main-branch fallback in `install.ps1` | Medium | spec §2 step 5 |
-| 4 | Wire `check:installer-contract` into `.github/workflows/installer-tests.yml` | Medium | spec §13 |
+| 1 | **Refactor `payment-banner-hider` per Issue 98 RCA** — class split (`PaymentBannerHider` + `BannerMatcher` + `BannerObserver` + `BannerHidingStrategy`), sibling `css/payment-banner-hider.css`, enums for selectors/classes/events/states, no `!important`, no `as` casts, no rAF, no swallowed errors | **High** | `spec/22-app-issues/98-payment-banner-hider-violation-rca.md` |
+| 2 | Per-script migration to shared `ProjectInstruction` types (Priority 0.2–0.6) | Low | checklist ready |
+| 3 | Installer hardening v0.3 — sign `checksums.txt` (minisign or cosign) | Low | spec §7.1.4 rule 5 |
+| 4 | Mirror AC-2 main-branch fallback in `install.ps1` | Medium | spec §2 step 5 |
+| 5 | Wire `check:installer-contract` into `.github/workflows/installer-tests.yml` | Medium | spec §13 |
+
+### 🔍 Review items (rules already stored — verify enforcement)
+
+| # | Item | Where stored | Verify |
+|---|---|---|---|
+| R1 | No `!important` rule | `mem://standards/no-css-important` | grep `standalone-scripts/**` — must be 0 hits (currently 16 in `payment-banner-hider/src/index.ts`) |
+| R2 | No error swallowing | `mem://standards/no-error-swallowing` | grep `catch \{` and `catch (_) \{` across `standalone-scripts/**` |
+| R3 | Blank line before return | `mem://standards/blank-line-before-return` | visual diff or planned ESLint rule (Task 0.8) |
+| R4 | Class-based standalone scripts | `mem://standards/class-based-standalone-scripts` | every `standalone-scripts/*/src/index.ts` exports a single default class |
+| R5 | No magic strings (CQ3) | `mem://standards/code-quality-improvement` | enum/const for grouped values |
+| R6 | No type casting | `mem://standards/no-type-casting` | grep `\bas [A-Z]` (excluding `as const`) |
+| R7 | No `unknown` outside `CaughtError` | `mem://standards/unknown-usage-policy` | grep `: unknown` and `as unknown` |
+| R8 | CSS in own file | `mem://standards/standalone-scripts-css-in-own-file` | grep `<style` and `cssText` |
+| R9 | Pre-write standards check | `mem://standards/pre-write-check` | agent restates compliance before writing new files |
+| R10 | No unjustified `requestAnimationFrame` (new 2026-04-24) | `mem://standards/no-unjustified-raf` | grep `requestAnimationFrame` — each hit must have justifying comment |
+| R11 | Banner-hider RCA recorded | `mem://rca/2026-04-24-payment-banner-hider-violations` + `spec/22-app-issues/98-...` | both files present ✓ |
 
 
 ---

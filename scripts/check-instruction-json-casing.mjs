@@ -55,11 +55,25 @@
  *       JSON-Pointer-like path. Suppresses human-readable logs and GitHub
  *       Actions ::error annotations so the stdout stream is pure JSON
  *       (machine-parseable for debugging, dashboards, or piping into jq).
- *       Exit code semantics are unchanged. Schema:
- *         { tool, version, scannedProjects, exitCode,
+ *       Exit code semantics are unchanged. Schema (version 2):
+ *         { tool, version: 2, scannedProjects, exitCode,
+ *           summary: {
+ *             scannedProjects, skippedProjects, missingArtifactProjects,
+ *             totalViolations, ok,
+ *             totals: {
+ *               canonical: { shape:"PascalCase", artifact:"instruction.json",
+ *                            scanned, violationCount, parseErrors,
+ *                            walkAborted, failingProjects: [...], ok },
+ *               compat:    { shape:"camelCase",  artifact:"instruction.compat.json", … }
+ *             }
+ *           },
+ *           // summary.ok mirrors `exitCode === 0` (so it is false when
+ *           // any project is missing artifacts even if both buckets are
+ *           // clean). totals.<bucket>.ok is scoped to the projects whose
+ *           // artifacts were actually scanned.
  *           projects: [{ name, skipped, missingArtifact,
  *             artifacts: { canonical: { path, shape, ok, parseError,
- *               violationCount, violations: [{ path, key, expected }] },
+ *               walkAborted, violationCount, violations: [{ path, key, expected }] },
  *                          compat:    { … } } }] }
  *
  * Exit codes:
@@ -533,7 +547,7 @@ function main() {
             if (jsonMode) {
                 process.stdout.write(JSON.stringify({
                     tool: "check-instruction-json-casing",
-                    version: 1,
+                    version: 2,
                     error: `Could not resolve project name from "${projectArg}"`,
                     exitCode: 2,
                     scannedProjects: 0,
@@ -548,7 +562,7 @@ function main() {
             if (jsonMode) {
                 process.stdout.write(JSON.stringify({
                     tool: "check-instruction-json-casing",
-                    version: 1,
+                    version: 2,
                     error: `Project not found: standalone-scripts/${name}`,
                     exitCode: 2,
                     scannedProjects: 0,
@@ -566,7 +580,7 @@ function main() {
             if (jsonMode) {
                 process.stdout.write(JSON.stringify({
                     tool: "check-instruction-json-casing",
-                    version: 1,
+                    version: 2,
                     error: `standalone-scripts/ not found at ${rel(STANDALONE_DIR)}`,
                     exitCode: 2,
                     scannedProjects: 0,
@@ -591,11 +605,67 @@ function main() {
             if (entry.exitCode > worst) worst = entry.exitCode;
             entries.push(entry);
         }
+
+        // ── Top-level aggregate summary ─────────────────────────────
+        // Roll every project's per-artifact result into two buckets
+        // (canonical = instruction.json / PascalCase, compat =
+        // instruction.compat.json / camelCase) so a CI dashboard or
+        // jq one-liner can read total drift without walking the full
+        // projects[] array. Counts cover violations only — parse
+        // errors and walker aborts are tracked as separate booleans
+        // per project (see `failingProjects` below) so a single bad
+        // file can't inflate violation totals.
+        const buildBucket = (artifactKey, shape) => {
+            const violations = [];   // { project, path, key, expected }
+            const failingProjects = new Set();
+            let parseErrors = 0;
+            let walkAborted = 0;
+            let scanned = 0;
+            for (const e of entries) {
+                if (e.skipped || e.missingArtifact || !e.artifacts) continue;
+                const a = e.artifacts[artifactKey];
+                if (!a) continue;
+                scanned++;
+                if (a.parseError) { parseErrors++; failingProjects.add(e.name); }
+                if (a.walkAborted) { walkAborted++; failingProjects.add(e.name); }
+                if (a.violationCount > 0) failingProjects.add(e.name);
+                for (const v of a.violations) {
+                    violations.push({ project: e.name, path: v.path, key: v.key, expected: v.expected });
+                }
+            }
+            return {
+                shape,
+                artifact: artifactKey === "canonical" ? "instruction.json" : "instruction.compat.json",
+                scanned,
+                violationCount: violations.length,
+                parseErrors,
+                walkAborted,
+                failingProjects: [...failingProjects].sort(),
+                ok: violations.length === 0 && parseErrors === 0 && walkAborted === 0,
+            };
+        };
+
+        const summary = {
+            scannedProjects: scanned,
+            skippedProjects: entries.filter((e) => e.skipped).length,
+            missingArtifactProjects: entries.filter((e) => e.missingArtifact).length,
+            totals: {
+                canonical: buildBucket("canonical", "PascalCase"),
+                compat: buildBucket("compat", "camelCase"),
+            },
+            // Convenience flat counters for dashboards.
+            totalViolations: 0,
+            ok: worst === 0,
+        };
+        summary.totalViolations =
+            summary.totals.canonical.violationCount + summary.totals.compat.violationCount;
+
         const report = {
             tool: "check-instruction-json-casing",
-            version: 1,
+            version: 2,
             scannedProjects: scanned,
             exitCode: worst,
+            summary,
             projects: entries,
         };
         process.stdout.write(JSON.stringify(report, null, 2) + "\n");

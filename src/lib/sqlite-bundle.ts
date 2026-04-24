@@ -725,6 +725,7 @@ export async function exportPromptsAsSqliteZip(): Promise<void> {
         const r = raw as unknown as Record<string, unknown>;
         return {
           id: String(r.id ?? ""),
+          slug: typeof r.slug === "string" ? r.slug : undefined,
           name: (r.name as string) ?? "",
           text: (r.text as string) ?? "",
           order: typeof r.order === "number" ? r.order : i,

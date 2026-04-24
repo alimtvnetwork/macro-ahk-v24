@@ -36,7 +36,7 @@
 | 09 | `09-injection-and-host-access/` | 🟡 Skeleton |
 | 10 | `10-testing-and-qa/` | 🟡 Skeleton |
 | 11 | `11-cicd-and-release/` | 🟡 Skeleton |
-| 12 | `12-templates/` | 🟡 Skeleton |
+| 12 | `12-templates/` | ✅ Authored (15 full artifacts + overview) |
 | 13 | `13-ai-onboarding-prompt.md` | 🟡 Placeholder |
 | 97 | `97-acceptance-criteria.md` | 🟡 Placeholder |
 | 98 | `98-changelog.md` | ✅ Present |
@@ -57,3 +57,4 @@ Skeleton phase — all internal links point to placeholder files within this fol
 | Date | Version | Action |
 |------|---------|--------|
 | 2026-04-24 | 1.0.0 | Initial skeleton consistency report created |
+| 2026-04-24 | 1.1.0 | `12-templates/` promoted from skeleton to authored — all 15 artifacts complete |

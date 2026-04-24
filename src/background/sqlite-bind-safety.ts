@@ -142,7 +142,9 @@ export function wrapDatabaseWithBindSafety(db: SqlJsDatabase): SqlJsDatabase {
         get(target, prop, receiver) {
             if (prop === "run") {
                 return function wrappedRun(sql: string, params?: BindParams): SqlJsDatabase {
-                    if (params && params.length > 0) assertBindable(sql, params);
+                    if (Array.isArray(params) && params.length > 0) {
+                        assertBindable(sql, params as ReadonlyArray<unknown>);
+                    }
                     target.run(sql, params);
                     return receiver as SqlJsDatabase;
                 };
@@ -150,7 +152,9 @@ export function wrapDatabaseWithBindSafety(db: SqlJsDatabase): SqlJsDatabase {
 
             if (prop === "exec") {
                 return function wrappedExec(sql: string, params?: BindParams) {
-                    if (params && params.length > 0) assertBindable(sql, params);
+                    if (Array.isArray(params) && params.length > 0) {
+                        assertBindable(sql, params as ReadonlyArray<unknown>);
+                    }
                     // sql.js Database.exec accepts an optional params array even
                     // though our typings only declare the single-arg form.
                     return (target.exec as unknown as (s: string, p?: BindParams) => ReturnType<SqlJsDatabase["exec"]>)(sql, params);
@@ -174,13 +178,17 @@ function wrapStatementWithBindSafety(stmt: Statement, sql: string): Statement {
         get(target, prop, receiver) {
             if (prop === "bind") {
                 return function wrappedBind(params?: BindParams): boolean {
-                    if (params && params.length > 0) assertBindable(sql, params);
+                    if (Array.isArray(params) && params.length > 0) {
+                        assertBindable(sql, params as ReadonlyArray<unknown>);
+                    }
                     return target.bind(params);
                 };
             }
             if (prop === "run") {
                 return function wrappedStmtRun(params?: BindParams): void {
-                    if (params && params.length > 0) assertBindable(sql, params);
+                    if (Array.isArray(params) && params.length > 0) {
+                        assertBindable(sql, params as ReadonlyArray<unknown>);
+                    }
                     target.run(params);
                 };
             }

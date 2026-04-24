@@ -186,6 +186,31 @@ const server = http.createServer((req, res) => {
         return res.end();
     }
 
+    // ── GET /:owner/:repo/releases/download/:tag/checksums.txt ──────
+    // Must come BEFORE the generic asset route below — otherwise the
+    // 4-segment regex would treat "checksums.txt" as just another asset
+    // name and try to serve a fake zip for it.
+    const checksumMatch = url.pathname.match(/^\/([^/]+)\/([^/]+)\/releases\/download\/([^/]+)\/checksums\.txt$/);
+    if (checksumMatch && req.method === 'GET') {
+        if (CHECKSUM_MODE === 'missing') {
+            res.writeHead(404, { 'content-type': 'text/plain' });
+            return res.end('Not Found');
+        }
+        const tag = checksumMatch[3];
+        const assetName = `marco-extension-${tag}.zip`;
+        const zip = buildFakeZip(tag);
+        const realHash = crypto.createHash('sha256').update(zip).digest('hex');
+        const hash = CHECKSUM_MODE === 'wrong'
+            ? '0'.repeat(64)
+            : realHash;
+        const body = `${hash}  ${assetName}\n`;
+        res.writeHead(200, {
+            'content-type': 'text/plain',
+            'content-length': Buffer.byteLength(body),
+        });
+        return res.end(body);
+    }
+
     // ── GET /:owner/:repo/releases/download/:tag/:asset ──────────────
     const dlMatch = url.pathname.match(/^\/([^/]+)\/([^/]+)\/releases\/download\/([^/]+)\/([^/]+)$/);
     if (dlMatch && req.method === 'GET') {
@@ -201,6 +226,7 @@ const server = http.createServer((req, res) => {
         });
         return res.end(zip);
     }
+
 
     // ── Fallback ─────────────────────────────────────────────────────
     res.writeHead(404, { 'content-type': 'text/plain' });

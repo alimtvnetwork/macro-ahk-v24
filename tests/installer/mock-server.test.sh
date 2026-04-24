@@ -372,6 +372,74 @@ assert_contains     "AC-13 plan cites rule 6"                "rule 6"          "
 assert_not_contains "AC-13 no sibling probe banner"          "Newer sibling repo detected" "${out}"
 stop_all_mocks
 
+# ── AC-21: checksum verifies on happy-path install ───────────────────
+# Spec §7.1 — installer downloads checksums.txt from the same release,
+# computes SHA-256 of the archive locally, and prints "Checksum verified".
+# MOCK_CHECKSUM_MODE defaults to "correct" so this is the silent-success path.
+
+printf '\n\033[36m▸ AC-21 — checksum verifies on happy-path install\033[0m\n'
+
+start_mock ""
+INSTALL_DIR="$(mktemp_install_dir)"
+out="$(MARCO_API_BASE="${MOCK_BASE}" MARCO_DOWNLOAD_BASE="${MOCK_BASE}" \
+    bash "${INSTALLER}" --version v1.2.3 --dir "${INSTALL_DIR}" 2>&1)"
+rc=$?
+assert_eq        "AC-21 install exit code"                "0"                  "${rc}"
+assert_contains  "AC-21 verifying step printed"           "Verifying SHA-256"  "${out}"
+assert_contains  "AC-21 verified line printed"            "Checksum verified"  "${out}"
+stop_all_mocks
+
+# ── AC-22: wrong checksum → exit 6 (no install) ──────────────────────
+# Spec §3 + §8 rule 2 — a mismatched SHA-256 MUST abort the install with
+# exit 6 and MUST NOT touch the install dir.
+
+printf '\n\033[36m▸ AC-22 — wrong checksum → exit 6\033[0m\n'
+
+start_mock "MOCK_CHECKSUM_MODE=wrong"
+INSTALL_DIR="$(mktemp_install_dir)"
+out="$(MARCO_API_BASE="${MOCK_BASE}" MARCO_DOWNLOAD_BASE="${MOCK_BASE}" \
+    bash "${INSTALLER}" --version v1.2.3 --dir "${INSTALL_DIR}" 2>&1)"
+rc=$?
+assert_eq        "AC-22 mismatch exit code"               "6"                  "${rc}"
+assert_contains  "AC-22 mismatch banner"                  "Checksum MISMATCH"  "${out}"
+assert_contains  "AC-22 expected hex printed"             "expected:"          "${out}"
+assert_contains  "AC-22 actual hex printed"               "actual:"            "${out}"
+if [ ! -d "${INSTALL_DIR}" ] || [ -z "$(ls -A "${INSTALL_DIR}" 2>/dev/null)" ]; then
+    printf '  \033[32m✓\033[0m AC-22 install dir untouched on mismatch\n'
+    PASS_COUNT=$((PASS_COUNT + 1))
+else
+    printf '  \033[31m✗\033[0m AC-22 install dir was populated despite checksum mismatch\n'
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+    FAIL_LINES+=("AC-22 install dir untouched on mismatch")
+fi
+stop_all_mocks
+
+# ── AC-23: missing checksums.txt → soft-warn, install proceeds ───────
+# Spec §7.1 back-compat clause — releases that predate v0.2 hardening do
+# not ship checksums.txt. The installer MUST warn and continue, not fail,
+# so users on those legacy releases can still reinstall via the new script.
+
+printf '\n\033[36m▸ AC-23 — missing checksums.txt → warn + succeed\033[0m\n'
+
+start_mock "MOCK_CHECKSUM_MODE=missing"
+INSTALL_DIR="$(mktemp_install_dir)"
+out="$(MARCO_API_BASE="${MOCK_BASE}" MARCO_DOWNLOAD_BASE="${MOCK_BASE}" \
+    bash "${INSTALLER}" --version v1.2.3 --dir "${INSTALL_DIR}" 2>&1)"
+rc=$?
+assert_eq        "AC-23 install exit code"                "0"                       "${rc}"
+assert_contains  "AC-23 warning printed"                  "checksums.txt not found" "${out}"
+assert_contains  "AC-23 skip notice printed"              "Skipping checksum"       "${out}"
+if [ -f "${INSTALL_DIR}/manifest.json" ]; then
+    printf '  \033[32m✓\033[0m AC-23 install still extracted manifest.json\n'
+    PASS_COUNT=$((PASS_COUNT + 1))
+else
+    printf '  \033[31m✗\033[0m AC-23 manifest.json missing in %s\n' "${INSTALL_DIR}"
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+    FAIL_LINES+=("AC-23 install still extracted manifest.json")
+fi
+stop_all_mocks
+
+
 # ── Mock server hygiene ──────────────────────────────────────────────
 
 printf '\n\033[36m▸ Mock server hygiene\033[0m\n'

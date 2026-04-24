@@ -234,8 +234,86 @@ download_asset() {
     fi
 
     ok "Downloaded successfully."
+    verify_checksum "${version}" "${asset_name}" "${archive_path}"
     echo "${archive_path}"
 }
+
+# ── Checksum verification (spec/14-update §7.1, §8 rule 2) ──────────
+#
+# Downloads checksums.txt from the same release as the asset and
+# compares its SHA-256 line for ${asset_name} to the locally computed
+# digest of ${archive_path}.
+#
+# Behavior:
+#   - Match            → log success, continue install.
+#   - Mismatch         → exit 6 (per §3 + §8 rule 2).
+#   - checksums.txt    → soft-warn + continue (older releases predating
+#     missing            v0.2 hardening did not ship checksums.txt;
+#                        gating on it would break legacy reinstalls).
+#   - No sha256 tool   → soft-warn + continue with a remediation hint
+#                        so the user can install coreutils/Perl manually.
+#
+# All output goes through the same step/err helpers so the install log
+# remains scannable. The checksum line is intentionally NOT logged in
+# full — it would dwarf surrounding output. We log "verified" + asset.
+verify_checksum() {
+    local version="$1" asset_name="$2" archive_path="$3"
+    local checksums_url="${MARCO_DOWNLOAD_BASE}/${REPO}/releases/download/${version}/checksums.txt"
+    local checksums_path="${TMP_DIR}/checksums.txt"
+
+    step "Verifying SHA-256 of ${asset_name}..."
+
+    if ! download "${checksums_url}" "${checksums_path}" 2>/dev/null; then
+        warn "checksums.txt not found at ${checksums_url}"
+        warn "Skipping checksum verification (older release predating v0.2 hardening)."
+        return 0
+    fi
+
+    local expected
+    expected="$(grep " \\*\\?${asset_name}\$" "${checksums_path}" | awk '{print $1}' | head -1)"
+    if [ -z "${expected}" ]; then
+        warn "checksums.txt does not list ${asset_name} — skipping verification."
+        return 0
+    fi
+
+    local actual
+    actual="$(compute_sha256 "${archive_path}")"
+    if [ -z "${actual}" ]; then
+        warn "No SHA-256 tool found (sha256sum / shasum / openssl). Skipping verification."
+        warn "Install coreutils, perl, or openssl to enable integrity checks."
+        return 0
+    fi
+
+    if [ "${expected}" = "${actual}" ]; then
+        ok "Checksum verified (${asset_name})."
+        return 0
+    fi
+
+    err "Checksum MISMATCH for ${asset_name}"
+    err "  expected: ${expected}"
+    err "  actual:   ${actual}"
+    err "  source:   ${checksums_url}"
+    err ""
+    err "The downloaded archive does not match the published SHA-256."
+    err "Refusing to install — possible mirror tampering or corruption."
+    exit 6
+}
+
+# Compute SHA-256 of a file using whichever tool is available. Echoes
+# the lowercase hex digest, or an empty string if no tool exists.
+compute_sha256() {
+    local path="$1"
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "${path}" | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "${path}" | awk '{print $1}'
+    elif command -v openssl >/dev/null 2>&1; then
+        openssl dgst -sha256 "${path}" | awk '{print $NF}'
+    else
+        echo ""
+    fi
+}
+
 
 # ── Install ─────────────────────────────────────────────────────────
 

@@ -281,14 +281,60 @@ Additional flags are project-specific.
 
 ---
 
+## 7.1 Checksum verification (release-asset integrity)
+
+Every download MUST be verified against a SHA-256 digest published in the same release. This is the v0.2 hardening of §8 rule 2.
+
+### 7.1.1 Publishing contract (release pipeline)
+
+The release pipeline (e.g. `.github/workflows/release.yml`) MUST emit a single text file named **`checksums.txt`** alongside every other asset, in standard `sha256sum` format:
+
+```
+<lowercase-hex-64>  <asset-filename>
+<lowercase-hex-64>  <asset-filename>
+...
+```
+
+One line per asset. Both the legacy `<hex>  <name>` and the GNU "binary mode" `<hex>  *<name>` forms MUST be accepted by verifiers (parsers MUST tolerate the optional `*`).
+
+### 7.1.2 Verification contract (installer)
+
+Immediately after a successful download of the primary archive, every installer MUST:
+
+1. Fetch `checksums.txt` from the same release-download base URL.
+2. Locate the line whose filename column matches the downloaded asset (exact match, case-sensitive).
+3. Compute the local SHA-256 of the downloaded file using the platform's standard tool — `sha256sum`, `shasum -a 256`, `openssl dgst -sha256`, or PowerShell `Get-FileHash -Algorithm SHA256` — case-insensitive comparison.
+4. Compare the hex digests.
+
+### 7.1.3 Outcomes (normative)
+
+| Outcome | Action |
+|---------|--------|
+| **Match** | Log `Checksum verified (<asset>)`. Continue install. |
+| **Mismatch** | Exit **6** (per §3). MUST NOT touch the install directory. Error MUST include expected hex, actual hex, and source URL. |
+| **`checksums.txt` missing (404)** | Soft-warn and continue. (Back-compat: releases predating v0.2 hardening did not ship this file; gating on it would break legacy reinstalls.) |
+| **`checksums.txt` does not list the asset** | Soft-warn and continue. Same back-compat reasoning. |
+| **No SHA-256 tool available locally** | Soft-warn with a remediation hint (install `coreutils`, `perl`, or `openssl`) and continue. |
+
+### 7.1.4 Mandatory constraints
+
+1. The verification step MUST run BEFORE any extraction or write to the install directory.
+2. On mismatch the installer MUST NOT retry the download — a mismatch is a definitive abort signal (no-retry policy, `mem://constraints/no-retry-policy`).
+3. The expected and actual hex strings MUST appear in the user-facing error so the user can manually re-verify the published value.
+4. The verification download MUST go over the same scheme as the asset (HTTPS in production).
+5. Signing of `checksums.txt` (minisign / cosign) is an optional v0.3 enhancement — not required by this spec revision.
+
+---
+
 ## 8. Security considerations
 
 1. All downloads MUST go over HTTPS.
-2. Checksum mismatch → exit 6.
+2. Checksum mismatch → exit 6. (See §7.1 for the full contract.)
 3. Strict mode MUST NOT downgrade transport security on API failure.
 4. The installer MUST NOT execute arbitrary main-branch code unless discovery mode explicitly fell through (and the user was told).
 5. Sibling probes MUST NOT send credentials.
 6. Canonical pending-delete files MUST inherit the original file's ACL — no privilege widening.
+
 
 ---
 
@@ -311,6 +357,9 @@ Additional flags are project-specific.
 | AC-13 | Strict + sibling discovery on | Sibling discovery suppressed |
 | AC-14 | `--dry-run --version v1.2.3` | Plan printed, exit 0, nothing installed |
 | AC-15 – AC-20 | Deferred-delete & canonical-naming | See §5.6 |
+| AC-21 | Happy-path install + matching checksums.txt | Install completes, "Checksum verified" line in output |
+| AC-22 | Wrong checksum in checksums.txt | Exit 6, "Checksum MISMATCH" with expected + actual hex, install dir untouched |
+| AC-23 | checksums.txt missing (404) | Soft-warn, install proceeds (back-compat with pre-v0.2 releases) |
 
 ---
 

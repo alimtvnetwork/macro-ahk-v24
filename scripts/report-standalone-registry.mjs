@@ -22,6 +22,12 @@
  *            shows up on the PR diff. Designed to be the FIRST diagnostic
  *            job in CI so wiring regressions block the pipeline in <1s,
  *            long before the heavier build-* jobs would surface them.
+ * --json   — Emit a stable, schema-versioned JSON report on stdout
+ *            (no human-readable sections). Combine with `--strict` to
+ *            fail the process on any gap while still producing the
+ *            machine-readable payload (`exitCode` is also embedded
+ *            inside the JSON for downstream parsers). See
+ *            `emitJsonReport()` for the full schema.
  *
  * Excluded folders (not real standalone scripts):
  *   _generated, types, prompts (prompts is content-only, no build entry)
@@ -38,6 +44,7 @@ const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
 const STANDALONE_DIR = path.join(REPO_ROOT, "standalone-scripts");
 
 const STRICT = process.argv.includes("--strict");
+const JSON_MODE = process.argv.includes("--json");
 const IS_CI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
 
 /** Folders inside standalone-scripts/ that are NOT discoverable as a standalone script. */
@@ -163,6 +170,100 @@ function fixHint(locationKey, scriptName) {
 
 // ───────────────────────── report ───────────────────────────────────
 
+/**
+ * Stable JSON schema emitted by `--json`. Versioned so downstream
+ * consumers (CI annotators, dashboards, slack bots) can pin against
+ * `schemaVersion` and detect breaking changes.
+ *
+ * Top-level shape:
+ *   {
+ *     schemaVersion: "1.0",
+ *     mode: "strict" | "report-only",
+ *     generatedAt: ISO-8601 string,
+ *     repoRoot: absolute path,
+ *     totals: { scripts, fullyWired, withGaps, gapCount },
+ *     locations: [{ key, label }, …],         ← ordered, matches matrix columns
+ *     scripts: [
+ *       {
+ *         name: "payment-banner-hider",
+ *         fullyWired: false,
+ *         wiring: { pkgScript: true, … },     ← per-location boolean
+ *         gaps: [
+ *           {
+ *             location: "buildStandalone",    ← matches LOCATIONS[].key
+ *             label: "scripts/build-standalone.mjs",
+ *             reason: "Missing entry in scripts/build-standalone.mjs PROJECTS array",
+ *             fix: {
+ *               file: "scripts/build-standalone.mjs",
+ *               at: "PROJECTS array",
+ *               snippet: "\"payment-banner-hider\","
+ *             }
+ *           },
+ *           …
+ *         ]
+ *       },
+ *       …
+ *     ],
+ *     exitCode: 0 | 1                         ← what the process WILL exit with
+ *   }
+ */
+function emitJsonReport(matrix) {
+    const locations = LOCATIONS.map((loc) => ({ key: loc.key, label: loc.label }));
+
+    const scriptsReport = matrix.map((row) => {
+        const gaps = LOCATIONS
+            .filter((loc) => !row.wiring[loc.key])
+            .map((loc) => {
+                const hint = fixHint(loc.key, row.name);
+                const at = hint.jsonPath ?? hint.yamlKey ?? null;
+
+                return {
+                    location: loc.key,
+                    label: loc.label,
+                    reason: `Missing entry for "${row.name}" in ${hint.file}${at ? ` (${at})` : ""}`,
+                    fix: {
+                        file: hint.file,
+                        at,
+                        snippet: hint.snippet,
+                    },
+                };
+            });
+
+        return {
+            name: row.name,
+            fullyWired: gaps.length === 0,
+            wiring: { ...row.wiring },
+            gaps,
+        };
+    });
+
+    const totalGaps = scriptsReport.reduce((sum, script) => sum + script.gaps.length, 0);
+    const withGaps = scriptsReport.filter((script) => !script.fullyWired).length;
+    const willExit = STRICT && totalGaps > 0 ? 1 : 0;
+
+    const report = {
+        schemaVersion: "1.0",
+        mode: STRICT ? "strict" : "report-only",
+        generatedAt: new Date().toISOString(),
+        repoRoot: REPO_ROOT,
+        totals: {
+            scripts: scriptsReport.length,
+            fullyWired: scriptsReport.length - withGaps,
+            withGaps,
+            gapCount: totalGaps,
+        },
+        locations,
+        scripts: scriptsReport,
+        exitCode: willExit,
+    };
+
+    process.stdout.write(JSON.stringify(report, null, 2) + "\n");
+
+    if (willExit !== 0) {
+        process.exit(willExit);
+    }
+}
+
 function main() {
     const scripts = discoverScripts();
     if (scripts.length === 0) {
@@ -174,6 +275,16 @@ function main() {
         name: scriptName,
         wiring: checkWiring(scriptName),
     }));
+
+    // ── --json output mode ──────────────────────────────────────────
+    // Stable schema for automated debugging / CI annotation pipelines.
+    // Bypasses every human-readable section so stdout is parseable.
+    // Schema versioned via `schemaVersion` so consumers can pin.
+    if (JSON_MODE) {
+        emitJsonReport(matrix);
+
+        return;
+    }
 
     // ── Section A: Wiring matrix ────────────────────────────────────
     console.log("\nStandalone Registry Report");

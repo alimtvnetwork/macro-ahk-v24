@@ -303,6 +303,28 @@ const server = http.createServer((req, res) => {
     }
 
 
+    // ── GET /:owner/:repo/archive/refs/heads/:branch.tar.gz ──────────
+    // Spec §2 step 5 / AC-2 — main-branch fallback target. Mirrors
+    // codeload.github.com's tarball route. Served only when the requested
+    // branch matches MAIN_BRANCH (default "main"); other branches 404 so
+    // wrong-branch installs surface as exit 5 cleanly.
+    const tarMatch = url.pathname.match(/^\/([^/]+)\/([^/]+)\/archive\/refs\/heads\/(.+)\.tar\.gz$/);
+    if (tarMatch && req.method === 'GET') {
+        const repo = tarMatch[2];
+        const branch = tarMatch[3];
+        if (branch !== MAIN_BRANCH) {
+            res.writeHead(404, { 'content-type': 'text/plain' });
+            return res.end('Not Found');
+        }
+        const tarball = buildFakeTarGz(`${repo}-${branch}`);
+        res.writeHead(200, {
+            'content-type': 'application/gzip',
+            'content-length': tarball.length,
+        });
+        return res.end(tarball);
+    }
+
+
     // ── Fallback ─────────────────────────────────────────────────────
     res.writeHead(404, { 'content-type': 'text/plain' });
     res.end(`mock-server: no route for ${req.method} ${url.pathname}\n`);

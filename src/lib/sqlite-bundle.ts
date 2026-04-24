@@ -264,6 +264,8 @@ function insertPrompts(db: Database, prompts: PromptEntry[]): void {
   }
   stmt.free();
 }
+
+/** Fetches all data, builds a SQLite DB, zips it, and triggers download. */
 // eslint-disable-next-line max-lines-per-function
 export async function exportAllAsSqliteZip(): Promise<void> {
   const [projRes, scriptsRes, configsRes, promptsRes] = await Promise.all([

@@ -30,8 +30,57 @@ const LS_SESSION_COOKIE_KEY = "lovable-session-id.id";
 const LS_MARCO_BEARER_KEY = "marco_bearer_token";
 const RESTRICTED_URL_RE = /^(chrome|edge|brave|opera|about|devtools|chrome-extension):\/\//i;
 const warnedInaccessibleTabs = new Set<string>();
-const inaccessibleSeedTargets = new Map<string, number>();
+
+/** Reason taxonomy for a seed-access failure. Surfaced in diagnostics UI. */
+export type AccessDeniedCode =
+    | "RESPECTIVE_HOST_PERMISSION"
+    | "MISSING_HOST_PERMISSION"
+    | "PAGE_CONTENTS_BLOCKED"
+    | "EXTENSIONS_GALLERY_BLOCKED"
+    | "RESTRICTED_SCHEME"
+    | "NO_HOST_PATTERN"
+    | "PERMISSION_NOT_GRANTED"
+    | "GENERIC_CANNOT_SCRIPT"
+    | "UNKNOWN";
+
+/** Per-tab structured failure record for the diagnostics panel. */
+export interface InaccessibleSeedTarget {
+    tabId: number;
+    tabUrl: string;
+    reason: string;
+    code: AccessDeniedCode;
+    firstFailureAt: number;
+    lastFailureAt: number;
+    attemptCount: number;
+    cooldownMs: number;
+}
+
+const inaccessibleSeedTargets = new Map<string, InaccessibleSeedTarget>();
 const INACCESSIBLE_SEED_COOLDOWN_MS = 15_000;
+
+/* ------------------------------------------------------------------ */
+/*  Diagnostics public API                                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Returns a snapshot of every tab currently flagged inaccessible,
+ * including the exact detected reason and remaining cooldown. Used by
+ * the diagnostics panel (GET_TOKEN_SEEDER_DIAGNOSTICS).
+ */
+export function getInaccessibleSeedTargets(): readonly InaccessibleSeedTarget[] {
+    return Array.from(inaccessibleSeedTargets.values()).map((entry) => ({ ...entry }));
+}
+
+/** Cooldown window length used for "expires-at" calculations. */
+export function getInaccessibleSeedCooldownMs(): number {
+    return INACCESSIBLE_SEED_COOLDOWN_MS;
+}
+
+/** Test/UI helper — clears the entire inaccessible cache. */
+export function clearInaccessibleSeedTargets(): void {
+    inaccessibleSeedTargets.clear();
+    warnedInaccessibleTabs.clear();
+}
 
 /* ------------------------------------------------------------------ */
 /*  Public API                                                         */

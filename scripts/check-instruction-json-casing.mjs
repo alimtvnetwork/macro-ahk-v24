@@ -97,6 +97,44 @@ const LOWERCASE_KEY_ALLOWLIST = new Set(["config", "theme"]);
 
 const rel = (p) => relative(REPO_ROOT, p) || p;
 
+/* ----------------------------------------------------------------- */
+/*  Walker safety limits.                                             */
+/*                                                                    */
+/*  A malicious or accidentally-massive instruction.json (e.g. a      */
+/*  build that accidentally embeds a multi-MB lookup table, or a      */
+/*  cycle-broken-but-deeply-nested config tree) must NOT hang the    */
+/*  build or balloon CI memory. The walker enforces two hard caps:   */
+/*                                                                    */
+/*    MAX_NODES  — total objects + array elements visited per file.  */
+/*                 Exceeding it aborts that file's scan and surfaces */
+/*                 a clear "tree too large" diagnostic instead of    */
+/*                 silently truncating violations.                   */
+/*    MAX_DEPTH  — maximum nesting depth (object-or-array level) the */
+/*                 walker will descend into. Protects against        */
+/*                 pathological JSON that could blow Node's call     */
+/*                 stack via the recursive generator.                */
+/*                                                                    */
+/*  Both limits are generous (instruction.json artifacts in this     */
+/*  repo top out at <300 nodes / depth ~8) but bounded so a 50 MB   */
+/*  rogue file fails fast with a precise error rather than timing   */
+/*  out the CI runner. Override via env vars for stress tests:      */
+/*    INSTRUCTION_CASING_MAX_NODES=200000                            */
+/*    INSTRUCTION_CASING_MAX_DEPTH=64                                */
+/* ----------------------------------------------------------------- */
+const MAX_NODES = Number.parseInt(process.env.INSTRUCTION_CASING_MAX_NODES ?? "", 10) || 50_000;
+const MAX_DEPTH = Number.parseInt(process.env.INSTRUCTION_CASING_MAX_DEPTH ?? "", 10) || 32;
+
+class WalkAbortError extends Error {
+    constructor(reason, { nodes, depth, path }) {
+        super(reason);
+        this.name = "WalkAbortError";
+        this.reason = reason;       // "max-nodes" | "max-depth"
+        this.nodes = nodes;
+        this.depth = depth;
+        this.path = path;
+    }
+}
+
 /** Emit a GitHub Actions error annotation on the JSON file itself. */
 function annotate(file, msg) {
     process.stdout.write(`::error file=${file}::${msg}\n`);
@@ -112,18 +150,33 @@ function annotate(file, msg) {
 /*                                                                    */
 /*  Path uses dotted JSON-Pointer-like notation rooted at `$` for     */
 /*  human-readable error messages (`$.Assets.Scripts[0].File`).       */
+/*                                                                    */
+/*  Throws WalkAbortError when MAX_NODES or MAX_DEPTH is exceeded.   */
+/*  The counter is shared across the whole tree via a closure on    */
+/*  `state` so recursion accumulates correctly.                       */
 /* ----------------------------------------------------------------- */
-function* walkKeys(value, path = "$") {
+function* walkKeys(value, path = "$", depth = 0, state = { nodes: 0 }) {
+    if (depth > MAX_DEPTH) {
+        throw new WalkAbortError("max-depth", { nodes: state.nodes, depth, path });
+    }
     if (Array.isArray(value)) {
         for (let i = 0; i < value.length; i++) {
-            yield* walkKeys(value[i], `${path}[${i}]`);
+            state.nodes++;
+            if (state.nodes > MAX_NODES) {
+                throw new WalkAbortError("max-nodes", { nodes: state.nodes, depth, path: `${path}[${i}]` });
+            }
+            yield* walkKeys(value[i], `${path}[${i}]`, depth + 1, state);
         }
         return;
     }
     if (value === null || typeof value !== "object") return;
     for (const [key, val] of Object.entries(value)) {
+        state.nodes++;
+        if (state.nodes > MAX_NODES) {
+            throw new WalkAbortError("max-nodes", { nodes: state.nodes, depth, path: `${path}.${key}` });
+        }
         yield { path, key };
-        yield* walkKeys(val, `${path}.${key}`);
+        yield* walkKeys(val, `${path}.${key}`, depth + 1, state);
     }
 }
 
@@ -170,10 +223,26 @@ function scanArtifact(file, predicate, shapeLabel) {
     } catch (e) {
         return { parseError: e.message, violations };
     }
-    for (const { path, key } of walkKeys(tree)) {
-        if (!predicate(key)) {
-            violations.push({ path, key, expected: shapeLabel });
+    try {
+        for (const { path, key } of walkKeys(tree)) {
+            if (!predicate(key)) {
+                violations.push({ path, key, expected: shapeLabel });
+            }
         }
+    } catch (e) {
+        if (e instanceof WalkAbortError) {
+            return {
+                walkAborted: {
+                    reason: e.reason,         // "max-nodes" | "max-depth"
+                    nodes: e.nodes,
+                    depth: e.depth,
+                    path: e.path,
+                    limit: e.reason === "max-nodes" ? MAX_NODES : MAX_DEPTH,
+                },
+                violations,
+            };
+        }
+        throw e;
     }
     return { violations };
 }
@@ -267,6 +336,20 @@ function reportProject(name, result) {
             exit = 1;
             continue;
         }
+        if (res.walkAborted) {
+            const a = res.walkAborted;
+            const explain = a.reason === "max-nodes"
+                ? `tree exceeded MAX_NODES=${a.limit} (visited ${a.nodes} nodes before aborting at ${a.path})`
+                : `tree exceeded MAX_DEPTH=${a.limit} (depth ${a.depth} at ${a.path})`;
+            process.stderr.write(
+                `✗ ${name} ${label}: ${explain}\n` +
+                `    Override via INSTRUCTION_CASING_MAX_NODES / INSTRUCTION_CASING_MAX_DEPTH env vars if this is legitimate.\n` +
+                `    Partial scan found ${res.violations.length} violation(s) before aborting.\n`,
+            );
+            annotate(rel(file), `Walker aborted: ${explain}. Likely a runaway/oversized artifact — investigate compile-instruction.mjs output.`);
+            exit = 1;
+            continue;
+        }
         if (res.violations.length === 0) {
             console.log(`✓ ${name} ${label} — ${rel(file)} is pure ${shape}`);
             continue;
@@ -339,8 +422,24 @@ function buildJsonProjectEntry(name, result) {
                 shape,
                 ok: false,
                 parseError: res.parseError,
+                walkAborted: null,
                 violationCount: 0,
                 violations: [],
+            };
+        }
+        if (res.walkAborted) {
+            return {
+                path: rel(file),
+                shape,
+                ok: false,
+                parseError: null,
+                walkAborted: res.walkAborted,  // { reason, nodes, depth, path, limit }
+                violationCount: res.violations.length,
+                violations: res.violations.map((v) => ({
+                    path: v.path,
+                    key: v.key,
+                    expected: v.expected,
+                })),
             };
         }
         return {
@@ -348,6 +447,7 @@ function buildJsonProjectEntry(name, result) {
             shape,
             ok: res.violations.length === 0,
             parseError: null,
+            walkAborted: null,
             violationCount: res.violations.length,
             violations: res.violations.map((v) => ({
                 path: v.path,
@@ -359,7 +459,7 @@ function buildJsonProjectEntry(name, result) {
 
     const canonical = buildArtifact(result.canonical, result.canonicalResult, "PascalCase");
     const compat = buildArtifact(result.compat, result.compatResult, "camelCase");
-    const exitCode = canonical.ok && compat.ok && !canonical.parseError && !compat.parseError ? 0 : 1;
+    const exitCode = canonical.ok && compat.ok && !canonical.parseError && !compat.parseError && !canonical.walkAborted && !compat.walkAborted ? 0 : 1;
 
     return {
         name,

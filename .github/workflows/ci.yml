@@ -1037,7 +1037,43 @@ jobs:
         id: derive
         run: node scripts/derive-casing-matrix.mjs --github-output
 
-  casing-instruction-json:
+  # Job 3f-pre2: Self-test the casing checker's annotation cap.
+  #
+  # The four real `standalone-scripts/*` projects are all clean, so the
+  # `casing-instruction-json` matrix never exercises the truncation
+  # branch in `check-instruction-json-casing.mjs` (per-key annotation
+  # cap = MAX_ANNOTATIONS, default 50). A regression that breaks the
+  # cap (off-by-one summary, unbounded annotations drowning the PR
+  # Files-Changed view, missing summary line, etc.) would slip through
+  # CI silently. This tiny no-install job builds a synthetic project
+  # with > cap PascalCase violations and asserts the exact emitted
+  # annotation shape.
+  #
+  # Wired as a peer of `derive-casing-matrix` so it runs in parallel
+  # and surfaces independently in the Checks tab. Both `pull_request`
+  # and pushes to `main` run it (matches `casing-instruction-json`).
+  casing-checker-self-test:
+    name: "Casing · checker self-test (truncation)"
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Zero-dep test (uses `node:test` from Node 20 stdlib). No
+      # `pnpm install` needed — keeps this job under ~10 s end-to-end.
+      - name: Run truncation fixture test
+        run: node --test scripts/__tests__/check-instruction-json-casing-truncation.test.mjs
+
     name: "Casing · ${{ matrix.project }}"
     runs-on: ubuntu-latest
     # Restrict to the two events that gate merges to main:

@@ -67,6 +67,10 @@
  *               compat:    { shape:"camelCase",  artifact:"instruction.compat.json", … }
  *             }
  *           },
+ *           // summary.ok mirrors `exitCode === 0` (so it is false when
+ *           // any project is missing artifacts even if both buckets are
+ *           // clean). totals.<bucket>.ok is scoped to the projects whose
+ *           // artifacts were actually scanned.
  *           projects: [{ name, skipped, missingArtifact,
  *             artifacts: { canonical: { path, shape, ok, parseError,
  *               walkAborted, violationCount, violations: [{ path, key, expected }] },

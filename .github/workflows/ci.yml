@@ -66,6 +66,45 @@ jobs:
         run: node scripts/report-spec-links-ci.mjs
 
   # ════════════════════════════════════════════════════════════
+  # Job 0a1: Contract-checker wiring lint — pre-merge guard
+  #
+  # Discovers every `scripts/check-*-contract*.mjs` validator and fails
+  # if any of them is NOT invoked from at least one workflow under
+  # `.github/workflows/**` (directly via `node scripts/<name>.mjs`, or
+  # indirectly via `npm run <script>` whose package.json command runs
+  # the checker).
+  #
+  # Why a separate fast-fail job: a contract checker that is committed
+  # but never wired into CI provides zero protection against drift —
+  # this is exactly what hid `payment-banner-hider` from CI for several
+  # PRs, and what `check-installer-contract.mjs` was almost shipped
+  # without (until manually wired into installer-tests.yml). Catching
+  # this at PR time, before any install or build burns minutes, makes
+  # "you forgot to wire it" a one-line red signal.
+  #
+  # Pure Node + repo files. No deps, returns in <1s. Listed in
+  # build-extension's `needs:` (below) so an orphaned checker blocks
+  # merge even if other jobs pass.
+  # ════════════════════════════════════════════════════════════
+  contract-checkers-wired:
+    name: Preflight · Contract-Checker Wiring
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Assert every scripts/check-*-contract*.mjs is invoked from a workflow
+        run: node scripts/check-contract-checkers-wired.mjs
+
+  # ════════════════════════════════════════════════════════════
   # Job 0a2: Standalone Registry Report — fast-fail orchestration guard
   #
   # Runs `scripts/report-standalone-registry.mjs --strict` so the very
@@ -893,7 +932,7 @@ jobs:
   # ════════════════════════════════════════════════════════════
   build-extension:
     name: Build · Chrome Extension
-    needs: [spec-links, report-standalone-registry, typecheck-standalone, lint-standalone, build-sdk, build-xpath, build-payment-banner-hider, build-macro-controller, build-prompts]
+    needs: [spec-links, contract-checkers-wired, report-standalone-registry, typecheck-standalone, lint-standalone, build-sdk, build-xpath, build-payment-banner-hider, build-macro-controller, build-prompts]
     runs-on: ubuntu-latest
 
     steps:

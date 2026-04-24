@@ -60,3 +60,4 @@ Skeleton phase — all internal links point to placeholder files within this fol
 | 2026-04-24 | 1.1.0 | `12-templates/` promoted from skeleton to authored — all 15 artifacts complete |
 | 2026-04-24 | 1.2.0 | `05-storage-layers/` promoted from skeleton to authored — 6 body files (tier matrix, SQLite × 2, IndexedDB, chrome.storage.local, localStorage bridges, self-healing) |
 | 2026-04-24 | 1.3.0 | `07-error-management/` files 01 (AppError model), 02 (error code registry, 40 entries), 03 (CODE-RED file/path rule) authored. Files 04–07 remain skeleton. |
+| 2026-04-24 | 1.4.0 | `13-ai-onboarding-prompt.md` promoted from placeholder to authored — single-prompt instruction, 5-token table, 8 operating rules, 10-step build checklist with verification commands, stop conditions, final report format. |

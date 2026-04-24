@@ -151,7 +151,7 @@ list verbatim and append rows for new failure modes.
 | Pitfall | Why it breaks | Fix |
 |---------|---------------|-----|
 | Reusing `INTERNAL_INVARIANT_VIOLATED` for every "weird" branch | Loses signal — every alert page lights up the same code. | Allocate a specific code once a failure repeats. |
-| Inventing an inline prefix (`MARCO_…`, `RISEUP_…`) | Breaks the generic blueprint and routing rules. | Use a registered prefix; project identity goes in `context`. |
+| Inventing an inline prefix (`<PROJECT>_…`, `<BRAND>_…`) | Breaks the generic blueprint and routing rules. | Use a registered prefix; project identity goes in `context`. |
 | Renaming a code "to be clearer" | Breaks downstream dashboards and support docs silently. | Deprecate first, then add a new code. |
 | Encoding parameters in the code (`AUTH_TOKEN_MISSING_USER_42`) | Cardinality explodes; greps and counters lose meaning. | Keep the code stable; put `userId` in `context`. |
 | Adding a code without a unit test | Typos slip through (`AUTH_TOKEM_MISSING`). | Mandatory `tests/error-codes.spec.ts` row per code. |

@@ -30,7 +30,7 @@ _Nothing currently in progress._
 |---|---|---|
 | P1  | Shared XPath module scaffold | ✅ 2026-04-24 (`standalone-scripts/lovable-common/`) |
 | P2  | Shared `LovableApiClient` skeleton | ✅ 2026-04-24 (`standalone-scripts/lovable-common/src/api/`) |
-| P3  | `LovableApiClient` wired to `getBearerToken()` | ⏳ |
+| P3  | `LovableApiClient` wired to `getBearerToken()` | ✅ 2026-04-24 (real fetch + wire mappers + tsc strict clean) |
 | P4  | Owner Switch project scaffold | ⏳ |
 | P5  | Owner Switch SQLite migration + seeds | ⏳ |
 | P6  | Owner Switch CSV parser + validator | ⏳ |

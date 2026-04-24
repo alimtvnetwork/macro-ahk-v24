@@ -1,5 +1,11 @@
 import { LovableApiEndpoint } from "./lovable-api-endpoint";
+import { lovableHttpJson, type LovableHttpMethod } from "./lovable-http";
 import { MembershipRoleApiCode } from "./membership-role-api-code";
+import {
+    mapMembership,
+    mapMembershipArray,
+    mapWorkspaceArray,
+} from "./lovable-wire-mappers";
 import type {
     AddMembershipRequest,
     MembershipSummary,
@@ -8,20 +14,22 @@ import type {
 } from "./lovable-api-types";
 
 /**
- * BearerTokenProvider — injected dependency. P3 will wire this to the
+ * BearerTokenProvider — injected dependency. Wired by callers to the
  * unified `getBearerToken()` contract (mem://auth/unified-auth-contract).
  */
 export type BearerTokenProvider = () => Promise<string>;
 
-const NOT_IMPLEMENTED = "LovableApiClient: network call wired in P3";
+const HTTP_GET = "GET";
+const HTTP_POST = "POST";
+const HTTP_PUT = "PUT";
 
 /**
  * LovableApiClient — single source of truth for Lovable membership REST
  * calls. Consumed by both `lovable-owner-switch` (promoteToOwner) and
  * `lovable-user-add` (addMembership + promoteToOwner).
  *
- * Phase: P2 — typed contracts only; every method throws `NOT_IMPLEMENTED`.
- * Phase P3 wires real `fetch` + bearer-token resolution + namespace logger.
+ * Phase: P3 — real `fetch` wired via `lovableHttpJson`. Errors throw raw
+ * `LovableApiError`; callers MUST wrap with `RiseupAsiaMacroExt.Logger.error`.
  */
 export class LovableApiClient {
     private readonly endpoint: LovableApiEndpoint;
@@ -33,26 +41,38 @@ export class LovableApiClient {
     }
 
     public async getWorkspaces(): Promise<WorkspaceSummary[]> {
-        await this.tokenProvider();
-        throw new Error(`${NOT_IMPLEMENTED} (${this.endpoint.workspaces()})`);
+        const wire = await this.send(HTTP_GET, this.endpoint.workspaces());
+
+        return mapWorkspaceArray(wire);
     }
 
     public async getMemberships(workspaceId: string): Promise<MembershipSummary[]> {
-        await this.tokenProvider();
-        throw new Error(`${NOT_IMPLEMENTED} (${this.endpoint.memberships(workspaceId)})`);
+        const wire = await this.send(HTTP_GET, this.endpoint.memberships(workspaceId));
+
+        return mapMembershipArray(wire);
     }
 
     public async addMembership(workspaceId: string, body: AddMembershipRequest): Promise<MembershipSummary> {
-        await this.tokenProvider();
-        throw new Error(`${NOT_IMPLEMENTED} (POST ${this.endpoint.memberships(workspaceId)} ${body.Email})`);
+        const jsonBody = { email: body.Email, role: body.Role };
+        const wire = await this.send(HTTP_POST, this.endpoint.memberships(workspaceId), jsonBody);
+
+        return mapMembership(wire);
     }
 
     public async updateMembershipRole(workspaceId: string, userId: string, body: UpdateMembershipRoleRequest): Promise<MembershipSummary> {
-        await this.tokenProvider();
-        throw new Error(`${NOT_IMPLEMENTED} (PUT ${this.endpoint.membership(workspaceId, userId)} ${body.Role})`);
+        const jsonBody = { role: body.Role };
+        const wire = await this.send(HTTP_PUT, this.endpoint.membership(workspaceId, userId), jsonBody);
+
+        return mapMembership(wire);
     }
 
     public async promoteToOwner(workspaceId: string, userId: string): Promise<MembershipSummary> {
         return this.updateMembershipRole(workspaceId, userId, { Role: MembershipRoleApiCode.Owner });
+    }
+
+    private async send(method: LovableHttpMethod, endpoint: string, jsonBody?: object): Promise<object> {
+        const bearerToken = await this.tokenProvider();
+
+        return lovableHttpJson({ method, endpoint, bearerToken, jsonBody });
     }
 }

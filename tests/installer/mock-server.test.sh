@@ -162,6 +162,52 @@ else
 fi
 stop_all_mocks
 
+# ── AC-1: no flag, no URL hint, releases exist → installs latest ─────
+# Spec §2 step 3 (the canonical "happy path" for a brand-new user who
+# just runs `curl … | bash` with nothing else). Distinct from AC-7,
+# which forces the API lookup via `--version latest`. AC-1 must work
+# with zero arguments and no env hints.
+
+printf '\n\033[36m▸ AC-1 — no flag + releases exist → install latest\033[0m\n'
+
+start_mock "MOCK_LATEST_TAG=v2.501.0"
+INSTALL_DIR="$(mktemp_install_dir)"
+# Crucially: no --version flag, and MARCO_INSTALLER_URL is unset so the
+# URL-pin path in resolve_version cannot fire. Only the API lookup remains.
+out="$(unset MARCO_INSTALLER_URL; MARCO_API_BASE="${MOCK_BASE}" MARCO_DOWNLOAD_BASE="${MOCK_BASE}" \
+    bash "${INSTALLER}" --dir "${INSTALL_DIR}" 2>&1)"
+rc=$?
+assert_eq        "AC-1 no-flag install exit code"        "0"              "${rc}"
+assert_contains  "AC-1 resolved tag from API"            "v2.501.0"       "${out}"
+assert_contains  "AC-1 prints discovery banner"          "Discovery mode" "${out}"
+assert_contains  "AC-1 does NOT print strict banner"     "Discovery mode" "${out}"
+# Negative: must not have URL-pin language since no MARCO_INSTALLER_URL was set.
+if [[ "${out}" != *"pinned via release URL"* ]]; then
+    printf '  \033[32m✓\033[0m AC-1 no URL-pin language present\n'
+    PASS_COUNT=$((PASS_COUNT + 1))
+else
+    printf '  \033[31m✗\033[0m AC-1 leaked URL-pin language into discovery-mode banner\n'
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+    FAIL_LINES+=("AC-1 no URL-pin language present")
+fi
+if [ -f "${INSTALL_DIR}/manifest.json" ]; then
+    printf '  \033[32m✓\033[0m AC-1 manifest.json extracted\n'
+    PASS_COUNT=$((PASS_COUNT + 1))
+else
+    printf '  \033[31m✗\033[0m AC-1 manifest.json missing in %s\n' "${INSTALL_DIR}"
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+    FAIL_LINES+=("AC-1 manifest.json extracted")
+fi
+if [ -f "${INSTALL_DIR}/VERSION" ] && [ "$(cat "${INSTALL_DIR}/VERSION")" = "v2.501.0" ]; then
+    printf '  \033[32m✓\033[0m AC-1 VERSION file pinned to v2.501.0\n'
+    PASS_COUNT=$((PASS_COUNT + 1))
+else
+    printf '  \033[31m✗\033[0m AC-1 VERSION file missing or wrong\n'
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+    FAIL_LINES+=("AC-1 VERSION file pinned to v2.501.0")
+fi
+stop_all_mocks
+
 # ── AC-4: --version vX.Y.Z → strict download (no API call) ───────────
 
 printf '\n\033[36m▸ AC-4 — --version vX.Y.Z strict (no API)\033[0m\n'

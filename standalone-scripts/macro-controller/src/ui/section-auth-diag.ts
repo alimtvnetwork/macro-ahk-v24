@@ -176,10 +176,21 @@ export function createAuthDiagRow(deps: AuthDiagDeps): AuthDiagResult {
 
   updateAuthDiagRow();
 
-  setInterval(function () {
-    const isVisible = diagBody.style.display !== 'none';
-    if (isVisible) updateAuthDiagRow();
-  }, 10000);
+  // PERF-3 (2026-04-25): self-clearing interval keyed off diagBody
+  // connection. Re-mounting the diagnostics section (SPA nav, redock,
+  // theme swap) detaches the previous diagBody, which causes the prior
+  // timer to clear itself on next tick instead of stacking.
+  if (!diagBody.hasAttribute('data-auth-diag-poll')) {
+    diagBody.setAttribute('data-auth-diag-poll', '1');
+    const authDiagPollId = setInterval(function () {
+      if (!diagBody.isConnected) {
+        clearInterval(authDiagPollId);
+        return;
+      }
+      const isVisible = diagBody.style.display !== 'none';
+      if (isVisible) updateAuthDiagRow();
+    }, 10000);
+  }
 
   return { row: col.section, updateAuthDiagRow };
 }

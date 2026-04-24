@@ -312,27 +312,42 @@ function resolveProjectArg(arg) {
 function reportProject(name, result) {
     if (result.skipped) {
         console.log(`ℹ  ${name} — skipped (${result.reason})`);
-        return 0;
+        return { exit: 0, failures: [] };
     }
     if (result.missingArtifact) {
+        const distAbs = resolve(REPO_ROOT, result.distDir);
         process.stderr.write(
-            `\n✗ ${name} — dist artifacts missing in ${rel(result.distDir)}:\n` +
-            `    instruction.json:        ${result.canonicalExists ? "present" : "MISSING"}\n` +
-            `    instruction.compat.json: ${result.compatExists ? "present" : "MISSING"}\n` +
-            `  Fix: run \`node scripts/compile-instruction.mjs standalone-scripts/${name}\` before this check.\n\n`,
+            `\n┌─ ✗ ${name} — dist artifacts missing ─────────────────────────\n` +
+            `│  dist dir (relative): ${rel(result.distDir)}\n` +
+            `│  dist dir (absolute): ${distAbs}\n` +
+            `│    instruction.json:        ${result.canonicalExists ? "present" : "MISSING"}\n` +
+            `│    instruction.compat.json: ${result.compatExists ? "present" : "MISSING"}\n` +
+            `│  Fix: run \`node scripts/compile-instruction.mjs standalone-scripts/${name}\` before this check.\n` +
+            `└──────────────────────────────────────────────────────────────\n\n`,
         );
-        return 2;
+        return { exit: 2, failures: [] };
     }
 
     let exit = 0;
+    const failures = [];   // { project, label, shape, fileRel, fileAbs, kind, count }
 
     for (const [label, file, res, shape] of [
         ["canonical", result.canonical, result.canonicalResult, "PascalCase"],
         ["compat   ", result.compat, result.compatResult, "camelCase"],
     ]) {
+        const fileRel = rel(file);
+        const fileAbs = resolve(REPO_ROOT, file);
+
         if (res.parseError) {
-            process.stderr.write(`✗ ${name} ${label}: JSON parse error in ${rel(file)}: ${res.parseError}\n`);
-            annotate(rel(file), `Invalid JSON: ${res.parseError}`);
+            process.stderr.write(
+                `\n┌─ ✗ ${name} ${label.trim()} — JSON parse error ───────────────\n` +
+                `│  file (relative): ${fileRel}\n` +
+                `│  file (absolute): ${fileAbs}\n` +
+                `│  error:           ${res.parseError}\n` +
+                `└──────────────────────────────────────────────────────────────\n`,
+            );
+            annotate(fileRel, `Invalid JSON: ${res.parseError}`);
+            failures.push({ project: name, label: label.trim(), shape, fileRel, fileAbs, kind: "parse-error", count: 1 });
             exit = 1;
             continue;
         }
@@ -342,42 +357,58 @@ function reportProject(name, result) {
                 ? `tree exceeded MAX_NODES=${a.limit} (visited ${a.nodes} nodes before aborting at ${a.path})`
                 : `tree exceeded MAX_DEPTH=${a.limit} (depth ${a.depth} at ${a.path})`;
             process.stderr.write(
-                `✗ ${name} ${label}: ${explain}\n` +
-                `    Override via INSTRUCTION_CASING_MAX_NODES / INSTRUCTION_CASING_MAX_DEPTH env vars if this is legitimate.\n` +
-                `    Partial scan found ${res.violations.length} violation(s) before aborting.\n`,
+                `\n┌─ ✗ ${name} ${label.trim()} — walker aborted ─────────────────\n` +
+                `│  file (relative): ${fileRel}\n` +
+                `│  file (absolute): ${fileAbs}\n` +
+                `│  reason:          ${explain}\n` +
+                `│  partial scan:    ${res.violations.length} violation(s) before abort\n` +
+                `│  override:        INSTRUCTION_CASING_MAX_NODES / INSTRUCTION_CASING_MAX_DEPTH env vars\n` +
+                `└──────────────────────────────────────────────────────────────\n`,
             );
-            annotate(rel(file), `Walker aborted: ${explain}. Likely a runaway/oversized artifact — investigate compile-instruction.mjs output.`);
+            annotate(fileRel, `Walker aborted: ${explain}. Likely a runaway/oversized artifact — investigate compile-instruction.mjs output.`);
+            failures.push({ project: name, label: label.trim(), shape, fileRel, fileAbs, kind: "walker-aborted", count: res.violations.length });
             exit = 1;
             continue;
         }
         if (res.violations.length === 0) {
-            console.log(`✓ ${name} ${label} — ${rel(file)} is pure ${shape}`);
+            console.log(`✓ ${name} ${label} — ${fileRel} is pure ${shape}`);
             continue;
         }
+
+        // ── Casing violations: print a framed block with both paths
+        // and the full list of offending keys (capped at MAX_PRINT
+        // so a totally-broken file can't spam thousands of lines).
+        // Each violation is shown as `<json-path>  →  "<offending-key>"`
+        // so the developer can grep the JSON file directly for the key.
+        const expectation = shape === "PascalCase"
+            ? `expected PascalCase (or one of {${[...LOWERCASE_KEY_ALLOWLIST].join(", ")}})`
+            : `expected camelCase (no PascalCase keys allowed)`;
+        const MAX_PRINT = 50;
+
         process.stderr.write(
-            `\n✗ ${name} ${label} — ${res.violations.length} ${shape}-shape violation(s) in ${rel(file)}:\n`,
+            `\n┌─ ✗ ${name} ${label.trim()} — ${res.violations.length} ${shape}-shape violation(s) ─\n` +
+            `│  file (relative): ${fileRel}\n` +
+            `│  file (absolute): ${fileAbs}\n` +
+            `│  rule:            ${expectation}\n` +
+            `│  offending keys:  (showing ${Math.min(res.violations.length, MAX_PRINT)} of ${res.violations.length})\n`,
         );
-        // Cap the printed list so a totally-wrong file doesn't spam
-        // CI logs with thousands of lines, but always annotate the
-        // file once with the total count.
-        const MAX_PRINT = 25;
         for (const v of res.violations.slice(0, MAX_PRINT)) {
-            const expectation = shape === "PascalCase"
-                ? `expected PascalCase (or one of {${[...LOWERCASE_KEY_ALLOWLIST].join(", ")}})`
-                : `expected camelCase (no PascalCase keys allowed)`;
-            process.stderr.write(`    ${v.path}  →  "${v.key}"   ${expectation}\n`);
+            process.stderr.write(`│    ${v.path}  →  "${v.key}"\n`);
         }
         if (res.violations.length > MAX_PRINT) {
-            process.stderr.write(`    … and ${res.violations.length - MAX_PRINT} more\n`);
+            process.stderr.write(`│    … and ${res.violations.length - MAX_PRINT} more (use --json for the full list)\n`);
         }
+        process.stderr.write(`└──────────────────────────────────────────────────────────────\n`);
+
         annotate(
-            rel(file),
+            fileRel,
             `${res.violations.length} ${shape}-shape violation(s). First offender: ${res.violations[0].path} → "${res.violations[0].key}". ` +
             `Fix compile-instruction.mjs or the source instruction.ts so this artifact stays pure ${shape}.`,
         );
+        failures.push({ project: name, label: label.trim(), shape, fileRel, fileAbs, kind: "casing", count: res.violations.length });
         exit = 1;
     }
-    return exit;
+    return { exit, failures };
 }
 
 /* ----------------------------------------------------------------- */

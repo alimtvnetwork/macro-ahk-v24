@@ -5,7 +5,7 @@
  * P12: migration v1 (DDL + MembershipRole + TaskStatus seeds).
  * P13: CSV parser + validator (Editor→Member normalization).
  * P14: popup UI shell + default-role select.
- * P15: Step A — POST membership.
+ * P15: Step A — POST membership via shared `addMembership`.
  * P16: Step B — Owner promotion via shared `promoteToOwner` (R12).
  * P17: per-row state machine + sign-out.
  */
@@ -19,3 +19,5 @@ export { parseUserAddCsv, normalizeRole, UserAddCsvColumn } from "./csv";
 export type { UserAddCsvRow, UserAddCsvParseResult, RoleNormalizeResult } from "./csv";
 export { mountPopup, DEFAULT_ROLE_OPTIONS, DEFAULT_ROLE_VALUE } from "./ui";
 export type { RoleOption } from "./ui";
+export { runStepA, StepAStepCode, extractWorkspaceId, toStepAApiRole } from "./flow";
+export type { StepARequest, StepAResult, StepAStepOutcome } from "./flow";

@@ -172,6 +172,33 @@ interface InjectCtx {
   deps: SavePromptDeps;
 }
 
+/**
+ * Insert our wrapper(s) immediately before the row's first <button>
+ * (i.e., button[1] in XPath terms — the Lovable "Play and Add more" /
+ * Build button, depending on shell). This preserves the relative
+ * ordering of Lovable's existing controls so XPaths like
+ * `form/div[2]/div/button[2]` (Add To Tasks) keep resolving correctly.
+ *
+ * Falls back to `prepend` only when the container has no <button> child
+ * (e.g., empty toolbar shell during cold-load).
+ */
+function insertBeforeFirstButton(container: Element, ...wrappers: HTMLElement[]): void {
+  const firstButton = container.querySelector(':scope > button, :scope > [type="button"]');
+
+  if (firstButton) {
+    for (const wrapper of wrappers) {
+      container.insertBefore(wrapper, firstButton);
+    }
+    return;
+  }
+
+  // Cold-load fallback: nothing to anchor on yet — prepend in reverse so
+  // the visual order matches the insertBefore branch above.
+  for (let i = wrappers.length - 1; i >= 0; i--) {
+    container.prepend(wrappers[i]);
+  }
+}
+
 function tryInjectSavePrompt(ctx: InjectCtx): boolean {
   if (ctx.injected) return true;
 

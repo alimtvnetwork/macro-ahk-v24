@@ -21,6 +21,7 @@ import type { ControllerState } from './types/config-types';
 import type { DiagnosticDump, LoopCreditState } from './types/credit-types';
 import type { RenameHistoryEntry } from './types/workspace-types';
 import type { AutoAttachGroupRuntime } from './types/ui-types';
+import type { IntervalSnapshot } from './interval-registry';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -85,6 +86,12 @@ export interface AutoAttachApi {
   runGroup: (group: AutoAttachGroupRuntime) => void;
 }
 
+/** Functions exposed on `api.metrics` — runtime diagnostics counters. */
+export interface MetricsApi {
+  /** Snapshot of currently-active polling intervals (per label + total). */
+  intervals: () => IntervalSnapshot;
+}
+
 /** The public console API surface of the MacroController namespace. */
 export interface MacroControllerApi {
   loop: LoopApi;
@@ -94,6 +101,7 @@ export interface MacroControllerApi {
   ui: UiApi;
   config: ConfigApi;
   autoAttach: AutoAttachApi;
+  metrics: MetricsApi;
   mc: MacroController;
   [key: string]: unknown;
 }
@@ -183,6 +191,8 @@ export interface NsPathMap {
   'api.config.setProgressXPath': ConfigApi['setProgressXPath'];
   // api.autoAttach
   'api.autoAttach.runGroup': AutoAttachApi['runGroup'];
+  // api.metrics
+  'api.metrics.intervals': MetricsApi['intervals'];
 }
 
 /* ------------------------------------------------------------------ */

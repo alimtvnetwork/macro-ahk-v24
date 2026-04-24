@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- chrome runtime detection via globalThis */
 import type { ScriptEntry } from "@/shared/project-types";
+import type { InjectScriptsResponse, InjectionResult } from "@/shared/injection-types";
+import { normalizeInjectScriptsResponse } from "@/shared/injection-types";
 import { useState, useCallback, useRef } from "react";
 import { sendMessage } from "@/lib/message-client";
 import { getPlatform } from "@/platform";
@@ -19,14 +21,16 @@ export interface InjectionResultSummary {
   skipReason?: string;
 }
 
-interface InjectionResultEntry {
-  scriptId: string;
-  scriptName?: string;
-  isSuccess: boolean;
-  errorMessage?: string;
-  skipReason?: string;
-  durationMs?: number;
-}
+/**
+ * Local row alias — the popup only consumes a subset of `InjectionResult`
+ * fields, but the alias guarantees we stay structurally compatible with
+ * the shared type. If `InjectionResult` ever drops one of these fields,
+ * TypeScript will fail this assignment.
+ */
+type InjectionResultEntry = Pick<
+  InjectionResult,
+  "scriptId" | "scriptName" | "isSuccess" | "errorMessage" | "skipReason" | "durationMs"
+>;
 
 function triggerDownload(url: string, filename: string) {
   const a = document.createElement("a");
@@ -85,13 +89,24 @@ export function usePopupActions() {
       }
 
       console.log("[popup:handleRun] Sending INJECT_SCRIPTS for tab %d with %d scripts...%s", tabId, scripts.length, isForce ? " forceReload=true" : "");
-      const result = await sendMessage<{ results: InjectionResultEntry[] }>({
+      const rawResult = await sendMessage<InjectScriptsResponse>({
         type: "INJECT_SCRIPTS",
         tabId,
         scripts,
         ...(isForce ? { forceReload: true } : {}),
       });
-      console.log("[popup:handleRun] Injection result:", JSON.stringify(result));
+      // Normalize tolerates older backgrounds that omit
+      // `inlineSyntaxErrorDetected` — without this, downstream
+      // `if (result.inlineSyntaxErrorDetected)` checks would silently
+      // misbehave when talking to a pre-flag service worker.
+      const result = normalizeInjectScriptsResponse(rawResult);
+      if (result.inlineSyntaxFlagSource === "legacy-default") {
+        console.warn(
+          "[popup:handleRun] Background did not return inlineSyntaxErrorDetected — falling back to false (older background build).",
+        );
+      }
+      console.log("[popup:handleRun] Injection result: %d scripts, inlineSyntaxErrorDetected=%s (source=%s)",
+        result.results.length, result.inlineSyntaxErrorDetected, result.inlineSyntaxFlagSource);
 
       setLastRunResults(
         result.results.map((r) => ({

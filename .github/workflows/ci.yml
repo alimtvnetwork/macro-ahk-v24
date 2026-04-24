@@ -66,42 +66,6 @@ jobs:
         run: node scripts/report-spec-links-ci.mjs
 
   # ════════════════════════════════════════════════════════════
-  # Job 0a2: Standalone Registry Report — fast-fail orchestration guard
-  #
-  # Runs `scripts/report-standalone-registry.mjs --strict` so the very
-  # first thing visible in the CI log is a checklist of every standalone
-  # script and which orchestration source-of-truth files contain it.
-  # If a new bundle is added but only wired into 5 of the 7 required
-  # locations (the recurring failure that hid `payment-banner-hider`
-  # from CI for several PRs), the missing rows show up as `[X]` with
-  # explicit location names — no need to chase a downstream
-  # "artifact missing" error 8 minutes later.
-  #
-  # Also writes a markdown table to GITHUB_STEP_SUMMARY so the report is
-  # one click away from the PR checks tab. Listed in build-extension's
-  # `needs:` so a registry gap blocks merge.
-  #
-  # No install needed — pure Node + repo files. Returns in <1s.
-  # ════════════════════════════════════════════════════════════
-  report-standalone-registry:
-    name: Preflight · Standalone Registry Report
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Print expected scripts and resolved dist paths (--strict)
-        run: node scripts/report-standalone-registry.mjs --strict
-
-  # ════════════════════════════════════════════════════════════
   # Job 0b: Typecheck Standalone Scripts — fast-fail TS guard
   #
   # Runs `tsc --noEmit` against every standalone-script tsconfig
@@ -485,234 +449,6 @@ jobs:
           retention-days: 1
 
   # ════════════════════════════════════════════════════════════
-  # Job 3a2: Build Payment Banner Hider (parallel with 3a, 3b, 3c)
-  # ════════════════════════════════════════════════════════════
-  build-payment-banner-hider:
-    name: Build · Payment Banner Hider
-    needs: build-sdk
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
-
-      - name: Get pnpm store path
-        id: pnpm-store
-        shell: bash
-        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml', '**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            node_modules
-            standalone-scripts/*/node_modules
-          key: ${{ runner.os }}-nm-pbh-${{ hashFiles('**/pnpm-lock.yaml', '**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-nm-pbh-
-
-      - name: Install dependencies
-        run: pnpm install --prefer-offline --no-frozen-lockfile
-
-      - name: Download SDK dist
-        uses: actions/download-artifact@v4
-        with:
-          name: sdk-dist
-          path: standalone-scripts/marco-sdk/dist/
-
-      - name: Build Payment Banner Hider
-        run: pnpm run build:payment-banner-hider
-
-      # ── Bundle provenance log ───────────────────────────────────
-      # Print the absolute bundle path, byte size, SHA-256, and the
-      # version string from instruction.json BEFORE upload. When the
-      # downstream `e2e-payment-banner-hider` job complains the
-      # bundle is missing or stale, this log answers two questions
-      # in one click: (1) what file did we publish, (2) which version.
-      # Surfaced both to the build log AND to GITHUB_STEP_SUMMARY.
-      - name: Log built bundle provenance
-        id: pbh-build-provenance
-        shell: bash
-        run: |
-          set -euo pipefail
-          DIST_DIR="$(pwd)/standalone-scripts/payment-banner-hider/dist"
-          BUNDLE="${DIST_DIR}/payment-banner-hider.js"
-          INSTRUCTION="${DIST_DIR}/instruction.json"
-
-          if [ ! -f "$BUNDLE" ]; then
-            echo "::error file=standalone-scripts/payment-banner-hider/dist/payment-banner-hider.js,title=Bundle missing after build::Expected ${BUNDLE} but it was not produced. Check vite.config.payment-banner-hider.ts output.fileName."
-            ls -la "$DIST_DIR" || echo "(dist dir missing)"
-            exit 1
-          fi
-          if [ ! -f "$INSTRUCTION" ]; then
-            echo "::error file=standalone-scripts/payment-banner-hider/dist/instruction.json,title=instruction.json missing::Expected ${INSTRUCTION}. Check scripts/compile-instruction.mjs."
-            exit 1
-          fi
-
-          BYTES=$(wc -c < "$BUNDLE" | tr -d ' ')
-          SHA=$(sha256sum "$BUNDLE" | awk '{print $1}')
-          VERSION=$(node -p "require('${INSTRUCTION}').version")
-          NAME=$(node -p "require('${INSTRUCTION}').name")
-
-          echo "bundle_path=${BUNDLE}"          | tee -a "$GITHUB_OUTPUT"
-          echo "bundle_bytes=${BYTES}"          | tee -a "$GITHUB_OUTPUT"
-          echo "bundle_sha256=${SHA}"           | tee -a "$GITHUB_OUTPUT"
-          echo "artifact_version=${VERSION}"    | tee -a "$GITHUB_OUTPUT"
-          echo "artifact_name=${NAME}"          | tee -a "$GITHUB_OUTPUT"
-
-          {
-            echo "## 📦 Payment Banner Hider — Built Bundle"
-            echo ""
-            echo "| Field | Value |"
-            echo "|-------|-------|"
-            echo "| Artifact name | \`${NAME}\` |"
-            echo "| Version | \`${VERSION}\` |"
-            echo "| Bundle path | \`${BUNDLE}\` |"
-            echo "| Size (bytes) | \`${BYTES}\` |"
-            echo "| SHA-256 | \`${SHA}\` |"
-            echo "| Uploaded as | \`payment-banner-hider-dist\` |"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload Payment Banner Hider dist
-        uses: actions/upload-artifact@v4
-        with:
-          name: payment-banner-hider-dist
-          path: standalone-scripts/payment-banner-hider/dist/
-          retention-days: 1
-
-  # ════════════════════════════════════════════════════════════
-  # Job 3a3: E2E Smoke — Payment Banner Hider
-  #
-  # Runs tests/e2e/e2e-21-payment-banner-hider.spec.ts against the
-  # built bundle to confirm the script actually mutates the DOM as
-  # advertised (fading -> hiding -> done -> display:none) on a
-  # fixture page that matches the production XPath. Uses a dedicated
-  # lightweight playwright config (no full extension globalSetup).
-  # ════════════════════════════════════════════════════════════
-  e2e-payment-banner-hider:
-    name: E2E · Payment Banner Hider Smoke
-    needs: build-payment-banner-hider
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
-
-      - name: Install dependencies
-        run: pnpm install --prefer-offline --no-frozen-lockfile
-
-      - name: Download Payment Banner Hider dist
-        uses: actions/download-artifact@v4
-        with:
-          name: payment-banner-hider-dist
-          path: standalone-scripts/payment-banner-hider/dist/
-
-      # ── Downloaded bundle provenance log ────────────────────────
-      # Mirror of the build-side provenance step. Prints the absolute
-      # path, byte size, SHA-256, and instruction.json version of the
-      # bundle the smoke test will load. If the test fails with
-      # "bundle missing" or "behaviour drifted", compare these two
-      # logs side-by-side: same SHA → identical artifact reached the
-      # runner. Different SHA → cache/staging issue between jobs.
-      - name: Log downloaded bundle provenance
-        shell: bash
-        run: |
-          set -euo pipefail
-          DIST_DIR="$(pwd)/standalone-scripts/payment-banner-hider/dist"
-          BUNDLE="${DIST_DIR}/payment-banner-hider.js"
-          INSTRUCTION="${DIST_DIR}/instruction.json"
-
-          echo "── Resolved dist directory ───────────────────────────"
-          echo "DIST_DIR=${DIST_DIR}"
-          ls -la "$DIST_DIR" || true
-          echo "──────────────────────────────────────────────────────"
-
-          if [ ! -f "$BUNDLE" ]; then
-            echo "::error file=standalone-scripts/payment-banner-hider/dist/payment-banner-hider.js,title=Bundle missing in e2e job::Expected ${BUNDLE} after downloading artifact 'payment-banner-hider-dist'. Check that build-payment-banner-hider's upload-artifact step published a file at this path."
-            exit 1
-          fi
-          if [ ! -f "$INSTRUCTION" ]; then
-            echo "::error file=standalone-scripts/payment-banner-hider/dist/instruction.json,title=instruction.json missing in e2e job::Expected ${INSTRUCTION}. Artifact 'payment-banner-hider-dist' did not include it."
-            exit 1
-          fi
-
-          BYTES=$(wc -c < "$BUNDLE" | tr -d ' ')
-          SHA=$(sha256sum "$BUNDLE" | awk '{print $1}')
-          VERSION=$(node -p "require('${INSTRUCTION}').version")
-          NAME=$(node -p "require('${INSTRUCTION}').name")
-
-          echo "[pbh-smoke] bundle_path=${BUNDLE}"
-          echo "[pbh-smoke] bundle_bytes=${BYTES}"
-          echo "[pbh-smoke] bundle_sha256=${SHA}"
-          echo "[pbh-smoke] artifact_name=${NAME}"
-          echo "[pbh-smoke] artifact_version=${VERSION}"
-
-          {
-            echo "## 🧪 Payment Banner Hider — Smoke Test Input"
-            echo ""
-            echo "| Field | Value |"
-            echo "|-------|-------|"
-            echo "| Artifact name | \`${NAME}\` |"
-            echo "| Version | \`${VERSION}\` |"
-            echo "| Resolved bundle path | \`${BUNDLE}\` |"
-            echo "| Size (bytes) | \`${BYTES}\` |"
-            echo "| SHA-256 | \`${SHA}\` |"
-            echo "| Source artifact | \`payment-banner-hider-dist\` (from \`build-payment-banner-hider\`) |"
-            echo ""
-            echo "Compare SHA-256 with the **Built Bundle** summary in the build job — identical hashes confirm the exact same artifact reached this runner."
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Install Playwright browsers (chromium only)
-        run: npx playwright install --with-deps chromium
-
-      - name: Run smoke test
-        run: npx playwright test --config=./playwright.config.payment-banner-hider.ts
-
-      - name: Upload test results on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-pbh-results
-          path: |
-            test-results/payment-banner-hider/
-            test-results/junit-pbh.xml
-          retention-days: 7
-
-  # ════════════════════════════════════════════════════════════
   # Job 3b: Build Macro Controller (parallel with 3a, 3c)
   # ════════════════════════════════════════════════════════════
   build-macro-controller:
@@ -860,7 +596,7 @@ jobs:
   # ════════════════════════════════════════════════════════════
   build-extension:
     name: Build · Chrome Extension
-    needs: [spec-links, report-standalone-registry, typecheck-standalone, lint-standalone, build-sdk, build-xpath, build-payment-banner-hider, build-macro-controller, build-prompts]
+    needs: [spec-links, typecheck-standalone, lint-standalone, build-sdk, build-xpath, build-payment-banner-hider, build-macro-controller, build-prompts]
     runs-on: ubuntu-latest
 
     steps:
@@ -918,12 +654,6 @@ jobs:
           name: xpath-dist
           path: standalone-scripts/xpath/dist/
 
-      - name: Download Payment Banner Hider dist
-        uses: actions/download-artifact@v4
-        with:
-          name: payment-banner-hider-dist
-          path: standalone-scripts/payment-banner-hider/dist/
-
       - name: Download Macro Controller dist
         uses: actions/download-artifact@v4
         with:
@@ -935,6 +665,76 @@ jobs:
         with:
           name: prompts-dist
           path: standalone-scripts/prompts/
+
+      - name: Download Payment Banner Hider dist
+        uses: actions/download-artifact@v4
+        with:
+          name: payment-banner-hider-dist
+          path: standalone-scripts/payment-banner-hider/dist/
+
+      # ── Pre-build artifact assertion ────────────────────────────
+      # Hard gate run BEFORE `pnpm run build:extension` so a missing
+      # payment-banner-hider artifact fails fast with a precise
+      # error pointing at the exact file the extension build expects.
+      # Historically `check-standalone-dist.mjs` (chained inside
+      # build:extension) caught this — but only after ~30s of
+      # unrelated setup work. This step short-circuits in <1s and
+      # produces an inline `::error file=…::` annotation on the PR.
+      - name: Assert payment-banner-hider dist artifact present
+        shell: bash
+        run: |
+          set -euo pipefail
+          DIST_DIR="$(pwd)/standalone-scripts/payment-banner-hider/dist"
+          BUNDLE="${DIST_DIR}/payment-banner-hider.js"
+          INSTRUCTION="${DIST_DIR}/instruction.json"
+
+          echo "── Asserting payment-banner-hider dist before extension build ──"
+          echo "DIST_DIR=${DIST_DIR}"
+
+          if [ ! -d "$DIST_DIR" ]; then
+            echo "::error file=standalone-scripts/payment-banner-hider/dist,title=Payment Banner Hider dist directory missing::Expected directory ${DIST_DIR} after downloading artifact 'payment-banner-hider-dist' from job 'build-payment-banner-hider'. The download step likely failed silently — verify the upstream upload-artifact step ran."
+            exit 1
+          fi
+
+          echo "── Contents of dist dir ──"
+          ls -la "$DIST_DIR"
+
+          if [ ! -f "$BUNDLE" ]; then
+            echo "::error file=standalone-scripts/payment-banner-hider/dist/payment-banner-hider.js,title=payment-banner-hider.js missing from dist artifact::Expected ${BUNDLE} but it was not found. Files actually present: $(ls "$DIST_DIR" | tr '\n' ' '). Check vite.config.payment-banner-hider.ts → build.rollupOptions.output.entryFileNames is 'payment-banner-hider.js' (not hashed)."
+            exit 1
+          fi
+
+          if [ ! -f "$INSTRUCTION" ]; then
+            echo "::error file=standalone-scripts/payment-banner-hider/dist/instruction.json,title=instruction.json missing from dist artifact::Expected ${INSTRUCTION}. Check that scripts/compile-instruction.mjs ran during build:payment-banner-hider."
+            exit 1
+          fi
+
+          BYTES=$(wc -c < "$BUNDLE" | tr -d ' ')
+          if [ "$BYTES" -lt 100 ]; then
+            echo "::error file=standalone-scripts/payment-banner-hider/dist/payment-banner-hider.js,title=payment-banner-hider.js suspiciously small (${BYTES} bytes)::Bundle exists but is < 100 bytes — likely a build error produced an empty file. Re-run build-payment-banner-hider."
+            exit 1
+          fi
+
+          VERSION=$(node -p "require('${INSTRUCTION}').version")
+          SHA=$(sha256sum "$BUNDLE" | awk '{print $1}')
+
+          echo "✅ payment-banner-hider dist verified"
+          echo "   path:    ${BUNDLE}"
+          echo "   bytes:   ${BYTES}"
+          echo "   sha256:  ${SHA}"
+          echo "   version: ${VERSION}"
+
+          {
+            echo "## ✅ Pre-build assertion — Payment Banner Hider dist"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Bundle path | \`${BUNDLE}\` |"
+            echo "| Size (bytes) | \`${BYTES}\` |"
+            echo "| SHA-256 | \`${SHA}\` |"
+            echo "| Version | \`${VERSION}\` |"
+            echo "| Source artifact | \`payment-banner-hider-dist\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build Chrome extension
         run: pnpm run build:extension

@@ -17,7 +17,7 @@
 
 import type { MessageRequest, OkResponse } from "../../shared/messages";
 import { logBgWarnError, logCaughtError, BgLogTag } from "../bg-logger";
-import type { InjectableScript, InjectionResult, SkipReason } from "../../shared/injection-types";
+import type { InjectableScript, InjectionResult, InjectScriptsResponse, SkipReason } from "../../shared/injection-types";
 import type { StoredProject, ScriptEntry } from "../../shared/project-types";
 import { handleLogEntry, handleLogError } from "./logging-handler";
 import {
@@ -244,7 +244,7 @@ function collectInlineSyntaxFailures(
 // eslint-disable-next-line max-lines-per-function, sonarjs/cognitive-complexity
 export async function handleInjectScripts(
     message: MessageRequest,
-): Promise<{ results: InjectionResult[]; inlineSyntaxErrorDetected: boolean }> {
+): Promise<InjectScriptsResponse> {
     const pipelineStart = performance.now();
     const timings: Record<string, number> = {};
 
@@ -552,7 +552,7 @@ async function executeCachedPayload(
     pipelineStart: number,
     timings: Record<string, number>,
     time: <T>(label: string, fn: () => Promise<T>) => Promise<T>,
-): Promise<{ results: InjectionResult[]; inlineSyntaxErrorDetected: boolean }> {
+): Promise<InjectScriptsResponse> {
     const allProjects = await time("readAllProjects", () =>
         readAllProjects().catch(() => [] as StoredProject[]));
 

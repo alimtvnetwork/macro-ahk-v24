@@ -1,5 +1,6 @@
 import { test, expect, openPopupPage } from './fixtures';
 import type { BrowserContext, Page } from '@playwright/test';
+import type { InjectScriptsResponse, InjectionResult } from '../../src/shared/injection-types';
 
 /**
  * Script Injection E2E Suite
@@ -88,16 +89,18 @@ async function findTestTabId(extPage: Page): Promise<number> {
 /*  Result-shape helpers                                              */
 /* ------------------------------------------------------------------ */
 
-interface InjectionScriptResult {
-  scriptId: string;
-  isSuccess: boolean;
-  errorMessage?: string;
-  skipReason?: string;
-}
-
-interface InjectionResponse {
-  results: InjectionScriptResult[];
-}
+/**
+ * The handler returns a richer payload than this file needs (full
+ * `InjectionResult` rows with timing + injection-path metadata). Aliasing
+ * keeps the tests readable while staying structurally bound to the
+ * shared type — adding/renaming a field on `InjectScriptsResponse`
+ * automatically propagates here.
+ */
+type InjectionScriptResult = Pick<
+  InjectionResult,
+  'scriptId' | 'isSuccess' | 'errorMessage' | 'skipReason'
+>;
+type InjectionResponse = InjectScriptsResponse;
 
 /**
  * Render the entire results array into a multi-line diagnostic string so
@@ -163,6 +166,36 @@ function expectScriptFailedWithError(
   return result!;
 }
 
+/**
+ * Asserts the value of `inlineSyntaxErrorDetected` on an injection
+ * response.
+ *
+ * Why a dedicated helper:
+ *   - The flag is the *only* reliable signal that the inline syntax
+ *     preflight ran and tripped. Looking at `isSuccess` or
+ *     `errorMessage` text is brittle because malformed-entry skips,
+ *     CSP fallbacks, and runtime errors can all produce similar shapes.
+ *   - The handler must return `true` *only* when the preflight detected
+ *     a parse error, and `false` for every other path (cache hit,
+ *     `forceReload: true` bypass, restricted URL, all-good requests).
+ *
+ * On failure the assertion message includes the full results table so
+ * CI logs explain which scripts were in the request — without that
+ * context "expected true got false" is unactionable.
+ */
+function expectInlineSyntaxFlag(
+  response: InjectionResponse,
+  expected: boolean,
+  context: string,
+): void {
+  expect(
+    response.inlineSyntaxErrorDetected,
+    `Expected inlineSyntaxErrorDetected=${expected} (${context}), got ${String(
+      response.inlineSyntaxErrorDetected,
+    )}. All results:\n${formatResultsForFailure(response.results)}`,
+  ).toBe(expected);
+}
+
 test.describe('Script Injection', () => {
 
   test('injects a script that modifies the DOM on a test page', async ({ context, extensionId }) => {
@@ -219,6 +252,8 @@ test.describe('Script Injection', () => {
     const response = injectionResult as InjectionResponse;
     expect(response.results, 'INJECT_SCRIPTS returned no results array').toBeDefined();
     expectScriptSucceeded(response, 'e2e-test-script-001');
+    // Clean inline script — preflight ran and passed, flag must be false.
+    expectInlineSyntaxFlag(response, false, 'clean inline script — preflight should pass');
 
     // Verify the DOM side-effect on the test page
     const injectedElement = testPage.locator('#marco-e2e-injected');
@@ -271,6 +306,74 @@ test.describe('Script Injection', () => {
     const response = injectionResult as InjectionResponse;
     expect(response.results, 'INJECT_SCRIPTS returned no results array').toBeDefined();
     expectScriptFailedWithError(response, 'e2e-bad-script-001');
+    // Bad-syntax inline script — preflight must trip and surface the flag.
+    expectInlineSyntaxFlag(response, true, 'inline syntax error — preflight should trip');
+
+    await extPage.close();
+  });
+
+  test('inlineSyntaxErrorDetected is false on forceReload and cache-hit paths', async ({ context, extensionId }) => {
+    // This test pins the flag's contract for the *non-error* code paths:
+    //   1. `forceReload: true`  → preflight is explicitly skipped → flag MUST be false
+    //   2. Repeat identical request without forceReload → cache hit  → flag MUST be false
+    // If the handler ever leaks `true` on either path, this test fails
+    // immediately and points at the regression — without log scraping.
+    await stubTestPage(context);
+    const extPage = await openPopupPage(context, extensionId);
+    await waitForServiceWorkerReady(extPage);
+
+    const testPage = await context.newPage();
+    await testPage.goto(TEST_PAGE_URL);
+    await testPage.waitForLoadState('domcontentloaded');
+
+    const tabId = await findTestTabId(extPage);
+
+    const sendInjection = async (forceReload: boolean): Promise<InjectionResponse> => {
+      const result = await extPage.evaluate(
+        async ({ targetTabId, force }: { targetTabId: number; force: boolean }) => {
+          return new Promise<unknown>((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Injection timed out')), 10000);
+            chrome.runtime.sendMessage(
+              {
+                type: 'INJECT_SCRIPTS',
+                tabId: targetTabId,
+                forceReload: force,
+                scripts: [
+                  {
+                    id: 'e2e-flag-cache-script',
+                    name: 'Flag Cache Script',
+                    code: `document.title = 'Marco E2E Flag';`,
+                    order: 0,
+                  },
+                ],
+              },
+              (res) => {
+                clearTimeout(timeout);
+                if (chrome.runtime.lastError) {
+                  reject(new Error(chrome.runtime.lastError.message));
+                } else {
+                  resolve(res);
+                }
+              },
+            );
+          });
+        },
+        { targetTabId: tabId, force: forceReload },
+      );
+      return result as InjectionResponse;
+    };
+
+    // Pass 1: forceReload=true — preflight must be skipped, flag false.
+    const forced = await sendInjection(true);
+    expectScriptSucceeded(forced, 'e2e-flag-cache-script');
+    expectInlineSyntaxFlag(forced, false, 'forceReload bypass — preflight skipped');
+
+    // Pass 2: identical request, no forceReload — should hit the cache,
+    // and the cached path returns inlineSyntaxErrorDetected=false because
+    // the request's fingerprint already matched a validated payload.
+    const cached = await sendInjection(false);
+    expectScriptSucceeded(cached, 'e2e-flag-cache-script');
+    expectInlineSyntaxFlag(cached, false, 'cache-hit path — preflight not re-run');
 
     await extPage.close();
   });
@@ -454,6 +557,8 @@ test.describe('Script Injection', () => {
     // table, instead of an unhelpful empty-string title diff later.
     const response = injectionResult as InjectionResponse;
     expectScriptSucceeded(response, 'e2e-clean-script');
+    // Clean inline script — preflight passes, flag must be false.
+    expectInlineSyntaxFlag(response, false, 'clean inline script — preflight should pass');
 
     // Wait for the title mutation to apply (poll instead of fixed sleep).
     await expect.poll(

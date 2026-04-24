@@ -2,7 +2,7 @@
 /**
  * Standalone-Scripts Build Orchestrator
  *
- * Runs the four standalone bundle builds (marco-sdk, xpath, payment-banner-hider, macro-controller)
+ * Runs the three standalone bundle builds (marco-sdk, xpath, macro-controller)
  * in parallel from a single Node process, after running shared prerequisites
  * exactly once.
  *
@@ -202,10 +202,9 @@ const SHARED_PREREQS = [
             "standalone-scripts/macro-controller/dist/templates.json",
         ],
     },
-    { label: "compile-instruction marco-sdk",            cmd: "node", args: ["scripts/compile-instruction.mjs", "standalone-scripts/marco-sdk"] },
-    { label: "compile-instruction xpath",                cmd: "node", args: ["scripts/compile-instruction.mjs", "standalone-scripts/xpath"] },
-    { label: "compile-instruction payment-banner-hider", cmd: "node", args: ["scripts/compile-instruction.mjs", "standalone-scripts/payment-banner-hider"] },
-    { label: "compile-instruction macro-controller",     cmd: "node", args: ["scripts/compile-instruction.mjs", "standalone-scripts/macro-controller"] },
+    { label: "compile-instruction marco-sdk",        cmd: "node", args: ["scripts/compile-instruction.mjs", "standalone-scripts/marco-sdk"] },
+    { label: "compile-instruction xpath",            cmd: "node", args: ["scripts/compile-instruction.mjs", "standalone-scripts/xpath"] },
+    { label: "compile-instruction macro-controller", cmd: "node", args: ["scripts/compile-instruction.mjs", "standalone-scripts/macro-controller"] },
     { label: "generate-seed-manifest",       cmd: "node", args: ["scripts/generate-seed-manifest.mjs"] },
     { label: "check-version-sync",           cmd: "node", args: ["scripts/check-version-sync.mjs"] },
 ];
@@ -233,13 +232,6 @@ const PARALLEL_JOBS = [
         ],
     },
     {
-        name: "payment-banner-hider",
-        steps: [
-            { label: "tsc --noEmit (pbh)", cmd: "npx", args: ["--no-install", "tsc", "--noEmit", "-p", "tsconfig.payment-banner-hider.json"] },
-            { label: "vite build (pbh)",   cmd: "npx", args: ["--no-install", "vite", "build", "--config", "vite.config.payment-banner-hider.ts", ...viteModeFlag] },
-        ],
-    },
-    {
         name: "macro-controller",
         steps: [
             { label: "tsc --noEmit (macro)",  cmd: "npx", args: ["--no-install", "tsc", "--noEmit", "-p", "tsconfig.macro.build.json"] },
@@ -264,11 +256,9 @@ const requiredFiles = [
     "scripts/generate-dts.mjs",
     "tsconfig.sdk.json",
     "tsconfig.xpath.json",
-    "tsconfig.payment-banner-hider.json",
     "tsconfig.macro.build.json",
     "vite.config.sdk.ts",
     "vite.config.xpath.ts",
-    "vite.config.payment-banner-hider.ts",
     "vite.config.macro.ts",
 ];
 

@@ -179,29 +179,6 @@ Memory: `.lovable/memory/features/release-installer.md`
 
 ---
 
-## 2026-04-24 Session — Standalone-Scripts Global Types Refactor (DRAFT, awaiting review)
-
-Spec: `spec/21-app/01-chrome-extension/standalone-scripts-types/01-overview.md`
-
-| # | Task                                                                                                                              | Status        |
-|---|-----------------------------------------------------------------------------------------------------------------------------------|---------------|
-| 1 | **Draft spec** for unified `ProjectInstruction`, per-file types, enums, XPath groups + relative XPath, no-`unknown` rule.         | ✅ Done (this session) |
-| 2 | **User review** of `spec/21-app/01-chrome-extension/standalone-scripts-types/01-overview.md` — answer Open Questions Q1–Q4.       | ⏸️ Blocked on user |
-| 3 | **Create** `standalone-scripts/types/instruction/{01..40}-*.ts` files (one type per file) per spec §5.                            | ⏸️ Pending review |
-| 4 | **Refactor** `marco-sdk`, `xpath`, `macro-controller`, `payment-banner-hider` `instruction.ts` to import shared types.            | ⏸️ Pending #3 |
-| 5 | **Replace** `Record<string, unknown>` in `NamespaceLogApi` (and Vars/Kv/Files/Db/Notify APIs) per spec §8.                        | ⏸️ Pending review |
-| 6 | **Add** ESLint overrides for `standalone-scripts/**`: `consistent-type-definitions: type`, `id-denylist`, `unknown` ban.          | ⏸️ Pending #3 |
-| 7 | **Snapshot test**: assert `dist/instruction.json` byte-identical pre/post refactor for all 4 projects.                            | ⏸️ Pending #4 |
-| 8 | **RCA**: `payment-banner-hider` shipped with !important / error swallow / inline CSS / no class / type cast / magic strings.       | ✅ Done (this session) — `spec/03-error-manage/01-error-resolution/03-retrospectives/2026-04-24-payment-banner-hider-rca.md` |
-| 9 | **Memory**: 7 new rules — `pre-write-check`, `no-css-important`, `no-error-swallowing`, `no-type-casting`, `class-based-standalone-scripts`, `standalone-scripts-css-in-own-file`, `blank-line-before-return`. Index Core updated. | ✅ Done (this session) |
-| 10 | **Spec amend**: §11 Class architecture, §12 No `!important`, §13 No error swallowing, §14 No type casting, §15 Magic-strings → enums, §16 Blank-line-before-return, §17 Pre-write check. + Open Questions Q5–Q10. | ✅ Done (this session) |
-| 11 | **Refactor** `payment-banner-hider/src/index.ts` per §11–§16 + answered Q5–Q10. Move CSS to `payment-banner-hider/less/`. Class skeleton + enums + no casts. | ⏸️ Pending review of Q5–Q10 |
-| 12 | **Build** `scripts/scaffold-standalone.mjs` so new standalone-scripts projects start from a canonical template (closes RC-6 of the RCA). | ⏸️ Follow-up session |
-
-**Recommended next**: Task 2 — user review of the draft spec (now answer **Q1–Q10**, not just Q1–Q4).
-
----
-
 ## Engineering Principles (Summary)
 
 1. Root Cause Analysis First

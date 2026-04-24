@@ -20,13 +20,6 @@ Updated: just now
 - **Error Handling**: Defensive property access (`?.`, `??`) required. CQ14 (braces), CQ15 (newlines).
 - **Auth Contract**: Use single-path `getBearerToken()` contract. No legacy auth methods.
 - **Installer Contract**: All install scripts MUST conform to `spec/14-update/01-generic-installer-behavior.md` — strict on `--version`/release-URL, latest→main fallback otherwise, opt-in parallel sibling-repo discovery.
-- **Pre-Write Check**: Before writing any new file in a known project area, read the closest existing sibling AND the relevant coding guideline. Reference: `mem://standards/pre-write-check`.
-- **No `!important`**: Banned in all CSS/LESS sources and inline TS style strings. Use selector specificity. Single exception: emergency CSS sentinel with `// JUSTIFIED:` comment. Reference: `mem://standards/no-css-important`.
-- **No Error Swallowing**: Every `catch` must log via namespace Logger, re-throw, or carry an inline `// SWALLOW JUSTIFIED: <reason>` comment. Reference: `mem://standards/no-error-swallowing`.
-- **No Type Casting**: `as T`, `as unknown as T`, `<T>value`, `as any` are banned in `standalone-scripts/**`. Use type guards or typed globals declared in `standalone-scripts/types/`. Reference: `mem://standards/no-type-casting`.
-- **Class-Based Standalone Scripts**: Every `standalone-scripts/<project>/src/index.ts` exports a single default class (PascalCase code name). No module-level free functions. Reference: `mem://standards/class-based-standalone-scripts`.
-- **CSS in Own File**: Standalone-scripts CSS lives in `<project>/less/` or `<project>/css/`, compiles to `dist/`, and is declared in `instruction.assets.css[]`. No inline `document.createElement("style")` blobs. Reference: `mem://standards/standalone-scripts-css-in-own-file`.
-- **Blank Line Before Return**: Every multi-statement function body must have a blank line before each `return`. ESLint `padding-line-between-statements`. Reference: `mem://standards/blank-line-before-return`.
 
 ## Memories
 - [Timezone](mem://localization/timezone) — Asia/Kuala_Lumpur for local timezone formatting
@@ -99,10 +92,3 @@ Updated: just now
 - [Screen-scoped variables rule](mem://architecture/screen-scoped-variables-rule) — Per-screen XPath/selector configs must never collide; HomepageDashboardVariables is the first instance
 - [Deferred workstreams](mem://preferences/deferred-workstreams) — React tests, manual Chrome testing, P Store, cross-project sync — DO NOT auto-recommend
 - [Session 2026-04-23 — TS Migration V2 cleared](mem://workflow/14-session-2026-04-23-ts-migration-v2-cleared) — v2.225.0; Phases 02/03/04/05 complete; suite 445/445 passing
-- [Pre-write check](mem://standards/pre-write-check) — Read closest sibling + relevant guideline before writing any new file
-- [No `!important`](mem://standards/no-css-important) — Banned in CSS/LESS and inline TS strings; use selector specificity
-- [No error swallowing](mem://standards/no-error-swallowing) — `catch` must log/re-throw or carry `// SWALLOW JUSTIFIED:` comment
-- [No type casting](mem://standards/no-type-casting) — `as T`/`as unknown as T` banned in standalone-scripts; use type guards
-- [Class-based standalone scripts](mem://standards/class-based-standalone-scripts) — Single default class per entry file, no module-level free functions
-- [CSS in own file (standalone-scripts)](mem://standards/standalone-scripts-css-in-own-file) — CSS lives in `<project>/less/`, declared in `assets.css[]`
-- [Blank line before return](mem://standards/blank-line-before-return) — Required before every multi-statement-block `return`

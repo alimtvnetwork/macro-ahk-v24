@@ -16,7 +16,6 @@ const REQUIRED_ARTIFACTS = {
   "marco-sdk": ["marco-sdk.js", "instruction.json"],
   "macro-controller": ["macro-looping.js", "instruction.json"],
   "xpath": ["xpath.js", "instruction.json"],
-  "payment-banner-hider": ["payment-banner-hider.js", "instruction.json"],
 };
 
 let failed = false;

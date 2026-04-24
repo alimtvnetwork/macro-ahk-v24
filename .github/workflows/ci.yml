@@ -1055,12 +1055,87 @@ jobs:
   # Wired as a peer of `derive-casing-matrix` so it runs in parallel
   # and surfaces independently in the Checks tab. Both `pull_request`
   # and pushes to `main` run it (matches `casing-instruction-json`).
-  casing-checker-self-test:
-    name: "Casing · checker self-test (truncation)"
+  # ────────────────────────────────────────────────────────────
+  # Job 3f-pre2a: Path-filter preflight for the self-test.
+  #
+  # The self-test only validates the casing checker's truncation
+  # branch, so it has zero signal when the change doesn't touch:
+  #   • scripts/check-instruction-json-casing.mjs        (the checker)
+  #   • scripts/__tests__/check-instruction-json-casing-truncation*.test.mjs
+  #     (the fixtures it runs)
+  #   • .github/workflows/ci.yml                          (the job def)
+  #
+  # Skipping it on unrelated PRs (UI tweaks, copy edits, image swaps)
+  # saves ~10 s of runner time per PR and removes a redundant green
+  # check from the PR Checks tab. We keep it zero-dep — pure git +
+  # bash, no third-party action — to match the style of the other
+  # preflight jobs above.
+  #
+  # On `push to main` the BEFORE SHA may be the zero-SHA on a
+  # newly-pushed branch's first commit; in that case we conservatively
+  # mark the paths as changed so the self-test still runs.
+  # ────────────────────────────────────────────────────────────
+  casing-checker-self-test-paths:
+    name: "Casing · self-test (paths preflight)"
     runs-on: ubuntu-latest
     if: >-
       github.event_name == 'pull_request' ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    outputs:
+      changed: ${{ steps.filter.outputs.changed }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Need history to diff PR head vs base, or push HEAD vs BEFORE.
+          fetch-depth: 0
+
+      - name: Detect changes to checker / fixtures / workflow
+        id: filter
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          # Resolve the diff range based on event type.
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            RANGE="$BASE_SHA...$HEAD_SHA"
+          else
+            # push: BEFORE may be 000…0 on the first push of a branch.
+            if [ -z "${BEFORE_SHA:-}" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+              echo "First-push (no BEFORE SHA) — running self-test conservatively."
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            RANGE="$BEFORE_SHA...${GITHUB_SHA}"
+          fi
+
+          echo "Diffing range: $RANGE"
+          CHANGED_FILES="$(git diff --name-only "$RANGE" || true)"
+          echo "$CHANGED_FILES"
+
+          # Match: the checker, its truncation tests, and this workflow.
+          if echo "$CHANGED_FILES" | grep -E -q \
+            -e '^scripts/check-instruction-json-casing\.mjs$' \
+            -e '^scripts/__tests__/check-instruction-json-casing-truncation(-snapshot)?\.test\.mjs$' \
+            -e '^\.github/workflows/ci\.yml$'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Relevant files changed → self-test will run."
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No relevant files changed → self-test will be skipped."
+          fi
+
+  casing-checker-self-test:
+    name: "Casing · checker self-test (truncation)"
+    runs-on: ubuntu-latest
+    needs: casing-checker-self-test-paths
+    # Run only when the paths preflight detected a change to the
+    # checker, its truncation tests, or this workflow file.
+    if: needs.casing-checker-self-test-paths.outputs.changed == 'true'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

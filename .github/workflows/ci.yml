@@ -1300,6 +1300,24 @@ jobs:
       - name: Validate instruction.json casing (PascalCase) + compat (camelCase)
         run: pnpm run check:instruction-json-casing
 
+      # Passing-state summary — only emits when the validator above
+      # exited 0. Spells out the contract enforced across all four
+      # standalone projects so a reviewer scrolling the build log
+      # gets a positive confirmation instead of just absence-of-error.
+      - name: ✅ Casing standards validated for all standalone projects
+        if: success()
+        run: |
+          echo "✅ Casing standards validated across all standalone-scripts/*/dist artifacts:"
+          echo "   • dist/instruction.json        — PascalCase keys only (canonical)"
+          echo "   • dist/instruction.compat.json — camelCase keys only (transitional snapshot)"
+          {
+            echo "### ✅ Build-extension casing gate"
+            echo ""
+            echo "All four standalone projects passed before vite copied JSON into the extension bundle:"
+            echo "- \`dist/instruction.json\` → **PascalCase keys only** (canonical)"
+            echo "- \`dist/instruction.compat.json\` → **camelCase keys only** (transitional snapshot)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Build Chrome extension
         run: pnpm run build:extension
 

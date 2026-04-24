@@ -49,6 +49,19 @@
  *     → scans only that one project (matches compile-instruction.mjs CLI)
  *     → e.g. node scripts/check-instruction-json-casing.mjs standalone-scripts/macro-controller
  *
+ *   node scripts/check-instruction-json-casing.mjs --json [<project-folder>]
+ *     → emits a single JSON document to stdout describing every scanned
+ *       project, the two artifacts, and every casing violation with its
+ *       JSON-Pointer-like path. Suppresses human-readable logs and GitHub
+ *       Actions ::error annotations so the stdout stream is pure JSON
+ *       (machine-parseable for debugging, dashboards, or piping into jq).
+ *       Exit code semantics are unchanged. Schema:
+ *         { tool, version, scannedProjects, exitCode,
+ *           projects: [{ name, skipped, missingArtifact,
+ *             artifacts: { canonical: { path, shape, ok, parseError,
+ *               violationCount, violations: [{ path, key, expected }] },
+ *                          compat:    { … } } }] }
+ *
  * Exit codes:
  *   0 — every scanned project's two artifacts pass both shape checks
  *   1 — at least one violation (full per-key path report + GitHub
@@ -284,29 +297,181 @@ function reportProject(name, result) {
     return exit;
 }
 
+/* ----------------------------------------------------------------- */
+/*  JSON reporter — `--json` flag.                                    */
+/*                                                                    */
+/*  Builds a single structured document covering every scanned        */
+/*  project and writes it to stdout. Suppresses the human-readable    */
+/*  per-project logs and GitHub Actions ::error annotations so the    */
+/*  stdout stream stays pure JSON (safe to pipe into jq, store as a  */
+/*  CI artifact, or feed into a dashboard). Exit code is computed    */
+/*  the same way as the text reporter so callers that only care     */
+/*  about pass/fail can ignore the body.                              */
+/* ----------------------------------------------------------------- */
+function buildJsonProjectEntry(name, result) {
+    if (result.skipped) {
+        return {
+            name,
+            skipped: true,
+            skipReason: result.reason,
+            missingArtifact: false,
+            artifacts: null,
+            exitCode: 0,
+        };
+    }
+    if (result.missingArtifact) {
+        return {
+            name,
+            skipped: false,
+            missingArtifact: true,
+            distDir: rel(result.distDir),
+            canonicalExists: result.canonicalExists,
+            compatExists: result.compatExists,
+            artifacts: null,
+            exitCode: 2,
+        };
+    }
+
+    const buildArtifact = (file, res, shape) => {
+        if (res.parseError) {
+            return {
+                path: rel(file),
+                shape,
+                ok: false,
+                parseError: res.parseError,
+                violationCount: 0,
+                violations: [],
+            };
+        }
+        return {
+            path: rel(file),
+            shape,
+            ok: res.violations.length === 0,
+            parseError: null,
+            violationCount: res.violations.length,
+            violations: res.violations.map((v) => ({
+                path: v.path,
+                key: v.key,
+                expected: v.expected,
+            })),
+        };
+    };
+
+    const canonical = buildArtifact(result.canonical, result.canonicalResult, "PascalCase");
+    const compat = buildArtifact(result.compat, result.compatResult, "camelCase");
+    const exitCode = canonical.ok && compat.ok && !canonical.parseError && !compat.parseError ? 0 : 1;
+
+    return {
+        name,
+        skipped: false,
+        missingArtifact: false,
+        artifacts: { canonical, compat },
+        exitCode,
+    };
+}
+
+/* ----------------------------------------------------------------- */
+/*  CLI argv parser. Accepts `--json` anywhere; positional arg is    */
+/*  the project folder (same as before).                              */
+/* ----------------------------------------------------------------- */
+function parseArgs(argv) {
+    const opts = { json: false, projectArg: null };
+    for (const a of argv) {
+        if (a === "--json") opts.json = true;
+        else if (a === "--help" || a === "-h") opts.help = true;
+        else if (!opts.projectArg) opts.projectArg = a;
+    }
+    return opts;
+}
+
 function main() {
-    const arg = process.argv[2];
+    const { json: jsonMode, projectArg, help } = parseArgs(process.argv.slice(2));
+
+    if (help) {
+        process.stdout.write(
+            `Usage: check-instruction-json-casing.mjs [--json] [<standalone-scripts/<name>>]\n` +
+            `  --json   Emit a structured JSON report on stdout (suppresses text + ::error annotations).\n`,
+        );
+        process.exit(0);
+    }
 
     let projects;
-    if (arg) {
-        const name = resolveProjectArg(arg);
+    if (projectArg) {
+        const name = resolveProjectArg(projectArg);
         if (!name) {
-            process.stderr.write(`✗ Could not resolve project name from "${arg}"\n`);
+            if (jsonMode) {
+                process.stdout.write(JSON.stringify({
+                    tool: "check-instruction-json-casing",
+                    version: 1,
+                    error: `Could not resolve project name from "${projectArg}"`,
+                    exitCode: 2,
+                    scannedProjects: 0,
+                    projects: [],
+                }) + "\n");
+            } else {
+                process.stderr.write(`✗ Could not resolve project name from "${projectArg}"\n`);
+            }
             process.exit(2);
         }
         if (!existsSync(join(STANDALONE_DIR, name))) {
-            process.stderr.write(`✗ Project not found: standalone-scripts/${name}\n`);
+            if (jsonMode) {
+                process.stdout.write(JSON.stringify({
+                    tool: "check-instruction-json-casing",
+                    version: 1,
+                    error: `Project not found: standalone-scripts/${name}`,
+                    exitCode: 2,
+                    scannedProjects: 0,
+                    projects: [],
+                }) + "\n");
+            } else {
+                process.stderr.write(`✗ Project not found: standalone-scripts/${name}\n`);
+            }
             process.exit(2);
         }
         projects = [name];
     } else {
         projects = listAllProjects();
         if (projects === null) {
-            process.stderr.write(`✗ standalone-scripts/ not found at ${rel(STANDALONE_DIR)} — repo layout broken?\n`);
+            if (jsonMode) {
+                process.stdout.write(JSON.stringify({
+                    tool: "check-instruction-json-casing",
+                    version: 1,
+                    error: `standalone-scripts/ not found at ${rel(STANDALONE_DIR)}`,
+                    exitCode: 2,
+                    scannedProjects: 0,
+                    projects: [],
+                }) + "\n");
+            } else {
+                process.stderr.write(`✗ standalone-scripts/ not found at ${rel(STANDALONE_DIR)} — repo layout broken?\n`);
+            }
             process.exit(2);
         }
     }
 
+    // ── JSON mode: build the report silently, then emit once. ──────
+    if (jsonMode) {
+        const entries = [];
+        let worst = 0;
+        let scanned = 0;
+        for (const name of projects) {
+            const result = checkProject(name);
+            const entry = buildJsonProjectEntry(name, result);
+            if (!entry.skipped) scanned++;
+            if (entry.exitCode > worst) worst = entry.exitCode;
+            entries.push(entry);
+        }
+        const report = {
+            tool: "check-instruction-json-casing",
+            version: 1,
+            scannedProjects: scanned,
+            exitCode: worst,
+            projects: entries,
+        };
+        process.stdout.write(JSON.stringify(report, null, 2) + "\n");
+        process.exit(worst);
+    }
+
+    // ── Default text mode: per-project logs + ::error annotations. ─
     let worst = 0;
     let scanned = 0;
     for (const name of projects) {
@@ -324,5 +489,6 @@ function main() {
     }
     process.exit(worst);
 }
+
 
 main();

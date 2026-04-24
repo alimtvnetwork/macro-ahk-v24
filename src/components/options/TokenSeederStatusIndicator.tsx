@@ -61,7 +61,7 @@ function formatOrigin(url: string): string {
 }
 
 export function TokenSeederStatusIndicator() {
-    const [data, setData] = useState<TokenSeederDiagnostics | null>(null);
+    const [data, setData] = useState<TokenSeederDiagnostics | null>(() => loadDiagnosticsCache());
     const [now, setNow] = useState<number>(() => Date.now());
     const [open, setOpen] = useState<boolean>(false);
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -73,6 +73,7 @@ export function TokenSeederStatusIndicator() {
                 type: "GET_TOKEN_SEEDER_DIAGNOSTICS",
             });
             setData(res);
+            saveDiagnosticsCache(res);
         } catch {
             // Background may not be ready — silently skip this poll
         }

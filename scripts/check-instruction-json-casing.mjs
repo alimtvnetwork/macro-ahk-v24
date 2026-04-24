@@ -605,18 +605,40 @@ function main() {
     // ── Default text mode: per-project logs + ::error annotations. ─
     let worst = 0;
     let scanned = 0;
+    const allFailures = [];
     for (const name of projects) {
         const result = checkProject(name);
-        const code = reportProject(name, result);
+        const { exit: code, failures } = reportProject(name, result);
         if (!result.skipped) scanned++;
         if (code > worst) worst = code;
+        for (const f of failures) allFailures.push(f);
     }
 
     if (worst === 0) {
         console.log(`\n✅ check-instruction-json-casing — ${scanned} project(s) passed both shape checks`);
     } else {
+        // Final summary: collapse every failing file into a one-line
+        // table so a CI viewer scrolling to the bottom of the log
+        // gets a copy-pasteable list of every artifact that needs
+        // fixing — both relative (for grep) and absolute (for
+        // editor open) paths.
         process.stderr.write(`\n❌ check-instruction-json-casing — failed (exit ${worst})\n`);
-        process.stderr.write(`  See: mem://standards/pascalcase-json-keys, mem://architecture/instruction-dual-emit-phase-2b.md\n\n`);
+        if (allFailures.length > 0) {
+            process.stderr.write(`\nFailing artifacts (${allFailures.length}):\n`);
+            for (const f of allFailures) {
+                const tag = f.kind === "casing"
+                    ? `${f.count} ${f.shape} violation(s)`
+                    : f.kind === "walker-aborted"
+                        ? `walker aborted (partial: ${f.count} violation(s))`
+                        : `JSON parse error`;
+                process.stderr.write(
+                    `  • ${f.project} ${f.label} — ${tag}\n` +
+                    `      relative: ${f.fileRel}\n` +
+                    `      absolute: ${f.fileAbs}\n`,
+                );
+            }
+        }
+        process.stderr.write(`\n  See: mem://standards/pascalcase-json-keys, mem://architecture/instruction-dual-emit-phase-2b.md\n\n`);
     }
     process.exit(worst);
 }

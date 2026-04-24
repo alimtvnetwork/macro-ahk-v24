@@ -132,11 +132,32 @@ export function TokenSeederStatusIndicator() {
 
     const targets = data?.targets ?? [];
 
-    const nextRetryMs = useMemo(() => {
-        if (targets.length === 0) return 0;
-        const remainings = targets.map((t) => Math.max(0, t.cooldownMs - (now - t.lastFailureAt)));
-        return Math.min(...remainings);
+    const { nextRetryMs, nextRetryAt } = useMemo(() => {
+        if (targets.length === 0) return { nextRetryMs: 0, nextRetryAt: 0 };
+        let minRemaining = Number.POSITIVE_INFINITY;
+        let minRetryAt = 0;
+        for (const t of targets) {
+            const retryAt = t.lastFailureAt + t.cooldownMs;
+            const remaining = Math.max(0, retryAt - now);
+            if (remaining < minRemaining) {
+                minRemaining = remaining;
+                minRetryAt = retryAt;
+            }
+        }
+        return {
+            nextRetryMs: minRemaining === Number.POSITIVE_INFINITY ? 0 : minRemaining,
+            nextRetryAt: minRetryAt,
+        };
     }, [targets, now]);
+
+    const categoryCounts = useMemo(() => {
+        const counts = new Map<ErrorCategory, number>();
+        for (const t of targets) {
+            const cat = categorizeCode(t.code);
+            counts.set(cat, (counts.get(cat) ?? 0) + 1);
+        }
+        return counts;
+    }, [targets]);
 
     if (targets.length === 0) {
         return null;
@@ -144,13 +165,27 @@ export function TokenSeederStatusIndicator() {
 
     const isReady = nextRetryMs <= 0;
 
+    const categorySummary = Array.from(categoryCounts.entries())
+        .map(([cat, count]) => `${CATEGORY_LABELS[cat]}: ${count}`)
+        .join(" · ");
+
+    const retryLine = isReady
+        ? "Retrying on next poll."
+        : `Next retry at ${formatRetryTimestamp(nextRetryAt)} MYT (in ${formatRemaining(nextRetryMs)}).`;
+
+    const tooltip =
+        `${targets.length} tab(s) blocked Chrome scripting access.\n` +
+        `Categories — ${categorySummary || "Unknown"}.\n` +
+        `${retryLine}\n` +
+        `Click to view per-tab details.`;
+
     return (
         <Collapsible open={open} onOpenChange={setOpen}>
             <CollapsibleTrigger asChild>
                 <button
                     type="button"
                     className="flex w-full items-center justify-between rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-left transition-colors hover:bg-warning/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    title={`${targets.length} tab(s) blocked Chrome scripting access. Click to view details.`}
+                    title={tooltip}
                     aria-label="Toggle token seeder failure details"
                 >
                     <div className="flex items-center gap-2 min-w-0">

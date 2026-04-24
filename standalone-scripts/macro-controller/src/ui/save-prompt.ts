@@ -172,6 +172,43 @@ interface InjectCtx {
   deps: SavePromptDeps;
 }
 
+/**
+ * Insert our wrapper(s) immediately before the row's first <button>
+ * (i.e., button[1] in XPath terms — the Lovable "Play and Add more" /
+ * Build button, depending on shell). This preserves the relative
+ * ordering of Lovable's existing controls so XPaths like
+ * `form/div[2]/div/button[2]` (Add To Tasks) keep resolving correctly.
+ *
+ * Falls back to `prepend` only when the container has no <button> child
+ * (e.g., empty toolbar shell during cold-load).
+ */
+function insertBeforeFirstButton(container: Element, ...wrappers: HTMLElement[]): void {
+  // Match the first child that either IS a button or WRAPS a button
+  // (Lovable shells use both patterns: bare <button> or <div type="button"><button/></div>).
+  // We must skip our own previously-injected wrappers so re-injections stay idempotent.
+  const directChildren = Array.from(container.children) as HTMLElement[];
+  const firstButton = directChildren.find(function (child) {
+    const isOurs = child.id === 'marco-save-prompt-btn' || child.id === 'marco-chatbox-prompts-btn';
+    if (isOurs) return false;
+    const isButton = child.tagName === 'BUTTON';
+    const wrapsButton = child.querySelector(':scope > button') !== null;
+    return isButton || wrapsButton;
+  }) ?? null;
+
+  if (firstButton) {
+    for (const wrapper of wrappers) {
+      container.insertBefore(wrapper, firstButton);
+    }
+    return;
+  }
+
+  // Cold-load fallback: nothing to anchor on yet — prepend in reverse so
+  // the visual order matches the insertBefore branch above.
+  for (let i = wrappers.length - 1; i >= 0; i--) {
+    container.prepend(wrappers[i]);
+  }
+}
+
 function tryInjectSavePrompt(ctx: InjectCtx): boolean {
   if (ctx.injected) return true;
 
@@ -192,11 +229,10 @@ function tryInjectSavePrompt(ctx: InjectCtx): boolean {
     const promptsWrapper = buildPromptsButton(ctx.deps);
     const saveWrapper = buildSaveButton(ctx.deps);
 
-    container!.prepend(saveWrapper);
-    container!.prepend(promptsWrapper);
+    insertBeforeFirstButton(container!, promptsWrapper, saveWrapper);
 
     ctx.injected = true;
-    log('Save Prompt + Prompts buttons injected into chatbox toolbar', 'info');
+    log('Save Prompt + Prompts buttons injected into chatbox toolbar (before button[1])', 'info');
 
     return true;
   } catch (e: unknown) {

@@ -124,9 +124,19 @@ const projectNames = Object.keys(REQUIRED_ARTIFACTS).sort((a, b) => a.localeComp
 const errors = [];
 const include = [];
 
+// Naming convention helpers — colocated so the legacy `marco-sdk` →
+// `sdk-dist` / `build-sdk` mapping is documented in one place. If/when
+// the SDK build is renamed, update both here AND in `.github/workflows/ci.yml`.
+function artifactNameFor(project) {
+    return project === "marco-sdk" ? "sdk-dist" : `${project}-dist`;
+}
+function buildJobNameFor(project) {
+    return project === "marco-sdk" ? "build-sdk" : `build-${project}`;
+}
+
 for (const project of projectNames) {
     const distPath = `standalone-scripts/${project}/dist`;
-    const artifact = project === "marco-sdk" ? "sdk-dist" : `${project}-dist`;
+    const artifact = artifactNameFor(project);
 
     // Cross-check 1: src/instruction.ts must exist.
     const instructionTs = path.join(STANDALONE_DIR, project, "src", "instruction.ts");
@@ -141,13 +151,14 @@ for (const project of projectNames) {
     include.push({ project, artifact, "dist-path": distPath });
 }
 
-// ── 3. Cross-check 2: every project must have a `build-<name>:` job in ci.yml ──
+// ── 3. Cross-check 2: every project must have its build job in ci.yml ──
 const ciSrc = fs.existsSync(CI_YAML_FILE) ? fs.readFileSync(CI_YAML_FILE, "utf8") : "";
 for (const entry of include) {
-    const jobHeader = new RegExp(`^\\s{2}build-${entry.project}\\s*:`, "m");
+    const jobName = buildJobNameFor(entry.project);
+    const jobHeader = new RegExp(`^\\s{2}${jobName}\\s*:`, "m");
     if (!jobHeader.test(ciSrc)) {
         errors.push(
-            `Project '${entry.project}' is in REQUIRED_ARTIFACTS but no \`build-${entry.project}:\` job exists in .github/workflows/ci.yml. ` +
+            `Project '${entry.project}' is in REQUIRED_ARTIFACTS but no \`${jobName}:\` job exists in .github/workflows/ci.yml. ` +
             `The matrix leg would fail at the artifact download step — add a build job that uploads artifact '${entry.artifact}'.`
         );
     }

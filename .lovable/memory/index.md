@@ -40,6 +40,7 @@ Updated: just now
 - [Prompt management](mem://features/prompt-management) — Dual-cache (JsonCopy/HtmlCopy) in IndexedDB, manual-load
 - [Readiness reports](mem://workflow/readiness-reports) — Reliability and Failure-Chance Report before implementation
 - [Linting policy](mem://architecture/linting-policy) — Zero ESLint warnings/errors, strict No Explicit Unknown
+- [PascalCase JSON keys](mem://standards/pascalcase-json-keys) — All instruction.json keys + their TS source counterparts must be PascalCase (Name, World, RunAt, IsIife, …); supersedes Q4 long-camelCase draft
 - [Constant naming](mem://architecture/constant-naming-convention) — SCREAMING_SNAKE_CASE prefixes (ID_, SEL_, ATTR_, CSS_)
 - [UI framework selection](mem://architecture/ui-framework-selection) — React rejected; modular UIManager architecture used
 - [Diagram visual standards](mem://style/diagram-visual-standards) — PascalCase, dark XMind aesthetic, top-down

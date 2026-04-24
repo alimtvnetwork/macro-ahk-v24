@@ -63,3 +63,106 @@ standalone-scripts/types/instruction/
 | Q5 | Runtime `StandaloneScript` base class | 🟡 **Deferred** — does not block this build-out | Will be designed after `PaymentBannerHider` class rewrite (plan 0.11) provides a reference implementation |
 
 The 19-file build-out is now unblocked. Migration order is tracked in `plan.md` Priority 0 (items 0.2–0.6).
+
+---
+
+## Migration checklist (per standalone script)
+
+Run **in order**. Do not skip steps — each step's grep target is the gate for the next.
+
+1. **Inventory the local types**
+   - `rg -n "interface ProjectInstruction|type ProjectInstruction" standalone-scripts/<scriptName>/`
+   - `rg -n "\"MAIN\"\\s*\\|\\s*\"ISOLATED\"|\"ISOLATED\"\\s*\\|\\s*\"MAIN\"" standalone-scripts/<scriptName>/`
+   - `rg -n "\"document_(idle|end|start)\"" standalone-scripts/<scriptName>/`
+   - `rg -n "\"glob\"\\s*\\|\\s*\"regex\"|\"regex\"\\s*\\|\\s*\"glob\"" standalone-scripts/<scriptName>/`
+
+2. **Replace the local `ProjectInstruction`** with the shared import:
+   ```ts
+   import type { ProjectInstruction } from "../../types/instruction/project-instruction";
+   ```
+   Delete the local interface/type once nothing references it.
+
+3. **Replace inline string unions with enums** from `enums/`:
+   - `"MAIN" | "ISOLATED"` → `InjectionWorld`
+   - `"document_idle" | "document_end" | "document_start"` → `InjectionRunAt`
+   - `"glob" | "regex"` → `MatchType`
+   - `"direct" | "relative"` → `XPathKind`
+   - asset target literals → `AssetInjectTarget`
+
+4. **Adopt long field names** (Q4):
+   - `world` → `injectionWorld`
+   - `runAt` → `injectionRunAt`
+   - `iife` → `isImmediatelyInvokedFunction`
+   - `target` (on assets) → `injectInto`
+
+5. **Apply `EmptySettings` (Q3)** wherever a script has no user-tunable settings:
+   ```ts
+   import type { EmptySettings } from "../../types/instruction/seed/empty-settings";
+   const instruction: ProjectInstruction<EmptySettings> = { … };
+   ```
+   Never inline `Record<string, never>` at the callsite.
+
+6. **Verify** — all four greps below MUST return zero hits in the migrated script's folder before closing the migration ticket.
+
+---
+
+## Grep targets (zero-hit gates)
+
+These commands must return **no matches** under `standalone-scripts/<scriptName>/` after migration. CI will run them repo-wide once every script is migrated; until then they are the per-script acceptance test.
+
+### 1. `EmptySettings` adoption — find inlined empty-settings types
+
+```bash
+# Any script that still inlines Record<string, never> instead of importing EmptySettings
+rg -n "Record<\\s*string\\s*,\\s*never\\s*>" standalone-scripts/<scriptName>/
+
+# Any script that inlines `{}` as the settings generic (also banned)
+rg -n "ProjectInstruction<\\s*\\{\\s*\\}\\s*>" standalone-scripts/<scriptName>/
+```
+Expected: **0 hits**. Replacement: `import type { EmptySettings }` + `ProjectInstruction<EmptySettings>`.
+
+### 2. Deprecated short field names (Q4)
+
+```bash
+# Short names on instruction / asset / seed objects
+rg -n "\\b(world|runAt|iife|target)\\s*:" standalone-scripts/<scriptName>/src/
+```
+Expected: **0 hits** for these specific keys on instruction-shaped objects. Replacements:
+- `world:` → `injectionWorld:`
+- `runAt:` → `injectionRunAt:`
+- `iife:` → `isImmediatelyInvokedFunction:`
+- `target:` (on assets) → `injectInto:`
+
+> ⚠️ `target:` is a common word — review hits manually and only rewrite the ones on `*Asset` objects. Do **not** touch `event.target`, DOM `target`, or unrelated build-tool `target` fields.
+
+### 3. Inline string unions that should be enums
+
+```bash
+rg -n "\"MAIN\"\\s*\\|\\s*\"ISOLATED\"|\"ISOLATED\"\\s*\\|\\s*\"MAIN\"" standalone-scripts/<scriptName>/
+rg -n "\"document_(idle|end|start)\"\\s*\\|" standalone-scripts/<scriptName>/
+rg -n "\"glob\"\\s*\\|\\s*\"regex\"|\"regex\"\\s*\\|\\s*\"glob\"" standalone-scripts/<scriptName>/
+rg -n "\"direct\"\\s*\\|\\s*\"relative\"|\"relative\"\\s*\\|\\s*\"direct\"" standalone-scripts/<scriptName>/
+```
+Expected: **0 hits**. Replacements: import the matching enum from `enums/` and use the enum member.
+
+### 4. Local `ProjectInstruction` redefinitions
+
+```bash
+rg -n "^(export\\s+)?(interface|type)\\s+ProjectInstruction\\b" standalone-scripts/<scriptName>/
+```
+Expected: **0 hits**. The shared type from `standalone-scripts/types/instruction/project-instruction.ts` is the only legal definition.
+
+---
+
+## Repo-wide post-migration gate
+
+Once **every** script is migrated, the same four greps must return zero hits across the whole `standalone-scripts/` tree (excluding `standalone-scripts/types/`):
+
+```bash
+rg -n "Record<\\s*string\\s*,\\s*never\\s*>" standalone-scripts/ -g '!standalone-scripts/types/**'
+rg -n "\\b(world|runAt|iife)\\s*:"            standalone-scripts/ -g '!standalone-scripts/types/**'
+rg -n "^(export\\s+)?(interface|type)\\s+ProjectInstruction\\b" standalone-scripts/ -g '!standalone-scripts/types/**'
+rg -n "\"MAIN\"\\s*\\|\\s*\"ISOLATED\"" standalone-scripts/ -g '!standalone-scripts/types/**'
+```
+
+At that point, ESLint's `id-denylist` rule for `world` / `runAt` / `iife` / inline `target` (on instruction objects) becomes the permanent enforcement layer and these greps move into CI.

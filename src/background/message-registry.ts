@@ -13,6 +13,7 @@ import { MessageType, type MessageRequest } from "../shared/messages";
 import { buildStatusResponse } from "./status-handler";
 import { buildHealthResponse } from "./health-handler";
 import { buildAuthHealthResponse } from "./auth-health-handler";
+import { getInaccessibleSeedTargets, getInaccessibleSeedCooldownMs } from "./handlers/token-seeder";
 import { handleNetworkStatus, handleNetworkRequest, getRecentNetworkRequests, getNetworkStats, clearNetworkRequests } from "./network-handler";
 import { buildApiEndpointsResponse, buildApiStatusResponse } from "./api-explorer-handler";
 import { getRecentTrackedMessages } from "./message-tracker";
@@ -343,6 +344,11 @@ export const HANDLER_REGISTRY = new Map<MessageType, MessageHandler>([
     [MessageType.GET_STATUS, async () => buildStatusResponse()],
     [MessageType.GET_HEALTH_STATUS, async () => buildHealthResponse()],
     [MessageType.GET_AUTH_HEALTH, async () => buildAuthHealthResponse()],
+    [MessageType.GET_TOKEN_SEEDER_DIAGNOSTICS, async () => ({
+        targets: getInaccessibleSeedTargets(),
+        cooldownMs: getInaccessibleSeedCooldownMs(),
+        capturedAt: new Date().toISOString(),
+    })],
     [MessageType.GET_API_STATUS, async () => buildApiStatusResponse()],
     [MessageType.GET_API_ENDPOINTS, async () => buildApiEndpointsResponse()],
     [MessageType.GET_ACTIVE_ERRORS, async () => handleGetActiveErrors()],

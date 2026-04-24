@@ -9,6 +9,7 @@
 # extraction, exit-4 on missing assets, exit-5 on API timeout.
 #
 # Coverage:
+#   AC-1   No flag, releases exist → API lookup + install latest
 #   AC-3   URL-pin resolves + downloads from mock /releases/download/
 #   AC-4   --version vX.Y.Z resolves + downloads from mock
 #   AC-5   --version vX.Y.Z + 404 asset → exit 4 (missing-asset path)

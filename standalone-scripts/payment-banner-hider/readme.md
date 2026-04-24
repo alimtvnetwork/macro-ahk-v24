@@ -1,6 +1,6 @@
 # Payment Banner Hider — Standalone Script
 
-**Version**: 1.0.0
+**Version**: 2.230.0
 **Author**: Riseup Asia LLC
 **Type**: Global auto-injected userland script
 
@@ -10,39 +10,51 @@ Automatically hides the Lovable "Payment issue detected." sticky banner that
 appears at `/html/body/div[2]/main/div/div[1]` on `lovable.dev/*` pages.
 
 The banner is faded to black and collapsed within ~1 second using a pure
-CSS3 transition — no JavaScript animation libraries.
+CSS3 transition declared in `css/payment-banner-hider.css`.
+
+## Architecture (post-RCA refactor — Issue 98, 2026-04-24)
+
+This script is the reference implementation of the standards in
+`.lovable/memory/standards/`. Every file follows them by construction:
+
+| Concern | File | Standard |
+|---|---|---|
+| Class entry point | `src/index.ts` → `class PaymentBannerHider` | `class-based-standalone-scripts` |
+| Injected dependency | `src/banner-locator.ts` → `class BannerLocator` | `class-based-standalone-scripts` |
+| State machine | `src/types.ts` → `enum BannerState` | CQ3 (no magic strings) |
+| Styles on disk | `css/payment-banner-hider.css` | `standalone-scripts-css-in-own-file` |
+| No `!important` | scoped `[data-marco-banner-hider]` selectors | `no-css-important` |
+| Window typing | `src/globals.d.ts` (`declare global`) | `no-type-casting` |
+| Catch handling | `Logger.error` + `throw caught` | `no-error-swallowing` |
+| Animation | CSS transition + `queueMicrotask` (no rAF) | `no-unjustified-raf` |
 
 ## Behavior
 
 | Stage | What happens |
 |-------|---|
 | 1 | Script auto-injects on `lovable.dev/*` (no manual run required). |
-| 2 | XPath `/html/body/div[2]/main/div/div[1]` is queried. |
-| 3 | If `textContent` contains exactly `Payment issue detected.`, the banner is marked. |
-| 4 | Background turns black, then opacity + max-height collapse over 900 ms. |
-| 5 | After 1000 ms, `display: none` is applied. Layout space is released. |
+| 2 | `BannerLocator.locate()` runs the XPath and confirms the exact text. |
+| 3 | If matched, the element gets `data-marco-banner-hider="fading"`. |
+| 4 | A microtask later it transitions to `"hiding"` — opacity + max-height collapse over 900 ms. |
+| 5 | After 1000 ms, `"done"` applies `display: none`. Layout space is released. |
 | 6 | A `MutationObserver` watches for re-renders (React SPA navigation). |
-
-## Safety
-
-- Only acts if the exact string `Payment issue detected.` is present.
-- Re-renders are handled by checking the `data-payment-banner-hidden` attribute.
-- No DOM removal — only CSS-based hiding (React state stays consistent).
 
 ## Build
 
 ```bash
-pnpm run build:payment-banner-hider
+npm run build:payment-banner-hider
 ```
 
-Output → `standalone-scripts/payment-banner-hider/dist/payment-banner-hider.js`
-(IIFE, exposes `window.PaymentBannerHider` for debugging).
+Outputs to `standalone-scripts/payment-banner-hider/dist/`:
+- `payment-banner-hider.js` — IIFE bundle, exposes `window.PaymentBannerHider`
+- `payment-banner-hider.css` — copied from `css/` by `scripts/copy-payment-banner-hider-css.mjs`
+- `instruction.json` — manifest consumed by the extension's seeder
 
 ## Debug API (`window.PaymentBannerHider`)
 
-| Method | Description |
+| Member | Description |
 |--------|---|
-| `version` | Library version string |
+| `version` | Library version string (matches repo unified version) |
 | `check()` | Manually trigger one detection pass |
 
 ## Target URL Scope

@@ -27,7 +27,7 @@ import { verifyWasmChecksum, summarizeChecksumOutcome } from "./wasm-integrity";
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-type SqlJs = typeof import("sql.js");
+type SqlJs = import("sql.js").SqlJsStatic;
 type PersistenceMode = "opfs" | "storage" | "memory";
 
 export interface DbManager {

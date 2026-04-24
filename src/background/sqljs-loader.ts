@@ -7,7 +7,8 @@
 
 import type { SqlJsStatic } from "sql.js";
 
-// @ts-expect-error dist build path may not expose direct TypeScript declaration
+// dist build path does not ship a dedicated TypeScript declaration; the
+// runtime export is the initSqlJs factory function.
 import initSqlJsFactory from "sql.js/dist/sql-wasm.js";
 
 interface InitSqlJsConfig {

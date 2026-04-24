@@ -7,8 +7,8 @@
  * See spec/05-chrome-extension/67-project-scoped-database-and-rest-api.md
  */
 
-import type { SqlValue } from "sql.js";
 import type { Database as SqlJsDatabase } from "sql.js";
+import type { SqlValue } from "./handlers/handler-types";
 import { ensureMetaTables } from "./schema-meta-engine";
 
 /* ------------------------------------------------------------------ */

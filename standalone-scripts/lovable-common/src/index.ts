@@ -1,6 +1,6 @@
 /**
  * Lovable Common — XPath + delay defaults, shared LovableApiClient,
- * and the shared XPath/delay editor (P18).
+ * the shared XPath/delay editor (P18), and the shared logs viewer (P19).
  *
  * Consumed at runtime by lovable-owner-switch and lovable-user-add.
  */
@@ -30,4 +30,13 @@ export {
     TITLE_EDITOR, LABEL_RESET, LABEL_SAVE,
 } from "./ui";
 export type { XPathEditorOptions, XPathEditorRow } from "./ui";
+
+export {
+    mountLogViewer, buildLogTable, copyEntriesToClipboard,
+    formatEntriesAsText, formatTimestampLocal, formatRowIndex,
+    buildFilterSelect, collectUniquePhases, filterEntries, FILTER_ALL_VALUE,
+    LogViewerSeverityCode,
+    TITLE_VIEWER, LABEL_COPY, LABEL_COPIED, LABEL_COPY_FAILED, LABEL_FILTER_ALL, LABEL_EMPTY,
+} from "./ui";
+export type { LogViewerEntry, LogViewerOptions } from "./ui";
 

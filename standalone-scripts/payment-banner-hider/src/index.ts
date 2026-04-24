@@ -122,5 +122,3 @@ export class PaymentBannerHider implements PaymentBannerHiderApi {
 const instance = new PaymentBannerHider();
 window.PaymentBannerHider = instance;
 instance.start();
-
-export default PaymentBannerHider;

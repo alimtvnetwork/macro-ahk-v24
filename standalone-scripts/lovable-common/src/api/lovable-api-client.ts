@@ -41,36 +41,38 @@ export class LovableApiClient {
     }
 
     public async getWorkspaces(): Promise<WorkspaceSummary[]> {
-        const bearerToken = await this.tokenProvider();
-        const wire = await lovableHttpJson({ method: HTTP_GET, endpoint: this.endpoint.workspaces(), bearerToken });
+        const wire = await this.send(HTTP_GET, this.endpoint.workspaces());
 
         return mapWorkspaceArray(wire);
     }
 
     public async getMemberships(workspaceId: string): Promise<MembershipSummary[]> {
-        const bearerToken = await this.tokenProvider();
-        const wire = await lovableHttpJson({ method: HTTP_GET, endpoint: this.endpoint.memberships(workspaceId), bearerToken });
+        const wire = await this.send(HTTP_GET, this.endpoint.memberships(workspaceId));
 
         return mapMembershipArray(wire);
     }
 
     public async addMembership(workspaceId: string, body: AddMembershipRequest): Promise<MembershipSummary> {
-        const bearerToken = await this.tokenProvider();
         const jsonBody = { email: body.Email, role: body.Role };
-        const wire = await lovableHttpJson({ method: HTTP_POST, endpoint: this.endpoint.memberships(workspaceId), bearerToken, jsonBody });
+        const wire = await this.send(HTTP_POST, this.endpoint.memberships(workspaceId), jsonBody);
 
         return mapMembership(wire);
     }
 
     public async updateMembershipRole(workspaceId: string, userId: string, body: UpdateMembershipRoleRequest): Promise<MembershipSummary> {
-        const bearerToken = await this.tokenProvider();
         const jsonBody = { role: body.Role };
-        const wire = await lovableHttpJson({ method: HTTP_PUT, endpoint: this.endpoint.membership(workspaceId, userId), bearerToken, jsonBody });
+        const wire = await this.send(HTTP_PUT, this.endpoint.membership(workspaceId, userId), jsonBody);
 
         return mapMembership(wire);
     }
 
     public async promoteToOwner(workspaceId: string, userId: string): Promise<MembershipSummary> {
         return this.updateMembershipRole(workspaceId, userId, { Role: MembershipRoleApiCode.Owner });
+    }
+
+    private async send(method: "GET" | "POST" | "PUT", endpoint: string, jsonBody?: object): Promise<object> {
+        const bearerToken = await this.tokenProvider();
+
+        return lovableHttpJson({ method, endpoint, bearerToken, jsonBody });
     }
 }

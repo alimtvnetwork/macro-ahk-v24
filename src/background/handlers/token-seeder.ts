@@ -30,7 +30,8 @@ const LS_SESSION_COOKIE_KEY = "lovable-session-id.id";
 const LS_MARCO_BEARER_KEY = "marco_bearer_token";
 const RESTRICTED_URL_RE = /^(chrome|edge|brave|opera|about|devtools|chrome-extension):\/\//i;
 const warnedInaccessibleTabs = new Set<string>();
-const inaccessibleSeedTargets = new Set<string>();
+const inaccessibleSeedTargets = new Map<string, number>();
+const INACCESSIBLE_SEED_COOLDOWN_MS = 15_000;
 
 /* ------------------------------------------------------------------ */
 /*  Public API                                                         */
@@ -324,7 +325,7 @@ function isTabAccessDeniedError(error: unknown): boolean {
 function warnInaccessibleTabOnce(tabId: number, tabUrl: string, reason: string): void {
     const key = `${tabId}::${tabUrl}`;
 
-    inaccessibleSeedTargets.add(key);
+    inaccessibleSeedTargets.set(key, Date.now());
 
     if (warnedInaccessibleTabs.has(key)) {
         return;
@@ -344,7 +345,20 @@ function clearInaccessibleWarning(tabId: number, tabUrl: string): void {
 }
 
 function isKnownInaccessibleTarget(tabId: number, tabUrl: string): boolean {
-    return inaccessibleSeedTargets.has(`${tabId}::${tabUrl}`);
+    const key = `${tabId}::${tabUrl}`;
+    const lastFailureAt = inaccessibleSeedTargets.get(key);
+
+    if (lastFailureAt === undefined) {
+        return false;
+    }
+
+    if (Date.now() - lastFailureAt < INACCESSIBLE_SEED_COOLDOWN_MS) {
+        return true;
+    }
+
+    inaccessibleSeedTargets.delete(key);
+    warnedInaccessibleTabs.delete(key);
+    return false;
 }
 
 async function getTabUrl(tabId: number): Promise<string | null> {

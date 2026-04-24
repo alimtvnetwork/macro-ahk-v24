@@ -38,7 +38,7 @@ _Nothing currently in progress._
 | P8  | Owner Switch login automation | ✅ 2026-04-24 (`flow/{run-login,login-steps,login-types,dom-xpath,dom-actions,wait-for-xpath,xpath-resolver}.ts`) |
 | P9  | Owner Switch promote step (uses shared client) | ✅ 2026-04-24 (`flow/{run-promote,promote-resolvers,promote-types,ttl-cache}.ts`; R12 verified — single PUT site at `lovable-api-client.ts:64`) |
 | P10 | Owner Switch sign-out + per-row state machine | ✅ 2026-04-24 (`flow/{run-row,run-sign-out,row-types,row-state-store,log-sink}.ts` + `migrations/log-ddl.ts`; Q6/Q7/Q10 defaults applied) |
-| P11 | User Add project scaffold | ⏳ |
+| P11 | User Add project scaffold | ✅ 2026-04-24 (`standalone-scripts/lovable-user-add/{info.json,readme.md,src/{index,instruction,lovable-user-add}.ts}`; mirrors Owner Switch P4 layout, loadOrder 61, R12 invariant called out in instruction header) |
 | P12 | User Add SQLite migration + `MembershipRole` seed | ⏳ |
 | P13 | User Add CSV parser + validator (Editor→Member) | ⏳ |
 | P14 | User Add popup UI shell + default-role select | ⏳ |

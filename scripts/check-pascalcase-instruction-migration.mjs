@@ -331,59 +331,69 @@ function runCheckB(sourceFiles) {
 /*  CHECK C — files that read instruction.json must use PascalCase   */
 /*           property access (no legacy camelCase keys).              */
 /* ----------------------------------------------------------------- */
+
+/**
+ * Variable-name allowlist that strongly indicates a binding holds the
+ * parsed instruction.json tree. CHECK C only flags legacy camelCase
+ * accesses where the receiver matches one of these names. This prunes
+ * false positives from the storage layer (`meta.loadOrder` on a
+ * BUILTIN_DIST_MAP entry, `script.runAt` on a StoredScript row, …)
+ * which legitimately use the same property names as persistence keys.
+ *
+ * Add a name here only when it provably refers to a parsed
+ * instruction.json result (i.e. it was assigned from `JSON.parse(...)`,
+ * `await fetch(...).json()`, or `await fetchInstruction(...)`).
+ */
+const INSTRUCTION_RECEIVER_NAMES = [
+    "instruction",
+    "instructions",
+    "instructionJson",
+    "instructionManifest",
+    "instructionTree",
+    "manifest",
+    "projectInstruction",
+];
+
 function runCheckC(sourceFiles) {
     const violations = [];
-    // Build one regex that matches `.key` or `["key"]` or 'key' for any legacy camel key.
+    // Match `<receiver>.<camelKey>` or `<receiver>["camelKey"]`. Allow
+    // optional-chaining (`instruction?.assets`) between receiver and
+    // accessor by tolerating an optional `?` immediately after the
+    // receiver name.
     const KEY_GROUP = LEGACY_CAMEL_KEYS.join("|");
+    const RECV_GROUP = INSTRUCTION_RECEIVER_NAMES.join("|");
     const ACCESS_RE = new RegExp(
-        `(?:\\.(${KEY_GROUP})\\b|\\[\\s*["'](${KEY_GROUP})["']\\s*\\])`,
+        `\\b(${RECV_GROUP})\\??(?:\\.(${KEY_GROUP})\\b|\\[\\s*["'](${KEY_GROUP})["']\\s*\\])`,
         "g",
     );
 
     for (const file of sourceFiles) {
         const relPath = rel(file);
-        // Skip self + the dual-emit pipeline (compile/check scripts
-        // legitimately spell these names in comments/docs/migration code).
+        // Self + dual-emit pipeline + compat-allowlisted readers are
+        // exempt — they spell these names intentionally (in docs,
+        // migration code, or against the camelCase compat snapshot).
         if (
             relPath === "scripts/check-pascalcase-instruction-migration.mjs"
             || relPath === "scripts/compile-instruction.mjs"
+            || COMPAT_READER_ALLOWLIST.has(relPath)
         ) continue;
 
         const text = readFileSync(file, "utf-8");
-
-        // Only fire CHECK C against files that ALSO read the canonical
-        // instruction.json — otherwise we'd flood with false positives
-        // from the storage layer (StoredScript / StoredProject rows
-        // legitimately use these camelCase names as persistence keys).
-        const readsInstruction = /\binstruction\.json\b/.test(text)
-            && !/\bonly\s+instruction\.compat\.json\b/i.test(text);
-        if (!readsInstruction) continue;
-
-        // Skip files that ONLY mention instruction.json in comments
-        // (not in a fetch / readFileSync / require / import call).
-        // Heuristic: require at least one line where instruction.json
-        // appears outside a comment-prefix line.
         const lines = text.split("\n");
-        const hasCodeRef = lines.some((ln) => {
-            const trimmed = ln.trimStart();
-            if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) return false;
-            return /\binstruction\.json\b/.test(ln);
-        });
-        if (!hasCodeRef) continue;
-
         for (let i = 0; i < lines.length; i++) {
             const ln = lines[i];
-            // Skip comment lines.
             const trimmed = ln.trimStart();
             if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) continue;
 
             ACCESS_RE.lastIndex = 0;
             let m;
             while ((m = ACCESS_RE.exec(ln)) !== null) {
-                const key = m[1] ?? m[2];
+                const recv = m[1];
+                const key = m[2] ?? m[3];
                 violations.push({
                     file: relPath,
                     line: i + 1,
+                    receiver: recv,
                     key,
                     pascal: key[0].toUpperCase() + key.slice(1),
                     snippet: ln.trim(),

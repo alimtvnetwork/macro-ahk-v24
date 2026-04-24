@@ -83,7 +83,9 @@ curl -fsSL https://raw.githubusercontent.com/alimtvnetwork/macro-ahk-v23/main/sc
 
 ### Installer Options
 
-The installers (`install.ps1`, `install.sh`) conform to the [Generic Installer Behavior spec](spec/14-update/01-generic-installer-behavior.md). Behavior is determined by **how the installer was invoked**, not by build-time stamping.
+> 📘 **Full reference:** [`docs/installer-guide.md`](docs/installer-guide.md) — CLI flags, exit codes, checksum behavior, warnings glossary, and troubleshooting.
+
+The installers (`install.ps1`, `install.sh`) conform to the [Generic Installer Behavior spec](spec/14-update/01-generic-installer-behavior.md). Behavior is determined by **how the installer was invoked**, not by build-time stamping. Both installers read shared defaults from [`scripts/installer-contract.json`](scripts/installer-contract.json) (CI-enforced — they cannot drift).
 
 #### Strict mode vs Discovery mode
 

@@ -350,8 +350,13 @@ const INSTRUCTION_RECEIVER_NAMES = [
     "instructionJson",
     "instructionManifest",
     "instructionTree",
-    "manifest",
     "projectInstruction",
+    // NOTE: bare "manifest" is intentionally excluded — it collides
+    // with `ProjectManifest` (the user-facing project export/import
+    // schema, deliberately camelCase per the third-party-boundary
+    // exemption in mem://standards/pascalcase-json-keys). If you need
+    // to flag instruction-tree access via a `manifest` binding, rename
+    // the local variable to `instructionManifest`.
 ];
 
 function runCheckC(sourceFiles) {

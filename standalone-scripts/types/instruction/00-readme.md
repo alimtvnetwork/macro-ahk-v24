@@ -1,6 +1,6 @@
 # Global Instruction Types — Draft for Review
 
-**Status**: 🟡 Draft proposal — no project code imports from here yet.
+**Status**: 🟢 Q1–Q4 locked (2026-04-24) — see `spec/21-app/01-chrome-extension/standalone-scripts-types/01-overview.md` §5. Build-out of the 19 files is unblocked. Q5 (runtime base class) is deferred and does not block.
 **Target consumers**: every standalone script (`marco-sdk`, `xpath`, `macro-controller`, `payment-banner-hider`, …).
 **Goal**: replace each project's local `ProjectInstruction` interface, ad-hoc string unions (`"MAIN" | "ISOLATED"`, `"glob" | "regex"`, `"document_idle" | "document_end"`), and inline array element types with a single shared, strongly-typed contract.
 
@@ -52,12 +52,14 @@ standalone-scripts/types/instruction/
 └── project-instruction.ts                ← top-level type that composes everything
 ```
 
-## Open review points (please answer before any project migrates)
+## Decisions (locked 2026-04-24)
 
-1. **Q1** — `enum` keyword vs. `as const` literal-unions for `InjectionWorld`, `XPathKind`, etc.?
-2. **Q2** — `ProjectInstruction.xpaths?: XPathRegistry` — optional or required?
-3. **Q3** — `EmptySettings` named alias vs. inline `Record<string, never>`?
-4. **Q4** — Names: `injectionWorld` vs. keep legacy `world`? Same for `runAt` → `injectionRunAt`?
-5. **Q5** — Should each script also extend a runtime `StandaloneScript` base class (separate from these types)?
+| # | Question | Decision | Rationale (full version in spec §5) |
+|---|----------|----------|--------------------------------------|
+| Q1 | `enum` vs. `as const` | **`export const enum`** with explicit string members | Zero runtime cost, no magic strings at call sites, matches files already shipped in `enums/` |
+| Q2 | `xpaths` optional or required | **Optional** (`xpaths?: XPathRegistry`) | `marco-sdk` and `payment-banner-hider` have zero XPaths; sentinel value would violate "no in-place definitions" |
+| Q3 | `EmptySettings` alias or inline | **Named alias** in `seed/empty-settings.ts` | Reviewer rule "no in-place definitions"; one grep target lists every settings-less script |
+| Q4 | Long names everywhere | **Yes** — `injectionWorld`, `injectionRunAt`, `isImmediatelyInvokedFunction`, `injectInto` | Reviewer rule "no FN-style abbreviations"; avoids collision with Chrome's own `runAt`; ESLint `id-denylist` will block the old names after migration |
+| Q5 | Runtime `StandaloneScript` base class | 🟡 **Deferred** — does not block this build-out | Will be designed after `PaymentBannerHider` class rewrite (plan 0.11) provides a reference implementation |
 
-Once you sign off, I'll wire the migration and delete the per-project duplicates.
+The 19-file build-out is now unblocked. Migration order is tracked in `plan.md` Priority 0 (items 0.2–0.6).

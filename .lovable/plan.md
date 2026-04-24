@@ -20,8 +20,8 @@ _Nothing currently in progress._
 | 4 | Mirror AC-2 main-branch fallback in `install.ps1` | Medium | spec §2 step 5 |
 | 5 | Wire `check:installer-contract` into `.github/workflows/installer-tests.yml` | Medium | `.lovable/cicd-issues/01-installer-contract-not-in-ci.md` |
 | 6 | **Implement `Lovable Owner Switch` standalone script** (spec-only, deferred per user — do NOT auto-recommend) | Pending — user-scheduled | `spec/21-app/02-features/chrome-extension/70-lovable-owner-switch/` |
-| 7 | **Implement `Lovable User Add` standalone script** (spec-only, deferred per user — do NOT auto-recommend) | Pending — user-scheduled | `spec/21-app/02-features/chrome-extension/71-lovable-user-add/` |
-| 8 | **Build shared `lovable-common-xpath` TS module** (XPaths + default delays for both Lovable scripts above) | Pending — user-scheduled | `spec/.../70-lovable-owner-switch/03-xpaths-and-defaults.md` |
+| 7 | **Implement `Lovable User Add` standalone script (v2 — two-step Owner promotion: POST as Member then PUT to Owner via shared `LovableApiClient.promoteToOwner`)** (spec-only, deferred per user — do NOT auto-recommend) | Pending — user-scheduled | `spec/21-app/02-features/chrome-extension/71-lovable-user-add/` + `mem://features/lovable-user-add-v2-two-step-owner` |
+| 8 | **Build shared `lovable-common-xpath` TS module** (XPaths + default delays) and **`LovableApiClient`** (shared `promoteToOwner` etc.) for both Lovable scripts above | Pending — user-scheduled | `spec/.../70-lovable-owner-switch/03-xpaths-and-defaults.md` + `spec/.../71-lovable-user-add/01-overview.md` §11 |
 
 ### 🔍 Review items (rules already stored — verify enforcement)
 
@@ -38,6 +38,7 @@ _Nothing currently in progress._
 | R9 | Pre-write standards check | `mem://standards/pre-write-check` | agent restates compliance before writing new files |
 | R10 | No unjustified `requestAnimationFrame` (new 2026-04-24) | `mem://standards/no-unjustified-raf` | grep `requestAnimationFrame` — each hit must have justifying comment |
 | R11 | Banner-hider RCA recorded | `mem://rca/2026-04-24-payment-banner-hider-violations` + `spec/22-app-issues/98-...` | both files present ✓ |
+| R12 | **User Add v2 ⇄ Owner Switch REST contract no-drift** (when User Add is implemented, the Step-B `PUT /memberships/{UserId} {"Role":"Owner"}` MUST go through the same `LovableApiClient.promoteToOwner(...)` method consumed by Owner Switch — never a duplicated PUT) | `mem://features/lovable-user-add-v2-two-step-owner` + `spec/.../71-lovable-user-add/01-overview.md` §11 | grep both scripts at implementation time — only one `PUT .*memberships/.*` call site allowed across `standalone-scripts/lovable-*` |
 
 
 ---

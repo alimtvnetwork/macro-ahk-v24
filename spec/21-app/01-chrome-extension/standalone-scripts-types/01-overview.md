@@ -1,6 +1,6 @@
 # Standalone Scripts — Global Instruction Types
 
-**Status**: 🟡 Draft — awaiting review on Q1–Q5.
+**Status**: 🟢 Locked for Q1–Q4 (2026-04-24). Q5 still open — does not block the 19-file build-out.
 **Owner**: Riseup Asia LLC
 **Source folder**: `standalone-scripts/types/instruction/`
 **Driving conversation**: 2026-04-24 chat with reviewer (logged here in full so nothing is lost).
@@ -91,15 +91,56 @@ See `standalone-scripts/types/instruction/00-readme.md` for the full tree. Highl
 
 `scripts/compile-instruction.mjs` reads `instruction.ts` via `tsx` and writes `instruction.json`. The JSON shape on disk must stay byte-identical post-migration so the runtime loader and `check-standalone-dist.mjs` keep passing. Field-rename mapping (`world` → `injectionWorld`, `isIife` → `isImmediatelyInvokedFunction`, `inject` → `injectInto`) is opt-in: `compile-instruction.mjs` will emit the legacy keys for one release cycle so the runtime can be migrated independently.
 
-## 5. Open review points
+## 5. Decisions (Q1–Q4 locked 2026-04-24)
 
-These match `00-readme.md` and the questions in the closing summary — re-stated here so the spec is self-contained.
+These answers are binding for the 19-file build-out. Q5 is the only item still open and does **not** block migration.
 
-- **Q1** — `enum` keyword vs. `as const` literal-unions for `InjectionWorld`, `XPathKind`, etc.?
-- **Q2** — `ProjectInstruction.xpaths?: XPathRegistry` — optional or required?
-- **Q3** — `EmptySettings` named alias vs. inline `Record<string, never>`?
-- **Q4** — Names: `injectionWorld` vs. keep legacy `world`? Same for `runAt` → `injectionRunAt`?
-- **Q5** — Should each script also extend a runtime `StandaloneScript` base class (separate from these types)?
+### Q1 — `const enum` (✅ chosen) over `as const` literal unions
+
+**Decision**: Use `export const enum Name { Member = "value" }` for every closed string set (`InjectionWorld`, `InjectionRunAt`, `MatchType`, `XPathKind`, `AssetInjectTarget`).
+
+**Why**:
+1. Zero runtime cost — `const enum` members are inlined by `tsc`, identical bundle size to a string literal.
+2. Reverse-lookup not needed (we never go from `"MAIN"` back to `InjectionWorld.Main`), so the classic `enum` runtime-object footprint is avoided by `const`.
+3. Member access (`InjectionWorld.Main`) reads as a typed identifier in editors; `as const` literal unions force `"MAIN"` magic-strings at every call site, which the standards memo `mem://standards/no-type-casting` and the reviewer's "magic strings should be enums" rule both ban.
+4. Matches the existing pattern already shipped in `enums/injection-world.ts`, `enums/injection-run-at.ts`, `enums/match-type.ts`.
+
+**Required tsconfig**: `"isolatedModules": true` projects must use `preserveConstEnums: true` (already set in `tsconfig.macro.json`). Confirmed safe.
+
+### Q2 — `ProjectInstruction.xpaths` is **optional** (✅)
+
+**Decision**: `xpaths?: XPathRegistry` — optional.
+
+**Why**:
+1. `marco-sdk` and `payment-banner-hider` legitimately have **zero** XPaths. Forcing `xpaths: { entries: [], groups: [] }` everywhere is noise.
+2. Optionality maps cleanly to the existing `assets.css: []` / `assets.prompts: []` pattern — empty collections are allowed, missing collections mean "not applicable".
+3. Consumers must use `instruction.xpaths?.entries ?? []` — already the project's defensive-property-access standard (`mem://standards/formatting-and-logic`).
+4. A required field would force a sentinel value and break the rule "no in-place definitions" (the empty literal would be in-place).
+
+### Q3 — `EmptySettings` named alias (✅) over inline `Record<string, never>`
+
+**Decision**: Keep `EmptySettings = Record<string, never>` as a named alias in `seed/empty-settings.ts`.
+
+**Why**:
+1. Reviewer's hard rule: "do not type the definitions in place." Inline `Record<string, never>` at every settings-less script's call site violates this directly.
+2. Named alias gives a single search target — `grep EmptySettings` instantly lists every script with no settings, which is the audit query CI/scaffolders need.
+3. Self-documenting at the call site: `SeedBlock<EmptySettings>` reads as "this script intentionally has no settings", whereas `SeedBlock<Record<string, never>>` reads as a TypeScript trick.
+4. Cost is one file, one line — already authored.
+
+### Q4 — Rename `world` → `injectionWorld`, `runAt` → `injectionRunAt`, `isIife` → `isImmediatelyInvokedFunction`, `inject` → `injectInto` (✅)
+
+**Decision**: All four renames go in. The new global types use the long names. Per-script `instruction.ts` files map the old names through during migration via a thin adapter (`scripts/compile-instruction.mjs`, plan item 0.2) so existing seed IDs do not change.
+
+**Why**:
+1. Reviewer's hard rule: "Do not name things like FN. If it is function name, write the full form." `isIife` is the textbook violation.
+2. `world` is ambiguous in a Chrome-extension codebase — there is also "execution context", "isolation boundary", "page context". `injectionWorld` is unambiguous and grep-stable.
+3. `runAt` collides with Chrome's own `chrome.scripting.RegisteredContentScript.runAt` field — keeping the short name forces every reader to disambiguate "ours" vs. "Chrome's". `injectionRunAt` is ours.
+4. `inject: "head"` is a verb where a noun is expected. `injectInto: AssetInjectTarget.Head` reads as "inject into HEAD" and the enum gives extensibility (`Body`, `BeforeBodyClose`).
+5. Migration is mechanical (string replace) and gated by ESLint `id-denylist` for the old names once the migration completes (plan item 0.10).
+
+### Q5 — Runtime `StandaloneScript` base class (🟡 still open)
+
+**Status**: Deferred. Not required for the 19-file types build-out. Will be answered after the `PaymentBannerHider` class rewrite (plan item 0.11) gives us a concrete reference implementation to extract a base from. Tracked in `plan.md` as a separate item; do not block on it.
 
 ## 6. Out of scope for this spec
 

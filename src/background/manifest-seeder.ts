@@ -81,7 +81,23 @@ export async function seedFromManifest(): Promise<SeedResult> {
         return { scripts: 0, configs: 0, projects: 0, errors: [`Unsupported schemaVersion ${sv} (max supported: ${SUPPORTED_SCHEMA_VERSIONS.max})`] };
     }
     if (sv < SUPPORTED_SCHEMA_VERSIONS.min) {
-        logBgWarnError(BgLogTag.MANIFEST_SEEDER, `schemaVersion ${sv} is older than min (${SUPPORTED_SCHEMA_VERSIONS.min}) — proceeding with best-effort seeding`);
+        // Hard abort: a v1 (camelCase) manifest cannot be remapped now
+        // that the legacy aliases were stripped. The only safe fix is to
+        // rebuild via `node scripts/generate-seed-manifest.mjs`.
+        logBgWarnError(
+            BgLogTag.MANIFEST_SEEDER,
+            `schemaVersion ${sv} is older than min (${SUPPORTED_SCHEMA_VERSIONS.min}) — aborting. ` +
+            `Rebuild seed-manifest.json with the current generator.`,
+        );
+        return {
+            scripts: 0,
+            configs: 0,
+            projects: 0,
+            errors: [
+                `Unsupported schemaVersion ${sv} (min supported: ${SUPPORTED_SCHEMA_VERSIONS.min}). ` +
+                `Rebuild seed-manifest.json — legacy camelCase manifests are no longer remapped.`,
+            ],
+        };
     }
 
     const projectNames = manifest.Projects.map((p) => `${p.name}(${p.scripts.length}s/${p.configs.length}c)`);

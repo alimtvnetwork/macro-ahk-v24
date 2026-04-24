@@ -121,18 +121,35 @@ The installers (`install.ps1`, `install.sh`) conform to the [Generic Installer B
 
 #### Exit codes
 
-The installer follows a fixed exit-code contract (see [spec §3](spec/14-update/01-generic-installer-behavior.md)):
+The installer follows a fixed exit-code contract (see [spec §3](spec/14-update/01-generic-installer-behavior.md) and [`installer-contract.json`](scripts/installer-contract.json)):
 
 | Code | Meaning | When it fires |
 |------|---------|---------------|
-| `0` | Success | Install completed, or `--dry-run` / `--help` / `-Help` finished cleanly |
-| `1` | Unexpected failure | OS detection failed, missing required tools (e.g. `unzip`), or unhandled error |
-| `3` | Invalid `--version` argument | Anything that doesn't match `vX.Y.Z[-prerelease]` or the literal string `latest` |
-| `4` | Targeted release asset missing (strict mode only) | The pinned ZIP returns 404 — release was retracted or the asset name changed. Installer **never** falls back. |
-| `5` | Network or tooling error | `latest` API unreachable in discovery mode, or neither `curl` nor `wget` is on `PATH` |
-| `6` | Invalid archive | Downloaded ZIP extracted to no files, or `manifest.json` is missing |
+| `0` | Success | Install completed, or `--dry-run` / `--help` finished cleanly |
+| `1` | Preflight failure | OS detection failed, missing required tools (e.g. `unzip`), or unhandled error |
+| `3` | Invalid `--version` argument | Anything that doesn't match `vX.Y.Z[-prerelease]` or the literal `latest` |
+| `4` | Targeted release asset missing (strict mode only) | The pinned ZIP returns 404. Installer **never** falls back. |
+| `5` | Network or tooling error | API unreachable in discovery mode, or neither `curl` nor `wget` is on `PATH` |
+| `6` | Invalid archive or **checksum mismatch** | ZIP extracted to no files, `manifest.json` missing, or SHA-256 doesn't match `checksums.txt` |
 
-Code `2` is reserved for future use. CI scripts can rely on these — they're covered by [`tests/installer/resolver.test.sh`](tests/installer/resolver.test.sh) and [`tests/installer/mock-server.test.sh`](tests/installer/mock-server.test.sh) (69 assertions, zero network).
+Code `2` is reserved for future use. CI scripts can rely on these — they're covered by [`tests/installer/resolver.test.sh`](tests/installer/resolver.test.sh) (46 cases) and [`tests/installer/mock-server.test.sh`](tests/installer/mock-server.test.sh) (62 cases). Drift between the two installers is prevented by [`scripts/check-installer-contract.mjs`](scripts/check-installer-contract.mjs).
+
+#### Checksum verification (since v2.227.0)
+
+Every release ships a `checksums.txt` file. The installer fetches it from the same release, computes SHA-256 of the downloaded zip, and aborts on mismatch with **exit 6**.
+
+| Outcome | What you see | Action |
+|---|---|---|
+| ✅ Match | `✓ checksum OK (sha256=…)` | Install continues |
+| ❌ Mismatch | `✗ checksum MISMATCH — expected …, got …` | **Exit 6.** Re-download — do not retry blindly. |
+| ⚠️ Missing `checksums.txt` | `⚠ checksums.txt not found — skipping integrity check` | Continues (back-compat with pre-v2.227.0 releases) |
+| ⚠️ No SHA tool (Bash only) | `⚠ no sha256sum/shasum/openssl available — skipping` | Continues. Install `coreutils` to enable. |
+
+Bash uses `sha256sum` → `shasum -a 256` → `openssl dgst -sha256` (first available wins). PowerShell uses the built-in `Get-FileHash`. See [`docs/installer-guide.md` §5](docs/installer-guide.md#5-checksum-verification-sha-256) for the full rundown.
+
+#### Main-branch fallback (since v2.226.0)
+
+In **discovery mode**, if the GitHub API responds `200 OK` with zero releases (or `404 Not Found` for `/releases/latest`), the installer falls back to `archive/refs/heads/<MAIN_BRANCH>.tar.gz` and records the version as `<branch>@HEAD`. You'll see the `🌿 Discovery mode — main branch (no releases found)` banner. **Network failures (5xx, DNS error) still exit 5** — the installer never silently falls through to `main` if the user might have wanted a real release.
 
 #### Sibling-repo discovery (advanced)
 

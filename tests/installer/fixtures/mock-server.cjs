@@ -236,6 +236,18 @@ const server = http.createServer((req, res) => {
             res.writeHead(503, { 'content-type': 'application/json' });
             return res.end('{}');
         }
+        // AC-2 — repo reachable but reports zero releases.
+        // ZERO_RELEASES === '404' mirrors GitHub's actual behavior; '1'
+        // returns a 200 with an empty-object body. install.sh treats
+        // both as the main-branch trigger.
+        if (ZERO_RELEASES === '404') {
+            res.writeHead(404, { 'content-type': 'application/json' });
+            return res.end('{"message":"Not Found"}');
+        }
+        if (ZERO_RELEASES === '1' || ZERO_RELEASES.toLowerCase() === 'true') {
+            res.writeHead(200, { 'content-type': 'application/json' });
+            return res.end('{}');
+        }
         res.writeHead(200, { 'content-type': 'application/json' });
         return res.end(JSON.stringify({ tag_name: LATEST_TAG, name: LATEST_TAG }));
     }

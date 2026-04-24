@@ -464,6 +464,57 @@ describe("sqlite-bundle — full round-trip", () => {
       expect(category ?? null).toBe(src.category ?? null);
     }
 
+    /* Projects — raw-DB inspection of the v5 PascalCase columns that were
+     * silently dropped pre-v5 (audit P-1: Cookies, P-2: Dependencies,
+     * P-3: IsGlobal/IsRemovable, P-4: Slug). Asserting at the SQLite layer
+     * (not just at the importer's parsed output) catches an entire class
+     * of regressions where insertProjects drops a column but readProjects
+     * happens to reconstruct it from elsewhere. */
+    const projectRows = db.exec(
+      "SELECT Uid, Slug, Cookies, Dependencies, IsGlobal, IsRemovable " +
+      "FROM Projects",
+    );
+    expect(projectRows[0]?.values, "Projects table populated").toHaveLength(
+      fixture.projects.length,
+    );
+    const projectByUid = new Map(
+      projectRows[0].values.map((row) => [String(row[0]), row]),
+    );
+    for (const src of fixture.projects) {
+      const row = projectByUid.get(src.id);
+      expect(row, `project ${src.id} present in exported DB`).toBeDefined();
+      const [, slug, cookiesJson, depsJson, isGlobal, isRemovable] = row!;
+      expect(slug ?? null).toBe(src.slug ?? null);
+      // JSON-encoded columns: parse and deep-compare so whitespace / key
+      // ordering differences in JSON.stringify don't fail the test.
+      expect(JSON.parse(String(cookiesJson))).toEqual(src.cookies ?? []);
+      expect(JSON.parse(String(depsJson))).toEqual(src.dependencies ?? []);
+      expect(Number(isGlobal)).toBe(src.isGlobal ? 1 : 0);
+      expect(Number(isRemovable)).toBe(src.isRemovable === false ? 0 : 1);
+    }
+
+    /* Scripts — raw-DB inspection of v5 auto-update columns. Pre-v5 these
+     * were never emitted, so the auto-update path was silently disabled
+     * after every import. Belt + braces: assert at the SQLite layer too. */
+    const scriptRows = db.exec(
+      "SELECT Uid, UpdateUrl, LastUpdateCheck FROM Scripts",
+    );
+    expect(scriptRows[0]?.values, "Scripts table populated").toHaveLength(
+      fixture.scripts.length,
+    );
+    const scriptByUid = new Map(
+      scriptRows[0].values.map((row) => [String(row[0]), row]),
+    );
+    for (const src of fixture.scripts) {
+      const row = scriptByUid.get(src.id);
+      expect(row, `script ${src.id} present in exported DB`).toBeDefined();
+      const [, updateUrl, lastUpdateCheck] = row!;
+      expect((updateUrl as string | null) ?? null).toBe(src.updateUrl ?? null);
+      expect((lastUpdateCheck as string | null) ?? null).toBe(
+        src.lastUpdateCheck ?? null,
+      );
+    }
+
     /* Meta — declares format_version='5' (this build's emit version). */
     const metaRows = db.exec(
       "SELECT Key, Value FROM Meta WHERE Key IN ('format_version', 'exported_at')",

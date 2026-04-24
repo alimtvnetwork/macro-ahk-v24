@@ -23,3 +23,14 @@ export { runStepA, StepAStepCode, extractWorkspaceId, toStepAApiRole } from "./f
 export type { StepARequest, StepAResult, StepAStepOutcome } from "./flow";
 export { runStepB, StepBStepCode, shouldRunStepB } from "./flow";
 export type { StepBRequest, StepBResult, StepBStepOutcome } from "./flow";
+export {
+    runUserAddRow, UserAddRowOutcomeCode, finalizeUserAddRow,
+    buildRowFailure, buildRowSuccess,
+    UserAddLogPhase, UserAddLogSeverity, buildUserAddEntry,
+    runTaskSignOut,
+} from "./flow";
+export type {
+    UserAddRowContext, UserAddRowResult, UserAddTaskParams,
+    UserAddRowStateStore, UserAddRowStateUpdate,
+    UserAddLogSink, UserAddLogEntry, TaskSignOutResult,
+} from "./flow";

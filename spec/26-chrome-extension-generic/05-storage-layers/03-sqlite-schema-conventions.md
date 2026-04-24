@@ -33,7 +33,7 @@ These rules are non-negotiable. The migration runner enforces them.
 | Boolean column | `Is*` / `Has*` / `Can*` (INTEGER 0/1) | `IsArchived INTEGER NOT NULL DEFAULT 0` |
 | JSON column | `*Json` (TEXT, JSON-encoded) | `MetadataJson TEXT` |
 | Index name | `Ix_<Table>_<Cols>` | `Ix_Session_WorkspaceId_CreatedAt` |
-| Reserved prefixes | `System.*` and `Marco.*` (renamed `<Root>.*`) reserved for blueprint-internal tables | `SystemMigration`, `<Root>Namespace` |
+| Reserved prefixes | `System*` and `<Root>*` reserved for blueprint-internal tables | `SystemMigration`, `<Root>Namespace` |
 
 JSON keys inside `*Json` columns are also `PascalCase` to match the rest
 of the project (`mem://standards/pascalcase-json-keys` in the source

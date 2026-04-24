@@ -29,7 +29,7 @@
 | 02 | `02-folder-and-build/` | 🟡 Skeleton |
 | 03 | `03-typescript-and-linter/` | 🟡 Skeleton |
 | 04 | `04-architecture/` | 🟡 Skeleton |
-| 05 | `05-storage-layers/` | 🟡 Skeleton |
+| 05 | `05-storage-layers/` | ✅ Authored (6 body files + overview) |
 | 06 | `06-ui-and-design-system/` | 🟡 Skeleton |
 | 07 | `07-error-management/` | 🟡 Skeleton |
 | 08 | `08-auth-and-tokens/` | 🟡 Skeleton |
@@ -58,3 +58,4 @@ Skeleton phase — all internal links point to placeholder files within this fol
 |------|---------|--------|
 | 2026-04-24 | 1.0.0 | Initial skeleton consistency report created |
 | 2026-04-24 | 1.1.0 | `12-templates/` promoted from skeleton to authored — all 15 artifacts complete |
+| 2026-04-24 | 1.2.0 | `05-storage-layers/` promoted from skeleton to authored — 6 body files (tier matrix, SQLite × 2, IndexedDB, chrome.storage.local, localStorage bridges, self-healing) |

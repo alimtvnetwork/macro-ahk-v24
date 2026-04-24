@@ -79,7 +79,7 @@ When strict mode is active, the installer **MUST**:
 When discovery mode is active, the installer **MUST**:
 
 1. Prefer the latest published release over the main branch — releases are presumed stable.
-2. Only fall through to the main branch if the release host is reachable but reports zero releases (a brand-new project) **or** the project explicitly opts into "always main" mode.
+2. Only fall through to the main branch if the release host is reachable but reports zero releases — either as `200 OK` with an empty/`{}` body or as `404 Not Found` on the latest-release endpoint (a brand-new project) — **or** the project explicitly opts into "always main" mode. The branch name is project-defined (default `main`); fetched as a source tarball over the same scheme as the API.
 3. Print a short banner indicating which source was chosen (`🌊 Latest release vX.Y.Z` or `🌿 Main branch (no releases found)`).
 4. **NEVER** print "pinned" language — discovery mode is opt-out by re-running with `--version`.
 
@@ -343,7 +343,7 @@ Immediately after a successful download of the primary archive, every installer 
 | # | Scenario | Expected behavior |
 |---|----------|-------------------|
 | AC-1 | No flag, no URL hint, releases exist | Installs latest release, discovery banner |
-| AC-2 | No flag, no URL hint, zero releases | Falls through to main branch, `🌿` banner |
+| AC-2 | No flag, no URL hint, zero releases (`200 OK + {}` or `404`) | Falls through to main-branch tarball, `🌿` banner, exit 0 |
 | AC-3 | No flag, run from `/releases/download/v1.2.3/install.sh` | Strict mode, installs v1.2.3, `🔒` banner |
 | AC-4 | `--version v1.2.3`, artifact exists | Strict mode, installs v1.2.3 |
 | AC-5 | `--version v1.2.3`, artifact 404 | Exit 4 with version + URL + hint |

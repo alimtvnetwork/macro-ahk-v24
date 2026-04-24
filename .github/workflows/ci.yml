@@ -66,7 +66,49 @@ jobs:
         run: node scripts/report-spec-links-ci.mjs
 
   # ════════════════════════════════════════════════════════════
-  # Job 0b: Typecheck Standalone Scripts — fast-fail TS guard
+  # Job 0a2: Standalone Registry Report — fast-fail orchestration guard
+  #
+  # Runs `scripts/report-standalone-registry.mjs --strict` so the very
+  # first thing visible in the CI log is a checklist of every standalone
+  # script and which orchestration source-of-truth files contain it
+  # (package.json build scripts, build:extension chain, build-standalone,
+  # check-standalone-dist, tsconfig.<name>.json, vite.config.<name>.ts,
+  # CI build-<name> job).
+  #
+  # Strict mode means: if a new bundle is added but only wired into
+  # 5 of the 7 required locations (the recurring failure that hid
+  # `payment-banner-hider` from CI for several PRs), the missing rows
+  # show up as `[X]` AND the job exits 1 with `::error file=…::`
+  # annotations on the offending file — no need to chase a downstream
+  # "artifact missing" error 8 minutes later.
+  #
+  # Also writes a markdown matrix to GITHUB_STEP_SUMMARY so the report
+  # is one click away from the PR checks tab. Listed in build-extension's
+  # `needs:` so a registry gap blocks merge.
+  #
+  # No install needed — pure Node + repo files. Returns in <1s.
+  # ════════════════════════════════════════════════════════════
+  report-standalone-registry:
+    name: Preflight · Standalone Registry (strict)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Strict standalone-registry check (fails on ANY wiring gap)
+        env:
+          CI: 'true'
+        run: node scripts/report-standalone-registry.mjs --strict
+
+
   #
   # Runs `tsc --noEmit` against every standalone-script tsconfig
   # in a single job. Catches TS2304/TS2345/etc errors in seconds
@@ -596,7 +638,7 @@ jobs:
   # ════════════════════════════════════════════════════════════
   build-extension:
     name: Build · Chrome Extension
-    needs: [spec-links, typecheck-standalone, lint-standalone, build-sdk, build-xpath, build-payment-banner-hider, build-macro-controller, build-prompts]
+    needs: [spec-links, report-standalone-registry, typecheck-standalone, lint-standalone, build-sdk, build-xpath, build-payment-banner-hider, build-macro-controller, build-prompts]
     runs-on: ubuntu-latest
 
     steps:

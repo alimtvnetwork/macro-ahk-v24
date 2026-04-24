@@ -12,8 +12,6 @@
  */
 
 import { log, getProjectNameFromDom } from './logging';
-// ... keep existing code
-import { nsWrite, nsReadTyped } from './api-namespace';
 import { getIntervalSnapshot } from './interval-registry';
 import { getCachedWorkspaceName, cacheWorkspaceName } from './workspace-cache';
 import { timingStart, timingEnd, logTimingSummary } from './startup-timing';
@@ -150,6 +148,7 @@ function _registerGlobals(deps: {
   nsWrite('api.loop.state', function () { return state; });
   nsWrite('api.loop.setInterval', deps.setLoopInterval);
   nsWrite('api.ui.toast', showToast);
+  nsWrite('api.metrics.intervals', getIntervalSnapshot);
   nsWrite('_internal.delegateComplete', deps.delegateComplete);
   nsWrite('api.config.setProjectButtonXPath', deps.updateProjectButtonXPath);
   nsWrite('api.config.setProgressXPath', deps.updateProgressXPath);

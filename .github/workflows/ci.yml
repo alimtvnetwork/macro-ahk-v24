@@ -149,6 +149,9 @@ jobs:
       - name: Assert PascalCase contract on instruction sources + readers
         run: node scripts/check-pascalcase-instruction-migration.mjs
 
+      - name: Assert PascalCase v4 contract on bundle CREATE TABLE source
+        run: node scripts/check-bundle-schema-contract.mjs
+
   # ════════════════════════════════════════════════════════════
   # Job 0a2: Standalone Registry Report — fast-fail orchestration guard
   #

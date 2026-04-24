@@ -21,3 +21,5 @@ export { mountPopup, DEFAULT_ROLE_OPTIONS, DEFAULT_ROLE_VALUE } from "./ui";
 export type { RoleOption } from "./ui";
 export { runStepA, StepAStepCode, extractWorkspaceId, toStepAApiRole } from "./flow";
 export type { StepARequest, StepAResult, StepAStepOutcome } from "./flow";
+export { runStepB, StepBStepCode, shouldRunStepB } from "./flow";
+export type { StepBRequest, StepBResult, StepBStepOutcome } from "./flow";

@@ -45,9 +45,50 @@ interface TokenSeederDiagnostics {
 const POLL_INTERVAL_MS = 5_000;
 const TICK_INTERVAL_MS = 500;
 
+type ErrorCategory = "host-permission" | "scripting-blocked" | "restricted-scheme" | "other";
+
+const CATEGORY_LABELS: Record<ErrorCategory, string> = {
+    "host-permission": "Host permission",
+    "scripting-blocked": "Scripting blocked",
+    "restricted-scheme": "Restricted scheme",
+    other: "Other",
+};
+
+function categorizeCode(code: string): ErrorCategory {
+    switch (code) {
+        case "RESPECTIVE_HOST_PERMISSION":
+        case "MISSING_HOST_PERMISSION":
+        case "NO_HOST_PATTERN":
+        case "PERMISSION_NOT_GRANTED":
+            return "host-permission";
+        case "PAGE_CONTENTS_BLOCKED":
+        case "EXTENSIONS_GALLERY_BLOCKED":
+        case "GENERIC_CANNOT_SCRIPT":
+            return "scripting-blocked";
+        case "RESTRICTED_SCHEME":
+            return "restricted-scheme";
+        default:
+            return "other";
+    }
+}
+
 function formatRemaining(ms: number): string {
     if (ms <= 0) return "ready";
     return `${Math.ceil(ms / 1000)}s`;
+}
+
+function formatRetryTimestamp(ts: number): string {
+    try {
+        return new Intl.DateTimeFormat("en-GB", {
+            timeZone: "Asia/Kuala_Lumpur",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false,
+        }).format(new Date(ts));
+    } catch {
+        return new Date(ts).toISOString();
+    }
 }
 
 function formatOrigin(url: string): string {

@@ -357,6 +357,9 @@ Immediately after a successful download of the primary archive, every installer 
 | AC-13 | Strict + sibling discovery on | Sibling discovery suppressed |
 | AC-14 | `--dry-run --version v1.2.3` | Plan printed, exit 0, nothing installed |
 | AC-15 – AC-20 | Deferred-delete & canonical-naming | See §5.6 |
+| AC-21 | Happy-path install + matching checksums.txt | Install completes, "Checksum verified" line in output |
+| AC-22 | Wrong checksum in checksums.txt | Exit 6, "Checksum MISMATCH" with expected + actual hex, install dir untouched |
+| AC-23 | checksums.txt missing (404) | Soft-warn, install proceeds (back-compat with pre-v0.2 releases) |
 
 ---
 

@@ -1153,6 +1153,20 @@ jobs:
             --vite-config standalone-scripts/payment-banner-hider/vite.config.ts \
             --min-bytes 100
 
+      # ── Casing gate on downloaded standalone dists ──────────────
+      # Validates every standalone-scripts/<name>/dist/instruction.json
+      # (PascalCase only) and dist/instruction.compat.json (camelCase
+      # only) BEFORE `pnpm run build:extension` invokes vite, whose
+      # copyProjectScripts plugin copies these JSON files into
+      # chrome-extension/projects/scripts/<name>/. Catching a casing
+      # regression here means the wrong-shape JSON never reaches the
+      # extension bundle. The same script also runs inline inside
+      # every build:* chain (defence in depth) — this explicit CI
+      # step makes the gate visible in the Actions UI as a separate
+      # green/red check rather than buried inside the build log.
+      - name: Validate instruction.json casing (PascalCase) + compat (camelCase)
+        run: pnpm run check:instruction-json-casing
+
       - name: Build Chrome extension
         run: pnpm run build:extension
 

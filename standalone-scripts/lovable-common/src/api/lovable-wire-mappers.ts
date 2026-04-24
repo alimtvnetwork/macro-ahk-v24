@@ -2,17 +2,11 @@ import { MembershipRoleApiCode } from "./membership-role-api-code";
 import type { MembershipSummary, WorkspaceSummary } from "./lovable-api-types";
 
 /**
- * Wire→Domain mappers. Lovable's REST returns lowercase keys; our domain
- * uses PascalCase to match SQLite. Mapping is explicit (no `as` casts,
- * no `unknown`).
- *
- * `JSON.parse` returns `any` per stdlib types; we declare each accessor
- * with a precise return type so consumers never see `any` flow further.
+ * Wire→Domain mappers. Lovable returns lowercase keys; domain uses
+ * PascalCase to match SQLite. Mapping walks the parsed object via
+ * `Object.entries`, validating each field's type explicitly — no `as`,
+ * no `unknown`, no `any`.
  */
-
-interface WireRecord {
-    [key: string]: string;
-}
 
 const ROLE_BY_WIRE: Readonly<Record<string, MembershipRoleApiCode>> = Object.freeze({
     owner: MembershipRoleApiCode.Owner,
@@ -20,18 +14,30 @@ const ROLE_BY_WIRE: Readonly<Record<string, MembershipRoleApiCode>> = Object.fre
     member: MembershipRoleApiCode.Member,
 });
 
-const readString = (source: WireRecord, key: string): string => {
-    const value = source[key];
+const collectStringFields = (source: object): Record<string, string> => {
+    const out: Record<string, string> = {};
 
-    if (typeof value !== "string") {
+    for (const [key, value] of Object.entries(source)) {
+        if (typeof value === "string") {
+            out[key] = value;
+        }
+    }
+
+    return out;
+};
+
+const requireString = (fields: Record<string, string>, key: string): string => {
+    const value = fields[key];
+
+    if (value === undefined) {
         throw new Error(`Lovable wire response missing string field: ${key}`);
     }
 
     return value;
 };
 
-const readRole = (source: WireRecord): MembershipRoleApiCode => {
-    const raw = readString(source, "role");
+const requireRole = (fields: Record<string, string>): MembershipRoleApiCode => {
+    const raw = requireString(fields, "role");
     const role = ROLE_BY_WIRE[raw];
 
     if (role === undefined) {
@@ -41,17 +47,30 @@ const readRole = (source: WireRecord): MembershipRoleApiCode => {
     return role;
 };
 
-export const mapWorkspace = (wire: WireRecord): WorkspaceSummary => ({
-    Id: readString(wire, "id"),
-    Name: readString(wire, "name"),
-});
+export const mapWorkspace = (wire: object): WorkspaceSummary => {
+    const fields = collectStringFields(wire);
 
-export const mapMembership = (wire: WireRecord): MembershipSummary => ({
-    UserId: readString(wire, "user_id"),
-    Email: readString(wire, "email"),
-    Role: readRole(wire),
-});
+    return { Id: requireString(fields, "id"), Name: requireString(fields, "name") };
+};
 
-export const mapWorkspaceArray = (wire: WireRecord[]): WorkspaceSummary[] => wire.map(mapWorkspace);
+export const mapMembership = (wire: object): MembershipSummary => {
+    const fields = collectStringFields(wire);
 
-export const mapMembershipArray = (wire: WireRecord[]): MembershipSummary[] => wire.map(mapMembership);
+    return {
+        UserId: requireString(fields, "user_id"),
+        Email: requireString(fields, "email"),
+        Role: requireRole(fields),
+    };
+};
+
+const requireArray = (wire: object): object[] => {
+    if (!Array.isArray(wire)) {
+        throw new Error("Lovable wire response expected an array");
+    }
+
+    return wire;
+};
+
+export const mapWorkspaceArray = (wire: object): WorkspaceSummary[] => requireArray(wire).map(mapWorkspace);
+
+export const mapMembershipArray = (wire: object): MembershipSummary[] => requireArray(wire).map(mapMembership);

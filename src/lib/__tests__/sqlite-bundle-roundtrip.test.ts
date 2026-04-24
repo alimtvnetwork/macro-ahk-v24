@@ -202,6 +202,7 @@ function buildFixture(): MockStore {
   const project: StoredProject = {
     id: "proj-uid-1",
     schemaVersion: 2,
+    slug: "round-trip-fixture",
     name: "Round-Trip Fixture",
     version: "1.2.3",
     description: "Exercises every bundle column — 中文 / emoji 🚀",
@@ -214,8 +215,19 @@ function buildFixture(): MockStore {
       { path: "scripts/late.js", order: 1, runAt: "document_end" },
     ],
     configs: [{ path: "configs/app.json", description: "App config" }],
+    // v5 — modern cookie bindings AND deprecated cookieRules in the SAME
+    // fixture so the round-trip can prove both columns survive independently.
+    cookies: [
+      { cookieName: "sessionid", url: "https://example.com", role: "session" },
+      { cookieName: "refresh", url: "https://example.com", role: "refresh", description: "rotates daily" },
+    ],
     cookieRules: [],
+    dependencies: [
+      { projectId: "shared-utils", version: "^2.1.0" },
+    ],
     settings: { isolateScripts: true, logLevel: "info", retryOnNavigate: false },
+    isGlobal: true,
+    isRemovable: false,
     createdAt: now,
     updatedAt: now,
   };
@@ -231,6 +243,9 @@ function buildFixture(): MockStore {
       configBinding: "cfg-uid-1",
       isIife: true,
       hasDomUsage: false,
+      // v5 — auto-update fields must survive round-trip.
+      updateUrl: "https://example.com/scripts/main.user.js",
+      lastUpdateCheck: "2026-04-23T12:00:00.000Z",
       createdAt: now,
       updatedAt: now,
     },
@@ -261,6 +276,8 @@ function buildFixture(): MockStore {
   const prompts: PromptEntry[] = [
     {
       id: "prm-uid-1",
+      // v5 — Slug must round-trip; the Task Next resolver looks up by slug.
+      slug: "next-tasks",
       name: "Next Tasks",
       text: "Continue with the next task in the list.",
       order: 0,
@@ -290,7 +307,9 @@ function buildFixture(): MockStore {
 /* ------------------------------------------------------------------ */
 
 describe("sqlite-bundle — full round-trip", () => {
-  it("exports a fixture project to a single-DB zip and imports it intact into a clean workspace", async () => {
+  it("exports a fixture project to a single-DB zip and imports it intact into a clean workspace",
+    // eslint-disable-next-line sonarjs/cognitive-complexity -- single integration test asserting every contracted field
+    async () => {
     /* ---- 1. Seed source workspace ---- */
     const fixture = buildFixture();
     store = structuredClone(fixture);
@@ -314,40 +333,50 @@ describe("sqlite-bundle — full round-trip", () => {
     const file = new File([exportedBlob], "marco-backup.zip", { type: "application/zip" });
     const result = await importFromSqliteZip(file);
 
-    /* ---- 6. Counts ---- */
+    /* ---- 6. Counts (v5: prompts now part of full round-trip) ---- */
     expect(result).toEqual({
       projectCount: fixture.projects.length,
       scriptCount: fixture.scripts.length,
       configCount: fixture.configs.length,
+      promptCount: fixture.prompts.length,
     });
 
     /* ---- 7. Per-artifact deep equality ---- */
     expect(store.projects).toHaveLength(fixture.projects.length);
     expect(store.scripts).toHaveLength(fixture.scripts.length);
     expect(store.configs).toHaveLength(fixture.configs.length);
+    expect(store.prompts).toHaveLength(fixture.prompts.length);
 
     const byId = <T extends { id: string }>(xs: T[]) =>
       Object.fromEntries(xs.map((x) => [x.id, x]));
 
-    /* Projects — every contracted field must come back identical. */
+    /* Projects — every contracted field must come back identical, INCLUDING
+     * the v5 additions (slug / cookies / dependencies / isGlobal /
+     * isRemovable). Each of these was a documented data-loss bug pre-v5
+     * and the audit's "P-1 / P-2 / P-3 / P-4" findings. */
     const importedProject = byId(store.projects)["proj-uid-1"];
     const sourceProject = fixture.projects[0];
     expect(importedProject).toMatchObject({
       id: sourceProject.id,
       schemaVersion: sourceProject.schemaVersion,
       name: sourceProject.name,
+      slug: sourceProject.slug,
       version: sourceProject.version,
       description: sourceProject.description,
       targetUrls: sourceProject.targetUrls,
       scripts: sourceProject.scripts,
       configs: sourceProject.configs,
+      cookies: sourceProject.cookies,
       cookieRules: sourceProject.cookieRules,
+      dependencies: sourceProject.dependencies,
       settings: sourceProject.settings,
+      isGlobal: sourceProject.isGlobal,
+      isRemovable: sourceProject.isRemovable,
       createdAt: sourceProject.createdAt,
       updatedAt: sourceProject.updatedAt,
     });
 
-    /* Scripts — including the boolean flags and optional fields. */
+    /* Scripts — boolean flags, optional fields, AND v5 update fields. */
     for (const src of fixture.scripts) {
       const imp = byId(store.scripts)[src.id];
       expect(imp, `script ${src.id} survived round-trip`).toBeDefined();
@@ -365,6 +394,9 @@ describe("sqlite-bundle — full round-trip", () => {
       if (src.description !== undefined) expect(imp.description).toBe(src.description);
       if (src.runAt !== undefined) expect(imp.runAt).toBe(src.runAt);
       if (src.configBinding !== undefined) expect(imp.configBinding).toBe(src.configBinding);
+      // v5 — auto-update path. Pre-v5, both fields silently became undefined.
+      if (src.updateUrl !== undefined) expect(imp.updateUrl).toBe(src.updateUrl);
+      if (src.lastUpdateCheck !== undefined) expect(imp.lastUpdateCheck).toBe(src.lastUpdateCheck);
     }
 
     /* Configs — JSON column must round-trip byte-identical. */
@@ -380,15 +412,26 @@ describe("sqlite-bundle — full round-trip", () => {
       });
     }
 
-    /* ---- 8. Prompts + Meta — verified at the SQLite layer ---- */
-    /**
-     * `importFromSqliteZip` (full-bundle path) intentionally only
-     * round-trips Projects/Scripts/Configs back into the message store —
-     * Prompts have a separate `importPromptsFromSqliteZip` path. To prove
-     * the Prompts AND Meta tables survived the export half of the cycle
-     * (which is everything `exportAllAsSqliteZip` is contracted to do),
-     * we open the same .db blob directly and inspect those tables.
-     */
+    /* Prompts — full restore via mock store (was DB-only pre-v5). The Slug
+     * field is the headline v5 fix because the Task Next resolver keys on it. */
+    for (const src of fixture.prompts) {
+      const imp = byId(store.prompts)[src.id];
+      expect(imp, `prompt ${src.id} restored to message store`).toBeDefined();
+      expect(imp).toMatchObject({
+        id: src.id,
+        name: src.name,
+        text: src.text,
+        order: src.order,
+        isDefault: src.isDefault ?? false,
+        isFavorite: src.isFavorite ?? false,
+        createdAt: src.createdAt,
+        updatedAt: src.updatedAt,
+      });
+      if (src.slug !== undefined) expect(imp.slug).toBe(src.slug);
+      if (src.category !== undefined) expect(imp.category).toBe(src.category);
+    }
+
+    /* ---- 8. Direct DB inspection — Meta + raw column shape ---- */
     const dbBuf = await zip.file("marco-backup.db")!.async("uint8array");
     const SQL = await initSqlJs({
       locateFile: (f: string) =>
@@ -396,9 +439,10 @@ describe("sqlite-bundle — full round-trip", () => {
     });
     const db = new SQL.Database(dbBuf);
 
-    /* Prompts — every PascalCase column must be present and accurate. */
+    /* Prompts — every PascalCase column must be present and accurate at
+     * the SQLite layer too (belt + braces against a future read regression). */
     const promptsRows = db.exec(
-      "SELECT Uid, Name, Text, RunOrder, IsDefault, IsFavorite, Category " +
+      "SELECT Uid, Slug, Name, Text, RunOrder, IsDefault, IsFavorite, Category " +
       "FROM Prompts ORDER BY RunOrder",
     );
     expect(promptsRows[0]?.values, "Prompts table populated").toHaveLength(
@@ -410,7 +454,8 @@ describe("sqlite-bundle — full round-trip", () => {
     for (const src of fixture.prompts) {
       const row = promptByUid.get(src.id);
       expect(row, `prompt ${src.id} present in exported DB`).toBeDefined();
-      const [, name, text, runOrder, isDefault, isFavorite, category] = row!;
+      const [, slug, name, text, runOrder, isDefault, isFavorite, category] = row!;
+      expect(slug ?? null).toBe(src.slug ?? null);
       expect(name).toBe(src.name);
       expect(text).toBe(src.text);
       expect(Number(runOrder)).toBe(src.order);
@@ -419,18 +464,132 @@ describe("sqlite-bundle — full round-trip", () => {
       expect(category ?? null).toBe(src.category ?? null);
     }
 
-    /* Meta — must declare format_version='4' so the validator accepts it. */
+    /* Meta — declares format_version='5' (this build's emit version). */
     const metaRows = db.exec(
       "SELECT Key, Value FROM Meta WHERE Key IN ('format_version', 'exported_at')",
     );
     const meta = Object.fromEntries(
       (metaRows[0]?.values ?? []).map((r) => [String(r[0]), String(r[1])]),
     );
-    expect(meta.format_version).toBe("4");
+    expect(meta.format_version).toBe("5");
     expect(meta.exported_at, "exported_at is an ISO timestamp").toMatch(
       /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
     );
 
     db.close();
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  Strict-reject suite                                                */
+/* ------------------------------------------------------------------ */
+/**
+ * These tests prove `validateBundleSchema` (gated inside `extractBundle`)
+ * blocks malformed bundles BEFORE any SAVE_* message reaches the mock
+ * store. The success criterion is identical for every case: import throws,
+ * AND the store stays empty (i.e. no partial write happened).
+ *
+ * We build the bad bundles by hand-crafting a sql.js DB and zipping it
+ * with JSZip — that's the same envelope shape the real importer expects.
+ */
+
+async function buildZipFromDb(buildSchema: (db: import("sql.js").Database) => void): Promise<File> {
+  const SQL = await initSqlJs({
+    locateFile: (f: string) =>
+      resolvePath(__dirname, "../../../node_modules/sql.js/dist", f),
+  });
+  const db = new SQL.Database();
+  buildSchema(db);
+  const dbData = db.export();
+  db.close();
+
+  const JSZip = (await import("jszip")).default;
+  const zip = new JSZip();
+  zip.file("marco-backup.db", dbData);
+  const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+  return new File([blob], "marco-backup.zip", { type: "application/zip" });
+}
+
+describe("sqlite-bundle — strict reject", () => {
+  it("rejects a bundle missing a required PascalCase table", async () => {
+    const file = await buildZipFromDb((db) => {
+      // Only Projects + Meta — Scripts and Configs are missing.
+      db.run(`CREATE TABLE Projects (
+        Id INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT, Version TEXT,
+        CreatedAt TEXT, UpdatedAt TEXT, TargetUrls TEXT, Scripts TEXT,
+        Configs TEXT, CookieRules TEXT, Settings TEXT
+      )`);
+      db.run(`CREATE TABLE Meta (Id INTEGER PRIMARY KEY AUTOINCREMENT, Key TEXT, Value TEXT)`);
+      db.run(`INSERT INTO Meta (Key, Value) VALUES ('format_version', '5')`);
+    });
+    await expect(importFromSqliteZip(file)).rejects.toThrow(/Required table 'Scripts' is missing/);
+    expect(store.projects).toHaveLength(0);
+    expect(store.scripts).toHaveLength(0);
+  });
+
+  it("rejects a bundle that uses legacy snake_case tables (v3 shape)", async () => {
+    const file = await buildZipFromDb((db) => {
+      db.run(`CREATE TABLE projects (id TEXT PRIMARY KEY, name TEXT)`);
+      db.run(`CREATE TABLE scripts (id TEXT PRIMARY KEY, name TEXT, code TEXT)`);
+      db.run(`CREATE TABLE configs (id TEXT PRIMARY KEY, name TEXT, json TEXT)`);
+      db.run(`CREATE TABLE meta (key TEXT, value TEXT)`);
+    });
+    await expect(importFromSqliteZip(file)).rejects.toThrow(/LEGACY_SNAKE_CASE/);
+    expect(store.projects).toHaveLength(0);
+  });
+
+  it("rejects a bundle whose Meta.format_version is not in SUPPORTED_FORMAT_VERSIONS", async () => {
+    const file = await buildZipFromDb((db) => {
+      // Schema is contract-clean — only the version is bad.
+      db.run(`CREATE TABLE Projects (
+        Id INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL, Version TEXT NOT NULL,
+        CreatedAt TEXT NOT NULL, UpdatedAt TEXT NOT NULL, TargetUrls TEXT, Scripts TEXT,
+        Configs TEXT, CookieRules TEXT, Settings TEXT
+      )`);
+      db.run(`CREATE TABLE Scripts (
+        Id INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL, Code TEXT NOT NULL,
+        RunOrder INTEGER NOT NULL DEFAULT 0, CreatedAt TEXT NOT NULL, UpdatedAt TEXT NOT NULL
+      )`);
+      db.run(`CREATE TABLE Configs (
+        Id INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL, Json TEXT NOT NULL,
+        CreatedAt TEXT NOT NULL, UpdatedAt TEXT NOT NULL
+      )`);
+      db.run(`CREATE TABLE Meta (Id INTEGER PRIMARY KEY AUTOINCREMENT, Key TEXT UNIQUE NOT NULL, Value TEXT)`);
+      db.run(`INSERT INTO Meta (Key, Value) VALUES ('format_version', '99')`);
+    });
+    await expect(importFromSqliteZip(file)).rejects.toThrow(/UNSUPPORTED_FORMAT_VERSION/);
+    expect(store.projects).toHaveLength(0);
+  });
+
+  it("rejects a bundle that emits an unknown PascalCase column not in the contract", async () => {
+    const file = await buildZipFromDb((db) => {
+      db.run(`CREATE TABLE Projects (
+        Id INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL, Version TEXT NOT NULL,
+        CreatedAt TEXT NOT NULL, UpdatedAt TEXT NOT NULL, TargetUrls TEXT, Scripts TEXT,
+        Configs TEXT, CookieRules TEXT, Settings TEXT,
+        MysteryFromTheFuture TEXT
+      )`);
+      db.run(`CREATE TABLE Scripts (
+        Id INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL, Code TEXT NOT NULL,
+        RunOrder INTEGER NOT NULL DEFAULT 0, CreatedAt TEXT NOT NULL, UpdatedAt TEXT NOT NULL
+      )`);
+      db.run(`CREATE TABLE Configs (
+        Id INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL, Json TEXT NOT NULL,
+        CreatedAt TEXT NOT NULL, UpdatedAt TEXT NOT NULL
+      )`);
+      db.run(`CREATE TABLE Meta (Id INTEGER PRIMARY KEY AUTOINCREMENT, Key TEXT UNIQUE NOT NULL, Value TEXT)`);
+      db.run(`INSERT INTO Meta (Key, Value) VALUES ('format_version', '5')`);
+    });
+    await expect(importFromSqliteZip(file)).rejects.toThrow(/UNKNOWN_COLUMN.*MysteryFromTheFuture/s);
+    expect(store.projects).toHaveLength(0);
+  });
+
+  it("rejects a zip that does not contain marco-backup.db", async () => {
+    const JSZip = (await import("jszip")).default;
+    const zip = new JSZip();
+    zip.file("not-the-bundle.txt", "wrong file");
+    const blob = await zip.generateAsync({ type: "blob" });
+    const file = new File([blob], "marco-backup.zip", { type: "application/zip" });
+    await expect(importFromSqliteZip(file)).rejects.toThrow(/missing marco-backup\.db/);
   });
 });

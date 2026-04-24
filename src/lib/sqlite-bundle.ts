@@ -28,7 +28,11 @@ import type {
   StoredConfig,
 } from "@/hooks/use-projects-scripts";
 import type { PromptEntry } from "@/hooks/use-prompts";
-import { validateBundleSchema, formatValidationError } from "@/lib/sqlite-bundle-contract";
+import {
+  validateBundleSchema,
+  formatValidationError,
+  CURRENT_FORMAT_VERSION,
+} from "@/lib/sqlite-bundle-contract";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -48,13 +52,18 @@ const CREATE_PROJECTS_TABLE = `
     Uid TEXT,
     SchemaVersion INTEGER NOT NULL DEFAULT 1,
     Name TEXT NOT NULL,
+    Slug TEXT,
     Version TEXT NOT NULL,
     Description TEXT,
     TargetUrls TEXT,
     Scripts TEXT,
     Configs TEXT,
+    Cookies TEXT,
     CookieRules TEXT,
+    Dependencies TEXT,
     Settings TEXT,
+    IsGlobal INTEGER DEFAULT 0,
+    IsRemovable INTEGER DEFAULT 1,
     CreatedAt TEXT NOT NULL,
     UpdatedAt TEXT NOT NULL
   );
@@ -72,6 +81,8 @@ const CREATE_SCRIPTS_TABLE = `
     ConfigBinding TEXT,
     IsIife INTEGER DEFAULT 0,
     HasDomUsage INTEGER DEFAULT 0,
+    UpdateUrl TEXT,
+    LastUpdateCheck TEXT,
     CreatedAt TEXT NOT NULL,
     UpdatedAt TEXT NOT NULL
   );
@@ -101,6 +112,7 @@ const CREATE_PROMPTS_TABLE = `
   CREATE TABLE IF NOT EXISTS Prompts (
     Id INTEGER PRIMARY KEY AUTOINCREMENT,
     Uid TEXT,
+    Slug TEXT,
     Name TEXT NOT NULL,
     Text TEXT NOT NULL,
     RunOrder INTEGER NOT NULL DEFAULT 0,
@@ -132,9 +144,10 @@ async function openDb(data: Uint8Array): Promise<Database> {
 
 function insertProjects(db: Database, projects: StoredProject[]): void {
   const stmt = db.prepare(`
-    INSERT INTO Projects (Uid, SchemaVersion, Name, Version, Description,
-      TargetUrls, Scripts, Configs, CookieRules, Settings, CreatedAt, UpdatedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO Projects (Uid, SchemaVersion, Name, Slug, Version, Description,
+      TargetUrls, Scripts, Configs, Cookies, CookieRules, Dependencies, Settings,
+      IsGlobal, IsRemovable, CreatedAt, UpdatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const now = new Date().toISOString();
@@ -144,13 +157,21 @@ function insertProjects(db: Database, projects: StoredProject[]): void {
       p.id ?? null,
       p.schemaVersion ?? 1,
       p.name ?? "",
+      p.slug ?? null,
       p.version ?? "1.0.0",
       p.description ?? null,
       JSON.stringify(p.targetUrls ?? []),
       JSON.stringify(p.scripts ?? []),
       JSON.stringify(p.configs ?? []),
+      // v5: serialize the modern cookies[] AND the deprecated cookieRules
+      // separately so a round-trip never silently merges or drops one.
+      JSON.stringify(p.cookies ?? []),
       JSON.stringify(p.cookieRules ?? []),
+      JSON.stringify(p.dependencies ?? []),
       JSON.stringify(p.settings ?? {}),
+      // Defaults match StoredProject runtime semantics: not global, removable.
+      p.isGlobal === true ? 1 : 0,
+      p.isRemovable === false ? 0 : 1,
       p.createdAt ?? now,
       p.updatedAt ?? now,
     ]);
@@ -161,8 +182,9 @@ function insertProjects(db: Database, projects: StoredProject[]): void {
 function insertScripts(db: Database, scripts: StoredScript[]): void {
   const stmt = db.prepare(`
     INSERT INTO Scripts (Uid, Name, Description, Code, RunOrder, RunAt,
-      ConfigBinding, IsIife, HasDomUsage, CreatedAt, UpdatedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ConfigBinding, IsIife, HasDomUsage, UpdateUrl, LastUpdateCheck,
+      CreatedAt, UpdatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const now = new Date().toISOString();
@@ -178,6 +200,8 @@ function insertScripts(db: Database, scripts: StoredScript[]): void {
       s.configBinding ?? null,
       s.isIife ? 1 : 0,
       s.hasDomUsage ? 1 : 0,
+      s.updateUrl ?? null,
+      s.lastUpdateCheck ?? null,
       s.createdAt ?? now,
       s.updatedAt ?? now,
     ]);
@@ -209,19 +233,25 @@ function insertConfigs(db: Database, configs: StoredConfig[]): void {
 function insertMeta(db: Database): void {
   const now = new Date().toISOString();
   db.run(`INSERT INTO Meta (Key, Value) VALUES ('exported_at', ?)`, [now]);
-  db.run(`INSERT INTO Meta (Key, Value) VALUES ('format_version', '4')`, []);
+  // CURRENT_FORMAT_VERSION is the canonical source — never inline the literal.
+  db.run(
+    `INSERT INTO Meta (Key, Value) VALUES ('format_version', ?)`,
+    [CURRENT_FORMAT_VERSION],
+  );
 }
 
 function insertPrompts(db: Database, prompts: PromptEntry[]): void {
   const stmt = db.prepare(`
-    INSERT INTO Prompts (Uid, Name, Text, RunOrder, IsDefault, IsFavorite,
+    INSERT INTO Prompts (Uid, Slug, Name, Text, RunOrder, IsDefault, IsFavorite,
       Category, CreatedAt, UpdatedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const now = new Date().toISOString();
   for (const p of prompts) {
     stmt.run([
       p.id ?? null,
+      // v5: emit Slug — required by the Task Next prompt resolver.
+      p.slug ?? null,
       p.name ?? "",
       p.text ?? "",
       p.order ?? 0,
@@ -250,6 +280,7 @@ export async function exportAllAsSqliteZip(): Promise<void> {
         const r = raw as unknown as Record<string, unknown>;
         return {
           id: String(r.id ?? ""),
+          slug: typeof r.slug === "string" ? r.slug : undefined,
           name: (r.name as string) ?? "",
           text: (r.text as string) ?? "",
           order: typeof r.order === "number" ? r.order : i,
@@ -382,13 +413,23 @@ function readProjects(db: Database): StoredProject[] {
       id: resolveUid(obj),
       schemaVersion: (col(obj, "SchemaVersion", "schema_version") as number) ?? 1,
       name: (col(obj, "Name", "name") as string),
+      slug: (obj["Slug"] as string) ?? undefined,
       version: (col(obj, "Version", "version") as string),
       description: (col(obj, "Description", "description") as string) ?? undefined,
       targetUrls: safeJsonParse(col(obj, "TargetUrls", "target_urls") as string, []),
       scripts: safeJsonParse(col(obj, "Scripts", "scripts") as string, []),
       configs: safeJsonParse(col(obj, "Configs", "configs") as string, []),
+      // v5: read both cookies (modern) and cookieRules (deprecated). v4
+      // bundles lack the Cookies column entirely — safeJsonParse(null, [])
+      // returns [], which matches the runtime "no bindings" sentinel.
+      cookies: safeJsonParse(obj["Cookies"] as string ?? null, []),
       cookieRules: safeJsonParse(col(obj, "CookieRules", "cookie_rules") as string, []),
+      dependencies: safeJsonParse(obj["Dependencies"] as string ?? null, []),
       settings: safeJsonParse(col(obj, "Settings", "settings") as string, {}),
+      isGlobal: obj["IsGlobal"] === 1,
+      // Default to TRUE when column absent (v4 bundles) — preserves the
+      // pre-v5 behaviour where every imported project was deletable.
+      isRemovable: obj["IsRemovable"] == null ? true : obj["IsRemovable"] === 1,
       createdAt: (col(obj, "CreatedAt", "created_at") as string),
       updatedAt: (col(obj, "UpdatedAt", "updated_at") as string),
     } as StoredProject;
@@ -416,6 +457,10 @@ function readScripts(db: Database): StoredScript[] {
       configBinding: (col(obj, "ConfigBinding", "config_binding") as string) ?? undefined,
       isIife: col(obj, "IsIife", "is_iife") === 1,
       hasDomUsage: col(obj, "HasDomUsage", "has_dom_usage") === 1,
+      // v5 — auto-update fields. Absent in v4 bundles (returns undefined,
+      // which the runtime treats as "auto-update disabled").
+      updateUrl: (obj["UpdateUrl"] as string) ?? undefined,
+      lastUpdateCheck: (obj["LastUpdateCheck"] as string) ?? undefined,
       createdAt: (col(obj, "CreatedAt", "created_at") as string),
       updatedAt: (col(obj, "UpdatedAt", "updated_at") as string),
     } as StoredScript;
@@ -458,6 +503,9 @@ function readPrompts(db: Database): PromptEntry[] {
       const obj = Object.fromEntries(cols.map((c: SqlValue, i: number) => [c, row[i]]));
       return {
         id: resolveUid(obj),
+        // v5 — Slug column is now actually written. v4 bundles return
+        // undefined here, which the Task Next resolver treats as "no slug".
+        slug: (obj["Slug"] as string) ?? undefined,
         name: (col(obj, "Name", "name") as string),
         text: (col(obj, "Text", "text") as string),
         order: (col(obj, "RunOrder", "run_order") as number) ?? 0,
@@ -572,16 +620,26 @@ export interface BundlePreview {
 
 /** Reads a .zip file, extracts the SQLite DB, and replaces all data. */
 export async function importFromSqliteZip(file: File): Promise<ImportResult> {
-  const { projects, scripts, configs } = await extractBundle(file);
-  await replaceAll(projects, scripts, configs);
-  return { projectCount: projects.length, scriptCount: scripts.length, configCount: configs.length };
+  const { projects, scripts, configs, prompts } = await extractBundle(file);
+  await replaceAll(projects, scripts, configs, prompts);
+  return {
+    projectCount: projects.length,
+    scriptCount: scripts.length,
+    configCount: configs.length,
+    promptCount: prompts.length,
+  };
 }
 
 /** Reads a .zip file and merges contents into existing data (no deletions). */
 export async function mergeFromSqliteZip(file: File): Promise<ImportResult> {
-  const { projects, scripts, configs } = await extractBundle(file);
-  await mergeAll(projects, scripts, configs);
-  return { projectCount: projects.length, scriptCount: scripts.length, configCount: configs.length };
+  const { projects, scripts, configs, prompts } = await extractBundle(file);
+  await mergeAll(projects, scripts, configs, prompts);
+  return {
+    projectCount: projects.length,
+    scriptCount: scripts.length,
+    configCount: configs.length,
+    promptCount: prompts.length,
+  };
 }
 
 async function extractBundle(file: File) {
@@ -592,8 +650,8 @@ async function extractBundle(file: File) {
   const dbData = await dbFile.async("uint8array");
   const db = await openDb(dbData);
 
-  // Strict PascalCase v4 contract gate. Runs BEFORE we read any rows so
-  // a malformed bundle never reaches the SAVE_* messaging layer (where
+  // Strict PascalCase contract gate (v4 + v5). Runs BEFORE we read any rows
+  // so a malformed bundle never reaches the SAVE_* messaging layer (where
   // partial writes could corrupt the live extension state).
   const validation = validateBundleSchema(db, "full");
   if (!validation.ok) {
@@ -604,14 +662,19 @@ async function extractBundle(file: File) {
   const projects = readProjects(db);
   const scripts = readScripts(db);
   const configs = readConfigs(db);
+  // Prompts table is optional in "full" mode — readPrompts() already
+  // returns [] when absent, so older v4 bundles without Prompts still work.
+  const prompts = readPrompts(db);
   db.close();
-  return { projects, scripts, configs };
+  return { projects, scripts, configs, prompts };
 }
 
 export interface ImportResult {
   projectCount: number;
   scriptCount: number;
   configCount: number;
+  /** v5: prompts are now part of the full round-trip (was silently dropped pre-v5). */
+  promptCount: number;
 }
 
 /* ------------------------------------------------------------------ */
@@ -622,13 +685,19 @@ async function replaceAll(
   projects: StoredProject[],
   scripts: StoredScript[],
   configs: StoredConfig[],
+  prompts: PromptEntry[],
 ): Promise<void> {
   // Delete existing data
-  const [existingProjects, existingScripts, existingConfigs] = await Promise.all([
+  const [existingProjects, existingScripts, existingConfigs, existingPrompts] = await Promise.all([
     sendMessage<{ projects: StoredProject[] }>({ type: "GET_ALL_PROJECTS" }),
     sendMessage<{ scripts: StoredScript[] }>({ type: "GET_ALL_SCRIPTS" }),
     sendMessage<{ configs: StoredConfig[] }>({ type: "GET_ALL_CONFIGS" }),
+    sendMessage<{ prompts?: PromptEntry[] }>({ type: "GET_PROMPTS" }),
   ]);
+
+  // Mirror importPromptsFromSqliteZip: never delete the built-in defaults
+  // (their loss would orphan the Task Next resolver and the welcome flow).
+  const existingPromptList = Array.isArray(existingPrompts.prompts) ? existingPrompts.prompts : [];
 
   await Promise.all([
     ...existingProjects.projects.map((p) =>
@@ -640,6 +709,11 @@ async function replaceAll(
     ...existingConfigs.configs.map((c) =>
       sendMessage({ type: "DELETE_CONFIG", id: c.id }),
     ),
+    ...existingPromptList
+      .filter((p) => (p as unknown as Record<string, unknown>).isDefault !== true)
+      .map((p) =>
+        sendMessage({ type: "DELETE_PROMPT", promptId: (p as unknown as { id: string }).id }),
+      ),
   ]);
 
   // Insert imported data
@@ -647,6 +721,7 @@ async function replaceAll(
     ...projects.map((p) => sendMessage({ type: "SAVE_PROJECT", project: p })),
     ...scripts.map((s) => sendMessage({ type: "SAVE_SCRIPT", script: s })),
     ...configs.map((c) => sendMessage({ type: "SAVE_CONFIG", config: c })),
+    ...prompts.map((p) => sendMessage({ type: "SAVE_PROMPT", prompt: p })),
   ]);
 }
 
@@ -658,12 +733,14 @@ async function mergeAll(
   projects: StoredProject[],
   scripts: StoredScript[],
   configs: StoredConfig[],
+  prompts: PromptEntry[],
 ): Promise<void> {
   // Upsert: simply save each item — existing IDs get overwritten, new ones get added
   await Promise.all([
     ...projects.map((p) => sendMessage({ type: "SAVE_PROJECT", project: p })),
     ...scripts.map((s) => sendMessage({ type: "SAVE_SCRIPT", script: s })),
     ...configs.map((c) => sendMessage({ type: "SAVE_CONFIG", config: c })),
+    ...prompts.map((p) => sendMessage({ type: "SAVE_PROMPT", prompt: p })),
   ]);
 }
 
@@ -694,6 +771,7 @@ export async function exportPromptsAsSqliteZip(): Promise<void> {
         const r = raw as unknown as Record<string, unknown>;
         return {
           id: String(r.id ?? ""),
+          slug: typeof r.slug === "string" ? r.slug : undefined,
           name: (r.name as string) ?? "",
           text: (r.text as string) ?? "",
           order: typeof r.order === "number" ? r.order : i,

@@ -21,7 +21,13 @@
  *   - Required tables are ALWAYS present in a valid bundle.
  *     Optional tables may be absent (e.g. prompts-only export).
  *
- * Format version: '4'
+ * Format version: '5' (current). v4 still accepted for read-back compat.
+ *
+ * v5 additions vs v4 (all optional, additive — v4 bundles still validate):
+ *   - Projects: Slug, Cookies, Dependencies, IsGlobal, IsRemovable
+ *   - Scripts:  UpdateUrl, LastUpdateCheck
+ *   - Prompts:  Slug is now actually emitted (was contract-allowed in v4
+ *               but never written — see audit Pr-1 / Task Next resolver).
  *
  * See also:
  *   - docs/diagrams/sqlite-bundle-erd.mmd
@@ -57,13 +63,19 @@ export const BUNDLE_SCHEMA: Readonly<Record<string, BundleTableContract>> = {
             "Id", "Name", "Version", "CreatedAt", "UpdatedAt",
             "TargetUrls", "Scripts", "Configs", "CookieRules", "Settings",
         ],
-        optional: ["Uid", "SchemaVersion", "Description"],
+        optional: [
+            "Uid", "SchemaVersion", "Description",
+            // v5 additions — runtime fields that previously round-tripped as null
+            "Slug", "Cookies", "Dependencies", "IsGlobal", "IsRemovable",
+        ],
     },
     Scripts: {
         required: ["Id", "Name", "Code", "RunOrder", "CreatedAt", "UpdatedAt"],
         optional: [
             "Uid", "Description", "RunAt", "ConfigBinding",
             "IsIife", "HasDomUsage",
+            // v5 additions — auto-update path was being silently disabled on import
+            "UpdateUrl", "LastUpdateCheck",
         ],
     },
     Configs: {
@@ -122,8 +134,17 @@ export interface BundleValidationError {
     column?: string;
 }
 
-/** Format versions this build understands. v3 bundles must be migrated first. */
-export const SUPPORTED_FORMAT_VERSIONS = ["4"] as const;
+/**
+ * Format versions this build understands. v3 bundles must be migrated first.
+ *
+ * v5 is the current emit version; v4 is still accepted for read-back so a
+ * bundle exported from a previous build still imports cleanly (the v5
+ * additions are all OPTIONAL columns — a v4 DB satisfies the v5 contract,
+ * it just round-trips the new fields as undefined).
+ */
+export const SUPPORTED_FORMAT_VERSIONS = ["4", "5"] as const;
+/** Version this build emits when exporting a fresh bundle. */
+export const CURRENT_FORMAT_VERSION = "5" as const;
 
 /* ------------------------------------------------------------------ */
 /*  Validator (db-shape-agnostic — works on any sql.js-compatible db)  */

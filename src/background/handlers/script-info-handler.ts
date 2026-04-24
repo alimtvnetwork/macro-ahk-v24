@@ -104,11 +104,11 @@ async function fetchInstruction(folder: string): Promise<InstructionManifest> {
 
 /** Gets the primary output file from an instruction manifest. */
 function getPrimaryOutputFile(instruction: InstructionManifest): string | null {
-    const scripts = instruction.assets?.scripts;
+    const scripts = instruction.Assets?.Scripts;
     if (!scripts?.length) return null;
-    // Sort by order and return the first script's file
-    const sorted = [...scripts].sort((a, b) => a.order - b.order);
-    return sorted[0].file;
+    // Sort by Order and return the first script's File
+    const sorted = [...scripts].sort((a, b) => a.Order - b.Order);
+    return sorted[0].File;
 }
 
 /* ------------------------------------------------------------------ */
@@ -150,8 +150,8 @@ export async function handleGetScriptInfo(
 
         return {
             isOk: true,
-            scriptName: instruction.name,
-            bundledVersion: instruction.version,
+            scriptName: instruction.Name,
+            bundledVersion: instruction.Version,
             outputFile,
             sizeBytes,
         };

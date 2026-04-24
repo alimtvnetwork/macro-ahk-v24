@@ -28,7 +28,11 @@ import type {
   StoredConfig,
 } from "@/hooks/use-projects-scripts";
 import type { PromptEntry } from "@/hooks/use-prompts";
-import { validateBundleSchema, formatValidationError } from "@/lib/sqlite-bundle-contract";
+import {
+  validateBundleSchema,
+  formatValidationError,
+  CURRENT_FORMAT_VERSION,
+} from "@/lib/sqlite-bundle-contract";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -48,13 +52,18 @@ const CREATE_PROJECTS_TABLE = `
     Uid TEXT,
     SchemaVersion INTEGER NOT NULL DEFAULT 1,
     Name TEXT NOT NULL,
+    Slug TEXT,
     Version TEXT NOT NULL,
     Description TEXT,
     TargetUrls TEXT,
     Scripts TEXT,
     Configs TEXT,
+    Cookies TEXT,
     CookieRules TEXT,
+    Dependencies TEXT,
     Settings TEXT,
+    IsGlobal INTEGER DEFAULT 0,
+    IsRemovable INTEGER DEFAULT 1,
     CreatedAt TEXT NOT NULL,
     UpdatedAt TEXT NOT NULL
   );
@@ -72,6 +81,8 @@ const CREATE_SCRIPTS_TABLE = `
     ConfigBinding TEXT,
     IsIife INTEGER DEFAULT 0,
     HasDomUsage INTEGER DEFAULT 0,
+    UpdateUrl TEXT,
+    LastUpdateCheck TEXT,
     CreatedAt TEXT NOT NULL,
     UpdatedAt TEXT NOT NULL
   );
@@ -101,6 +112,7 @@ const CREATE_PROMPTS_TABLE = `
   CREATE TABLE IF NOT EXISTS Prompts (
     Id INTEGER PRIMARY KEY AUTOINCREMENT,
     Uid TEXT,
+    Slug TEXT,
     Name TEXT NOT NULL,
     Text TEXT NOT NULL,
     RunOrder INTEGER NOT NULL DEFAULT 0,

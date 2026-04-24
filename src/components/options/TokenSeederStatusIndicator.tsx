@@ -20,6 +20,10 @@ import {
 } from "@/components/ui/collapsible";
 import { ShieldOff, Timer, ChevronDown } from "lucide-react";
 import { sendMessage } from "@/lib/message-client";
+import {
+    loadDiagnosticsCache,
+    saveDiagnosticsCache,
+} from "./token-seeder-diagnostics-cache";
 
 interface InaccessibleSeedTarget {
     tabId: number;

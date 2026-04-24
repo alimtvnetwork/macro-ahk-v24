@@ -19,10 +19,17 @@ import { showToast } from '../toast';
 import type { PanelLayoutCtx } from './panel-layout';
 import { disableFloating } from './panel-layout';
 
-// CQ11: Singleton for redock observer state
+// CQ11: Singleton for redock observer state.
+// PERF-4 (2026-04-25): the legacy `pollTimer` setter was dead — actual
+// polling lives inside pollUntil() (no cancel handle). We now drive
+// cancellation through a generation token: each startRedockObserver()
+// bumps `generation`, and the polling condition short-circuits when its
+// captured token no longer matches the current one. resetRedockState()
+// bumps the generation, which causes any in-flight poll to resolve null
+// on its next tick.
 class RedockState {
-  private _pollTimer: ReturnType<typeof setInterval> | null = null;
   private _docked = false;
+  private _generation = 0;
 
   get docked(): boolean {
     return this._docked;
@@ -32,19 +39,14 @@ class RedockState {
     this._docked = v;
   }
 
-  get pollTimer(): ReturnType<typeof setInterval> | null {
-    return this._pollTimer;
+  get generation(): number {
+    return this._generation;
   }
 
-  set pollTimer(v: ReturnType<typeof setInterval> | null) {
-    this._pollTimer = v;
-  }
-
-  clearTimer(): void {
-    if (this._pollTimer) {
-      clearInterval(this._pollTimer);
-      this._pollTimer = null;
-    }
+  /** Invalidate any in-flight redock poll. Returns the new generation token. */
+  invalidate(): number {
+    this._generation += 1;
+    return this._generation;
   }
 }
 

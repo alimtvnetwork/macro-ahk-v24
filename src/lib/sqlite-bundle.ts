@@ -620,16 +620,26 @@ export interface BundlePreview {
 
 /** Reads a .zip file, extracts the SQLite DB, and replaces all data. */
 export async function importFromSqliteZip(file: File): Promise<ImportResult> {
-  const { projects, scripts, configs } = await extractBundle(file);
-  await replaceAll(projects, scripts, configs);
-  return { projectCount: projects.length, scriptCount: scripts.length, configCount: configs.length };
+  const { projects, scripts, configs, prompts } = await extractBundle(file);
+  await replaceAll(projects, scripts, configs, prompts);
+  return {
+    projectCount: projects.length,
+    scriptCount: scripts.length,
+    configCount: configs.length,
+    promptCount: prompts.length,
+  };
 }
 
 /** Reads a .zip file and merges contents into existing data (no deletions). */
 export async function mergeFromSqliteZip(file: File): Promise<ImportResult> {
-  const { projects, scripts, configs } = await extractBundle(file);
-  await mergeAll(projects, scripts, configs);
-  return { projectCount: projects.length, scriptCount: scripts.length, configCount: configs.length };
+  const { projects, scripts, configs, prompts } = await extractBundle(file);
+  await mergeAll(projects, scripts, configs, prompts);
+  return {
+    projectCount: projects.length,
+    scriptCount: scripts.length,
+    configCount: configs.length,
+    promptCount: prompts.length,
+  };
 }
 
 async function extractBundle(file: File) {
@@ -640,8 +650,8 @@ async function extractBundle(file: File) {
   const dbData = await dbFile.async("uint8array");
   const db = await openDb(dbData);
 
-  // Strict PascalCase v4 contract gate. Runs BEFORE we read any rows so
-  // a malformed bundle never reaches the SAVE_* messaging layer (where
+  // Strict PascalCase contract gate (v4 + v5). Runs BEFORE we read any rows
+  // so a malformed bundle never reaches the SAVE_* messaging layer (where
   // partial writes could corrupt the live extension state).
   const validation = validateBundleSchema(db, "full");
   if (!validation.ok) {
@@ -652,14 +662,19 @@ async function extractBundle(file: File) {
   const projects = readProjects(db);
   const scripts = readScripts(db);
   const configs = readConfigs(db);
+  // Prompts table is optional in "full" mode — readPrompts() already
+  // returns [] when absent, so older v4 bundles without Prompts still work.
+  const prompts = readPrompts(db);
   db.close();
-  return { projects, scripts, configs };
+  return { projects, scripts, configs, prompts };
 }
 
 export interface ImportResult {
   projectCount: number;
   scriptCount: number;
   configCount: number;
+  /** v5: prompts are now part of the full round-trip (was silently dropped pre-v5). */
+  promptCount: number;
 }
 
 /* ------------------------------------------------------------------ */
@@ -670,13 +685,19 @@ async function replaceAll(
   projects: StoredProject[],
   scripts: StoredScript[],
   configs: StoredConfig[],
+  prompts: PromptEntry[],
 ): Promise<void> {
   // Delete existing data
-  const [existingProjects, existingScripts, existingConfigs] = await Promise.all([
+  const [existingProjects, existingScripts, existingConfigs, existingPrompts] = await Promise.all([
     sendMessage<{ projects: StoredProject[] }>({ type: "GET_ALL_PROJECTS" }),
     sendMessage<{ scripts: StoredScript[] }>({ type: "GET_ALL_SCRIPTS" }),
     sendMessage<{ configs: StoredConfig[] }>({ type: "GET_ALL_CONFIGS" }),
+    sendMessage<{ prompts?: PromptEntry[] }>({ type: "GET_PROMPTS" }),
   ]);
+
+  // Mirror importPromptsFromSqliteZip: never delete the built-in defaults
+  // (their loss would orphan the Task Next resolver and the welcome flow).
+  const existingPromptList = Array.isArray(existingPrompts.prompts) ? existingPrompts.prompts : [];
 
   await Promise.all([
     ...existingProjects.projects.map((p) =>
@@ -688,6 +709,11 @@ async function replaceAll(
     ...existingConfigs.configs.map((c) =>
       sendMessage({ type: "DELETE_CONFIG", id: c.id }),
     ),
+    ...existingPromptList
+      .filter((p) => (p as unknown as Record<string, unknown>).isDefault !== true)
+      .map((p) =>
+        sendMessage({ type: "DELETE_PROMPT", promptId: (p as unknown as { id: string }).id }),
+      ),
   ]);
 
   // Insert imported data
@@ -695,6 +721,7 @@ async function replaceAll(
     ...projects.map((p) => sendMessage({ type: "SAVE_PROJECT", project: p })),
     ...scripts.map((s) => sendMessage({ type: "SAVE_SCRIPT", script: s })),
     ...configs.map((c) => sendMessage({ type: "SAVE_CONFIG", config: c })),
+    ...prompts.map((p) => sendMessage({ type: "SAVE_PROMPT", prompt: p })),
   ]);
 }
 
@@ -706,12 +733,14 @@ async function mergeAll(
   projects: StoredProject[],
   scripts: StoredScript[],
   configs: StoredConfig[],
+  prompts: PromptEntry[],
 ): Promise<void> {
   // Upsert: simply save each item — existing IDs get overwritten, new ones get added
   await Promise.all([
     ...projects.map((p) => sendMessage({ type: "SAVE_PROJECT", project: p })),
     ...scripts.map((s) => sendMessage({ type: "SAVE_SCRIPT", script: s })),
     ...configs.map((c) => sendMessage({ type: "SAVE_CONFIG", config: c })),
+    ...prompts.map((p) => sendMessage({ type: "SAVE_PROMPT", prompt: p })),
   ]);
 }
 

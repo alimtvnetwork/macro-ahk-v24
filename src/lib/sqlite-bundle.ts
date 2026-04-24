@@ -713,18 +713,28 @@ export async function exportPromptsAsSqliteZip(): Promise<void> {
   triggerDownload(blob, "marco-prompts-backup.zip");
 }
 
-/** Imports prompts from a SQLite ZIP (replace mode). */
-export async function importPromptsFromSqliteZip(file: File): Promise<{ promptCount: number }> {
+/** Shared extractor + strict validator for prompts-only bundles. */
+async function extractPromptsBundle(file: File): Promise<PromptEntry[]> {
   const arrayBuffer = await file.arrayBuffer();
   const JSZipCtor = await loadJSZip(); const zip = await JSZipCtor.loadAsync(arrayBuffer);
   const dbFile = zip.file(DB_FILENAME);
   if (!dbFile) throw new Error(`Invalid bundle: missing ${DB_FILENAME} inside the zip`);
   const dbData = await dbFile.async("uint8array");
   const db = await openDb(dbData);
+  const validation = validateBundleSchema(db, "prompts-only");
+  if (!validation.ok) {
+    db.close();
+    throw new Error(formatValidationError(validation));
+  }
   const prompts = readPrompts(db);
   db.close();
-
   if (prompts.length === 0) throw new Error("No prompts found in bundle");
+  return prompts;
+}
+
+/** Imports prompts from a SQLite ZIP (replace mode). */
+export async function importPromptsFromSqliteZip(file: File): Promise<{ promptCount: number }> {
+  const prompts = await extractPromptsBundle(file);
 
   // Delete existing non-default prompts, then save imported ones
   const existing = await sendMessage<{ prompts?: PromptEntry[] }>({ type: "GET_PROMPTS" });

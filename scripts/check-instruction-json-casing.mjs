@@ -149,9 +149,59 @@ class WalkAbortError extends Error {
     }
 }
 
-/** Emit a GitHub Actions error annotation on the JSON file itself. */
-function annotate(file, msg) {
-    process.stdout.write(`::error file=${file}::${msg}\n`);
+/* ----------------------------------------------------------------- */
+/*  GitHub Actions annotations.                                       */
+/*                                                                    */
+/*  Two flavours:                                                     */
+/*    • annotateFile(file, msg)   — one summary `::error` on the      */
+/*      file (used for parse errors, walker aborts, and the trailing  */
+/*      "+N more" message when violations are truncated).             */
+/*    • annotateKey(file, v, shape) — one `::error` per offending     */
+/*      JSON-pointer key, so the developer sees the exact key in the  */
+/*      Actions UI without having to scroll the log.                  */
+/*                                                                    */
+/*  Both are no-ops outside `GITHUB_ACTIONS=true` so a local run      */
+/*  doesn't print pseudo-annotation lines that look like broken log   */
+/*  output. `--json` mode bypasses both via the JSON branch in main().*/
+/*                                                                    */
+/*  Per-file cap (MAX_ANNOTATIONS, default 50) prevents a totally-    */
+/*  broken artifact (thousands of bad keys) from drowning the Actions */
+/*  annotation pane — the cap matches the human-readable MAX_PRINT    */
+/*  framed-block cap so the two reports stay in sync. Override via    */
+/*  INSTRUCTION_CASING_MAX_ANNOTATIONS env var.                       */
+/* ----------------------------------------------------------------- */
+const IS_GITHUB_ACTIONS = process.env.GITHUB_ACTIONS === "true";
+const MAX_ANNOTATIONS = Number.parseInt(process.env.INSTRUCTION_CASING_MAX_ANNOTATIONS ?? "", 10) || 50;
+
+/** Escape a value for the message portion of a workflow command. */
+function ghEscapeMessage(s) {
+    return String(s).replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+}
+
+/** Emit a single GitHub Actions error annotation on the JSON file itself. */
+function annotateFile(file, msg) {
+    if (!IS_GITHUB_ACTIONS) return;
+    process.stdout.write(`::error file=${file}::${ghEscapeMessage(msg)}\n`);
+}
+
+/**
+ * Emit one GitHub Actions error annotation per violating JSON-pointer key.
+ * Capped at MAX_ANNOTATIONS; returns the count actually emitted so the
+ * caller can append a "+N more" summary annotation.
+ */
+function annotateKeys(file, violations, shape) {
+    if (!IS_GITHUB_ACTIONS) return 0;
+    const limit = Math.min(violations.length, MAX_ANNOTATIONS);
+    const expected = shape === "PascalCase" ? "PascalCase" : "camelCase";
+    for (let i = 0; i < limit; i++) {
+        const v = violations[i];
+        process.stdout.write(
+            `::error file=${file},title=${expected} casing violation::` +
+            ghEscapeMessage(`${v.path}  →  "${v.key}"  (expected ${expected})`) +
+            `\n`,
+        );
+    }
+    return limit;
 }
 
 /* ----------------------------------------------------------------- */

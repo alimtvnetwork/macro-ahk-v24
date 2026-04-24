@@ -14,9 +14,9 @@ _Nothing currently in progress — TS Migration V2 backlog fully cleared at v2.2
 
 | # | Item | Priority | Reference |
 |---|---|---|---|
-| 1 | Surface latest sdkSelfTest + kv/files/gkv round-trip results in popup (✅/❌ + last-run timestamp) | Medium | `.lovable/suggestions.md` |
-| 2 | Release installer hardening v0.2 — checksum verification + signing | Medium | `mem://workflow/13-next-commands` |
-| 3 | **AC-2 main-branch fallback in installer** — implement spec §2 step 5 (currently exits 5 instead of falling through with `🌿` banner) | Medium | `.lovable/memory/suggestions/20260424-1900-suggestion-installer-ac2-main-branch-fallback.md` |
+| 1 | Release installer hardening v0.2 — checksum verification + signing | Medium | `mem://workflow/13-next-commands` |
+| 2 | **AC-2 main-branch fallback in installer** — implement spec §2 step 5 (currently exits 5 instead of falling through with `🌿` banner) | Medium | `.lovable/memory/suggestions/20260424-1900-suggestion-installer-ac2-main-branch-fallback.md` |
+| 3 | Per-script migration to shared `ProjectInstruction` types (Priority 0.2–0.6) | Low | checklist ready |
 
 
 ---

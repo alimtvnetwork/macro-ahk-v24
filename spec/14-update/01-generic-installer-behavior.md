@@ -399,3 +399,32 @@ The choice of language is project-specific; the algorithm is not.
 - `mem://constraints/no-retry-policy` — Backs the "no silent retries" rule in §5.1
 - `.github/workflows/installer-tests.yml` — CI coverage for AC-15 through AC-20
 - RFC 2119 — MUST / SHOULD / MAY semantics
+
+---
+
+## 13. Shared installer contract (cross-language source of truth)
+
+To prevent drift between Bash and PowerShell installers, repositories
+implementing this spec SHOULD ship a single machine-readable contract
+file that both installers consume:
+
+| File | Role |
+|---|---|
+| `scripts/installer-contract.json` | **Source of truth** — repo, semver regex, exit codes, flags, endpoint env vars, sibling-discovery defaults, checksum settings, AC-IDs. |
+| `scripts/installer-constants.sh` | Auto-generated; sourced by `install.sh` when present beside it. |
+| `scripts/installer-constants.ps1` | Auto-generated; dot-sourced by `install.ps1` when present beside it. |
+| `scripts/generate-installer-constants.mjs` | Regenerator. Run via `npm run installer:contract:gen`. |
+| `scripts/check-installer-contract.mjs` | CI drift detector. Verifies generated files in sync, every `exit N` is declared, every `--long` / `-Switch` flag is declared, default-repo strings agree across both installers. |
+
+**Standalone-install resilience.** Both installers MUST keep working
+when only the single installer file is present (curl-piped one-liners
+download just `install.sh`). The constants file is therefore an
+*opt-in enhancement* — when absent, in-script fallbacks (which equal
+the contract values at the time the installer was published) take over.
+
+**CI requirement.** `node scripts/check-installer-contract.mjs` MUST
+run alongside the existing installer-test suites. Failure modes:
+- Hand-edited generated file → regenerate with `installer:contract:gen`.
+- New `exit N` added without contract entry → add it to `exitCodes`.
+- New flag added to one installer only → add to `flags` and mirror in the other.
+- Default repo edited in one installer only → drift is rejected.

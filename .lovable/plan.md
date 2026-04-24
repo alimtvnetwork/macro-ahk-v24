@@ -6,7 +6,7 @@
 
 ## 🔄 In Progress
 
-_Nothing currently in progress — TS Migration V2 backlog fully cleared at v2.225.0 (2026-04-23)._
+_Nothing currently in progress._
 
 ---
 
@@ -16,6 +16,8 @@ _Nothing currently in progress — TS Migration V2 backlog fully cleared at v2.2
 |---|---|---|---|
 | 1 | Per-script migration to shared `ProjectInstruction` types (Priority 0.2–0.6) | Low | checklist ready |
 | 2 | Installer hardening v0.3 — sign `checksums.txt` (minisign or cosign) | Low | spec §7.1.4 rule 5 |
+| 3 | Mirror AC-2 main-branch fallback in `install.ps1` | Medium | spec §2 step 5 |
+| 4 | Wire `check:installer-contract` into `.github/workflows/installer-tests.yml` | Medium | spec §13 |
 
 
 ---

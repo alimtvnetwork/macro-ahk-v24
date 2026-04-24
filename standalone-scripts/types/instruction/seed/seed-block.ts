@@ -1,4 +1,3 @@
-import { InjectionRunAt } from "../enums/injection-run-at";
 import type { Identifier } from "../primitives/identifier";
 import type { CookieBinding } from "./cookie-binding";
 import type { CookieSpec } from "./cookie-spec";
@@ -11,15 +10,21 @@ import type { TargetUrl } from "./target-url";
  * `TSettings` carries the project-specific settings shape; default to
  * `EmptySettings` when there are none. Settings live in their own
  * project type file — never inlined here.
+ *
+ * All keys are PascalCase per `mem://standards/pascalcase-json-keys`.
+ * `RunAt` is the literal string union (matches Chrome's `chrome.scripting`
+ * vocabulary) so the JSON stays stable; consumers may map it to an enum
+ * at the boundary if exhaustive switches are needed.
  */
 export type SeedBlock<TSettings extends object> = {
-    readonly id: Identifier;
-    readonly seedOnInstall: boolean;
-    readonly isRemovable: boolean;
-    readonly autoInject: boolean;
-    readonly runAt: InjectionRunAt;
-    readonly cookieBinding?: CookieBinding;
-    readonly targetUrls: ReadonlyArray<TargetUrl>;
-    readonly cookies: ReadonlyArray<CookieSpec>;
-    readonly settings: TSettings;
+    readonly Id: Identifier;
+    readonly SeedOnInstall: boolean;
+    readonly IsRemovable: boolean;
+    readonly AutoInject: boolean;
+    readonly RunAt?: "document_start" | "document_end" | "document_idle";
+    readonly CookieBinding?: CookieBinding;
+    readonly TargetUrls: ReadonlyArray<TargetUrl>;
+    readonly Cookies: ReadonlyArray<CookieSpec>;
+    readonly Settings: TSettings;
+    readonly ConfigSeedIds?: Readonly<Record<string, string>>;
 };

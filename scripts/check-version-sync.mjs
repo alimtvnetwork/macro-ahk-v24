@@ -35,7 +35,7 @@ const files = [
     label: "instruction.ts (macro-controller)",
     path: "standalone-scripts/macro-controller/src/instruction.ts",
     extract: (txt) => {
-      const m = txt.match(/version:\s*"(\d+\.\d+\.\d+)/);
+      const m = txt.match(/[Vv]ersion:\s*"(\d+\.\d+\.\d+)/);
       return m ? m[1] : null;
     },
   },
@@ -44,7 +44,7 @@ const files = [
     path: "standalone-scripts/macro-controller/dist/instruction.json",
     optional: true,
     extract: (txt) => {
-      const m = txt.match(/"version"\s*:\s*"(\d+\.\d+\.\d+)/);
+      const m = txt.match(/"[Vv]ersion"\s*:\s*"(\d+\.\d+\.\d+)/);
       return m ? m[1] : null;
     },
   },
@@ -52,7 +52,7 @@ const files = [
     label: "instruction.ts (lovable-common)",
     path: "standalone-scripts/lovable-common/src/instruction.ts",
     extract: (txt) => {
-      const m = txt.match(/version:\s*"(\d+\.\d+\.\d+)/);
+      const m = txt.match(/[Vv]ersion:\s*"(\d+\.\d+\.\d+)/);
       return m ? m[1] : null;
     },
   },
@@ -60,7 +60,7 @@ const files = [
     label: "instruction.ts (lovable-owner-switch)",
     path: "standalone-scripts/lovable-owner-switch/src/instruction.ts",
     extract: (txt) => {
-      const m = txt.match(/version:\s*"(\d+\.\d+\.\d+)/);
+      const m = txt.match(/[Vv]ersion:\s*"(\d+\.\d+\.\d+)/);
       return m ? m[1] : null;
     },
   },
@@ -68,7 +68,7 @@ const files = [
     label: "instruction.ts (lovable-user-add)",
     path: "standalone-scripts/lovable-user-add/src/instruction.ts",
     extract: (txt) => {
-      const m = txt.match(/version:\s*"(\d+\.\d+\.\d+)/);
+      const m = txt.match(/[Vv]ersion:\s*"(\d+\.\d+\.\d+)/);
       return m ? m[1] : null;
     },
   },

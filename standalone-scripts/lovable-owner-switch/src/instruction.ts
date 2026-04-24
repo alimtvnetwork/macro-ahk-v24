@@ -5,43 +5,41 @@
  * LovableApiClient) and registers the empty `LovableOwnerSwitch` entry
  * class. Migrations (P5), CSV (P6), UI (P7) and flow (P8–P10) plug in
  * via subsequent phases without changing this manifest's shape.
+ *
+ * All keys PascalCase per `mem://standards/pascalcase-json-keys`.
  */
 
-import type { ProjectInstruction } from "../../lovable-common/src/instruction";
+import type { ProjectInstruction } from "../../types/instruction/project-instruction";
+import type { EmptySettings } from "../../types/instruction/seed/empty-settings";
 
-const instruction: ProjectInstruction = {
-    schemaVersion: "1.0",
-    name: "lovable-owner-switch",
-    displayName: "Lovable Owner Switch",
-    version: "2.230.0",
-    description: "Bulk-switch Lovable workspace ownership from a CSV of LoginEmail → OwnerEmail rows.",
-    world: "MAIN",
-    isGlobal: false,
-    dependencies: ["lovable-common"],
-    loadOrder: 60,
-    seed: {
-        id: "default-lovable-owner-switch",
-        seedOnInstall: true,
-        isRemovable: false,
-        autoInject: false,
-        runAt: "document_idle",
-        cookieBinding: undefined,
-        targetUrls: [{ pattern: "https://lovable.dev/*", matchType: "glob" }],
-        cookies: [],
-        settings: {},
+const instruction: ProjectInstruction<EmptySettings> = {
+    SchemaVersion: "1.0",
+    Name: "lovable-owner-switch",
+    DisplayName: "Lovable Owner Switch",
+    Version: "2.230.0",
+    Description: "Bulk-switch Lovable workspace ownership from a CSV of LoginEmail → OwnerEmail rows.",
+    World: "MAIN",
+    IsGlobal: false,
+    Dependencies: ["lovable-common"],
+    LoadOrder: 60,
+    Seed: {
+        Id: "default-lovable-owner-switch",
+        SeedOnInstall: true,
+        IsRemovable: false,
+        AutoInject: false,
+        RunAt: "document_idle",
+        TargetUrls: [{ Pattern: "https://lovable.dev/*", MatchType: "glob" }],
+        Cookies: [],
+        Settings: {},
     },
-    assets: {
-        css: [],
-        configs: [],
-        scripts: [
-            {
-                file: "lovable-owner-switch.js",
-                order: 1,
-                isIife: true,
-            },
+    Assets: {
+        Css: [],
+        Configs: [],
+        Scripts: [
+            { File: "lovable-owner-switch.js", Order: 1, IsIife: true },
         ],
-        templates: [],
-        prompts: [],
+        Templates: [],
+        Prompts: [],
     },
 };
 

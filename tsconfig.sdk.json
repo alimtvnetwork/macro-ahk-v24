@@ -2,7 +2,6 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "standalone-scripts/marco-sdk/dist",
-    "rootDir": "standalone-scripts/marco-sdk/src",
     "declaration": false,
     "noEmit": true,
     "baseUrl": ".",
@@ -12,6 +11,7 @@
   },
   "include": [
     "standalone-scripts/marco-sdk/src/**/*.ts",
+    "standalone-scripts/types/**/*.ts",
     "standalone-scripts/types/**/*.d.ts"
   ],
   "exclude": ["node_modules"]

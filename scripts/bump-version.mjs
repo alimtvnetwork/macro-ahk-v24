@@ -74,7 +74,7 @@ function getTargets(ver) {
       // match nested fields like minimum_chrome_version.
       path: "manifest.json",
       replacements: [
-        { pattern: /("version"\s*:\s*")[\d.]+(")/,         replacement: `$1${ver}$2` },
+        { pattern: /("[Vv]ersion"\s*:\s*")[\d.]+(")/,         replacement: `$1${ver}$2` },
       ],
     },
     {
@@ -92,59 +92,59 @@ function getTargets(ver) {
     {
       path: "standalone-scripts/macro-controller/src/instruction.ts",
       replacements: [
-        { pattern: /(version:\s*")[\d.]+(")/,               replacement: `$1${ver}$2` },
+        { pattern: /([Vv]ersion:\s*")[\d.]+(")/,               replacement: `$1${ver}$2` },
       ],
     },
     {
       path: "standalone-scripts/macro-controller/dist/instruction.json",
       optional: true,
       replacements: [
-        { pattern: /("version"\s*:\s*")[\d.]+(")/,          replacement: `$1${ver}$2` },
+        { pattern: /("[Vv]ersion"\s*:\s*")[\d.]+(")/,          replacement: `$1${ver}$2` },
       ],
     },
     {
       path: "standalone-scripts/marco-sdk/src/instruction.ts",
       replacements: [
-        { pattern: /(version:\s*")[\d.]+(")/,               replacement: `$1${ver}$2` },
+        { pattern: /([Vv]ersion:\s*")[\d.]+(")/,               replacement: `$1${ver}$2` },
       ],
     },
     {
       path: "standalone-scripts/marco-sdk/dist/instruction.json",
       optional: true,
       replacements: [
-        { pattern: /("version"\s*:\s*")[\d.]+(")/,          replacement: `$1${ver}$2` },
+        { pattern: /("[Vv]ersion"\s*:\s*")[\d.]+(")/,          replacement: `$1${ver}$2` },
       ],
     },
     {
       path: "standalone-scripts/xpath/src/instruction.ts",
       replacements: [
-        { pattern: /(version:\s*")[\d.]+(")/,               replacement: `$1${ver}$2` },
+        { pattern: /([Vv]ersion:\s*")[\d.]+(")/,               replacement: `$1${ver}$2` },
       ],
     },
     {
       path: "standalone-scripts/xpath/dist/instruction.json",
       optional: true,
       replacements: [
-        { pattern: /("version"\s*:\s*")[\d.]+(")/,          replacement: `$1${ver}$2` },
+        { pattern: /("[Vv]ersion"\s*:\s*")[\d.]+(")/,          replacement: `$1${ver}$2` },
       ],
     },
     {
       // P20 — Lovable Owner Switch / User Add / Common (registered for unified bump)
       path: "standalone-scripts/lovable-common/src/instruction.ts",
       replacements: [
-        { pattern: /(version:\s*")[\d.]+(")/,               replacement: `$1${ver}$2` },
+        { pattern: /([Vv]ersion:\s*")[\d.]+(")/,               replacement: `$1${ver}$2` },
       ],
     },
     {
       path: "standalone-scripts/lovable-owner-switch/src/instruction.ts",
       replacements: [
-        { pattern: /(version:\s*")[\d.]+(")/,               replacement: `$1${ver}$2` },
+        { pattern: /([Vv]ersion:\s*")[\d.]+(")/,               replacement: `$1${ver}$2` },
       ],
     },
     {
       path: "standalone-scripts/lovable-user-add/src/instruction.ts",
       replacements: [
-        { pattern: /(version:\s*")[\d.]+(")/,               replacement: `$1${ver}$2` },
+        { pattern: /([Vv]ersion:\s*")[\d.]+(")/,               replacement: `$1${ver}$2` },
       ],
     },
   ];

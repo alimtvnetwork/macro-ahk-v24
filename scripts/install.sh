@@ -272,6 +272,16 @@ download() {
 
 download_asset() {
     local version="$1"
+
+    # Spec §2 step 5 / AC-2: when fetch_latest_version returned the
+    # main-branch sentinel, switch to the source tarball off the default
+    # branch instead of a release ZIP. Discovery mode only — strict mode
+    # never reaches this branch (it would have exited 4 earlier).
+    if [ "${version}" = "${MAIN_BRANCH_SENTINEL}" ]; then
+        download_main_branch_tarball
+        return $?
+    fi
+
     local asset_name="marco-extension-${version}.zip"
     local asset_url="${MARCO_DOWNLOAD_BASE}/${REPO}/releases/download/${version}/${asset_name}"
     local archive_path="${TMP_DIR}/${asset_name}"
@@ -289,6 +299,30 @@ download_asset() {
     verify_checksum "${version}" "${asset_name}" "${archive_path}"
     echo "${archive_path}"
 }
+
+# Fetch the source tarball from the configured main branch. Used as the
+# spec §2 step 5 / AC-2 fallback when the release host is reachable but
+# reports zero releases. NOT subject to checksums.txt (the file lives in
+# releases, not in branches), and NOT subject to exit 4 — a missing main
+# branch is a network/tooling problem and exits 5 (spec §2.3).
+download_main_branch_tarball() {
+    local archive_name="${REPO##*/}-${MAIN_BRANCH}.tar.gz"
+    local archive_url="${MARCO_DOWNLOAD_BASE}/${REPO}/archive/refs/heads/${MAIN_BRANCH}.tar.gz"
+    local archive_path="${TMP_DIR}/${archive_name}"
+
+    step "Downloading main-branch tarball (${MAIN_BRANCH})..."
+    if ! download "${archive_url}" "${archive_path}"; then
+        err "Main-branch tarball download failed."
+        err "URL: ${archive_url}"
+        err ""
+        err "Spec §2.3: discovery-mode network failure exits 5."
+        exit 5
+    fi
+
+    ok "Downloaded successfully."
+    echo "${archive_path}"
+}
+
 
 # ── Checksum verification (spec/14-update §7.1, §8 rule 2) ──────────
 #

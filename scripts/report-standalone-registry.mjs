@@ -22,6 +22,12 @@
  *            shows up on the PR diff. Designed to be the FIRST diagnostic
  *            job in CI so wiring regressions block the pipeline in <1s,
  *            long before the heavier build-* jobs would surface them.
+ * --json   — Emit a stable, schema-versioned JSON report on stdout
+ *            (no human-readable sections). Combine with `--strict` to
+ *            fail the process on any gap while still producing the
+ *            machine-readable payload (`exitCode` is also embedded
+ *            inside the JSON for downstream parsers). See
+ *            `emitJsonReport()` for the full schema.
  *
  * Excluded folders (not real standalone scripts):
  *   _generated, types, prompts (prompts is content-only, no build entry)

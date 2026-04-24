@@ -52,8 +52,16 @@ set -euo pipefail
 
 REPO="alimtvnetwork/macro-ahk-v23"
 VERSION_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$'
+# Sentinel returned by fetch_latest_version when the API responds 200 OK
+# but reports zero releases. Triggers spec §2 step 5 main-branch fallback
+# (AC-2) — distinct from a network/5xx failure which still exits 5.
+MAIN_BRANCH_SENTINEL="__MAIN_BRANCH__"
+# Default branch used by the main-branch fallback. Override per repo via
+# MARCO_MAIN_BRANCH env var or by editing this line.
+MAIN_BRANCH="${MARCO_MAIN_BRANCH:-main}"
 TMP_DIR=""
 URL_PINNED=0
+MAIN_FALLBACK=0
 DRY_RUN=0
 NO_SIBLING_DISCOVERY=0
 ENABLE_SIBLING_DISCOVERY_FLAG=0   # set by --enable-sibling-discovery

@@ -276,6 +276,8 @@ function buildFixture(): MockStore {
   const prompts: PromptEntry[] = [
     {
       id: "prm-uid-1",
+      // v5 — Slug must round-trip; the Task Next resolver looks up by slug.
+      slug: "next-tasks",
       name: "Next Tasks",
       text: "Continue with the next task in the list.",
       order: 0,

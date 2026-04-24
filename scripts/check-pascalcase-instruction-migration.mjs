@@ -205,44 +205,57 @@ function checkInstructionSource(file) {
     const raw = readFileSync(file, "utf-8");
     const src = stripComments(raw);
 
-    // Locate the `const instruction ... = { ... };` block. Outside
-    // this block, identifiers like `type MacroControllerSettings = {
-    // IsolateScripts: boolean }` are TYPE definitions whose property
-    // names follow the SAME PascalCase rule, so we scan the whole
-    // file — not just the literal — to also catch type-side drift.
-    const lines = src.split("\n");
-    // Match `Key:` or `"Key":` at start of (whitespace) line. Excludes
-    // ternary `? :` and labelled-statement-style usages by requiring
-    // an identifier-only LHS.
-    const KEY_RE = /^\s*(?:"([A-Za-z_][A-Za-z0-9_]*)"|([A-Za-z_][A-Za-z0-9_]*))\s*\??\s*:/;
+    // Walk the whole source as one stream, matching every object-key
+    // position. A key starts immediately after `{` or `,` (with optional
+    // whitespace and an optional surrounding quote pair) and is followed
+    // by `:`. The `?` after the identifier handles TS optional-property
+    // syntax (`Foo?: string`) inside `type` / `interface` blocks.
+    //
+    // We scan the whole file (not just the literal) because TS type
+    // declarations like `type MacroControllerSettings = { LogLevel: ... }`
+    // describe the exact same shape and must follow the same casing rule.
+    //
+    // The leading lookbehind `(?<=[{,])` ensures we don't match `:` in
+    // contexts like `case 'x':`, `function foo(): void`, ternary `a ? b : c`,
+    // or computed-member keys — those have neither `{` nor `,` as their
+    // immediate non-whitespace predecessor.
+    const KEY_RE = /(?<=[{,])\s*(?:"([A-Za-z_][A-Za-z0-9_]*)"|([A-Za-z_][A-Za-z0-9_]*))\s*\??\s*:/g;
 
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        // Skip TS import / export-from / type-import lines and `case`/`default:` labels.
-        if (/^\s*(import|export\s+(type\s+)?\{|export\s+\*|case\s+|default\s*:)/.test(line)) continue;
-        // Skip `interface X {` / `type X = {` opener lines (the brace
-        // contains keys we DO want to check on subsequent lines, but
-        // the opener itself has no key).
-        const m = line.match(KEY_RE);
-        if (!m) continue;
+    // Pre-compute byte offsets for each line so we can map a regex match
+    // index back to a 1-indexed line number for clean annotations.
+    const lineOffsets = [0];
+    for (let i = 0; i < src.length; i++) {
+        if (src.charCodeAt(i) === 10 /* \n */) lineOffsets.push(i + 1);
+    }
+    const lineNumberAt = (idx) => {
+        let lo = 0, hi = lineOffsets.length - 1;
+        while (lo < hi) {
+            const mid = (lo + hi + 1) >>> 1;
+            if (lineOffsets[mid] <= idx) lo = mid; else hi = mid - 1;
+        }
+        return lo + 1;
+    };
+    const lineTextAt = (lineNo) => {
+        const start = lineOffsets[lineNo - 1];
+        const end = lineNo < lineOffsets.length ? lineOffsets[lineNo] - 1 : src.length;
+        return raw.slice(start, end);
+    };
+
+    let m;
+    while ((m = KEY_RE.exec(src)) !== null) {
         const key = m[1] ?? m[2];
         if (!key) continue;
-
-        // Reserved TS / JS keywords used as labels — never instruction keys.
-        if (["return", "yield", "await", "throw", "break", "continue", "if", "else", "for", "while", "do", "switch", "try", "catch", "finally", "function", "const", "let", "var", "type", "interface", "enum", "import", "export", "from", "as", "new", "in", "of", "typeof", "instanceof", "void", "this", "super", "null", "true", "false", "undefined", "default"].includes(key)) {
-            continue;
-        }
-
         const firstChar = key[0];
         const isPascal = firstChar >= "A" && firstChar <= "Z";
         const isLowercaseAllowed = LOWERCASE_KEY_ALLOWLIST.has(key);
         if (isPascal || isLowercaseAllowed) continue;
 
+        const lineNo = lineNumberAt(m.index);
         violations.push({
             file: rel(file),
-            line: i + 1,
+            line: lineNo,
             key,
-            snippet: line.trim(),
+            snippet: lineTextAt(lineNo).trim(),
         });
     }
     return violations;

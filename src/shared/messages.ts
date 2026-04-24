@@ -53,6 +53,7 @@ export enum MessageType {
     GET_STATUS = "GET_STATUS",
     GET_HEALTH_STATUS = "GET_HEALTH_STATUS",
     GET_AUTH_HEALTH = "GET_AUTH_HEALTH",
+    GET_TOKEN_SEEDER_DIAGNOSTICS = "GET_TOKEN_SEEDER_DIAGNOSTICS",
     GET_API_STATUS = "GET_API_STATUS",
     GET_API_ENDPOINTS = "GET_API_ENDPOINTS",
     GET_ACTIVE_ERRORS = "GET_ACTIVE_ERRORS",
@@ -391,6 +392,7 @@ export type MessageRequest =
     | GetStatusRequest
     | GetHealthRequest
     | GetAuthHealthRequest
+    | { type: MessageType.GET_TOKEN_SEEDER_DIAGNOSTICS }
     | GetApiStatusRequest
     | GetApiEndpointsRequest
     | NetworkStatusRequest

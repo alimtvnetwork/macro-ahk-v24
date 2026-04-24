@@ -336,6 +336,20 @@ function reportProject(name, result) {
             exit = 1;
             continue;
         }
+        if (res.walkAborted) {
+            const a = res.walkAborted;
+            const explain = a.reason === "max-nodes"
+                ? `tree exceeded MAX_NODES=${a.limit} (visited ${a.nodes} nodes before aborting at ${a.path})`
+                : `tree exceeded MAX_DEPTH=${a.limit} (depth ${a.depth} at ${a.path})`;
+            process.stderr.write(
+                `✗ ${name} ${label}: ${explain}\n` +
+                `    Override via INSTRUCTION_CASING_MAX_NODES / INSTRUCTION_CASING_MAX_DEPTH env vars if this is legitimate.\n` +
+                `    Partial scan found ${res.violations.length} violation(s) before aborting.\n`,
+            );
+            annotate(rel(file), `Walker aborted: ${explain}. Likely a runaway/oversized artifact — investigate compile-instruction.mjs output.`);
+            exit = 1;
+            continue;
+        }
         if (res.violations.length === 0) {
             console.log(`✓ ${name} ${label} — ${rel(file)} is pure ${shape}`);
             continue;

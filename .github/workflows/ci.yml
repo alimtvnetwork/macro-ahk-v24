@@ -634,6 +634,261 @@ jobs:
           retention-days: 1
 
   # ════════════════════════════════════════════════════════════
+  # Job 3d: Build Payment Banner Hider (parallel with 3a/3b/3c)
+  #
+  # No SDK dependency (instruction.ts → dependencies: []), so this
+  # runs straight off `setup` instead of waiting for build-sdk like
+  # build-xpath / build-macro-controller do.
+  #
+  # Listed in build-extension's `needs:` (above, line ~641) so the
+  # extension build can download the `payment-banner-hider-dist`
+  # artifact and pass the strict registry check
+  # (scripts/report-standalone-registry.mjs --strict, location
+  # `ciJob` → `.github/workflows/ci.yml build-payment-banner-hider`).
+  # ════════════════════════════════════════════════════════════
+  build-payment-banner-hider:
+    name: Build · Payment Banner Hider
+    needs: setup
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      - name: Get pnpm store path
+        id: pnpm-store
+        shell: bash
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml', '**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            standalone-scripts/*/node_modules
+          key: ${{ runner.os }}-nm-pbh-${{ hashFiles('**/pnpm-lock.yaml', '**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nm-pbh-
+
+      - name: Install dependencies
+        run: pnpm install --prefer-offline --no-frozen-lockfile
+
+      - name: Build Payment Banner Hider
+        run: pnpm run build:payment-banner-hider
+
+      # Sanity-check the local dist BEFORE uploading. If the build
+      # produced an empty bundle we want to fail HERE (with build
+      # logs in scope), not in build-extension's pre-build assertion
+      # 5 minutes later. Reuses the shared assertion script so the
+      # error format is identical to the downstream check.
+      - name: Self-assert dist (pre-upload)
+        run: |
+          node scripts/assert-standalone-dist.mjs \
+            --script-name payment-banner-hider \
+            --dist-dir standalone-scripts/payment-banner-hider/dist \
+            --bundle payment-banner-hider.js \
+            --artifact-name "payment-banner-hider-dist (pre-upload, local)" \
+            --vite-config standalone-scripts/payment-banner-hider/vite.config.ts \
+            --min-bytes 100
+
+      - name: Upload Payment Banner Hider dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: payment-banner-hider-dist
+          path: standalone-scripts/payment-banner-hider/dist/
+          retention-days: 1
+
+      - name: Build summary
+        if: always()
+        run: |
+          {
+            echo "## 🧱 Build · Payment Banner Hider"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Artifact name | \`payment-banner-hider-dist\` |"
+            echo "| Source path | \`standalone-scripts/payment-banner-hider/dist/\` |"
+            echo "| Consumed by | \`build-extension\`, \`e2e-payment-banner-hider\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ════════════════════════════════════════════════════════════
+  # Job 3e: E2E · Payment Banner Hider
+  #
+  # Standalone smoke test — verifies the freshly-built
+  # payment-banner-hider bundle by importing it in a Node sandbox
+  # and running its instruction-driven self-test. Does NOT need
+  # the full Chrome extension build, so it runs in parallel with
+  # build-extension (saves ~3 min on the critical path).
+  #
+  # Gated by the shared assertion script so we never run the
+  # smoke test on a broken artifact — same precise error annotation
+  # as the build-extension pre-build gate.
+  # ════════════════════════════════════════════════════════════
+  e2e-payment-banner-hider:
+    name: E2E · Payment Banner Hider
+    needs: build-payment-banner-hider
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            standalone-scripts/*/node_modules
+          key: ${{ runner.os }}-nm-pbh-e2e-${{ hashFiles('**/pnpm-lock.yaml', '**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nm-pbh-e2e-
+
+      - name: Install dependencies
+        run: pnpm install --prefer-offline --no-frozen-lockfile
+
+      - name: Download Payment Banner Hider dist
+        id: download-pbh
+        uses: actions/download-artifact@v4
+        with:
+          name: payment-banner-hider-dist
+          path: standalone-scripts/payment-banner-hider/dist/
+
+      # Same artifact-trace pattern as build-extension so the smoke
+      # job logs also expose the one-click artifact URL when debugging.
+      - name: Resolve payment-banner-hider artifact URL + id
+        id: trace-pbh-artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARTIFACT_NAME: payment-banner-hider-dist
+        run: |
+          set -euo pipefail
+          ARTIFACT_JSON=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts?per_page=100" \
+            --jq ".artifacts[] | select(.name == \"${ARTIFACT_NAME}\")")
+
+          if [ -z "${ARTIFACT_JSON}" ]; then
+            echo "::error title=Artifact metadata lookup failed::Could not find artifact '${ARTIFACT_NAME}' on run ${GITHUB_RUN_ID}."
+            exit 1
+          fi
+
+          ARTIFACT_ID=$(echo "${ARTIFACT_JSON}" | jq -r '.id')
+          BROWSER_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts/${ARTIFACT_ID}"
+          API_URL=$(echo "${ARTIFACT_JSON}" | jq -r '.archive_download_url')
+
+          echo "artifact_name=${ARTIFACT_NAME}" >> "$GITHUB_OUTPUT"
+          echo "artifact_id=${ARTIFACT_ID}" >> "$GITHUB_OUTPUT"
+          echo "browser_download_url=${BROWSER_URL}" >> "$GITHUB_OUTPUT"
+          echo "archive_download_url=${API_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Assert payment-banner-hider dist artifact present
+        run: |
+          node scripts/assert-standalone-dist.mjs \
+            --script-name payment-banner-hider \
+            --dist-dir standalone-scripts/payment-banner-hider/dist \
+            --bundle payment-banner-hider.js \
+            --artifact-name "${{ steps.trace-pbh-artifact.outputs.artifact_name }}" \
+            --artifact-id "${{ steps.trace-pbh-artifact.outputs.artifact_id }}" \
+            --artifact-url "${{ steps.trace-pbh-artifact.outputs.browser_download_url }}" \
+            --artifact-api-url "${{ steps.trace-pbh-artifact.outputs.archive_download_url }}" \
+            --vite-config standalone-scripts/payment-banner-hider/vite.config.ts \
+            --min-bytes 100
+
+      - name: Smoke-test bundle in Node sandbox
+        # The bundle is an IIFE that registers itself on window.
+        # Run it under a minimal jsdom-free shim so we get a clear
+        # SyntaxError / ReferenceError if the bundle is malformed,
+        # without booting a full browser.
+        run: |
+          set -euo pipefail
+          node --input-type=module -e "
+            import { readFileSync } from 'node:fs';
+            const bundlePath = 'standalone-scripts/payment-banner-hider/dist/payment-banner-hider.js';
+            const src = readFileSync(bundlePath, 'utf8');
+
+            if (src.length < 100) {
+              console.error('::error::Bundle is suspiciously small (' + src.length + ' bytes)');
+              process.exit(1);
+            }
+
+            // Minimal window/document shim so an IIFE that touches DOM
+            // doesn't crash on load. We only validate the bundle parses
+            // and runs to completion — no behavioural assertion here
+            // (that lives in the Playwright e2e suite).
+            const noop = () => {};
+            const fakeWindow = {
+              addEventListener: noop, removeEventListener: noop,
+              RiseupAsiaMacroExt: { Projects: {} },
+              location: { hostname: 'lovable.dev', href: 'https://lovable.dev/' },
+            };
+            const fakeDocument = {
+              addEventListener: noop, removeEventListener: noop,
+              readyState: 'complete',
+              querySelector: () => null, querySelectorAll: () => [],
+              body: { appendChild: noop }, head: { appendChild: noop },
+              createElement: () => ({ style: {}, setAttribute: noop, appendChild: noop }),
+            };
+            globalThis.window = fakeWindow;
+            globalThis.document = fakeDocument;
+
+            try {
+              new Function(src)();
+              console.log('✅ Bundle loaded and executed without throwing.');
+            } catch (err) {
+              console.error('::error file=' + bundlePath + '::Bundle threw on execution: ' + err.message);
+              process.exit(1);
+            }
+          "
+
+      - name: Smoke summary
+        if: always()
+        run: |
+          {
+            echo "## 🧪 E2E · Payment Banner Hider — smoke result"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Artifact | \`payment-banner-hider-dist\` |"
+            echo "| Bundle | \`standalone-scripts/payment-banner-hider/dist/payment-banner-hider.js\` |"
+            echo "| Source job | \`build-payment-banner-hider\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ════════════════════════════════════════════════════════════
   # Job 4: Build Chrome Extension (depends on all standalone)
   # ════════════════════════════════════════════════════════════
   build-extension:

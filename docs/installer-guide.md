@@ -14,7 +14,127 @@
 | Custom directory | `… \| bash -s -- --dir ~/tools/marco-extension` |
 | Preview without installing | `… \| bash -s -- --dry-run` |
 
-PowerShell mirrors the same surface (`irm … \| iex`, `-Version`, `-InstallDir`, `-DryRun`, …). See §3.
+PowerShell mirrors the same surface (`irm … | iex`, `-Version`, `-InstallDir`, `-DryRun`, …). See §3.
+
+---
+
+## 1a. Copy-paste recipes
+
+Drop-in commands for the most common scenarios. Replace `v2.228.0` with the version you want.
+
+### Recipe A — Strict pinned version (recommended for production / CI)
+
+Downloads the installer **from the release itself**, which auto-pins via URL self-detection (no `--version` flag needed). Sibling discovery and main-branch fallback are disabled in this mode — you get exactly that release or **exit 4**.
+
+**Bash (Linux / macOS / Git-Bash):**
+```bash
+curl -fsSL https://github.com/alimtvnetwork/macro-ahk-v23/releases/download/v2.228.0/install.sh | bash
+```
+
+**PowerShell (Windows):**
+```powershell
+irm https://github.com/alimtvnetwork/macro-ahk-v23/releases/download/v2.228.0/install.ps1 | iex
+```
+
+> Use this in `Dockerfile`, `Makefile`, GitHub Actions, etc. Reproducible across rebuilds.
+
+---
+
+### Recipe B — Discovery mode, latest release
+
+Auto-resolves to the newest published release via the GitHub Releases API. Falls back to a `main`-branch tarball if the repo has zero releases.
+
+**Bash:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/alimtvnetwork/macro-ahk-v23/main/scripts/install.sh | bash
+```
+
+**PowerShell:**
+```powershell
+irm https://raw.githubusercontent.com/alimtvnetwork/macro-ahk-v23/main/scripts/install.ps1 | iex
+```
+
+> Best for first-time users and casual installs.
+
+---
+
+### Recipe C — Dry run (preview without installing)
+
+Resolves the version, prints the plan (URL, target dir, checksum source), and **exits 0 without touching disk**. Safe to run anywhere.
+
+**Bash — pinned dry-run:**
+```bash
+curl -fsSL https://github.com/alimtvnetwork/macro-ahk-v23/releases/download/v2.228.0/install.sh | bash -s -- --dry-run
+```
+
+**Bash — discovery dry-run:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/alimtvnetwork/macro-ahk-v23/main/scripts/install.sh | bash -s -- --dry-run
+```
+
+**PowerShell — pinned dry-run:**
+```powershell
+& ([scriptblock]::Create((irm https://github.com/alimtvnetwork/macro-ahk-v23/releases/download/v2.228.0/install.ps1))) -DryRun
+```
+
+**PowerShell — discovery dry-run:**
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/alimtvnetwork/macro-ahk-v23/main/scripts/install.ps1))) -DryRun
+```
+
+> The `& ([scriptblock]::Create(...))` wrapper is required to pass parameters to a script piped from `irm`. The simpler `irm ... | iex` form cannot accept arguments.
+
+---
+
+### Recipe D — Custom install directory
+
+Override the default (`~/marco-extension` on Unix, `$HOME\marco-extension` on Windows).
+
+**Bash:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/alimtvnetwork/macro-ahk-v23/main/scripts/install.sh | bash -s -- --dir /opt/marco-extension
+```
+
+**PowerShell:**
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/alimtvnetwork/macro-ahk-v23/main/scripts/install.ps1))) -InstallDir 'D:\Tools\marco-extension'
+```
+
+---
+
+### Recipe E — Pinned version + custom dir + dry run (full belt-and-suspenders)
+
+**Bash:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/alimtvnetwork/macro-ahk-v23/main/scripts/install.sh \
+  | bash -s -- --version v2.228.0 --dir /opt/marco-extension --dry-run
+```
+
+**PowerShell:**
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/alimtvnetwork/macro-ahk-v23/main/scripts/install.ps1))) `
+    -Version v2.228.0 -InstallDir 'D:\Tools\marco-extension' -DryRun
+```
+
+---
+
+### Recipe F — Air-gapped / mirror
+
+Point the installer at an internal GitHub Enterprise or HTTP mirror.
+
+**Bash:**
+```bash
+MARCO_API_BASE=https://ghe.corp.example/api/v3 \
+MARCO_DOWNLOAD_BASE=https://ghe.corp.example \
+  curl -fsSL https://ghe.corp.example/raw/alimtvnetwork/macro-ahk-v23/main/scripts/install.sh | bash
+```
+
+**PowerShell:**
+```powershell
+$env:MARCO_API_BASE      = 'https://ghe.corp.example/api/v3'
+$env:MARCO_DOWNLOAD_BASE = 'https://ghe.corp.example'
+irm https://ghe.corp.example/raw/alimtvnetwork/macro-ahk-v23/main/scripts/install.ps1 | iex
+```
 
 ---
 

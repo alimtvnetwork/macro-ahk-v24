@@ -14,6 +14,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ShieldAlert, Play, Loader2, Timer, Check, Copy, AlertTriangle } from "lucide-react";
 import { sendMessage } from "@/lib/message-client";
+import {
+    loadDiagnosticsCache,
+    saveDiagnosticsCache,
+} from "./token-seeder-diagnostics-cache";
 
 type AccessDeniedCode =
     | "RESPECTIVE_HOST_PERMISSION"
@@ -99,7 +103,9 @@ function formatRemaining(ms: number): string {
 
 // eslint-disable-next-line max-lines-per-function -- single cohesive diagnostics view
 export function TokenSeederDiagnosticsPanel() {
-    const [data, setData] = useState<TokenSeederDiagnostics | null>(null);
+    const [data, setData] = useState<TokenSeederDiagnostics | null>(
+        () => loadDiagnosticsCache() as TokenSeederDiagnostics | null,
+    );
     const [loading, setLoading] = useState(false);
     const [selectedKey, setSelectedKey] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
@@ -113,6 +119,7 @@ export function TokenSeederDiagnosticsPanel() {
                 type: "GET_TOKEN_SEEDER_DIAGNOSTICS",
             });
             setData(res);
+            saveDiagnosticsCache(res);
             setNow(Date.now());
         } catch {
             setData(null);

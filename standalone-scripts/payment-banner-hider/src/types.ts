@@ -25,6 +25,9 @@ export const TARGET_XPATH = "/html/body/div[2]/main/div/div[1]";
 /** Time after which the banner is fully collapsed and display:none-d. */
 export const REMOVE_DELAY_MS = 1000;
 
+/** Debounce window for MutationObserver-driven check() calls. */
+export const OBSERVER_DEBOUNCE_MS = 100;
+
 /** Public surface exposed on `window` for debugging. */
 export interface PaymentBannerHiderApi {
     readonly version: string;

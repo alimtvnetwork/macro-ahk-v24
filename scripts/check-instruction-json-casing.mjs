@@ -78,8 +78,16 @@
  *
  * Exit codes:
  *   0 — every scanned project's two artifacts pass both shape checks
- *   1 — at least one violation (full per-key path report + GitHub
- *       Actions ::error annotations on the offending JSON files)
+ *   1 — at least one violation. When run inside GitHub Actions
+ *       (GITHUB_ACTIONS=true), one `::error file=<dist/.../instruction[.compat].json>`
+ *       annotation is emitted per offending JSON-pointer key (capped at
+ *       INSTRUCTION_CASING_MAX_ANNOTATIONS, default 50, per artifact),
+ *       so the violations show up inline in the PR Files Changed view
+ *       at the exact dist artifact path. A trailing file-level summary
+ *       annotation is always emitted naming the artifact + total count
+ *       so at least one inline marker exists even when the per-key cap
+ *       truncates output. Outside Actions the framed text block is the
+ *       sole output (no pseudo-annotation lines).
  *   2 — repo layout broken (no standalone-scripts/) or a referenced
  *       project lacks a dist/ — surfaces a missing-step problem
  *       instead of a false pass.

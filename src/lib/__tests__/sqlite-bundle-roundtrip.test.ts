@@ -379,5 +379,58 @@ describe("sqlite-bundle — full round-trip", () => {
         updatedAt: src.updatedAt,
       });
     }
+
+    /* ---- 8. Prompts + Meta — verified at the SQLite layer ---- */
+    /**
+     * `importFromSqliteZip` (full-bundle path) intentionally only
+     * round-trips Projects/Scripts/Configs back into the message store —
+     * Prompts have a separate `importPromptsFromSqliteZip` path. To prove
+     * the Prompts AND Meta tables survived the export half of the cycle
+     * (which is everything `exportAllAsSqliteZip` is contracted to do),
+     * we open the same .db blob directly and inspect those tables.
+     */
+    const dbBuf = await zip.file("marco-backup.db")!.async("uint8array");
+    const SQL = await initSqlJs({
+      locateFile: (f: string) =>
+        resolvePath(__dirname, "../../../node_modules/sql.js/dist", f),
+    });
+    const db = new SQL.Database(dbBuf);
+
+    /* Prompts — every PascalCase column must be present and accurate. */
+    const promptsRows = db.exec(
+      "SELECT Uid, Name, Text, RunOrder, IsDefault, IsFavorite, Category " +
+      "FROM Prompts ORDER BY RunOrder",
+    );
+    expect(promptsRows[0]?.values, "Prompts table populated").toHaveLength(
+      fixture.prompts.length,
+    );
+    const promptByUid = new Map(
+      promptsRows[0].values.map((row) => [String(row[0]), row]),
+    );
+    for (const src of fixture.prompts) {
+      const row = promptByUid.get(src.id);
+      expect(row, `prompt ${src.id} present in exported DB`).toBeDefined();
+      const [, name, text, runOrder, isDefault, isFavorite, category] = row!;
+      expect(name).toBe(src.name);
+      expect(text).toBe(src.text);
+      expect(Number(runOrder)).toBe(src.order);
+      expect(Number(isDefault)).toBe(src.isDefault ? 1 : 0);
+      expect(Number(isFavorite)).toBe(src.isFavorite ? 1 : 0);
+      expect(category ?? null).toBe(src.category ?? null);
+    }
+
+    /* Meta — must declare format_version='4' so the validator accepts it. */
+    const metaRows = db.exec(
+      "SELECT Key, Value FROM Meta WHERE Key IN ('format_version', 'exported_at')",
+    );
+    const meta = Object.fromEntries(
+      (metaRows[0]?.values ?? []).map((r) => [String(r[0]), String(r[1])]),
+    );
+    expect(meta.format_version).toBe("4");
+    expect(meta.exported_at, "exported_at is an ISO timestamp").toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
+    );
+
+    db.close();
   });
 });

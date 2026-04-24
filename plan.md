@@ -12,6 +12,45 @@
 
 ---
 
+## 🆕 2026-04-25 — Idle Loop Audit Round 2 (recorded — no code changes yet)
+
+**Trigger**: User asked to re-sweep the codebase for background loops/timers/intervals/observers running idly that could harm performance. Previous sweep yielded PERF-1..PERF-8, all fixed and verified in source.
+**Status**: All PERF-1..8 fixes confirmed still present (hot-reload prod gate ✅, error-badge self-clearing interval ✅, auth-diag self-clearing interval ✅, redock generation token ✅, network-reporter re-injection guard + pagehide teardown ✅, popup visibility-pause ✅, toast queue SDK-miss bailout ✅).
+**Memory**: `.lovable/memory/performance/idle-loop-audit-2026-04-25.md` (rewritten with full Round 2 findings).
+**Method**: `rg` for `setInterval|setTimeout|MutationObserver|chrome.alarms|while(true)`; manually inspected every callsite; confirmed prior fixes; flagged only NEW issues with concrete failure modes.
+
+### New findings — to fix later (each gets its own RCA before any change, per task-execution pattern)
+
+| ID | Severity | File:line | Issue |
+|---|---|---|---|
+| PERF-9  | High   | `standalone-scripts/macro-controller/src/loop-controls.ts:297-303` | `startStatusRefresh()` early-returns when `state.statusRefreshId` is set, so the interval stays at whichever value (5 s vs 30 s) was first installed even after `state.running` flips. Effect: when user **stops** the loop, workspace polling keeps hitting the API every 5 s forever (or vice-versa) — wrong interval used for the wrong state. Fix: when called while a timer exists and the desired interval differs, `clearInterval` and re-install. |
+| PERF-10 | High   | `src/hooks/use-token-watchdog.ts:168-184` | 10 s `setInterval` runs continuously while the Options page is open — even when the tab is hidden (background tab) or detached. Decodes JWT every tick. Effect: ~360 ticks/hour per hidden tab, wakes the SW on every auto-refresh. Fix: gate on `document.visibilitychange` like `usePopupData.ts` already does; refresh-on-visible to catch up. |
+| PERF-11 | Medium | `src/hooks/use-network-data.ts:54-61` | 5 s auto-refresh interval has no visibility-pause guard. Two `sendMessage` calls per tick → SW wakes every 5 s for any open Network panel, even when the tab is in another window. Fix: add visibility-pause guard. |
+| PERF-12 | Medium | `src/hooks/use-error-count.ts:55-68` | 30 s polling fallback runs even when the broadcast listener is attached AND when the page is hidden. Fix: gate on visibility; polling only needed as a fallback when the broadcast didn't attach. |
+| PERF-13 | Medium | `standalone-scripts/macro-controller/src/startup-persistence.ts:51-64` | `MutationObserver` watches `<main>` (or `#root`, fallback `document.body`) with `childList: true`. On SPA-heavy pages this fires on every nav tile add/remove and runs `getElementById` twice per burst before debouncing. Effect: high-frequency observer churn on busy pages. Fix: narrow target to a stable wrapper closer to the controller mount point, or upgrade debounce to `requestIdleCallback`. |
+| PERF-14 | Low    | `standalone-scripts/marco-sdk/src/notify.ts:173-180` | `_dedupTimer` correctly self-clears when `_recentToasts` is empty, but the cleanup tick fires every 30 s for the lifetime of any active toast burst. Acceptable; documented for completeness — no fix needed. |
+| PERF-15 | Low    | `standalone-scripts/macro-controller/src/ui/countdown.ts:86-95` | `startCountdownTick()` runs at 1 Hz while the loop is active. It self-stops via `if (!state.running)` so it cannot leak — but it does run while the host tab is hidden. Cheap (one DOM write per tick) so not worth gating on visibility unless the tab profile shows it. Documented; no fix proposed. |
+
+### Confirmed clean — no action
+
+- `src/background/keepalive.ts` — Uses `chrome.alarms` (30 s, MV3 idiomatic). Correct.
+- `standalone-scripts/macro-controller/src/workspace-observer.ts` — Disconnects previous instance before re-installing; bounded retry (`WORKSPACE_OBSERVER_MAX_RETRIES`).
+- `standalone-scripts/macro-controller/src/ui/redock-observer.ts` — PERF-4 generation-token cancellation working correctly.
+- `standalone-scripts/payment-banner-hider/src/index.ts` — `MutationObserver` self-disconnects (`stopObserver()`) once banner is hidden. Correct.
+- `src/content-scripts/home-screen/index.ts` — Observer scoped to workspace list only (`subtree: false`), debounced, teardown returned by `installRebuildObserver`.
+- `src/lib/developer-guide-data.generated.ts:1728,1937` — Inside literal user-doc code snippets (template strings). Not executed.
+- `src/background/handlers/library-handler.ts:398` — `while (true)` is a bounded slug-uniqueness search backed by an indexed SQLite query. Not a perf issue.
+- `setTimeout` usages reviewed: all are one-shot or correctly tracked in refs.
+
+### Next steps (queued, do later)
+
+1. PERF-9: Write RCA at `spec/22-app-issues/108-status-refresh-interval-stale.md`, then fix.
+2. PERF-10..12: Single shared RCA at `spec/22-app-issues/109-react-hooks-visibility-pause.md`; one fix per hook.
+3. PERF-13: RCA at `spec/22-app-issues/110-startup-persistence-observer-narrowing.md`.
+4. After fixes: run `tsc --noEmit` for both projects; verify via Chrome `chrome://extensions` background page profiler (manual test, deferred per `mem://preferences/deferred-workstreams`).
+
+---
+
 ## 🆕 2026-04-24 — Project Import/Export E2E Audit (in progress)
 
 **Spec**: `spec/30-import-export/` (3 docs: 01-rca, 02-erd, 03-test-plan).

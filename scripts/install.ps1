@@ -48,7 +48,7 @@
 param(
     [string]$Version = "",
     [string]$InstallDir = "",
-    [string]$Repo = "alimtvnetwork/macro-ahk-v21",
+    [string]$Repo = "",   # empty => fall back to shared-contract default below
     [switch]$DryRun,
     [switch]$NoSiblingDiscovery,
     [switch]$EnableSiblingDiscovery,
@@ -58,9 +58,32 @@ param(
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
-$script:VersionRegex = '^v\d+\.\d+\.\d+(-[A-Za-z0-9.-]+)?$'
+# ── Shared installer contract (spec/14-update/01-…) ─────────────────
+# scripts/installer-constants.ps1 is generated from
+# scripts/installer-contract.json. When present beside this script it
+# provides $script:MarcoDefaultRepo, $script:MarcoVersionRegex,
+# $script:MarcoMainBranchSentinel, $script:MarcoExit*, the endpoint
+# defaults, and the checksums settings. When absent (irm-piped standalone
+# install) the inline fallbacks below take over so install.ps1 remains a
+# single self-sufficient file.
+$__constCandidate = Join-Path $PSScriptRoot 'installer-constants.ps1'
+if (Test-Path -LiteralPath $__constCandidate) {
+    . $__constCandidate
+}
+Remove-Variable __constCandidate -ErrorAction SilentlyContinue
+
+if (-not $script:MarcoDefaultRepo)        { $script:MarcoDefaultRepo        = 'alimtvnetwork/macro-ahk-v23' }
+if (-not $script:MarcoVersionRegex)       { $script:MarcoVersionRegex       = '^v\d+\.\d+\.\d+(-[A-Za-z0-9.-]+)?$' }
+if (-not $script:MarcoMainBranchSentinel) { $script:MarcoMainBranchSentinel = '__MAIN_BRANCH__' }
+
+if ([string]::IsNullOrEmpty($Repo)) { $Repo = $script:MarcoDefaultRepo }
+
+$script:VersionRegex = $script:MarcoVersionRegex
 
 # ── Test-mode endpoint overrides (mirror of install.sh) ──────────────
+# installer-constants.ps1 already seeds $env:MARCO_API_BASE etc. when
+# they are unset; these locals just expose them under script-scoped
+# names for the rest of the file.
 $script:ApiBase      = if ($env:MARCO_API_BASE)      { $env:MARCO_API_BASE }      else { 'https://api.github.com' }
 $script:DownloadBase = if ($env:MARCO_DOWNLOAD_BASE) { $env:MARCO_DOWNLOAD_BASE } else { 'https://github.com' }
 

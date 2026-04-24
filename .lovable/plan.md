@@ -6,7 +6,7 @@
 
 ## 🔄 In Progress
 
-_Nothing currently in progress — TS Migration V2 backlog fully cleared at v2.225.0 (2026-04-23)._
+_Nothing currently in progress._
 
 ---
 
@@ -16,6 +16,8 @@ _Nothing currently in progress — TS Migration V2 backlog fully cleared at v2.2
 |---|---|---|---|
 | 1 | Per-script migration to shared `ProjectInstruction` types (Priority 0.2–0.6) | Low | checklist ready |
 | 2 | Installer hardening v0.3 — sign `checksums.txt` (minisign or cosign) | Low | spec §7.1.4 rule 5 |
+| 3 | Mirror AC-2 main-branch fallback in `install.ps1` | Medium | spec §2 step 5 |
+| 4 | Wire `check:installer-contract` into `.github/workflows/installer-tests.yml` | Medium | spec §13 |
 
 
 ---
@@ -32,6 +34,12 @@ _Nothing currently in progress — TS Migration V2 backlog fully cleared at v2.2
 ---
 
 ## ✅ Completed
+
+### Session 2026-04-24 — Shared installer contract (cross-language source of truth)
+
+| Task | Result |
+|---|---|
+| **Shared installer contract** (spec §13) | ✅ — added `scripts/installer-contract.json` as single source of truth (repo, semver regex, exit codes, flags, endpoints, sibling-discovery defaults, checksum settings, AC-IDs). New `generate-installer-constants.mjs` emits `installer-constants.{sh,ps1}` consumed by both installers (opt-in, with inline fallbacks preserved for curl-piped standalone installs). New `check-installer-contract.mjs` drift detector verifies generated files in sync, every `exit N` declared, every CLI flag declared, default-repo strings agree across installers. **Fixed long-standing default-repo drift bug** (`install.ps1` was hardcoded to `macro-ahk-v21` while `install.sh` used `macro-ahk-v23`). All checks pass: drift detector ✓, resolver **46/46**, mock-server **62/62**, vitest **484/484**. Version → v2.228.0. |
 
 ### Session 2026-04-24 — AC-2 main-branch fallback + Installer hardening v0.2 (SHA-256) + SDK self-test popup panel + installer audit + handler-guards regression + sql.js types
 

@@ -40,7 +40,7 @@ _Nothing currently in progress._
 | P10 | Owner Switch sign-out + per-row state machine | ✅ 2026-04-24 (`flow/{run-row,run-sign-out,row-types,row-state-store,log-sink}.ts` + `migrations/log-ddl.ts`; Q6/Q7/Q10 defaults applied) |
 | P11 | User Add project scaffold | ✅ 2026-04-24 (`standalone-scripts/lovable-user-add/{info.json,readme.md,src/{index,instruction,lovable-user-add}.ts}`; mirrors Owner Switch P4 layout, loadOrder 61, R12 invariant called out in instruction header) |
 | P12 | User Add SQLite migration + `MembershipRole` seed | ✅ 2026-04-24 (`migrations/{ddl,index,membership-role-seed,task-status-seed}.ts`; tables UserAddTask/UserAddRow/MembershipRole/TaskStatus/UserAddLog; Owner=RequiresPromotion 1; Editor excluded — normalized at P13 parse time; FK on RoleCode prevents Editor insertion) |
-| P13 | User Add CSV parser + validator (Editor→Member) | ⏳ |
+| P13 | User Add CSV parser + validator (Editor→Member) | ✅ 2026-04-24 (`csv/{csv-{column,types,splitter,cell,header,validator,parser},role-normalizer,email-validator,index}.ts`; Q3 applied — Editor→Member at parse with `WasEditorNormalized` flag; smoke test 7 rows passed; URL validation requires lovable.dev host) |
 | P14 | User Add popup UI shell + default-role select | ⏳ |
 | P15 | User Add Step A — POST membership | ⏳ |
 | P16 | User Add Step B — Owner promotion via shared `promoteToOwner` | ⏳ |

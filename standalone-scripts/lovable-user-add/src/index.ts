@@ -17,3 +17,5 @@ export { UserAddMembershipRoleCode } from "./migrations/membership-role-seed";
 export { UserAddTaskStatusCode } from "./migrations/task-status-seed";
 export { parseUserAddCsv, normalizeRole, UserAddCsvColumn } from "./csv";
 export type { UserAddCsvRow, UserAddCsvParseResult, RoleNormalizeResult } from "./csv";
+export { mountPopup, DEFAULT_ROLE_OPTIONS, DEFAULT_ROLE_VALUE } from "./ui";
+export type { RoleOption } from "./ui";

@@ -135,7 +135,8 @@ function tryRedock(ctx: PanelLayoutCtx): boolean {
 /** Reset dock state (called on teardown/re-bootstrap). */
 export function resetRedockState(): void {
   redockState.docked = false;
-  redockState.clearTimer();
+  // PERF-4: bump generation so any in-flight pollUntil() bails on next tick.
+  redockState.invalidate();
 }
 
 /** Whether the panel is currently docked into the XPath target. */

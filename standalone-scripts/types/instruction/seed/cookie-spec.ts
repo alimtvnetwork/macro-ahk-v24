@@ -1,12 +1,13 @@
 /**
- * One cookie that the seed expects to be present. `name` + `domain`
- * are required; the remaining fields mirror Chrome's
- * `chrome.cookies.Cookie` surface.
+ * One cookie that the seed expects to be present. `CookieName` +
+ * `Url` (origin) are required; `Role` is a free-form label used for
+ * diagnostics and bridge wiring.
+ *
+ * All keys PascalCase per `mem://standards/pascalcase-json-keys`.
  */
 export type CookieSpec = {
-    readonly name: string;
-    readonly domain: string;
-    readonly path?: string;
-    readonly httpOnly?: boolean;
-    readonly secure?: boolean;
+    readonly CookieName: string;
+    readonly Url: string;
+    readonly Role: "session" | "refresh" | "other";
+    readonly Description: string;
 };

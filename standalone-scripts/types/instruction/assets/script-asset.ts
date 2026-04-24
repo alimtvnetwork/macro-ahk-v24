@@ -1,17 +1,18 @@
 /**
  * One JavaScript bundle file shipped with the script. The injection
- * scheduler honours `order` for stable load sequencing.
+ * scheduler honours `Order` for stable load sequencing.
  *
- * - `configBinding` / `themeBinding` — name of a `ConfigAsset.key` whose
+ * - `ConfigBinding` / `ThemeBinding` — name of a `ConfigAsset.Key` whose
  *   parsed value should be passed to the IIFE on load (resolved by the
  *   loader, never by the script itself).
- * - `isImmediatelyInvokedFunction` — true when the bundle is an IIFE
- *   wrapper (kept full-named instead of the legacy `isIife` abbreviation).
+ * - `IsIife` — true when the bundle is an IIFE wrapper.
+ *
+ * All keys PascalCase per `mem://standards/pascalcase-json-keys`.
  */
 export type ScriptAsset = {
-    readonly file: string;
-    readonly order: number;
-    readonly configBinding?: string;
-    readonly themeBinding?: string;
-    readonly isImmediatelyInvokedFunction?: boolean;
+    readonly File: string;
+    readonly Order: number;
+    readonly ConfigBinding?: string;
+    readonly ThemeBinding?: string;
+    readonly IsIife?: boolean;
 };

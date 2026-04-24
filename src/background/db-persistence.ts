@@ -7,7 +7,7 @@
 
 import type { Database as SqlJsDatabase } from "sql.js";
 
-type SqlJs = typeof import("sql.js");
+type SqlJs = import("sql.js").SqlJsStatic;
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -95,7 +95,9 @@ export async function saveToOpfs(
     const handle = await root.getFileHandle(name, { create: true });
     const writable = await handle.createWritable();
 
-    await writable.write(db.export());
+    // sql.js .export() returns Uint8Array; cast through unknown to satisfy
+    // the FileSystemWriteChunkType strict ArrayBufferView<ArrayBuffer> shape.
+    await writable.write(db.export() as unknown as FileSystemWriteChunkType);
     await writable.close();
 }
 
@@ -113,7 +115,7 @@ export async function loadFromStorage(
     const hasStored = stored[key] !== undefined;
 
     if (hasStored) {
-        const db = new SQL.Database(new Uint8Array(stored[key]));
+        const db = new SQL.Database(new Uint8Array(stored[key] as ArrayBuffer | ArrayLike<number>));
         // Ensure views and IF NOT EXISTS objects are created on pre-existing DBs
         ensureIdempotentSchema(db, schema);
         return db;

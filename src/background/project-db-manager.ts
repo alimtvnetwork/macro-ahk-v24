@@ -17,7 +17,7 @@ import { wrapDatabaseWithBindSafety } from "./sqlite-bind-safety";
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-type SqlJs = typeof import("sql.js");
+type SqlJs = import("sql.js").SqlJsStatic;
 type PersistenceMode = "opfs" | "storage" | "memory";
 
 export interface ProjectDbManager {

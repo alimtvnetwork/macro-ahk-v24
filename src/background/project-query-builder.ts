@@ -7,8 +7,8 @@
  * See spec/05-chrome-extension/67-project-scoped-database-and-rest-api.md
  */
 
-import type { SqlValue } from "sql.js";
 import type { Database as SqlJsDatabase } from "sql.js";
+import type { SqlValue } from "./handlers/handler-types";
 import { ensureMetaTables } from "./schema-meta-engine";
 
 /* ------------------------------------------------------------------ */
@@ -76,21 +76,21 @@ function buildWhere(where?: WhereClause): { clause: string; params: SqlValue[] }
     const params: SqlValue[] = [];
 
     for (const [col, val] of Object.entries(where)) {
-        if (typeof val === 'object' && val !== null) {
+        if (typeof val === 'object' && val !== null && !(val instanceof Uint8Array)) {
             const obj = val as Record<string, unknown>;
             if ('ilike' in obj) {
                 conditions.push(`"${col}" LIKE ? COLLATE NOCASE`);
-                params.push(obj.ilike);
+                params.push(obj.ilike as SqlValue);
             } else if ('like' in obj) {
                 conditions.push(`"${col}" LIKE ?`);
-                params.push(obj.like);
+                params.push(obj.like as SqlValue);
             } else {
                 conditions.push(`"${col}" = ?`);
-                params.push(val);
+                params.push(val as unknown as SqlValue);
             }
         } else {
             conditions.push(`"${col}" = ?`);
-            params.push(val);
+            params.push(val as SqlValue);
         }
     }
 
@@ -118,9 +118,9 @@ function collectRows(db: SqlJsDatabase, sql: string, params: SqlValue[]): Record
     const stmt = db.prepare(sql);
     if (params.length > 0) stmt.bind(params);
 
-    const rows: Record<string, unknown>[] = [];
+    const rows: Record<string, SqlValue>[] = [];
     while (stmt.step()) {
-        rows.push(stmt.getAsObject() as Record<string, unknown>);
+        rows.push(stmt.getAsObject() as Record<string, SqlValue>);
     }
     stmt.free();
     return rows;
@@ -138,7 +138,7 @@ export function queryCreate(
     assertValidTable(table);
     const cols = Object.keys(args.data);
     const placeholders = cols.map(() => "?").join(", ");
-    const values = cols.map((c) => args.data[c]);
+    const values = cols.map((c) => args.data[c] as SqlValue);
 
     const quotedCols = cols.map(c => `"${c}"`).join(", ");
     const sql = `INSERT INTO "${table}" (${quotedCols}) VALUES (${placeholders})`;
@@ -185,7 +185,7 @@ export function queryUpdate(
     assertValidTable(table);
     const setCols = Object.keys(args.data);
     const setClause = setCols.map((c) => `"${c}" = ?`).join(", ");
-    const setValues = setCols.map((c) => args.data[c]);
+    const setValues = setCols.map((c) => args.data[c] as SqlValue);
 
     const { clause, params } = buildWhere(args.where);
     const sql = `UPDATE "${table}" SET ${setClause}${clause}`;

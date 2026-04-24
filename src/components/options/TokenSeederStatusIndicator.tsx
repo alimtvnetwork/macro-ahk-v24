@@ -5,12 +5,20 @@
  * failures on inaccessible tabs and shows a live countdown until the
  * next retry attempt across all blocked tabs.
  *
- * Hides itself when no tabs are currently throttled.
+ * Hides itself when no tabs are currently throttled. Clicking the row
+ * toggles an inline expandable details drawer that lists every blocked
+ * tab — its tabId, origin URL, classified failure reason, and how many
+ * times Chrome has rejected the seed attempt.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { ShieldOff, Timer } from "lucide-react";
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { ShieldOff, Timer, ChevronDown } from "lucide-react";
 import { sendMessage } from "@/lib/message-client";
 
 interface InaccessibleSeedTarget {
@@ -38,9 +46,20 @@ function formatRemaining(ms: number): string {
     return `${Math.ceil(ms / 1000)}s`;
 }
 
+function formatOrigin(url: string): string {
+    if (!url) return "(unknown)";
+    try {
+        const u = new URL(url);
+        return u.origin;
+    } catch {
+        return url.length > 48 ? `${url.slice(0, 48)}…` : url;
+    }
+}
+
 export function TokenSeederStatusIndicator() {
     const [data, setData] = useState<TokenSeederDiagnostics | null>(null);
     const [now, setNow] = useState<number>(() => Date.now());
+    const [open, setOpen] = useState<boolean>(false);
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -80,24 +99,82 @@ export function TokenSeederStatusIndicator() {
     const isReady = nextRetryMs <= 0;
 
     return (
-        <div
-            className="flex items-center justify-between rounded-md border border-warning/40 bg-warning/10 px-3 py-2"
-            title={`${targets.length} tab(s) blocked Chrome scripting access. Token seeding will retry automatically.`}
-        >
-            <div className="flex items-center gap-2 min-w-0">
-                <ShieldOff className="h-4 w-4 text-warning shrink-0" />
-                <span className="text-sm">Token Seed Blocked</span>
-            </div>
-            <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-[10px]">
-                    {targets.length} tab{targets.length === 1 ? "" : "s"}
-                </Badge>
-                <span className="flex items-center gap-1 text-xs font-mono text-muted-foreground">
-                    <Timer className="h-3 w-3" />
-                    {isReady ? "retrying…" : `retry in ${formatRemaining(nextRetryMs)}`}
-                </span>
-            </div>
-        </div>
+        <Collapsible open={open} onOpenChange={setOpen}>
+            <CollapsibleTrigger asChild>
+                <button
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-left transition-colors hover:bg-warning/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    title={`${targets.length} tab(s) blocked Chrome scripting access. Click to view details.`}
+                    aria-label="Toggle token seeder failure details"
+                >
+                    <div className="flex items-center gap-2 min-w-0">
+                        <ShieldOff className="h-4 w-4 text-warning shrink-0" />
+                        <span className="text-sm">Token Seed Blocked</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-[10px]">
+                            {targets.length} tab{targets.length === 1 ? "" : "s"}
+                        </Badge>
+                        <span className="flex items-center gap-1 text-xs font-mono text-muted-foreground">
+                            <Timer className="h-3 w-3" />
+                            {isReady ? "retrying…" : `retry in ${formatRemaining(nextRetryMs)}`}
+                        </span>
+                        <ChevronDown
+                            className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+                        />
+                    </div>
+                </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+                <div className="mt-2 rounded-md border border-warning/30 bg-background/40">
+                    <ul
+                        className="divide-y divide-border max-h-64 overflow-y-auto"
+                        aria-label="Blocked tabs"
+                    >
+                        {targets.map((t) => {
+                            const remaining = Math.max(0, t.cooldownMs - (now - t.lastFailureAt));
+                            return (
+                                <li
+                                    key={t.tabId}
+                                    className="px-3 py-2 text-xs space-y-1"
+                                    data-tab-id={t.tabId}
+                                >
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="font-mono text-muted-foreground">
+                                            tab #{t.tabId}
+                                        </span>
+                                        <Badge variant="outline" className="text-[10px]">
+                                            {t.attemptCount} attempt{t.attemptCount === 1 ? "" : "s"}
+                                        </Badge>
+                                    </div>
+                                    <div
+                                        className="truncate text-foreground"
+                                        title={t.tabUrl || "(unknown)"}
+                                    >
+                                        {formatOrigin(t.tabUrl)}
+                                    </div>
+                                    <div
+                                        className="text-warning/90 break-words"
+                                        title={t.reason}
+                                    >
+                                        <span className="font-mono text-[10px] uppercase tracking-wide text-warning">
+                                            {t.code}
+                                        </span>
+                                        <span className="mx-1 text-muted-foreground">·</span>
+                                        <span>{t.reason}</span>
+                                    </div>
+                                    <div className="flex items-center justify-end text-[10px] font-mono text-muted-foreground">
+                                        {remaining <= 0
+                                            ? "ready to retry"
+                                            : `next retry in ${formatRemaining(remaining)}`}
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+            </CollapsibleContent>
+        </Collapsible>
     );
 }
 

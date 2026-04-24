@@ -990,13 +990,53 @@ jobs:
   # last-line gate before vite copies the JSON files into the
   # extension bundle.
   #
-  # Matrix entries: every standalone-scripts/<name>/src/instruction.ts
-  # found in the repo at the time this workflow was authored. Adding
-  # a new project requires extending the `project` list AND the
-  # `artifact-name → dist-path` map — both are colocated below for
-  # easy review. The `--json` flag is also honoured per-leg via
-  # GITHUB_STEP_SUMMARY so a failed leg uploads a parseable report.
+  # Matrix entries are AUTO-DERIVED at runtime by
+  # `scripts/derive-casing-matrix.mjs` from
+  # `scripts/check-standalone-dist.mjs` (`REQUIRED_ARTIFACTS`) — adding
+  # a new project no longer requires hand-editing this matrix block.
+  # The derive script also self-checks that the static `needs:` list
+  # below still covers every derived `build-<name>` job (a fail-fast
+  # safety net for the ONE remaining manual edit, since GitHub Actions
+  # `needs:` cannot be expression-evaluated).
   # ════════════════════════════════════════════════════════════
+
+  # Job 3f-pre: Derive casing matrix
+  #
+  # Tiny no-install job (~5 s). Reads `REQUIRED_ARTIFACTS` from
+  # `scripts/check-standalone-dist.mjs`, cross-checks that every project
+  # has both `standalone-scripts/<name>/src/instruction.ts` and a
+  # `build-<name>:` (or legacy `build-sdk:`) job in this workflow, then
+  # publishes a `matrix` output that the matrix-fanned-out
+  # `casing-instruction-json` job consumes via `fromJSON()`.
+  derive-casing-matrix:
+    name: "Casing · derive matrix"
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    outputs:
+      matrix: ${{ steps.derive.outputs.matrix }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Self-check FIRST — if `needs:` of casing-instruction-json drifted
+      # from the derived matrix, fail loudly here rather than letting a
+      # newly-added project silently skip the casing gate at merge time.
+      - name: Self-check static needs:/derived matrix alignment
+        run: node scripts/derive-casing-matrix.mjs --check
+
+      - name: Derive matrix and publish as job output
+        id: derive
+        run: node scripts/derive-casing-matrix.mjs --github-output
+
   casing-instruction-json:
     name: "Casing · ${{ matrix.project }}"
     runs-on: ubuntu-latest
@@ -1011,6 +1051,12 @@ jobs:
       github.event_name == 'pull_request' ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main')
     needs:
+      # NOTE: `needs:` MUST be literal YAML (GitHub Actions does not
+      # expand expressions here). When you add a new project to
+      # `REQUIRED_ARTIFACTS`, also add its `build-<name>` job below.
+      # The `derive-casing-matrix` job's `--check` step will fail CI
+      # if these two lists drift, so this is a soft-required edit.
+      - derive-casing-matrix
       - build-sdk
       - build-xpath
       - build-payment-banner-hider
@@ -1023,19 +1069,10 @@ jobs:
       # uncover.
       fail-fast: false
       matrix:
-        include:
-          - project: marco-sdk
-            artifact: sdk-dist
-            dist-path: standalone-scripts/marco-sdk/dist
-          - project: xpath
-            artifact: xpath-dist
-            dist-path: standalone-scripts/xpath/dist
-          - project: payment-banner-hider
-            artifact: payment-banner-hider-dist
-            dist-path: standalone-scripts/payment-banner-hider/dist
-          - project: macro-controller
-            artifact: macro-controller-dist
-            dist-path: standalone-scripts/macro-controller/dist
+        # Auto-derived from REQUIRED_ARTIFACTS. See the
+        # `derive-casing-matrix` job above and
+        # `scripts/derive-casing-matrix.mjs` for the source of truth.
+        include: ${{ fromJSON(needs.derive-casing-matrix.outputs.matrix) }}
 
     steps:
       - name: Checkout repository

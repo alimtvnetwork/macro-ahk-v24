@@ -4,6 +4,22 @@ const TAB_ID = 321;
 const TAB_URL = "https://id-preview--584600b3-0bba-43a0-a09d-ab632bf4b5ac.lovable.app/";
 
 type ChromeMock = {
+  runtime: {
+    id: string;
+    sendMessage: ReturnType<typeof vi.fn>;
+    getURL: ReturnType<typeof vi.fn>;
+  };
+  storage: {
+    local: {
+      get: ReturnType<typeof vi.fn>;
+      set: ReturnType<typeof vi.fn>;
+      remove: ReturnType<typeof vi.fn>;
+    };
+  };
+  cookies: {
+    get: ReturnType<typeof vi.fn>;
+    getAll: ReturnType<typeof vi.fn>;
+  };
   tabs: {
     get: ReturnType<typeof vi.fn>;
   };
@@ -21,6 +37,22 @@ let logSpy: ReturnType<typeof vi.spyOn>;
 
 function buildChromeMock(executeScriptImpl?: ChromeMock["scripting"]["executeScript"]): ChromeMock {
   return {
+    runtime: {
+      id: "test-extension-id",
+      sendMessage: vi.fn(async () => undefined),
+      getURL: vi.fn((path: string) => `chrome-extension://test/${path}`),
+    },
+    storage: {
+      local: {
+        get: vi.fn(async () => ({})),
+        set: vi.fn(async () => {}),
+        remove: vi.fn(async () => {}),
+      },
+    },
+    cookies: {
+      get: vi.fn(async () => null),
+      getAll: vi.fn(async () => []),
+    },
     tabs: {
       get: vi.fn(async (tabId: number) => ({ id: tabId, url: TAB_URL })),
     },
@@ -70,7 +102,7 @@ describe("seedTokensIntoTab", () => {
     expect(warnSpy.mock.calls[0]?.[0]).toContain("Skipping JWT seed for inaccessible tab");
   });
 
-  it("clears the inaccessible cache after a successful access probe", async () => {
+  it("retries again after the inaccessible cooldown expires", async () => {
     const accessDenied = new Error("Cannot access contents of the page. Extension manifest must request permission to access the respective host.");
     const executeScript = vi
       .fn()
@@ -79,18 +111,20 @@ describe("seedTokensIntoTab", () => {
       .mockResolvedValueOnce([{ result: null }]);
     const chromeMock = buildChromeMock(executeScript);
     const mod = await loadSeederWithChrome(chromeMock);
+    const nowSpy = vi.spyOn(Date, "now");
 
+    nowSpy.mockReturnValue(1_000);
     await mod.seedTokensIntoTab(TAB_ID);
     expect(executeScript).toHaveBeenCalledTimes(1);
 
-    chromeMock.permissions.contains.mockResolvedValueOnce(true);
+    nowSpy.mockReturnValue(5_000);
     await mod.seedTokensIntoTab(TAB_ID);
-
     expect(executeScript).toHaveBeenCalledTimes(1);
 
-    mod["__test__forceClearInaccessibleTabCache"]?.(TAB_ID, TAB_URL);
+    nowSpy.mockReturnValue(20_001);
     await mod.seedTokensIntoTab(TAB_ID);
 
     expect(executeScript).toHaveBeenCalledTimes(3);
+    nowSpy.mockRestore();
   });
 });

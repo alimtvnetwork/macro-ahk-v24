@@ -184,6 +184,7 @@ beforeEach(() => {
 import {
   exportAllAsSqliteZip,
   importFromSqliteZip,
+  mergePromptsFromSqliteZip,
 } from "@/lib/sqlite-bundle";
 
 /* ------------------------------------------------------------------ */

@@ -106,6 +106,16 @@ async function injectJwtIntoTab(tabId: number, jwt: string): Promise<void> {
 
         console.log("[token-seeder] Seeded JWT into tab %d localStorage", tabId);
     } catch (seedError) {
+        if (isTabAccessDeniedError(seedError)) {
+            const tabUrl = await getTabUrl(tabId);
+            warnInaccessibleTabOnce(
+                tabId,
+                tabUrl ?? "unknown-tab-url",
+                seedError instanceof Error ? seedError.message : String(seedError),
+            );
+            return;
+        }
+
         logCaughtError(BgLogTag.TOKEN_SEEDER, `Failed to seed JWT into tab\n  Path: chrome.scripting.executeScript → tabId=${tabId}, world=MAIN → localStorage["${LS_MARCO_BEARER_KEY}"]\n  Missing: JWT bearer token in tab localStorage\n  Reason: ${seedError instanceof Error ? seedError.message : String(seedError)}`, seedError);
     }
 }
@@ -141,7 +151,15 @@ async function readSupabaseJwtFromTab(tabId: number): Promise<string | null> {
 
         const jwt = results?.[0]?.result;
         return typeof jwt === "string" && jwt.startsWith("eyJ") ? jwt : null;
-    } catch {
+    } catch (readError) {
+        if (isTabAccessDeniedError(readError)) {
+            const tabUrl = await getTabUrl(tabId);
+            warnInaccessibleTabOnce(
+                tabId,
+                tabUrl ?? "unknown-tab-url",
+                readError instanceof Error ? readError.message : String(readError),
+            );
+        }
         return null;
     }
 }
@@ -224,6 +242,12 @@ async function canAccessTabContents(tabId: number, tabUrl: string): Promise<bool
             return false;
         }
 
+        const canExecuteScript = await probeTabScriptingAccess(tabId, tabUrl);
+
+        if (!canExecuteScript) {
+            return false;
+        }
+
         clearInaccessibleWarning(tabId, tabUrl);
         return true;
     } catch (permissionError) {
@@ -243,6 +267,49 @@ function toOriginPermissionPattern(url: string): string | null {
     } catch {
         return null;
     }
+}
+
+async function probeTabScriptingAccess(tabId: number, tabUrl: string): Promise<boolean> {
+    try {
+        await chrome.scripting.executeScript({
+            target: { tabId },
+            world: "MAIN",
+            func: tokenSeederAccessProbe,
+        });
+        return true;
+    } catch (probeError) {
+        if (isTabAccessDeniedError(probeError)) {
+            warnInaccessibleTabOnce(
+                tabId,
+                tabUrl,
+                probeError instanceof Error ? probeError.message : String(probeError),
+            );
+            return false;
+        }
+
+        logBgWarnError(
+            BgLogTag.TOKEN_SEEDER,
+            `Scripting access probe failed for tab ${tabId} (${tabUrl}) — proceeding with token seed attempt`,
+            probeError instanceof Error ? probeError : undefined,
+        );
+        return true;
+    }
+}
+
+function tokenSeederAccessProbe(): boolean {
+    return true;
+}
+
+function isTabAccessDeniedError(error: unknown): boolean {
+    const message = error instanceof Error
+        ? error.message
+        : typeof error === "string"
+            ? error
+            : "";
+
+    return message.includes("Cannot access contents of the page")
+        || message.includes("Missing host permission for the tab")
+        || message.includes("The extensions gallery cannot be scripted");
 }
 
 function warnInaccessibleTabOnce(tabId: number, tabUrl: string, reason: string): void {

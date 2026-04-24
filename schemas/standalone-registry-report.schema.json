@@ -73,6 +73,29 @@
         "$ref": "#/$defs/locationDescriptor"
       }
     },
+    "locationsRegistry": {
+      "description": "Self-describing dictionary keyed by every `locations[].key`. Lets external consumers (dashboards, slack bots, CI annotators) render a matrix or explain a gap WITHOUT having to read this script's source code. Every key listed in `locations[]` MUST appear here, and every key here MUST also appear in `locations[]` — `locations[]` defines order, `locationsRegistry` defines meaning. Added in schemaVersion 1.1.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pkgScript",
+        "pkgExtensionChain",
+        "buildStandalone",
+        "checkDist",
+        "tsconfig",
+        "viteConfig",
+        "ciJob"
+      ],
+      "properties": {
+        "pkgScript": { "$ref": "#/$defs/locationRegistryEntry" },
+        "pkgExtensionChain": { "$ref": "#/$defs/locationRegistryEntry" },
+        "buildStandalone": { "$ref": "#/$defs/locationRegistryEntry" },
+        "checkDist": { "$ref": "#/$defs/locationRegistryEntry" },
+        "tsconfig": { "$ref": "#/$defs/locationRegistryEntry" },
+        "viteConfig": { "$ref": "#/$defs/locationRegistryEntry" },
+        "ciJob": { "$ref": "#/$defs/locationRegistryEntry" }
+      }
+    },
     "scripts": {
       "description": "Per-script wiring breakdown, sorted alphabetically by `name`.",
       "type": "array",
@@ -110,6 +133,28 @@
           "description": "Human-readable label for the location, suitable for matrix headers and log output.",
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "locationRegistryEntry": {
+      "description": "Rich descriptor for a single wiring location, used as the value type of `locationsRegistry`. Added in schemaVersion 1.1.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "meaning", "fixFile"],
+      "properties": {
+        "label": {
+          "description": "Mirror of `locationDescriptor.label` — kept here so consumers can render the registry without joining against `locations[]`.",
+          "type": "string",
+          "minLength": 1
+        },
+        "meaning": {
+          "description": "One-sentence explanation of WHAT this location checks and WHY it must exist. Suitable for tooltips and dashboard cell hovers.",
+          "type": "string",
+          "minLength": 1
+        },
+        "fixFile": {
+          "description": "Repo-relative path of the file an engineer must edit to satisfy this location, when the path is fixed across all scripts (e.g. 'package.json'). `null` when the path is per-script (e.g. 'tsconfig.<name>.json' / 'vite.config.<name>.ts') — in that case the per-script path is reconstructed from the script name and is also surfaced via `scripts[].gaps[].fix.file`.",
+          "type": ["string", "null"]
         }
       }
     },

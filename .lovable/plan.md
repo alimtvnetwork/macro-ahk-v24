@@ -42,7 +42,7 @@ _Nothing currently in progress._
 | P12 | User Add SQLite migration + `MembershipRole` seed | ✅ 2026-04-24 (`migrations/{ddl,index,membership-role-seed,task-status-seed}.ts`; tables UserAddTask/UserAddRow/MembershipRole/TaskStatus/UserAddLog; Owner=RequiresPromotion 1; Editor excluded — normalized at P13 parse time; FK on RoleCode prevents Editor insertion) |
 | P13 | User Add CSV parser + validator (Editor→Member) | ✅ 2026-04-24 (`csv/{csv-{column,types,splitter,cell,header,validator,parser},role-normalizer,email-validator,index}.ts`; Q3 applied — Editor→Member at parse with `WasEditorNormalized` flag; smoke test 7 rows passed; URL validation requires lovable.dev host) |
 | P14 | User Add popup UI shell + default-role select | ✅ 2026-04-24 (`ui/{popup-{constants,css,elements,role-options,sections,rows,errors,file-input,shell},index}.ts`; `lua-` selector prefix; default-role `<select>` with Owner/Admin/Member/Editor; Editor→Member badge per-row; Run button disabled until P17) |
-| P15 | User Add Step A — POST membership | ⏳ |
+| P15 | User Add Step A — POST membership | ✅ 2026-04-24 (`flow/{run-step-a,step-a-types,extract-workspace-id,role-api-mapper,index}.ts`; uses shared `addMembership`; Owner→Member at Step A so single PUT site preserved; URL extractor accepts /projects/{id} and /workspaces/{id}; smoke tests + R12 grep verified) |
 | P16 | User Add Step B — Owner promotion via shared `promoteToOwner` | ⏳ |
 | P17 | User Add per-row state machine + sign-out | ⏳ |
 | P18 | Shared XPath/delay editor + Reset | ⏳ |

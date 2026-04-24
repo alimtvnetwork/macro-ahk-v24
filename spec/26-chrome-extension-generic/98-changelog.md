@@ -1,6 +1,6 @@
 # Changelog — Generic Chrome Extension Blueprint
 
-**Version:** 1.2.0
+**Version:** 1.3.0
 **Updated:** 2026-04-24
 
 > *Generic blueprint — no project-specific identifiers. If you find one, file an issue.*

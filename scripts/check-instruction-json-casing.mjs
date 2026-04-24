@@ -422,8 +422,24 @@ function buildJsonProjectEntry(name, result) {
                 shape,
                 ok: false,
                 parseError: res.parseError,
+                walkAborted: null,
                 violationCount: 0,
                 violations: [],
+            };
+        }
+        if (res.walkAborted) {
+            return {
+                path: rel(file),
+                shape,
+                ok: false,
+                parseError: null,
+                walkAborted: res.walkAborted,  // { reason, nodes, depth, path, limit }
+                violationCount: res.violations.length,
+                violations: res.violations.map((v) => ({
+                    path: v.path,
+                    key: v.key,
+                    expected: v.expected,
+                })),
             };
         }
         return {
@@ -431,6 +447,7 @@ function buildJsonProjectEntry(name, result) {
             shape,
             ok: res.violations.length === 0,
             parseError: null,
+            walkAborted: null,
             violationCount: res.violations.length,
             violations: res.violations.map((v) => ({
                 path: v.path,
@@ -442,7 +459,7 @@ function buildJsonProjectEntry(name, result) {
 
     const canonical = buildArtifact(result.canonical, result.canonicalResult, "PascalCase");
     const compat = buildArtifact(result.compat, result.compatResult, "camelCase");
-    const exitCode = canonical.ok && compat.ok && !canonical.parseError && !compat.parseError ? 0 : 1;
+    const exitCode = canonical.ok && compat.ok && !canonical.parseError && !compat.parseError && !canonical.walkAborted && !compat.walkAborted ? 0 : 1;
 
     return {
         name,

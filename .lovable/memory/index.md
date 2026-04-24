@@ -113,3 +113,4 @@ Updated: just now
 - [Class-based standalone scripts](mem://standards/class-based-standalone-scripts) — Every `standalone-scripts/*/src/index.ts` exports a single default class
 - [Pre-write check](mem://standards/pre-write-check) — Mandatory standards review + sibling-file scan before writing/rewriting
 - [Contract generators need CI](mem://standards/contract-generators-need-ci) — Drift checker for any single-source-of-truth generator must be wired into CI in the same PR
+- [Idle-loop audit Round 2 (2026-04-25)](mem://performance/idle-loop-audit-2026-04-25) — PERF-1..8 verified intact; 7 NEW findings (PERF-9..15) recorded — PERF-9 status-refresh stale interval, PERF-10..12 React hooks need visibility-pause, PERF-13 startup-persistence MO scope. Each gets RCA before fix.

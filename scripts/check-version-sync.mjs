@@ -48,6 +48,30 @@ const files = [
       return m ? m[1] : null;
     },
   },
+  {
+    label: "instruction.ts (lovable-common)",
+    path: "standalone-scripts/lovable-common/src/instruction.ts",
+    extract: (txt) => {
+      const m = txt.match(/version:\s*"(\d+\.\d+\.\d+)/);
+      return m ? m[1] : null;
+    },
+  },
+  {
+    label: "instruction.ts (lovable-owner-switch)",
+    path: "standalone-scripts/lovable-owner-switch/src/instruction.ts",
+    extract: (txt) => {
+      const m = txt.match(/version:\s*"(\d+\.\d+\.\d+)/);
+      return m ? m[1] : null;
+    },
+  },
+  {
+    label: "instruction.ts (lovable-user-add)",
+    path: "standalone-scripts/lovable-user-add/src/instruction.ts",
+    extract: (txt) => {
+      const m = txt.match(/version:\s*"(\d+\.\d+\.\d+)/);
+      return m ? m[1] : null;
+    },
+  },
 ];
 
 const results = files.map(({ label, path, extract, optional }) => {

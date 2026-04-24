@@ -18,6 +18,7 @@ import "./globals.d";
 import { BannerLocator } from "./banner-locator";
 import {
     BannerState,
+    OBSERVER_DEBOUNCE_MS,
     REMOVE_DELAY_MS,
     STATE_ATTR,
     type PaymentBannerHiderApi,
@@ -30,6 +31,7 @@ export class PaymentBannerHider implements PaymentBannerHiderApi {
 
     private readonly locator: BannerLocator;
     private observer: MutationObserver | null = null;
+    private debounceTimer: number | null = null;
 
     public constructor(locator: BannerLocator = new BannerLocator()) {
         this.locator = locator;
@@ -85,6 +87,8 @@ export class PaymentBannerHider implements PaymentBannerHiderApi {
 
         window.setTimeout(() => {
             el.setAttribute(STATE_ATTR, BannerState.Done);
+            // Banner is fully hidden; observer is no longer needed.
+            this.stopObserver();
         }, REMOVE_DELAY_MS);
     }
 
@@ -96,13 +100,38 @@ export class PaymentBannerHider implements PaymentBannerHiderApi {
 
         const root = document.body ?? document.documentElement;
         this.observer = new MutationObserver(() => {
-            this.check();
+            this.scheduleCheck();
         });
         this.observer.observe(root, {
             childList: true,
             subtree: true,
             characterData: true,
         });
+    }
+
+    /** Disconnect the observer and clear any pending debounced check. */
+    private stopObserver(): void {
+        if (this.observer !== null) {
+            this.observer.disconnect();
+            this.observer = null;
+        }
+
+        if (this.debounceTimer !== null) {
+            window.clearTimeout(this.debounceTimer);
+            this.debounceTimer = null;
+        }
+    }
+
+    /** Coalesce burst mutations into a single check() call. */
+    private scheduleCheck(): void {
+        if (this.debounceTimer !== null) {
+            return;
+        }
+
+        this.debounceTimer = window.setTimeout(() => {
+            this.debounceTimer = null;
+            this.check();
+        }, OBSERVER_DEBOUNCE_MS);
     }
 
     /** Logger.error if available, console.error fallback — never swallow. */

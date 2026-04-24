@@ -27,3 +27,4 @@ export {
 export type { UserAddLogSink, UserAddLogEntry } from "./log-sink";
 export { runTaskSignOut } from "./run-task-sign-out";
 export type { TaskSignOutResult } from "./run-task-sign-out";
+export { toUserAddLogViewerEntries } from "./log-viewer-adapter";

@@ -298,11 +298,17 @@ function runCheckB(sourceFiles) {
         if (!text.includes(COMPAT_LITERAL)) continue;
         if (COMPAT_READER_ALLOWLIST.has(relPath)) continue;
         // Find every line referencing the literal so the annotation lands precisely.
+        // Skip pure-comment mentions — comments don't read the file.
         const lines = text.split("\n");
         for (let i = 0; i < lines.length; i++) {
-            if (lines[i].includes(COMPAT_LITERAL)) {
-                violations.push({ file: relPath, line: i + 1, snippet: lines[i].trim() });
-            }
+            if (!lines[i].includes(COMPAT_LITERAL)) continue;
+            const trimmed = lines[i].trimStart();
+            if (
+                trimmed.startsWith("//")
+                || trimmed.startsWith("*")
+                || trimmed.startsWith("/*")
+            ) continue;
+            violations.push({ file: relPath, line: i + 1, snippet: lines[i].trim() });
         }
     }
 
@@ -391,12 +397,12 @@ function runCheckC(sourceFiles) {
         return 0;
     }
 
-    process.stderr.write(`\n✗ CHECK C — ${violations.length} legacy camelCase property access(es) on instruction-tree readers:\n\n`);
+    process.stderr.write(`\n✗ CHECK C — ${violations.length} legacy camelCase property access(es) on instruction-tree receivers:\n\n`);
     for (const v of violations) {
-        process.stderr.write(`  ${v.file}:${v.line}  →  .${v.key}  (use .${v.pascal})\n    ${v.snippet}\n`);
-        annotate(v.file, v.line, `Legacy camelCase access ".${v.key}" on instruction.json reader. Use ".${v.pascal}" — canonical instruction.json is pure PascalCase (Phase 2b).`);
+        process.stderr.write(`  ${v.file}:${v.line}  →  ${v.receiver}.${v.key}  (use ${v.receiver}.${v.pascal})\n    ${v.snippet}\n`);
+        annotate(v.file, v.line, `Legacy camelCase access "${v.receiver}.${v.key}" on instruction-tree receiver. Use "${v.receiver}.${v.pascal}" — canonical instruction.json is pure PascalCase (Phase 2b).`);
     }
-    process.stderr.write(`\n  Fix: rename each ".${"<key>"}" access to PascalCase, OR — if this property comes from the StoredScript/StoredProject storage layer (not from instruction.json) — refactor so the file no longer references "instruction.json" so the checker stops flagging it (split into two files, or move the storage-layer code elsewhere).\n\n`);
+    process.stderr.write(`\n  Fix: rename each access to PascalCase. If "${"<receiver>"}" is NOT actually an instruction.json result (e.g. it's a StoredScript / StoredProject storage row), rename the local variable so it doesn't collide with INSTRUCTION_RECEIVER_NAMES in scripts/check-pascalcase-instruction-migration.mjs.\n\n`);
     return 1;
 }
 

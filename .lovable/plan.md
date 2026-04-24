@@ -34,7 +34,12 @@ _Nothing currently in progress — TS Migration V2 backlog fully cleared at v2.2
 
 ## ✅ Completed
 
-### Session 2026-04-24 — SDK self-test popup panel + installer audit + handler-guards regression + sql.js types
+### Session 2026-04-24 — Installer hardening v0.2 (SHA-256) + SDK self-test popup panel + installer audit + handler-guards regression + sql.js types
+
+| Task | Result |
+|---|---|
+| **Installer hardening v0.2 — SHA-256 checksum verification** | ✅ — `install.sh` `verify_checksum()` + `install.ps1` `Test-Checksum` fetch `checksums.txt` from same release, compare SHA-256 (sha256sum/shasum/openssl/Get-FileHash), exit 6 on mismatch, soft-warn on missing/no-tool. Mock server emits `checksums.txt` with `MOCK_CHECKSUM_MODE=correct\|wrong\|missing`. **3 new ACs (AC-21/22/23) + 12 assertions**; mock-server suite **51/51** passing. Spec §7.1 added (Checksum verification contract) + AC-21/22/23 in §9. |
+
 
 | Task | Result |
 |---|---|

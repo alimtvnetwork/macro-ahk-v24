@@ -334,7 +334,7 @@ function warnInaccessibleTabOnce(tabId: number, tabUrl: string, reason: string):
     warnedInaccessibleTabs.add(key);
     logBgWarnError(
         BgLogTag.TOKEN_SEEDER,
-        `Skipping JWT seed for inaccessible tab\n  Path: chrome.scripting.executeScript → tabId=${tabId}, world=MAIN → localStorage["${LS_MARCO_BEARER_KEY}"]\n  Missing: Host permission for tab contents\n  Reason: ${reason}`,
+        `Skipping JWT seed for inaccessible tab\n  Path: chrome.scripting.executeScript → tabId=${tabId}, world=MAIN → localStorage["${LS_MARCO_BEARER_KEY}"]\n  Missing: MAIN-world scripting access to tab contents\n  Reason: ${reason}`,
     );
 }
 

@@ -1063,6 +1063,58 @@ jobs:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.dist-path }}
 
+      # ── Early failsafe: assert the artifact actually unpacked. ─────
+      # Without this guard a missing or empty artifact (typo in the
+      # `artifact:` matrix key, an upstream build job that exited 0
+      # without emitting `dist/`, a retention-window expiry on a
+      # re-run, etc.) would slip past `download-artifact@v4` (which
+      # only fails when the named artifact is missing entirely — an
+      # *empty* artifact, or one where the dist-path folder is absent
+      # post-download, exits 0 silently). The casing checker would
+      # then run, see no `dist/instruction.json`, treat the project as
+      # "missing artifacts" and exit 2 — surfacing as a confusing
+      # generic failure 30 s later instead of a one-line root cause.
+      #
+      # This step fails immediately with a precise `::error` annotation
+      # naming the missing folder + both expected files, so the PR
+      # Checks tab shows the exact reason in red without anyone
+      # having to scroll the log. `exit 1` short-circuits the rest of
+      # the matrix leg (validate, publish-summary) — those steps would
+      # all repeat the same error in different shapes.
+      - name: Assert downloaded dist artifact is present and complete
+        run: |
+          DIST="${{ matrix.dist-path }}"
+          ARTIFACT="${{ matrix.artifact }}"
+          PROJECT="${{ matrix.project }}"
+          CANONICAL="$DIST/instruction.json"
+          COMPAT="$DIST/instruction.compat.json"
+
+          MISSING=()
+
+          if [ ! -d "$DIST" ]; then
+            echo "::error file=.github/workflows/ci.yml,title=Missing dist folder after artifact download::Project '$PROJECT' — expected dist folder '$DIST' does not exist after downloading artifact '$ARTIFACT'. Upstream build job (build-${PROJECT}) may have exited 0 without emitting dist/, OR the artifact name is mis-mapped in the matrix include block. Fix the upstream build OR correct the matrix entry { project: $PROJECT, artifact: $ARTIFACT, dist-path: $DIST }."
+            exit 1
+          fi
+
+          if [ ! -f "$CANONICAL" ]; then MISSING+=("$CANONICAL (canonical PascalCase)"); fi
+          if [ ! -f "$COMPAT" ];    then MISSING+=("$COMPAT (transitional camelCase snapshot)"); fi
+
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            # Show what DID land so the human can tell apart "build
+            # ran but produced wrong outputs" from "build silently
+            # skipped compile-instruction.mjs".
+            echo "Contents of '$DIST' after download:"
+            ls -la "$DIST" || true
+            for m in "${MISSING[@]}"; do
+              echo "::error file=$DIST,title=Missing instruction artifact after download::Project '$PROJECT' — required file '$m' is missing from artifact '$ARTIFACT'. Likely cause: build-${PROJECT} did not run scripts/compile-instruction.mjs (which dual-emits both files). See mem://architecture/instruction-dual-emit-phase-2b.md."
+            done
+            exit 1
+          fi
+
+          echo "✅ Artifact '$ARTIFACT' downloaded and unpacked into '$DIST':"
+          echo "   • $CANONICAL ($(stat -c%s "$CANONICAL") bytes)"
+          echo "   • $COMPAT ($(stat -c%s "$COMPAT") bytes)"
+
       - name: Validate ${{ matrix.project }} instruction casing
         run: node scripts/check-instruction-json-casing.mjs standalone-scripts/${{ matrix.project }}
 

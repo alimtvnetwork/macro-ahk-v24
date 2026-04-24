@@ -94,6 +94,15 @@ jobs:
       - name: Check installer contract drift
         run: node scripts/check-installer-contract.mjs
 
+      # ───────────────────────────────────────────────────────────
+      # Belt-and-braces: actually invoke the generator CLI in-place
+      # and assert `git diff` on the two generated files is empty.
+      # Catches CLI-only failure modes the in-memory drift check
+      # cannot see (cwd handling, EOL drift, side-effects).
+      # ───────────────────────────────────────────────────────────
+      - name: Assert installer-constants regenerate cleanly (git diff)
+        run: node scripts/check-installer-constants-clean.mjs
+
       - name: Run installer test bundle
         run: npm run test:installer
 

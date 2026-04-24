@@ -139,7 +139,15 @@ export const MACRO_CONTROLLER_NS = 'macro-controller';
 export const SECTION_DIVIDER = '// ============================================\n';
 export const DEFAULT_PRESET_NAME = 'Default';
 export const DEFAULT_PASTE_XPATH = '/html/body/div[3]/div/div[2]/main/div/div/div[1]/div/div[2]/div/form/div[3]/div/div/div/div';
+// Legacy (left-side) chatbox toolbar container — kept as a fallback for older Lovable DOM layouts.
 export const SAVE_PROMPT_XPATH = '/html/body/div[3]/div/div[2]/main/div/div/div[1]/div/div[2]/div/form/div[2]/div';
+// Preferred (right-side) action row: the row containing Build/mic/send and (when present) the
+// "Play and Add more" middle button. Buttons must be prepended here, before button[1].
+// Two roots are supported because Lovable mounts at div[2] in some shells and div[3] in others.
+export const SAVE_PROMPT_ACTION_ROW_XPATHS: ReadonlyArray<string> = [
+  '/html/body/div[3]/div/div[2]/main/div/div/div[1]/div/div[2]/div/form/div[3]/div',
+  '/html/body/div[2]/main/div/div[2]/div/div/div/div[1]/div/div[2]/form/div[3]/div',
+];
 export const DATE_CHANGELOG_2026_03_21 = '2026-03-21';
 
 /* ------------------------------------------------------------------ */

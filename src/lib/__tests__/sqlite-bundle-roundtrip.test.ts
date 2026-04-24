@@ -184,8 +184,8 @@ beforeEach(() => {
 import {
   exportAllAsSqliteZip,
   importFromSqliteZip,
-  mergePromptsFromSqliteZip,
 } from "@/lib/sqlite-bundle";
+import initSqlJs from "sql.js";
 
 /* ------------------------------------------------------------------ */
 /*  Fixture                                                            */

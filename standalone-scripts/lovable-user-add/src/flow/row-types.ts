@@ -19,7 +19,6 @@
 
 import type { LovableApiClient } from "../../../lovable-common/src/api/lovable-api-client";
 import type { UserAddCsvRow } from "../csv";
-import type { XPathSettingSeed } from "../migrations/xpath-setting-seed";
 
 export interface UserAddTaskParams {
     TaskId: string;
@@ -30,7 +29,6 @@ export interface UserAddRowContext {
     Task: UserAddTaskParams;
     Row: UserAddCsvRow;
     Api: LovableApiClient;
-    XPathOverrides: ReadonlyArray<XPathSettingSeed>;
 }
 
 export enum UserAddRowOutcomeCode {

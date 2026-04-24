@@ -200,16 +200,21 @@ if (wantsCheck) {
         process.exit(1);
     }
     const tail = ciSrc.slice(jobAnchor);
-    // `needs:` block ends at the next 4-space-indented sibling or top-level key.
-    const needsMatch = tail.match(/\n\s{4}needs:\s*\n((?:\s{6}-\s*\S+\s*\n)+)/);
+    // `needs:` block: allow comment-only lines (`      # …`) and blank
+    // lines between `needs:` and the first list entry, then capture
+    // every `      - <name>` line until the indentation drops.
+    const needsMatch = tail.match(
+        /\n\s{4}needs:\s*\n((?:\s{6}(?:#[^\n]*|-\s*\S+)\s*\n|\s*\n)+)/,
+    );
     if (!needsMatch) {
         console.error("[derive-casing-matrix] --check: `needs:` block not found in `casing-instruction-json:` job (or uses inline list syntax this checker does not handle).");
         process.exit(1);
     }
     const declaredNeeds = needsMatch[1]
         .split("\n")
-        .map((line) => line.trim().replace(/^-\s*/, ""))
-        .filter(Boolean)
+        .map((line) => line.trim())
+        .filter((line) => line.startsWith("- "))
+        .map((line) => line.replace(/^-\s*/, ""))
         .sort();
 
     const expectedBuildJobs = include.map((e) => buildJobNameFor(e.project)).sort();

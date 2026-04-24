@@ -7,10 +7,11 @@ const HEADER_CONTENT_TYPE = "Content-Type";
 const HEADER_ACCEPT = "Accept";
 const MIME_JSON = "application/json";
 const BEARER_PREFIX = "Bearer ";
+const EMPTY_JSON_BODY = "{}";
 
 export type LovableHttpMethod = "GET" | "POST" | "PUT";
 
-interface LovableHttpRequest {
+export interface LovableHttpRequest {
     method: LovableHttpMethod;
     endpoint: string;
     bearerToken: string;
@@ -47,22 +48,21 @@ const buildInit = (request: LovableHttpRequest): RequestInit => {
     return init;
 };
 
-const parseJsonResponse = async <TResponse>(response: Response, endpoint: string): Promise<TResponse> => {
+const readBodyOrThrow = async (response: Response, endpoint: string): Promise<string> => {
     const bodyText = await response.text();
 
     if (!isOk(response.status)) {
         throw new LovableApiError(`Lovable API ${response.status}`, response.status, endpoint, bodyText);
     }
 
-    if (bodyText.length === 0) {
-        return {} as TResponse;
-    }
-
-    return JSON.parse(bodyText) as TResponse;
+    return bodyText;
 };
 
-export const lovableHttpJson = async <TResponse>(request: LovableHttpRequest): Promise<TResponse> => {
+export const lovableHttpJson = async (request: LovableHttpRequest): Promise<object> => {
     const response = await fetch(request.endpoint, buildInit(request));
+    const bodyText = await readBodyOrThrow(response, request.endpoint);
+    const safeText = bodyText.length === 0 ? EMPTY_JSON_BODY : bodyText;
+    const parsed: object = JSON.parse(safeText);
 
-    return parseJsonResponse<TResponse>(response, request.endpoint);
+    return parsed;
 };

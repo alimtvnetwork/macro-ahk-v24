@@ -9,6 +9,7 @@
 
 import { toErrorMessage, logError } from './error-utils';
 import { CONFIG, TIMING, loopCreditState, state } from './shared-state';
+import { trackedSetInterval, trackedClearInterval } from './interval-registry';
 import { log, logSub, getDisplayProjectName } from './logging';
 import { reactClick, getByXPath, getAllByXPath, findElement, ML_ELEMENTS } from './xpath-utils';
 import { collectWorkspaceNameCandidatesFromNode, matchWorkspaceByName, normalizeWorkspaceName, isInvalidWorkspaceCandidateName } from './ws-name-matching';
@@ -229,12 +230,12 @@ function pollForWorkspaceName(fn: string, btn: Element, perWs: WorkspaceCredit[]
   let elapsed = 0;
   logSub('Waiting up to ' + dialogWaitMs + 'ms for WorkspaceNameXPath to appear...', 1);
 
-  const pollTimer = setInterval(function() {
+  const pollTimer = trackedSetInterval('WsDialog.pollWorkspaceName', function() {
     elapsed += pollInterval;
 
     const allNodes = getAllByXPath(CONFIG.WORKSPACE_XPATH);
     if (allNodes.length > 0) {
-      clearInterval(pollTimer);
+      trackedClearInterval(pollTimer);
       logSub('WorkspaceNameXPath found ' + allNodes.length + ' node(s) after ' + elapsed + 'ms', 1);
 
       const chosen = resolveChosenWorkspace(fn, allNodes, perWs);
@@ -250,7 +251,7 @@ function pollForWorkspaceName(fn: string, btn: Element, perWs: WorkspaceCredit[]
     }
 
     if (elapsed >= dialogWaitMs) {
-      clearInterval(pollTimer);
+      trackedClearInterval(pollTimer);
       handlePollTimeout(fn, btn, perWs, keepDialogOpen, resolve);
     }
   }, pollInterval);

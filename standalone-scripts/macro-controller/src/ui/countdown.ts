@@ -6,6 +6,7 @@
 
 import { state, TIMING } from '../shared-state';
 import { cBtnStartGrad, cBtnStartGlow, cBtnStopGrad, cBtnStopGlow } from '../shared-state';
+import { trackedSetInterval, trackedClearInterval } from '../interval-registry';
 
 export interface CountdownCtx {
   startStopBtn: HTMLElement;
@@ -83,7 +84,7 @@ function renderStopGlyph(btn: HTMLElement): void {
 export function startCountdownTick(ctx: CountdownCtx) {
   stopCountdownTick(ctx);
   ctx.lastCountdownVal = -1;
-  ctx.countdownTickId = setInterval(function() {
+  ctx.countdownTickId = trackedSetInterval('UI.countdownTick', function() {
     if (!state.running) { stopCountdownTick(ctx); return; }
     const secs = state.countdown;
     if (secs === ctx.lastCountdownVal) return;
@@ -96,7 +97,7 @@ export function startCountdownTick(ctx: CountdownCtx) {
 }
 
 export function stopCountdownTick(ctx: CountdownCtx) {
-  if (ctx.countdownTickId) { clearInterval(ctx.countdownTickId); ctx.countdownTickId = null; }
+  if (ctx.countdownTickId) { trackedClearInterval(ctx.countdownTickId); ctx.countdownTickId = null; }
   ctx.countdownBadge.style.display = 'none';
   ctx.countdownBadge.textContent = '';
 }

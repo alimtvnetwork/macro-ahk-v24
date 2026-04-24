@@ -9,6 +9,7 @@
 
 import { log, logSub } from './logging';
 import { nsCallTyped, nsReadTyped } from './api-namespace';
+import { trackedSetInterval, trackedClearInterval } from './interval-registry';
 
 const NS_UPDATE_START_STOP = '_internal.updateStartStopBtn' as const;
 import { showToast, setStopLoopCallback } from './toast';
@@ -119,8 +120,8 @@ function startLoopTimers(): void {
   }
 
   log('=== LOOP STARTED (post-check) ===', 'success');
-  state.countdownIntervalId = setInterval(function() { if (state.countdown > 0) state.countdown--; }, TIMING.COUNTDOWN_INTERVAL);
-  state.loopIntervalId = setInterval(runCycle, TIMING.LOOP_INTERVAL);
+  state.countdownIntervalId = trackedSetInterval('LoopControls.countdown', function() { if (state.countdown > 0) state.countdown--; }, TIMING.COUNTDOWN_INTERVAL);
+  state.loopIntervalId = trackedSetInterval('LoopControls.cycle', runCycle, TIMING.LOOP_INTERVAL);
   setTimeout(runCycle, TIMING.FIRST_CYCLE_DELAY);
   mc().updateUI();
 }
@@ -199,8 +200,8 @@ export function stopLoop(): boolean {
   state.__cycleInFlight = false;
   state.__cycleRetryPending = false;
 
-  if (state.loopIntervalId) { clearInterval(state.loopIntervalId); state.loopIntervalId = null; }
-  if (state.countdownIntervalId) { clearInterval(state.countdownIntervalId); state.countdownIntervalId = null; }
+  if (state.loopIntervalId) { trackedClearInterval(state.loopIntervalId); state.loopIntervalId = null; }
+  if (state.countdownIntervalId) { trackedClearInterval(state.countdownIntervalId); state.countdownIntervalId = null; }
 
   log('=== LOOP STOPPED ===', 'success');
   log('Total cycles completed: ' + state.cycleCount);
@@ -298,13 +299,13 @@ export function startStatusRefresh(): void {
   if (state.statusRefreshId) return;
   const intervalMs = state.running ? (TIMING.WS_CHECK_INTERVAL || 5000) : 30000;
   log('Starting workspace auto-check (every ' + (intervalMs / 1000) + 's)', 'success');
-  state.statusRefreshId = setInterval(refreshStatus, intervalMs);
+  state.statusRefreshId = trackedSetInterval('LoopControls.statusRefresh', refreshStatus, intervalMs);
   setTimeout(refreshStatus, 1000);
 }
 
 export function stopStatusRefresh(): void {
   if (state.statusRefreshId) {
-    clearInterval(state.statusRefreshId);
+    trackedClearInterval(state.statusRefreshId);
     state.statusRefreshId = null;
     log('Workspace auto-check stopped', 'warn');
   }

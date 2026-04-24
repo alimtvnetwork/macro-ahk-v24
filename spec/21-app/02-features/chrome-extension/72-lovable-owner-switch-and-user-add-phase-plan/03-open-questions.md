@@ -92,3 +92,26 @@ Per-project `logs/` folder is mentioned, but the actual storage layer
 - **(b)** A real file in OPFS under `logs/{project}/{taskId}.log`.
 
 Default: **(a) SQLite-tagged**, matches existing session logging system.
+
+## Q11 — P17 sign-out deviation (resolved at P20)
+
+**Context:** P17 (User Add per-row state machine) reinterpreted sign-out as
+**task-level** (runs once at end of task) instead of per-row, because the User
+Add CSV / popup design has no per-row login fields — every row uses the same
+operator account.
+
+**Resolution at P20 (2026-04-24):** **Confirmed task-level**. Rationale:
+1. Owner Switch CSV has per-row `LoginEmail` + `Password` → per-row sign-out is
+   correct for it (different operator per row → must clear cookies between).
+2. User Add CSV has only `WorkspaceUrl` + `UserEmail` + `Role` → all rows run
+   under the **same** operator account. Per-row sign-out would force re-login
+   between every row, multiplying duration by ~Nx for no security/correctness
+   gain.
+3. The shared `LovableApiClient` carries the bearer token in memory; sign-out
+   only matters at task boundaries because the operator is fixed for the
+   duration of a task.
+4. R12 invariant preserved either way — both projects' sign-out paths are
+   independent of the single PUT call site.
+
+**Locked in spec.** No code change needed at P20; the P17 implementation
+(`run-task-sign-out.ts` stub + caller wires it once per task) is canonical.

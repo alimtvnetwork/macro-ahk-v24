@@ -1,12 +1,12 @@
 {
-  "id": "default-unified",
-  "title": "Unified AI Prompt v4",
-  "slug": "unified-ai-prompt-v4",
-  "version": "1.0.0",
-  "author": "marco",
-  "categories": [],
-  "isDefault": true,
-  "order": 3,
-  "createdAt": "2026-01-01T00:00:00Z",
-  "updatedAt": "2026-01-01T00:00:00Z"
+  "Id": "default-unified",
+  "Title": "Unified AI Prompt v4",
+  "Slug": "unified-ai-prompt-v4",
+  "Version": "1.0.0",
+  "Author": "marco",
+  "Categories": [],
+  "IsDefault": true,
+  "Order": 3,
+  "CreatedAt": "2026-01-01T00:00:00Z",
+  "UpdatedAt": "2026-01-01T00:00:00Z"
 }

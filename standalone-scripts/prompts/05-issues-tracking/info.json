@@ -1,12 +1,12 @@
 {
-  "id": "default-issues",
-  "title": "Issues Tracking",
-  "slug": "issues-tracking",
-  "version": "1.0.0",
-  "author": "marco",
-  "categories": [],
-  "isDefault": true,
-  "order": 4,
-  "createdAt": "2026-01-01T00:00:00Z",
-  "updatedAt": "2026-01-01T00:00:00Z"
+  "Id": "default-issues",
+  "Title": "Issues Tracking",
+  "Slug": "issues-tracking",
+  "Version": "1.0.0",
+  "Author": "marco",
+  "Categories": [],
+  "IsDefault": true,
+  "Order": 4,
+  "CreatedAt": "2026-01-01T00:00:00Z",
+  "UpdatedAt": "2026-01-01T00:00:00Z"
 }

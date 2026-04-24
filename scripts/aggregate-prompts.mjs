@@ -39,6 +39,19 @@ async function main() {
             continue;
         }
 
+        // Casing migration (spec/30-import-export/01-rca.md §2.5):
+        // info.json is canonical PascalCase. We still accept legacy camelCase
+        // keys but warn so authors update them. `pick()` reads PascalCase
+        // first, then falls back to the camelCase alias.
+        const pick = (pascal, camel) => {
+            if (pascal in info) return info[pascal];
+            if (camel in info) {
+                console.warn(`⚠ ${folder.name}/info.json: legacy camelCase key "${camel}" — please rename to "${pascal}"`);
+                return info[camel];
+            }
+            return undefined;
+        };
+
         let text;
         try {
             text = (await readFile(join(dir, "prompt.md"), "utf-8")).trim();
@@ -47,31 +60,39 @@ async function main() {
             continue;
         }
 
+        const Title = pick("Title", "title") ?? pick("Name", "name");
+        const Id = pick("Id", "id");
+        const Slug = pick("Slug", "slug");
+        const Version = pick("Version", "version");
+        const Order = pick("Order", "order");
+        const IsDefault = pick("IsDefault", "isDefault");
+        const IsFavorite = pick("IsFavorite", "isFavorite");
+        const Categories = pick("Categories", "categories") ?? pick("Category", "category");
+
         const entry = {
-            name: info.title || info.name || folder.name,
+            name: Title || folder.name,
             text,
         };
 
         // Include id and slug for programmatic lookup (e.g., Task Next)
-        if (info.id) entry.id = info.id;
-        if (info.slug) entry.slug = info.slug;
+        if (Id) entry.id = Id;
+        if (Slug) entry.slug = Slug;
 
         // Include version
-        if (info.version) entry.version = info.version;
+        if (Version) entry.version = Version;
 
         // Include order for sorting
-        if (typeof info.order === "number") entry.order = info.order;
+        if (typeof Order === "number") entry.order = Order;
 
         // Include default/favorite flags
-        if (info.isDefault) entry.isDefault = true;
-        if (info.isFavorite) entry.isFavorite = true;
+        if (IsDefault) entry.isDefault = true;
+        if (IsFavorite) entry.isFavorite = true;
 
         // Add category if present (array → first item for legacy compat, or string)
-        const cats = info.categories || info.category;
-        if (Array.isArray(cats) && cats.length > 0) {
-            entry.category = cats[0];
-        } else if (typeof cats === "string" && cats) {
-            entry.category = cats;
+        if (Array.isArray(Categories) && Categories.length > 0) {
+            entry.category = Categories[0];
+        } else if (typeof Categories === "string" && Categories) {
+            entry.category = Categories;
         }
 
         prompts.push(entry);

@@ -28,3 +28,5 @@ readonly MARCO_EXIT_INVALID_ARCHIVE=6  # §8.1: Checksum mismatch, corrupt zip/t
 MARCO_CHECKSUMS_FILE="checksums.txt"
 MARCO_CHECKSUMS_ALGO="SHA-256"
 
+
+# tampered

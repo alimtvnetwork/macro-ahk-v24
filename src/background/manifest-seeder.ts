@@ -5,6 +5,20 @@
  * into chrome.storage.local. Replaces hardcoded seed chunks.
  *
  * The manifest is generated at build time by `scripts/generate-seed-manifest.mjs`.
+ *
+ * ── PascalCase migration (Phase 2a) ──
+ *
+ * Reads PascalCase keys from `seed-manifest.json` (the single source of
+ * truth for everything we own). The only camelCase that survives is at
+ * third-party boundaries — `chrome.storage.local` keys (StoredScript /
+ * StoredConfig fields like `filePath`, `loadOrder`) are persistence
+ * shapes the runtime hands directly to existing handlers and the
+ * options UI; renaming them is Phase 2c (storage migrator) work.
+ *
+ * Schema versions accepted:
+ *   - v1 (legacy camelCase manifest) — kept readable for one release so a
+ *     stale dist directory does not brick the extension.
+ *   - v2 (PascalCase manifest, current) — the canonical shape this file targets.
  */
 
 import type { StoredScript, StoredConfig } from "../shared/script-config-types";
@@ -25,8 +39,8 @@ function buildStubCode(fileName: string): string {
     return STUB_PREFIX + `console.error("[manifest-seeder::buildStubCode] STUB: filePath fetch failed\\n  Path: projects/scripts/${fileName}\\n  Missing: Real script code for \\"${fileName}\\"\\n  Reason: Stub placeholder was never replaced — fetch at injection time did not succeed or was not attempted");`;
 }
 
-/** Supported schema versions: [min, max] inclusive range this seeder can handle. */
-const SUPPORTED_SCHEMA_VERSIONS = { min: 1, max: 1 };
+/** Supported schema versions: v1 (legacy camelCase) + v2 (PascalCase). Inclusive. */
+const SUPPORTED_SCHEMA_VERSIONS = { min: 1, max: 2 };
 
 /* ------------------------------------------------------------------ */
 /*  Public API                                                         */
@@ -49,7 +63,7 @@ export async function seedFromManifest(): Promise<SeedResult> {
     }
 
     // Schema version validation
-    const sv = manifest.schemaVersion;
+    const sv = manifest.SchemaVersion;
     if (typeof sv !== "number" || !Number.isFinite(sv)) {
         logBgWarnError(BgLogTag.MANIFEST_SEEDER, `Invalid schemaVersion: ${sv} — aborting seed`);
         return { scripts: 0, configs: 0, projects: 0, errors: [`Invalid schemaVersion: ${sv}`] };
@@ -62,23 +76,23 @@ export async function seedFromManifest(): Promise<SeedResult> {
         logBgWarnError(BgLogTag.MANIFEST_SEEDER, `schemaVersion ${sv} is older than min (${SUPPORTED_SCHEMA_VERSIONS.min}) — proceeding with best-effort seeding`);
     }
 
-    const projectNames = manifest.projects.map((p) => `${p.name}(${p.scripts.length}s/${p.configs.length}c)`);
+    const projectNames = manifest.Projects.map((p) => `${p.name}(${p.scripts.length}s/${p.configs.length}c)`);
     console.log(
         "[manifest-seeder] Processing %d project(s) from seed-manifest.json (schema v%d): [%s]",
-        manifest.projects.length,
-        manifest.schemaVersion,
+        manifest.Projects.length,
+        manifest.SchemaVersion,
         projectNames.join(", "),
     );
 
     // Log seedOnInstall status for each project
-    for (const project of manifest.projects) {
+    for (const project of manifest.Projects) {
         console.log(
             "[manifest-seeder]   → %s: seedOnInstall=%s, scripts=%d, configs=%d, isGlobal=%s",
-            project.name,
-            project.seedOnInstall,
-            project.scripts.length,
-            project.configs.length,
-            project.isGlobal,
+            project.Name,
+            project.SeedOnInstall,
+            project.Scripts.length,
+            project.Configs.length,
+            project.IsGlobal,
         );
     }
 
@@ -89,7 +103,7 @@ export async function seedFromManifest(): Promise<SeedResult> {
         "[manifest-seeder] ✅ Seeded %d script(s), %d config(s) across %d project(s). Errors: %d",
         scriptResult.seeded,
         configResult.seeded,
-        manifest.projects.length,
+        manifest.Projects.length,
         scriptResult.errors.length + configResult.errors.length,
     );
 
@@ -100,7 +114,7 @@ export async function seedFromManifest(): Promise<SeedResult> {
     return {
         scripts: scriptResult.seeded,
         configs: configResult.seeded,
-        projects: manifest.projects.length,
+        projects: manifest.Projects.length,
         errors: [...scriptResult.errors, ...configResult.errors],
     };
 }
@@ -135,7 +149,7 @@ async function fetchManifest(): Promise<SeedManifest | null> {
         console.log("[manifest-seeder] Raw response length: %d chars", raw.length);
         const manifest = JSON.parse(raw) as SeedManifest;
         console.log("[manifest-seeder] ✅ Parsed manifest: %d projects, schema v%d, from %s",
-            manifest.projects?.length ?? 0, manifest.schemaVersion, url);
+            manifest.Projects?.length ?? 0, manifest.SchemaVersion, url);
         return manifest;
     } catch (err) {
         logCaughtError(BgLogTag.MANIFEST_SEEDER, `Fetch/parse error for ${url}`, err);
@@ -162,20 +176,20 @@ async function seedScriptsFromManifest(
     let seeded = 0;
     const errors: string[] = [];
 
-    for (const project of manifest.projects) {
-        if (!project.seedOnInstall) {
-            console.log("[manifest-seeder:scripts] Skipping %s (seedOnInstall=false)", project.name);
+    for (const project of manifest.Projects) {
+        if (!project.SeedOnInstall) {
+            console.log("[manifest-seeder:scripts] Skipping %s (seedOnInstall=false)", project.Name);
             continue;
         }
 
-        for (const scriptDef of project.scripts) {
+        for (const scriptDef of project.Scripts) {
             try {
-                const idx = stored.findIndex((s) => s.id === scriptDef.seedId);
+                const idx = stored.findIndex((s) => s.id === scriptDef.SeedId);
 
                 if (idx === -1) {
                     // Insert new
                     console.log("[manifest-seeder:scripts] + INSERT %s (seedId=%s, filePath=%s)",
-                        scriptDef.file, scriptDef.seedId, scriptDef.filePath);
+                        scriptDef.File, scriptDef.SeedId, scriptDef.FilePath);
                     stored.push(buildStoredScript(scriptDef, project, manifest));
                     changed = true;
                     seeded++;
@@ -184,17 +198,17 @@ async function seedScriptsFromManifest(
                     const current = stored[idx];
                     if (isScriptStale(current, scriptDef, project, manifest)) {
                         console.log("[manifest-seeder:scripts] ↻ REFRESH %s (seedId=%s, was stale)",
-                            scriptDef.file, scriptDef.seedId);
+                            scriptDef.File, scriptDef.SeedId);
                         stored[idx] = refreshStoredScript(current, scriptDef, project, manifest);
                         changed = true;
                         seeded++;
                     } else {
                         console.log("[manifest-seeder:scripts] = SKIP %s (seedId=%s, up-to-date)",
-                            scriptDef.file, scriptDef.seedId);
+                            scriptDef.File, scriptDef.SeedId);
                     }
                 }
             } catch (err) {
-                const msg = `[seedScriptsFromManifest] Failed to seed script ${scriptDef.file} for ${project.name}: ${err}`;
+                const msg = `[seedScriptsFromManifest] Failed to seed script ${scriptDef.File} for ${project.Name}: ${err}`;
                 errors.push(msg);
                 logBgWarnError(BgLogTag.MANIFEST_SEEDER, msg);
             }
@@ -211,23 +225,23 @@ async function seedScriptsFromManifest(
 function buildStoredScript(def: SeedScriptEntry, project: SeedProjectEntry, manifest: SeedManifest): StoredScript {
     const now = new Date().toISOString();
     return {
-        id: def.seedId,
-        name: def.file,
-        description: def.description || project.description,
-        code: buildStubCode(def.file),
-        filePath: def.filePath,
+        id: def.SeedId,
+        name: def.File,
+        description: def.Description || project.Description,
+        code: buildStubCode(def.File),
+        filePath: def.FilePath,
         isAbsolute: false,
-        order: def.order,
+        order: def.Order,
         isEnabled: true,
-        isIife: def.isIife,
-        autoInject: def.autoInject,
-        isGlobal: project.isGlobal,
+        isIife: def.IsIife,
+        autoInject: def.AutoInject,
+        isGlobal: project.IsGlobal,
         dependencies: resolveDependencyIds(manifest, project),
-        loadOrder: project.loadOrder,
-        runAt: def.runAt,
-        configBinding: resolveConfigSeedId(def.configBinding, project),
-        themeBinding: resolveConfigSeedId(def.themeBinding, project),
-        cookieBinding: def.cookieBinding,
+        loadOrder: project.LoadOrder,
+        runAt: def.RunAt,
+        configBinding: resolveConfigSeedId(def.ConfigBinding, project),
+        themeBinding: resolveConfigSeedId(def.ThemeBinding, project),
+        cookieBinding: def.CookieBinding,
         createdAt: now,
         updatedAt: now,
     };
@@ -241,20 +255,20 @@ function refreshStoredScript(
 ): StoredScript {
     return {
         ...current,
-        name: def.file,
-        description: def.description || project.description,
-        code: buildStubCode(def.file),
-        filePath: def.filePath,
+        name: def.File,
+        description: def.Description || project.Description,
+        code: buildStubCode(def.File),
+        filePath: def.FilePath,
         isAbsolute: false,
-        isIife: def.isIife,
-        autoInject: def.autoInject,
-        isGlobal: project.isGlobal,
+        isIife: def.IsIife,
+        autoInject: def.AutoInject,
+        isGlobal: project.IsGlobal,
         isEnabled: current.isEnabled, // preserve user toggle
         dependencies: resolveDependencyIds(manifest, project),
-        loadOrder: project.loadOrder,
-        configBinding: resolveConfigSeedId(def.configBinding, project),
-        themeBinding: resolveConfigSeedId(def.themeBinding, project),
-        cookieBinding: def.cookieBinding,
+        loadOrder: project.LoadOrder,
+        configBinding: resolveConfigSeedId(def.ConfigBinding, project),
+        themeBinding: resolveConfigSeedId(def.ThemeBinding, project),
+        cookieBinding: def.CookieBinding,
         updatedAt: new Date().toISOString(),
     };
 }
@@ -266,16 +280,16 @@ function isScriptStale(
     manifest: SeedManifest,
 ): boolean {
     return (
-        current.filePath !== def.filePath ||
+        current.filePath !== def.FilePath ||
         !current.code.startsWith(STUB_PREFIX) ||
-        current.isGlobal !== project.isGlobal ||
-        current.loadOrder !== project.loadOrder ||
-        current.isIife !== def.isIife ||
-        current.autoInject !== def.autoInject ||
-        current.name !== def.file ||
-        current.cookieBinding !== def.cookieBinding ||
-        current.configBinding !== resolveConfigSeedId(def.configBinding, project) ||
-        current.themeBinding !== resolveConfigSeedId(def.themeBinding, project) ||
+        current.isGlobal !== project.IsGlobal ||
+        current.loadOrder !== project.LoadOrder ||
+        current.isIife !== def.IsIife ||
+        current.autoInject !== def.AutoInject ||
+        current.name !== def.File ||
+        current.cookieBinding !== def.CookieBinding ||
+        current.configBinding !== resolveConfigSeedId(def.ConfigBinding, project) ||
+        current.themeBinding !== resolveConfigSeedId(def.ThemeBinding, project) ||
         JSON.stringify(current.dependencies ?? []) !== JSON.stringify(resolveDependencyIds(manifest, project))
     );
 }
@@ -297,15 +311,15 @@ async function seedConfigsFromManifest(
     let seeded = 0;
     const errors: string[] = [];
 
-    for (const project of manifest.projects) {
-        if (!project.seedOnInstall) continue;
+    for (const project of manifest.Projects) {
+        if (!project.SeedOnInstall) continue;
 
-        for (const configDef of project.configs) {
+        for (const configDef of project.Configs) {
             try {
                 // Fetch the actual JSON content from extension dist
-                const configJson = await fetchConfigJson(configDef.filePath);
+                const configJson = await fetchConfigJson(configDef.FilePath);
 
-                const idx = stored.findIndex((c) => c.id === configDef.seedId);
+                const idx = stored.findIndex((c) => c.id === configDef.SeedId);
 
                 if (idx === -1) {
                     stored.push(buildStoredConfig(configDef, configJson));
@@ -313,10 +327,10 @@ async function seedConfigsFromManifest(
                     seeded++;
                 } else {
                     const current = stored[idx];
-                    if (current.name !== configDef.file || current.json !== configJson) {
+                    if (current.name !== configDef.File || current.json !== configJson) {
                         stored[idx] = {
                             ...current,
-                            name: configDef.file,
+                            name: configDef.File,
                             json: configJson,
                             updatedAt: new Date().toISOString(),
                         };
@@ -325,7 +339,7 @@ async function seedConfigsFromManifest(
                     }
                 }
             } catch (err) {
-                const msg = `[seedConfigsFromManifest→fetchConfigJson] Failed to seed config ${configDef.file} for ${project.name}: ${err}`;
+                const msg = `[seedConfigsFromManifest→fetchConfigJson] Failed to seed config ${configDef.File} for ${project.Name}: ${err}`;
                 errors.push(msg);
                 // Use warn instead of error — config fetch failures are non-fatal
                 // (hardcoded defaults are used) and should not inflate the error table
@@ -344,9 +358,9 @@ async function seedConfigsFromManifest(
 function buildStoredConfig(def: SeedConfigEntry, json: string): StoredConfig {
     const now = new Date().toISOString();
     return {
-        id: def.seedId,
-        name: def.file,
-        description: def.description,
+        id: def.SeedId,
+        name: def.File,
+        description: def.Description,
         json,
         createdAt: now,
         updatedAt: now,
@@ -390,7 +404,7 @@ function resolveConfigSeedId(
     project: SeedProjectEntry,
 ): string | undefined {
     if (!key) return undefined;
-    const config = project.configs.find((c) => c.key === key);
+    const config = project.Configs.find((c) => c.key === key);
     return config?.seedId;
 }
 
@@ -402,8 +416,8 @@ function resolveConfigSeedId(
 function resolveDependencyIds(manifest: SeedManifest, project: SeedProjectEntry): string[] {
     const resolved = new Set<string>();
 
-    for (const dependencyName of project.dependencies) {
-        const dependencyProject = manifest.projects.find((entry) => entry.name === dependencyName);
+    for (const dependencyName of project.Dependencies) {
+        const dependencyProject = manifest.Projects.find((entry) => entry.name === dependencyName);
 
         if (!dependencyProject || dependencyProject.scripts.length === 0) {
             resolved.add(dependencyName);

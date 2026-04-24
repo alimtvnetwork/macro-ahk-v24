@@ -9,6 +9,18 @@
  * instruction.json is the SOLE source of truth — script-manifest.json
  * is no longer required.
  *
+ * ── PascalCase migration (Phase 2a) ──
+ *
+ * The emitted seed-manifest.json uses PascalCase keys end-to-end, matching
+ * `ProjectInstruction` / `SeedManifest` (TS type). Reading from instruction.json
+ * prefers PascalCase keys and falls back to legacy camelCase aliases (still
+ * dual-emitted by `compile-instruction.mjs`) so a half-migrated tree still
+ * builds. The fallback is removed in Phase 2c.
+ *
+ * SchemaVersion bumped 1 → 2: PascalCase key rename. The runtime seeder
+ * (`src/background/manifest-seeder.ts`) accepts both versions for one
+ * release (see SUPPORTED_SCHEMA_VERSIONS there).
+ *
  * Usage:
  *   node scripts/generate-seed-manifest.mjs [--out <path>]
  *
@@ -23,6 +35,24 @@ import { execFileSync } from "node:child_process";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const STANDALONE_DIR = join(ROOT, "standalone-scripts");
+
+/** Bumped to 2 when PascalCase rename landed (Phase 2a). */
+const SCHEMA_VERSION = 2;
+
+/* ------------------------------------------------------------------ */
+/*  Reader helpers — prefer PascalCase, fall back to camelCase          */
+/*  during the Phase 2a→2c migration window. Both spellings are still   */
+/*  dual-emitted by compile-instruction.mjs.                            */
+/* ------------------------------------------------------------------ */
+
+/** Read the first defined value from `obj` for any of `keys`. */
+function pick(obj, ...keys) {
+    if (!obj || typeof obj !== "object") return undefined;
+    for (const key of keys) {
+        if (key in obj && obj[key] !== undefined) return obj[key];
+    }
+    return undefined;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Main                                                               */
@@ -62,13 +92,13 @@ function main() {
         projects.push(projectEntry);
     }
 
-    // Sort by loadOrder
-    projects.sort((a, b) => a.loadOrder - b.loadOrder);
+    // Sort by LoadOrder (PascalCase)
+    projects.sort((a, b) => a.LoadOrder - b.LoadOrder);
 
     const manifest = {
-        generatedAt: new Date().toISOString(),
-        schemaVersion: 1,
-        projects,
+        GeneratedAt: new Date().toISOString(),
+        SchemaVersion: SCHEMA_VERSION,
+        Projects: projects,
     };
 
     const json = JSON.stringify(manifest, null, 2) + "\n";
@@ -76,7 +106,7 @@ function main() {
     // Write to output path
     mkdirSync(resolve(outPath, ".."), { recursive: true });
     writeFileSync(outPath, json, "utf-8");
-    console.log(`✅ seed-manifest.json → ${outPath} (${projects.length} projects)`);
+    console.log(`✅ seed-manifest.json → ${outPath} (${projects.length} projects, schema v${SCHEMA_VERSION})`);
 
     // Also write a reference copy alongside standalone-scripts
     const refDir = join(STANDALONE_DIR, "_generated");
@@ -112,93 +142,121 @@ function ensureFreshInstructionJson(name, projectDir, sourceInstructionPath, ins
 function buildProjectEntry(name, instruction) {
     const basePath = `projects/scripts/${name}`;
 
-    // Read seed block from instruction (the single source of truth)
-    const seed = instruction.seed || {};
+    // Read seed block from instruction (the single source of truth).
+    // Prefer PascalCase, fall back to legacy camelCase during migration.
+    const seed = pick(instruction, "Seed", "seed") || {};
+    const assets = pick(instruction, "Assets", "assets") || {};
 
-    const displayName = instruction.displayName || name;
-    const version = instruction.version || "1.0.0";
-    const description = instruction.description || "";
-    const world = instruction.world || "MAIN";
-    const loadOrder = instruction.loadOrder ?? 99;
-    const isGlobal = instruction.isGlobal === true;
-    const dependencies = instruction.dependencies || [];
+    const displayName = pick(instruction, "DisplayName", "displayName") || name;
+    const version = pick(instruction, "Version", "version") || "1.0.0";
+    const description = pick(instruction, "Description", "description") || "";
+    const world = pick(instruction, "World", "world") || "MAIN";
+    const loadOrder = pick(instruction, "LoadOrder", "loadOrder") ?? 99;
+    const isGlobal = pick(instruction, "IsGlobal", "isGlobal") === true;
+    const dependencies = pick(instruction, "Dependencies", "dependencies") || [];
 
-    // Build script entries from instruction.assets.scripts
+    const seedId = pick(seed, "Id", "id") || `default-${name}`;
+    const seedOnInstall = pick(seed, "SeedOnInstall", "seedOnInstall") ?? true;
+    const isRemovable = pick(seed, "IsRemovable", "isRemovable") ?? true;
+    const seedRunAt = pick(seed, "RunAt", "runAt");
+    const seedAutoInject = pick(seed, "AutoInject", "autoInject") ?? true;
+    const seedCookieBinding = pick(seed, "CookieBinding", "cookieBinding");
+    const configSeedIds = pick(seed, "ConfigSeedIds", "configSeedIds") || {};
+
+    // Build script entries from Assets.Scripts
     const scripts = [];
-    if (instruction.assets?.scripts?.length) {
-        for (const s of instruction.assets.scripts) {
-            scripts.push({
-                seedId: seed.id || `default-${name}`,
-                file: s.file,
-                filePath: `${basePath}/${s.file}`,
-                order: s.order ?? 0,
-                isIife: s.isIife ?? true,
-                configBinding: s.configBinding,
-                themeBinding: s.themeBinding,
-                cookieBinding: seed.cookieBinding,
-                runAt: seed.runAt,
-                description: description,
-                autoInject: seed.autoInject ?? true,
-            });
-        }
+    const scriptAssets = pick(assets, "Scripts", "scripts") || [];
+    for (const s of scriptAssets) {
+        scripts.push({
+            SeedId: seedId,
+            File: pick(s, "File", "file"),
+            FilePath: `${basePath}/${pick(s, "File", "file")}`,
+            Order: pick(s, "Order", "order") ?? 0,
+            IsIife: pick(s, "IsIife", "isIife") ?? true,
+            ConfigBinding: pick(s, "ConfigBinding", "configBinding"),
+            ThemeBinding: pick(s, "ThemeBinding", "themeBinding"),
+            CookieBinding: seedCookieBinding,
+            RunAt: seedRunAt,
+            Description: description,
+            AutoInject: seedAutoInject,
+        });
     }
 
-    // Build config entries from instruction.assets.configs
+    // Build config entries from Assets.Configs
     const configs = [];
-    if (instruction.assets?.configs?.length) {
-        const configIds = seed.configSeedIds || {};
-        for (const c of instruction.assets.configs) {
-            configs.push({
-                seedId: configIds[c.key] || `default-${name}-${c.key}`,
-                file: c.file,
-                filePath: `${basePath}/${c.file}`,
-                key: c.key,
-                injectAs: c.injectAs,
-                description: `${c.key} config for ${displayName}`,
-            });
-        }
+    const configAssets = pick(assets, "Configs", "configs") || [];
+    for (const c of configAssets) {
+        const key = pick(c, "Key", "key");
+        configs.push({
+            SeedId: configSeedIds[key] || `default-${name}-${key}`,
+            File: pick(c, "File", "file"),
+            FilePath: `${basePath}/${pick(c, "File", "file")}`,
+            Key: key,
+            InjectAs: pick(c, "InjectAs", "injectAs"),
+            Description: `${key} config for ${displayName}`,
+        });
     }
 
     // Build CSS entries
-    const css = (instruction.assets?.css || []).map(c => ({
-        file: c.file,
-        filePath: `${basePath}/${c.file}`,
-        inject: c.inject || "head",
+    const cssAssets = pick(assets, "Css", "css") || [];
+    const css = cssAssets.map(c => ({
+        File: pick(c, "File", "file"),
+        FilePath: `${basePath}/${pick(c, "File", "file")}`,
+        Inject: pick(c, "Inject", "inject") || "head",
     }));
 
     // Build template entries
-    const templates = (instruction.assets?.templates || []).map(t => ({
-        file: t.file,
-        filePath: `${basePath}/${t.file}`,
-        injectAs: t.injectAs,
+    const templateAssets = pick(assets, "Templates", "templates") || [];
+    const templates = templateAssets.map(t => ({
+        File: pick(t, "File", "file"),
+        FilePath: `${basePath}/${pick(t, "File", "file")}`,
+        InjectAs: pick(t, "InjectAs", "injectAs"),
     }));
 
     // Build prompt entries
-    const prompts = (instruction.assets?.prompts || []).map(p => ({
-        file: p.file,
-        filePath: `${basePath}/${p.file}`,
+    const promptAssets = pick(assets, "Prompts", "prompts") || [];
+    const prompts = promptAssets.map(p => ({
+        File: pick(p, "File", "file"),
+        FilePath: `${basePath}/${pick(p, "File", "file")}`,
     }));
 
+    // TargetUrls / Cookies / Settings — copy fields with PascalCase preference
+    const targetUrlsRaw = pick(seed, "TargetUrls", "targetUrls") || [];
+    const targetUrls = targetUrlsRaw.map(u => ({
+        Pattern: pick(u, "Pattern", "pattern"),
+        MatchType: pick(u, "MatchType", "matchType"),
+    }));
+
+    const cookiesRaw = pick(seed, "Cookies", "cookies") || [];
+    const cookies = cookiesRaw.map(c => ({
+        CookieName: pick(c, "CookieName", "cookieName"),
+        Url: pick(c, "Url", "url"),
+        Role: pick(c, "Role", "role"),
+        Description: pick(c, "Description", "description"),
+    }));
+
+    const settings = pick(seed, "Settings", "settings") || {};
+
     return {
-        name,
-        displayName,
-        version,
-        description,
-        seedId: seed.id || `default-${name}`,
-        seedOnInstall: seed.seedOnInstall ?? true,
-        world,
-        loadOrder,
-        isGlobal,
-        isRemovable: seed.isRemovable ?? true,
-        dependencies,
-        scripts,
-        configs,
-        css,
-        templates,
-        prompts,
-        targetUrls: seed.targetUrls || [],
-        cookies: seed.cookies || [],
-        settings: seed.settings || {},
+        Name: name,
+        DisplayName: displayName,
+        Version: version,
+        Description: description,
+        SeedId: seedId,
+        SeedOnInstall: seedOnInstall,
+        World: world,
+        LoadOrder: loadOrder,
+        IsGlobal: isGlobal,
+        IsRemovable: isRemovable,
+        Dependencies: dependencies,
+        Scripts: scripts,
+        Configs: configs,
+        Css: css,
+        Templates: templates,
+        Prompts: prompts,
+        TargetUrls: targetUrls,
+        Cookies: cookies,
+        Settings: settings,
     };
 }
 

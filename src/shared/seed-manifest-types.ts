@@ -6,6 +6,17 @@
  *
  * The seeder reads this single file to know what scripts, configs,
  * and projects to seed — no hardcoded chunks needed.
+ *
+ * ── PascalCase policy (Phase 2a, mem://standards/pascalcase-json-keys) ──
+ *
+ * Every key in this manifest is PascalCase to match the canonical
+ * `ProjectInstruction` shape (the manifest is just a flattened+resolved
+ * projection of one or more instruction.json files). The only places
+ * where camelCase survives are at third-party boundaries —
+ * specifically the `chrome.scripting` `runAt` enum values
+ * (`"document_start" | "document_end" | "document_idle"`), which
+ * are *values* not *keys* and must stay verbatim because Chrome's API
+ * compares them by string equality.
  */
 
 /* ------------------------------------------------------------------ */
@@ -14,11 +25,11 @@
 
 export interface SeedManifest {
     /** ISO timestamp when the manifest was generated */
-    generatedAt: string;
-    /** Schema version for forward compatibility */
-    schemaVersion: number;
+    GeneratedAt: string;
+    /** Schema version for forward compatibility (bumped on key-rename) */
+    SchemaVersion: number;
     /** All project entries to seed */
-    projects: SeedProjectEntry[];
+    Projects: SeedProjectEntry[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -27,47 +38,47 @@ export interface SeedManifest {
 
 export interface SeedProjectEntry {
     /** Project folder name (e.g., "macro-controller") */
-    name: string;
+    Name: string;
     /** Human-readable name */
-    displayName: string;
+    DisplayName: string;
     /** Semantic version */
-    version: string;
+    Version: string;
     /** Description */
-    description: string;
+    Description: string;
 
     /** Deterministic seed ID for chrome.storage.local */
-    seedId: string;
+    SeedId: string;
     /** Whether this project seeds on first install */
-    seedOnInstall: boolean;
+    SeedOnInstall: boolean;
     /** Chrome execution world */
-    world: "MAIN" | "ISOLATED";
+    World: "MAIN" | "ISOLATED";
     /** Global load order (lower = first) */
-    loadOrder: number;
+    LoadOrder: number;
     /** Whether this is a global utility */
-    isGlobal: boolean;
+    IsGlobal: boolean;
     /** Whether the user can remove this project */
-    isRemovable: boolean;
+    IsRemovable: boolean;
     /** Project dependencies (other project folder names) */
-    dependencies: string[];
+    Dependencies: string[];
 
     /** Script entries to seed into chrome.storage.local */
-    scripts: SeedScriptEntry[];
+    Scripts: SeedScriptEntry[];
     /** Config entries to seed into chrome.storage.local */
-    configs: SeedConfigEntry[];
+    Configs: SeedConfigEntry[];
     /** CSS files to inject into <head> */
-    css: SeedCssEntry[];
+    Css: SeedCssEntry[];
     /** Template registries */
-    templates: SeedTemplateEntry[];
+    Templates: SeedTemplateEntry[];
     /** Prompt files */
-    prompts: SeedPromptEntry[];
+    Prompts: SeedPromptEntry[];
 
     /** Target URL patterns for injection */
-    targetUrls: SeedUrlPattern[];
+    TargetUrls: SeedUrlPattern[];
     /** Cookie bindings for auth */
-    cookies: SeedCookieBinding[];
+    Cookies: SeedCookieBinding[];
 
     /** Project-level settings overrides */
-    settings?: SeedProjectSettings;
+    Settings?: SeedProjectSettings;
 }
 
 /* ------------------------------------------------------------------ */
@@ -76,67 +87,70 @@ export interface SeedProjectEntry {
 
 export interface SeedScriptEntry {
     /** Deterministic ID for this script in storage */
-    seedId: string;
+    SeedId: string;
     /** File name (e.g., "macro-looping.js") */
-    file: string;
+    File: string;
     /** Relative path in extension dist (e.g., "projects/scripts/macro-controller/macro-looping.js") */
-    filePath: string;
+    FilePath: string;
     /** Injection order within the project */
-    order: number;
+    Order: number;
     /** Whether this is an IIFE bundle */
-    isIife: boolean;
+    IsIife: boolean;
     /** Config key this script depends on (resolved to config seedId at seed time) */
-    configBinding?: string;
+    ConfigBinding?: string;
     /** Config key for theme data (resolved to config seedId at seed time) */
-    themeBinding?: string;
+    ThemeBinding?: string;
     /** Cookie name binding */
-    cookieBinding?: string;
-    /** When to run: document_start, document_idle, document_end */
-    runAt?: "document_start" | "document_idle" | "document_end";
+    CookieBinding?: string;
+    /**
+     * When to run. Values are Chrome's `chrome.scripting` enum literals
+     * (third-party value-set — kept verbatim).
+     */
+    RunAt?: "document_start" | "document_idle" | "document_end";
     /** Description */
-    description?: string;
+    Description?: string;
     /** Whether to auto-inject on page load */
-    autoInject: boolean;
+    AutoInject: boolean;
 }
 
 export interface SeedConfigEntry {
     /** Deterministic ID for this config in storage */
-    seedId: string;
+    SeedId: string;
     /** File name (e.g., "macro-looping-config.json") */
-    file: string;
+    File: string;
     /** Relative path in extension dist */
-    filePath: string;
+    FilePath: string;
     /** Key used for binding resolution */
-    key: string;
+    Key: string;
     /** Window global variable name */
-    injectAs?: string;
+    InjectAs?: string;
     /** Description */
-    description?: string;
+    Description?: string;
 }
 
 export interface SeedCssEntry {
     /** File name */
-    file: string;
+    File: string;
     /** Relative path in extension dist */
-    filePath: string;
+    FilePath: string;
     /** Injection target */
-    inject: "head";
+    Inject: "head";
 }
 
 export interface SeedTemplateEntry {
     /** File name */
-    file: string;
+    File: string;
     /** Relative path in extension dist */
-    filePath: string;
+    FilePath: string;
     /** Window global variable name */
-    injectAs?: string;
+    InjectAs?: string;
 }
 
 export interface SeedPromptEntry {
     /** File name */
-    file: string;
+    File: string;
     /** Relative path in extension dist */
-    filePath: string;
+    FilePath: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -144,26 +158,32 @@ export interface SeedPromptEntry {
 /* ------------------------------------------------------------------ */
 
 export interface SeedUrlPattern {
-    pattern: string;
-    matchType: "glob" | "regex";
+    Pattern: string;
+    MatchType: "glob" | "regex" | "exact";
 }
 
 export interface SeedCookieBinding {
-    cookieName: string;
-    url: string;
-    role: "session" | "refresh";
-    description: string;
+    CookieName: string;
+    Url: string;
+    Role: "session" | "refresh" | "other";
+    Description: string;
 }
 
 /* ------------------------------------------------------------------ */
 /*  Project Settings                                                   */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Per-project settings carried straight through from
+ * `ProjectInstruction.Seed.Settings`. Each project pins its own
+ * settings shape (e.g. `MacroControllerSettings`) — the union below is
+ * the manifest-level lens covering every known consumer.
+ */
 export interface SeedProjectSettings {
-    isolateScripts?: boolean;
-    logLevel?: "debug" | "info" | "warn" | "error";
-    retryOnNavigate?: boolean;
-    chatBoxXPath?: string;
-    onlyRunAsDependency?: boolean;
-    allowDynamicRequests?: boolean;
+    IsolateScripts?: boolean;
+    LogLevel?: "debug" | "info" | "warn" | "error";
+    RetryOnNavigate?: boolean;
+    ChatBoxXPath?: string;
+    OnlyRunAsDependency?: boolean;
+    AllowDynamicRequests?: boolean;
 }

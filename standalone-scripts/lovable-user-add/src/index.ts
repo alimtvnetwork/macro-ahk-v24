@@ -15,3 +15,5 @@ export { default as instruction } from "./instruction";
 export { USER_ADD_MIGRATION_V1 } from "./migrations";
 export { UserAddMembershipRoleCode } from "./migrations/membership-role-seed";
 export { UserAddTaskStatusCode } from "./migrations/task-status-seed";
+export { parseUserAddCsv, normalizeRole, UserAddCsvColumn } from "./csv";
+export type { UserAddCsvRow, UserAddCsvParseResult, RoleNormalizeResult } from "./csv";

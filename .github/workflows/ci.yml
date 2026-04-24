@@ -1066,16 +1066,39 @@ jobs:
       - name: Validate ${{ matrix.project }} instruction casing
         run: node scripts/check-instruction-json-casing.mjs standalone-scripts/${{ matrix.project }}
 
+      # Passing-state summary. Only runs when the validator above
+      # exited 0, so the appearance of this line in the log is a
+      # positive signal — both files were scanned and conform to
+      # their respective casing standard. Spells out the exact
+      # contract so a reviewer scanning the log doesn't have to
+      # cross-reference mem://standards/pascalcase-json-keys.
+      - name: ✅ Casing standards validated for ${{ matrix.project }}
+        if: success()
+        run: |
+          echo "✅ Casing standards validated for '${{ matrix.project }}':"
+          echo "   • dist/instruction.json        — PascalCase keys only (canonical)"
+          echo "   • dist/instruction.compat.json — camelCase keys only (transitional snapshot)"
+          echo "   See: mem://standards/pascalcase-json-keys, mem://architecture/instruction-dual-emit-phase-2b.md"
+
       # Run again in --json mode and stash the report on the run
       # summary so a failed leg has a parseable artefact attached
       # without re-running the workflow. Always-on so a passing leg
       # also publishes its (empty-violation) baseline for trend
-      # tracking.
+      # tracking. The header line above the JSON block restates the
+      # casing contract explicitly so the GITHUB_STEP_SUMMARY page
+      # is self-documenting on both pass and fail.
       - name: Publish JSON report to step summary
         if: always()
         run: |
+          STATUS="${{ job.status }}"
+          ICON="✅"
+          if [ "$STATUS" != "success" ]; then ICON="❌"; fi
           {
-            echo "### Casing report — \`${{ matrix.project }}\`"
+            echo "### ${ICON} Casing report — \`${{ matrix.project }}\`"
+            echo ""
+            echo "**Standards enforced:**"
+            echo "- \`dist/instruction.json\` → PascalCase keys only (canonical)"
+            echo "- \`dist/instruction.compat.json\` → camelCase keys only (transitional snapshot)"
             echo ""
             echo '```json'
             node scripts/check-instruction-json-casing.mjs --json standalone-scripts/${{ matrix.project }} || true
@@ -1276,6 +1299,24 @@ jobs:
       # green/red check rather than buried inside the build log.
       - name: Validate instruction.json casing (PascalCase) + compat (camelCase)
         run: pnpm run check:instruction-json-casing
+
+      # Passing-state summary — only emits when the validator above
+      # exited 0. Spells out the contract enforced across all four
+      # standalone projects so a reviewer scrolling the build log
+      # gets a positive confirmation instead of just absence-of-error.
+      - name: ✅ Casing standards validated for all standalone projects
+        if: success()
+        run: |
+          echo "✅ Casing standards validated across all standalone-scripts/*/dist artifacts:"
+          echo "   • dist/instruction.json        — PascalCase keys only (canonical)"
+          echo "   • dist/instruction.compat.json — camelCase keys only (transitional snapshot)"
+          {
+            echo "### ✅ Build-extension casing gate"
+            echo ""
+            echo "All four standalone projects passed before vite copied JSON into the extension bundle:"
+            echo "- \`dist/instruction.json\` → **PascalCase keys only** (canonical)"
+            echo "- \`dist/instruction.compat.json\` → **camelCase keys only** (transitional snapshot)"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build Chrome extension
         run: pnpm run build:extension

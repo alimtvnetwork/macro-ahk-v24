@@ -6,7 +6,7 @@
 
 ## 🔄 In Progress
 
-_Nothing currently in progress._
+- **PascalCase JSON migration — Phase 2** (consumer + storage rollout). Phase 1 ✅ landed 2026-04-25: shared `ProjectInstruction<TSettings>` adopted by all 7 standalone scripts; every `instruction.ts` ships PascalCase keys; `compile-instruction.mjs` dual-emits PascalCase + camelCase aliases so all 47 consumers + persisted storage stay green. Phase 2a (background runtime), Phase 2b (UI + scripts + tests), Phase 2c (drop dual-emit + storage migrator) tracked separately — see `mem://standards/pascalcase-json-keys` and `standalone-scripts/types/instruction/00-readme.md`.
 
 ---
 
@@ -15,7 +15,10 @@ _Nothing currently in progress._
 | # | Item | Priority | Reference |
 |---|---|---|---|
 | 1 | ~~Refactor `payment-banner-hider` per Issue 98 RCA~~ — ✅ **2026-04-24** completed: class split (`PaymentBannerHider` + injected `BannerLocator`), sibling `css/payment-banner-hider.css` declared via `instruction.assets.css`, `BannerState` enum, scoped `[data-marco-banner-hider]` selectors, zero `!important`/casts/rAF/swallowed catches. Build green (`npm run build:payment-banner-hider`), tsc clean, all 4 mandated greps return only doc/comment hits. Version bumped 1.0.0 → 2.230.0. New `scripts/copy-payment-banner-hider-css.mjs` ships the CSS into dist; `check-standalone-dist.mjs` extended to require both artifacts. | ~~High~~ | `spec/22-app-issues/98-payment-banner-hider-violation-rca.md` |
-| 2 | Per-script migration to shared `ProjectInstruction` types (Priority 0.2–0.6) | Low | checklist ready |
+| 2 | ~~Per-script migration to shared `ProjectInstruction` types (Priority 0.2–0.6)~~ — ✅ **Phase 1 complete 2026-04-25**: all 7 `instruction.ts` files import the shared `ProjectInstruction<TSettings>` and use PascalCase keys (`Name`, `World`, `RunAt`, `IsIife`, …); per-script `interface ProjectInstruction` redefinitions removed; `tsc --strict` + ESLint clean across `tsconfig.{sdk,xpath,payment-banner-hider,macro.build,app}.json`; `compile-instruction.mjs` dual-emits camelCase aliases for back-compat; `check-version-sync` made case-flexible (passes ✅). Phase 2 (consumers + storage migrator) listed separately. | ~~Low~~ | `standalone-scripts/types/instruction/00-readme.md` |
+| 2a | **Phase 2a — PascalCase rollout: background runtime consumers** (auto-injector, manifest-seeder, default-project-seeder, project-matcher, script-resolver, injection-handler, builtin-script-guard, namespace-cache, url-matcher, etc.) | Medium | `mem://standards/pascalcase-json-keys` |
+| 2b | **Phase 2b — PascalCase rollout: options UI + popup + scripts + tests** | Medium | same |
+| 2c | **Phase 2c — Drop dual-emit + add chrome.storage.local migrator** that PascalCase-rewrites already-persisted projects on extension upgrade. Bumps a storage schema version. | Medium | same |
 | 3 | Installer hardening v0.3 — sign `checksums.txt` (minisign or cosign) | Low | spec §7.1.4 rule 5 |
 | 4 | Mirror AC-2 main-branch fallback in `install.ps1` | Medium | spec §2 step 5 |
 | 5 | ~~Wire `check:installer-contract` into `.github/workflows/installer-tests.yml`~~ — ✅ **2026-04-24** completed: drift step inserted on the `linux` job before `npm run test:installer`; path triggers extended to fire on contract/constants/checker/generator edits; not duplicated on Windows (platform-agnostic check). YAML parses; local `node scripts/check-installer-contract.mjs` green. | ~~Medium~~ | `.lovable/cicd-issues/01-installer-contract-not-in-ci.md` (closed) |

@@ -6,19 +6,20 @@
  *
  * The manifest is generated at build time by `scripts/generate-seed-manifest.mjs`.
  *
- * ── PascalCase migration (Phase 2a) ──
+ * ── PascalCase storage layer (Phase 2c) ──
  *
  * Reads PascalCase keys from `seed-manifest.json` (the single source of
  * truth for everything we own). The only camelCase that survives is at
  * third-party boundaries — `chrome.storage.local` keys (StoredScript /
  * StoredConfig fields like `filePath`, `loadOrder`) are persistence
  * shapes the runtime hands directly to existing handlers and the
- * options UI; renaming them is Phase 2c (storage migrator) work.
+ * options UI; renaming them is its own dedicated migration.
  *
  * Schema versions accepted:
- *   - v1 (legacy camelCase manifest) — kept readable for one release so a
- *     stale dist directory does not brick the extension.
- *   - v2 (PascalCase manifest, current) — the canonical shape this file targets.
+ *   - v2 (PascalCase manifest, current) — the canonical and ONLY shape
+ *     this file targets. v1 (legacy camelCase) was retired alongside
+ *     the storage-layer cleanup; a v1 manifest in dist/ is now a hard
+ *     error so a stale build cannot silently corrupt the seed pass.
  */
 
 import type { StoredScript, StoredConfig } from "../shared/script-config-types";
@@ -39,8 +40,15 @@ function buildStubCode(fileName: string): string {
     return STUB_PREFIX + `console.error("[manifest-seeder::buildStubCode] STUB: filePath fetch failed\\n  Path: projects/scripts/${fileName}\\n  Missing: Real script code for \\"${fileName}\\"\\n  Reason: Stub placeholder was never replaced — fetch at injection time did not succeed or was not attempted");`;
 }
 
-/** Supported schema versions: v1 (legacy camelCase) + v2 (PascalCase). Inclusive. */
-const SUPPORTED_SCHEMA_VERSIONS = { min: 1, max: 2 };
+/**
+ * Supported schema versions: v2 (PascalCase) only.
+ *
+ * v1 (camelCase) was retired alongside the Phase 2c storage-layer cleanup.
+ * A v1 manifest in dist/ now fails the seed pass instead of silently
+ * remapping — the only safe response is to rebuild with the current
+ * `scripts/generate-seed-manifest.mjs`, which emits v2 unconditionally.
+ */
+const SUPPORTED_SCHEMA_VERSIONS = { min: 2, max: 2 };
 
 /* ------------------------------------------------------------------ */
 /*  Public API                                                         */

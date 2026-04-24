@@ -19,6 +19,7 @@ function mc() { return MacroController.getInstance(); }
 import { IDS, TIMING, state, loopCreditState } from '../shared-state';
 import { log } from '../logging';
 import { runCycle } from '../loop-engine';
+import { trackedSetInterval, trackedClearInterval } from '../interval-registry';
 
 // Re-export status renderer symbols
 export { updateStatus, updateRecordIndicator, statusRenderStats } from './ui-status-renderer';
@@ -149,8 +150,8 @@ export function setLoopInterval(newIntervalMs: number): boolean {
   state.countdown = Math.floor(newIntervalMs / 1000);
 
   if (state.running && state.loopIntervalId) {
-    clearInterval(state.loopIntervalId);
-    state.loopIntervalId = setInterval(runCycle, newIntervalMs);
+    trackedClearInterval(state.loopIntervalId);
+    state.loopIntervalId = trackedSetInterval('LoopControls.cycle', runCycle, newIntervalMs);
     log('Loop timer restarted with new interval');
   }
 

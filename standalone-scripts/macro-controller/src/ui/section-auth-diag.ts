@@ -9,6 +9,7 @@
 
 import { createSkeletonBar } from './skeleton';
 import { logSub } from '../logging';
+import { trackedSetInterval, trackedClearInterval } from '../interval-registry';
 import { cPanelFgDim, cPrimaryLighter } from '../shared-state';
 import { createCollapsibleSection } from './section-collapsible';
 
@@ -182,9 +183,9 @@ export function createAuthDiagRow(deps: AuthDiagDeps): AuthDiagResult {
   // timer to clear itself on next tick instead of stacking.
   if (!diagBody.hasAttribute('data-auth-diag-poll')) {
     diagBody.setAttribute('data-auth-diag-poll', '1');
-    const authDiagPollId = setInterval(function () {
+    const authDiagPollId = trackedSetInterval('UI.authDiagPoll', function () {
       if (!diagBody.isConnected) {
-        clearInterval(authDiagPollId);
+        trackedClearInterval(authDiagPollId);
         return;
       }
       const isVisible = diagBody.style.display !== 'none';

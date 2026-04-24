@@ -10,6 +10,7 @@
 
 import { resolveToken, refreshBearerTokenFromBestSource } from './auth';
 import { TOKEN_POLL_INTERVAL_MS as POLL_INTERVAL_MS, TOKEN_REFRESH_RETRY_MS as REFRESH_RETRY_MS } from './constants';
+import { trackedSetInterval, trackedClearInterval } from './interval-registry';
 
 export interface TokenReadyResult {
   token: string;
@@ -34,7 +35,7 @@ interface TokenGateCtx {
 function finishTokenGate(ctx: TokenGateCtx, result: TokenReadyResult): void {
   if (ctx.settled) return;
   ctx.settled = true;
-  if (ctx.timer !== null) { clearInterval(ctx.timer); }
+  if (ctx.timer !== null) { trackedClearInterval(ctx.timer); }
   ctx.resolve(result);
 }
 
@@ -79,7 +80,7 @@ export function ensureTokenReady(timeoutMs: number): Promise<TokenReadyResult> {
 
     maybeRefreshFromExtension(ctx);
 
-    ctx.timer = setInterval(function () {
+    ctx.timer = trackedSetInterval('Startup.tokenGate', function () {
       const token = resolveToken();
       const elapsed = Date.now() - ctx.startedAt;
       const hasToken = !!token;

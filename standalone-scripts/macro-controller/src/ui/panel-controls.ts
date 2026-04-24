@@ -5,6 +5,7 @@
  * hamburger menu, and save-prompt injection.
  */
 
+import { trackedSetInterval, trackedClearInterval } from '../interval-registry';
 import {
   IDS,
   cPanelBg,
@@ -395,9 +396,9 @@ function buildErrorToggleButton(btnStyle: string): HTMLElement {
   // teardown / navigation), avoiding leaked intervals + closure refs.
   if (!badge.hasAttribute('data-error-badge-poll')) {
     badge.setAttribute('data-error-badge-poll', '1');
-    const badgePollId = setInterval(function () {
+    const badgePollId = trackedSetInterval('UI.errorBadgePoll', function () {
       if (!badge.isConnected) {
-        clearInterval(badgePollId);
+        trackedClearInterval(badgePollId);
         return;
       }
       const count = getOverlayErrorCount();

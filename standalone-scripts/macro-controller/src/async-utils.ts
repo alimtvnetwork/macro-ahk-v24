@@ -10,6 +10,8 @@
  * @see spec/02-coding-guidelines/02-typescript-immutability-standards.md — Rule CQ18
  */
 
+import { trackedSetInterval, trackedClearInterval } from './interval-registry';
+
 // ============================================
 // Types (re-exported for consumers)
 // ============================================
@@ -225,12 +227,12 @@ export function pollUntil<T>(
       return;
     }
 
-    const timer = setInterval(function () {
+    const timer = trackedSetInterval('AsyncUtils.waitForCondition', function () {
       const elapsed = Date.now() - startedAt;
       const result = condition();
 
       if (result) {
-        clearInterval(timer);
+        trackedClearInterval(timer);
         if (options.onFound) { options.onFound(elapsed); }
         resolve(result);
 
@@ -238,7 +240,7 @@ export function pollUntil<T>(
       }
 
       if (elapsed >= timeoutMs) {
-        clearInterval(timer);
+        trackedClearInterval(timer);
         if (options.onTimeout) { options.onTimeout(); }
         resolve(null);
       }

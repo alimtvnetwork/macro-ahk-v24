@@ -20,6 +20,7 @@ import { logDebug } from './error-utils';
 
 import { VERSION } from './shared-state';
 import { log } from './logging';
+import { trackedSetInterval, trackedClearInterval } from './interval-registry';
 
 // ============================================
 // Types (re-exported for consumer compatibility)
@@ -211,7 +212,7 @@ class ToastManager {
       return;
     }
 
-    this.queueDrainTimer = setInterval(() => this.drainQueue(), TOAST_QUEUE_POLL_MS);
+    this.queueDrainTimer = trackedSetInterval('Toast.queueDrain', () => this.drainQueue(), TOAST_QUEUE_POLL_MS);
   }
 
   private drainQueue(): void {
@@ -257,7 +258,7 @@ class ToastManager {
     const hasTimer = this.queueDrainTimer !== null;
 
     if (hasTimer) {
-      clearInterval(this.queueDrainTimer!);
+      trackedClearInterval(this.queueDrainTimer!);
       this.queueDrainTimer = null;
     }
   }

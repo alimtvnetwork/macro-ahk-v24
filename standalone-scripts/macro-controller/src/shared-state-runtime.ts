@@ -143,6 +143,7 @@ export const state: ControllerState = {
   hasFreeCredit: false,
   lastStatusCheck: 0,
   statusRefreshId: null,
+  statusRefreshPeriodMs: null,
   workspaceJustChanged: false,
   workspaceChangedTimer: null,
   workspaceObserverActive: false,

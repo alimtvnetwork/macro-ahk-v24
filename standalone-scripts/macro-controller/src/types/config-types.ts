@@ -443,6 +443,8 @@ export interface ControllerState {
   hasFreeCredit: boolean;
   lastStatusCheck: number;
   statusRefreshId: ReturnType<typeof setTimeout> | null;
+  /** Period (ms) of the currently-installed statusRefresh interval, or null when no timer is active. */
+  statusRefreshPeriodMs: number | null;
   workspaceJustChanged: boolean;
   workspaceChangedTimer: ReturnType<typeof setTimeout> | null;
   workspaceObserverActive: boolean;

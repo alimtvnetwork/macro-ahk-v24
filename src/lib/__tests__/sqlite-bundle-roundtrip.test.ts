@@ -202,6 +202,7 @@ function buildFixture(): MockStore {
   const project: StoredProject = {
     id: "proj-uid-1",
     schemaVersion: 2,
+    slug: "round-trip-fixture",
     name: "Round-Trip Fixture",
     version: "1.2.3",
     description: "Exercises every bundle column — 中文 / emoji 🚀",
@@ -214,8 +215,19 @@ function buildFixture(): MockStore {
       { path: "scripts/late.js", order: 1, runAt: "document_end" },
     ],
     configs: [{ path: "configs/app.json", description: "App config" }],
+    // v5 — modern cookie bindings AND deprecated cookieRules in the SAME
+    // fixture so the round-trip can prove both columns survive independently.
+    cookies: [
+      { cookieName: "sessionid", url: "https://example.com", role: "session" },
+      { cookieName: "refresh", url: "https://example.com", role: "refresh", description: "rotates daily" },
+    ],
     cookieRules: [],
+    dependencies: [
+      { projectId: "shared-utils", version: "^2.1.0" },
+    ],
     settings: { isolateScripts: true, logLevel: "info", retryOnNavigate: false },
+    isGlobal: true,
+    isRemovable: false,
     createdAt: now,
     updatedAt: now,
   };
@@ -231,6 +243,9 @@ function buildFixture(): MockStore {
       configBinding: "cfg-uid-1",
       isIife: true,
       hasDomUsage: false,
+      // v5 — auto-update fields must survive round-trip.
+      updateUrl: "https://example.com/scripts/main.user.js",
+      lastUpdateCheck: "2026-04-23T12:00:00.000Z",
       createdAt: now,
       updatedAt: now,
     },

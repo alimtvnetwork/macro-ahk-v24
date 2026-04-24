@@ -9,8 +9,8 @@
  * Severity codes already match (`Info`/`Warn`/`Error`).
  */
 
-import { LogViewerSeverityCode } from "lovable-common";
-import type { LogViewerEntry } from "lovable-common";
+import { LogViewerSeverityCode } from "../../../lovable-common/src/ui/log-viewer-types";
+import type { LogViewerEntry } from "../../../lovable-common/src/ui/log-viewer-types";
 import { LogSeverity } from "./log-sink";
 import type { LogEntry } from "./log-sink";
 

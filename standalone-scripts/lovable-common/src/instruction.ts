@@ -35,7 +35,7 @@ const instruction: ProjectInstruction = {
     schemaVersion: "1.0",
     name: "lovable-common",
     displayName: "Lovable Common (XPath + API)",
-    version: "1.0.0",
+    version: "2.230.0",
     description: "Shared XPaths, default delays, and (future) LovableApiClient consumed by Lovable Owner Switch and Lovable User Add.",
     world: "MAIN",
     isGlobal: false,

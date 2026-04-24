@@ -13,7 +13,7 @@ const instruction: ProjectInstruction = {
     schemaVersion: "1.0",
     name: "lovable-owner-switch",
     displayName: "Lovable Owner Switch",
-    version: "1.0.0",
+    version: "2.230.0",
     description: "Bulk-switch Lovable workspace ownership from a CSV of LoginEmail → OwnerEmail rows.",
     world: "MAIN",
     isGlobal: false,

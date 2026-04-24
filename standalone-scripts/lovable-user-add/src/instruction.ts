@@ -17,7 +17,7 @@ const instruction: ProjectInstruction = {
     schemaVersion: "1.0",
     name: "lovable-user-add",
     displayName: "Lovable User Add",
-    version: "1.0.0",
+    version: "2.230.0",
     description: "Bulk-add Lovable workspace members from a CSV; promotes Owner rows via shared promoteToOwner.",
     world: "MAIN",
     isGlobal: false,

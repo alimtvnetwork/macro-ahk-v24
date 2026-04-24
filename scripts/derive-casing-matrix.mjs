@@ -83,24 +83,17 @@ const CI_YAML_FILE = path.join(ROOT, ".github", "workflows", "ci.yml");
 
 // ── 1. Load the authoritative project list from REQUIRED_ARTIFACTS. ──
 //
-// We deliberately re-import the module (not regex-parse it) so any
-// future shape change to `REQUIRED_ARTIFACTS` (e.g. adding a project
-// with a non-default file list) is picked up automatically.
-const checkDistMod = await import(
-    /* @vite-ignore */ `file://${CHECK_DIST_FILE}`
-).catch((err) => {
-    console.error(`[derive-casing-matrix] Failed to import ${CHECK_DIST_FILE}: ${err.message}`);
-    process.exit(1);
-});
-
-// `check-standalone-dist.mjs` doesn't currently `export` the constant
-// (it's a script, not a library), so fall back to a regex parse if the
-// import side-effects ran but exposed nothing on the module namespace.
-// The regex is intentionally narrow: matches `const REQUIRED_ARTIFACTS = { … };`.
+// `check-standalone-dist.mjs` is a SCRIPT (not a library) — its top-level
+// code calls `process.exit(1)` when dist/ folders are missing. Importing
+// it would side-effect-fail in any environment that hasn't built the
+// standalones yet (CI's casing job, fresh clones, IDE inspections).
+//
+// So we regex-parse the literal `REQUIRED_ARTIFACTS = { … };` instead.
+// The literal is plain JS object syntax with double-quoted keys/values
+// and no trailing commas — safe to JSON.parse after a quick scrub.
+// (If REQUIRED_ARTIFACTS ever grows comments or expressions, switch to
+// a real JS parser or formally export the constant from that module.)
 function loadRequiredArtifacts() {
-    const exported = checkDistMod?.REQUIRED_ARTIFACTS;
-    if (exported && typeof exported === "object") return exported;
-
     const src = fs.readFileSync(CHECK_DIST_FILE, "utf8");
     const m = src.match(/const REQUIRED_ARTIFACTS\s*=\s*(\{[\s\S]*?\n\});/);
     if (!m) {

@@ -295,11 +295,35 @@ export function refreshStatus(): void {
   refreshStatusRunning();
 }
 
+/**
+ * Install (or reinstall) the workspace status-refresh interval at the period
+ * appropriate for the current `state.running` flag.
+ *
+ * Bug fix (2026-04-25): the previous implementation early-returned whenever a
+ * timer already existed, which meant the running-vs-stopped period transition
+ * (5s ↔ 30s) silently kept the old period. We now compare the desired period
+ * against the period of the currently-installed timer and tear it down + reinstall
+ * when they differ. A no-op fast-path is preserved when the period already matches.
+ */
 export function startStatusRefresh(): void {
-  if (state.statusRefreshId) return;
   const intervalMs = state.running ? (TIMING.WS_CHECK_INTERVAL || 5000) : 30000;
-  log('Starting workspace auto-check (every ' + (intervalMs / 1000) + 's)', 'success');
+
+  // Fast path: already running at the desired cadence.
+  if (state.statusRefreshId && state.statusRefreshPeriodMs === intervalMs) {
+    return;
+  }
+
+  // Period drift (or first install): tear down any existing timer first.
+  if (state.statusRefreshId) {
+    trackedClearInterval(state.statusRefreshId);
+    state.statusRefreshId = null;
+    log('Workspace auto-check period change: ' + (state.statusRefreshPeriodMs ?? 0) / 1000 + 's -> ' + (intervalMs / 1000) + 's', 'info');
+  } else {
+    log('Starting workspace auto-check (every ' + (intervalMs / 1000) + 's)', 'success');
+  }
+
   state.statusRefreshId = trackedSetInterval('LoopControls.statusRefresh', refreshStatus, intervalMs);
+  state.statusRefreshPeriodMs = intervalMs;
   setTimeout(refreshStatus, 1000);
 }
 
@@ -307,6 +331,7 @@ export function stopStatusRefresh(): void {
   if (state.statusRefreshId) {
     trackedClearInterval(state.statusRefreshId);
     state.statusRefreshId = null;
+    state.statusRefreshPeriodMs = null;
     log('Workspace auto-check stopped', 'warn');
   }
 }

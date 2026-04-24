@@ -156,15 +156,17 @@ test("annotation lines snapshot — truncation summary case", (t) => {
     // (object insertion order). Our fixture inserts Name, Version,
     // Assets, badKey0…badKey{N-1}. The first 3 PascalCase keys are
     // legal so the per-key annotations target badKey0, badKey1, badKey2.
-    // The truncation summary fires when the cap (=3) is hit, leaving
-    // 2 unreported violations (badKey3, badKey4). The file-level summary
-    // is always emitted last and names the first offender (badKey0).
+    // The walker reports the offending KEY name in the message and uses
+    // `$` for the root JSON-pointer scope. The truncation summary fires
+    // when the cap (=3) is hit, leaving 2 unreported violations. The
+    // file-level summary is always emitted last and names the first
+    // offender + a remediation hint.
     const expected = [
-        '::error file=<FIXTURE>/dist/instruction.json,title=PascalCase casing violation::/badKey0  →  "badKey0"  (expected PascalCase)',
-        '::error file=<FIXTURE>/dist/instruction.json,title=PascalCase casing violation::/badKey1  →  "badKey1"  (expected PascalCase)',
-        '::error file=<FIXTURE>/dist/instruction.json,title=PascalCase casing violation::/badKey2  →  "badKey2"  (expected PascalCase)',
+        '::error file=<FIXTURE>/dist/instruction.json,title=PascalCase casing violation::$  →  "badKey0"  (expected PascalCase)',
+        '::error file=<FIXTURE>/dist/instruction.json,title=PascalCase casing violation::$  →  "badKey1"  (expected PascalCase)',
+        '::error file=<FIXTURE>/dist/instruction.json,title=PascalCase casing violation::$  →  "badKey2"  (expected PascalCase)',
         '::error file=<FIXTURE>/dist/instruction.json::… and 2 more PascalCase-shape violation(s) in <FIXTURE>/dist/instruction.json (showing first 3; run --json or raise INSTRUCTION_CASING_MAX_ANNOTATIONS for the full list).',
-        '::error file=<FIXTURE>/dist/instruction.json::5 PascalCase-shape violation(s) in <FIXTURE>/dist/instruction.json. First offender: /badKey0  →  "badKey0" (expected PascalCase). Run `node scripts/check-instruction-json-casing.mjs --json` for the full list.',
+        '::error file=<FIXTURE>/dist/instruction.json::5 PascalCase-shape violation(s) in <FIXTURE>/dist/instruction.json. First offender: $ → "badKey0". Fix compile-instruction.mjs or the source instruction.ts so this artifact stays pure PascalCase.',
     ];
 
     assert.deepEqual(

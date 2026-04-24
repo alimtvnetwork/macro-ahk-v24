@@ -34,7 +34,7 @@ _Nothing currently in progress._
 | P4  | Owner Switch project scaffold | ✅ 2026-04-24 (`standalone-scripts/lovable-owner-switch/`) |
 | P5  | Owner Switch SQLite migration + seeds | ✅ 2026-04-24 (`migrations/{ddl,task-status-seed,xpath-setting-seed,index}.ts`) |
 | P6  | Owner Switch CSV parser + validator | ✅ 2026-04-24 (`csv/{splitter,header,cell,parser,validator,email-validator,types,column}.ts` — Q4 cap=2 OwnerEmail cols) |
-| P7  | Owner Switch popup UI shell | ⏳ |
+| P7  | Owner Switch popup UI shell | ✅ 2026-04-24 (`ui/{popup-shell,popup-sections,popup-elements,popup-rows,popup-errors,popup-file-input,popup-css,popup-constants}.ts`) |
 | P8  | Owner Switch login automation | ⏳ |
 | P9  | Owner Switch promote step (uses shared client) | ⏳ |
 | P10 | Owner Switch sign-out + per-row state machine | ⏳ |

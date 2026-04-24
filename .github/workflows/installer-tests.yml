@@ -25,6 +25,10 @@ on:
     paths:
       - 'scripts/install.*'
       - 'scripts/install.config.*'
+      - 'scripts/installer-contract.json'
+      - 'scripts/installer-constants.*'
+      - 'scripts/check-installer-contract.mjs'
+      - 'scripts/generate-installer-constants.mjs'
       - 'tests/installer/**'
       - 'spec/14-update/**'
       - '.github/workflows/installer-tests.yml'
@@ -33,6 +37,10 @@ on:
     paths:
       - 'scripts/install.*'
       - 'scripts/install.config.*'
+      - 'scripts/installer-contract.json'
+      - 'scripts/installer-constants.*'
+      - 'scripts/check-installer-contract.mjs'
+      - 'scripts/generate-installer-constants.mjs'
       - 'tests/installer/**'
       - 'spec/14-update/**'
       - '.github/workflows/installer-tests.yml'
@@ -74,6 +82,17 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends powershell
           pwsh --version
+
+      # ───────────────────────────────────────────────────────────
+      # Drift detector — runs BEFORE the test bundle so a contract
+      # mismatch (install.sh / install.ps1 / installer-constants.{sh,ps1}
+      # vs. installer-contract.json) fails fast. No Node deps required —
+      # the script uses only Node built-ins, so no `npm ci` step needed
+      # here.
+      # Resolves: .lovable/cicd-issues/01-installer-contract-not-in-ci.md
+      # ───────────────────────────────────────────────────────────
+      - name: Check installer contract drift
+        run: node scripts/check-installer-contract.mjs
 
       - name: Run installer test bundle
         run: npm run test:installer

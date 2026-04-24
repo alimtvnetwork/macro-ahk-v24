@@ -55,11 +55,21 @@
  *       JSON-Pointer-like path. Suppresses human-readable logs and GitHub
  *       Actions ::error annotations so the stdout stream is pure JSON
  *       (machine-parseable for debugging, dashboards, or piping into jq).
- *       Exit code semantics are unchanged. Schema:
- *         { tool, version, scannedProjects, exitCode,
+ *       Exit code semantics are unchanged. Schema (version 2):
+ *         { tool, version: 2, scannedProjects, exitCode,
+ *           summary: {
+ *             scannedProjects, skippedProjects, missingArtifactProjects,
+ *             totalViolations, ok,
+ *             totals: {
+ *               canonical: { shape:"PascalCase", artifact:"instruction.json",
+ *                            scanned, violationCount, parseErrors,
+ *                            walkAborted, failingProjects: [...], ok },
+ *               compat:    { shape:"camelCase",  artifact:"instruction.compat.json", … }
+ *             }
+ *           },
  *           projects: [{ name, skipped, missingArtifact,
  *             artifacts: { canonical: { path, shape, ok, parseError,
- *               violationCount, violations: [{ path, key, expected }] },
+ *               walkAborted, violationCount, violations: [{ path, key, expected }] },
  *                          compat:    { … } } }] }
  *
  * Exit codes:

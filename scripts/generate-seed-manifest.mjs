@@ -9,17 +9,18 @@
  * instruction.json is the SOLE source of truth — script-manifest.json
  * is no longer required.
  *
- * ── PascalCase migration (Phase 2a) ──
+ * ── PascalCase storage layer (Phase 2c) ──
  *
- * The emitted seed-manifest.json uses PascalCase keys end-to-end, matching
- * `ProjectInstruction` / `SeedManifest` (TS type). Reading from instruction.json
- * prefers PascalCase keys and falls back to legacy camelCase aliases (still
- * dual-emitted by `compile-instruction.mjs`) so a half-migrated tree still
- * builds. The fallback is removed in Phase 2c.
+ * The emitted seed-manifest.json uses PascalCase keys end-to-end,
+ * matching `ProjectInstruction` / `SeedManifest` (TS type). The reader
+ * below requires the input `instruction.json` to be the canonical
+ * PascalCase artifact emitted by `scripts/compile-instruction.mjs`
+ * (Phase 2b) — no camelCase fallback. The transitional
+ * `instruction.compat.json` is consumed only by the vite copy plugin.
  *
- * SchemaVersion bumped 1 → 2: PascalCase key rename. The runtime seeder
- * (`src/background/manifest-seeder.ts`) accepts both versions for one
- * release (see SUPPORTED_SCHEMA_VERSIONS there).
+ * SchemaVersion is pinned to 2: PascalCase rename. The runtime seeder
+ * (`src/background/manifest-seeder.ts`) only accepts v2; v1
+ * (camelCase) was removed alongside this script's compat read.
  *
  * Usage:
  *   node scripts/generate-seed-manifest.mjs [--out <path>]
@@ -36,22 +37,39 @@ import { execFileSync } from "node:child_process";
 const ROOT = resolve(import.meta.dirname, "..");
 const STANDALONE_DIR = join(ROOT, "standalone-scripts");
 
-/** Bumped to 2 when PascalCase rename landed (Phase 2a). */
+/** Pinned to 2 when PascalCase rename landed (Phase 2a). v1 (camelCase)
+ * is no longer emitted; v1 manifests are not accepted by the runtime
+ * seeder either (see manifest-seeder.ts SUPPORTED_SCHEMA_VERSIONS). */
 const SCHEMA_VERSION = 2;
 
 /* ------------------------------------------------------------------ */
-/*  Reader helpers — prefer PascalCase, fall back to camelCase          */
-/*  during the Phase 2a→2c migration window. Both spellings are still   */
-/*  dual-emitted by compile-instruction.mjs.                            */
+/*  Reader — PascalCase only                                            */
+/*                                                                      */
+/*  Phase 2c (storage layer) requires the input instruction.json to be  */
+/*  the canonical PascalCase artifact emitted by compile-instruction.   */
+/*  No camelCase fallback. A missing key is a hard error visible in the */
+/*  build log; do NOT add `pick(obj, "Pascal", "camel")` lenience here. */
 /* ------------------------------------------------------------------ */
 
-/** Read the first defined value from `obj` for any of `keys`. */
-function pick(obj, ...keys) {
-    if (!obj || typeof obj !== "object") return undefined;
-    for (const key of keys) {
-        if (key in obj && obj[key] !== undefined) return obj[key];
+/** Read a required PascalCase key. Throws with a precise location if missing/undefined. */
+function need(obj, key, location) {
+    if (!obj || typeof obj !== "object") {
+        throw new Error(`[generate-seed-manifest] ${location}: expected object, got ${typeof obj}`);
     }
-    return undefined;
+    if (!(key in obj) || obj[key] === undefined) {
+        throw new Error(
+            `[generate-seed-manifest] ${location}: missing required PascalCase key "${key}". ` +
+            `Re-run \`node scripts/compile-instruction.mjs <project>\` to regenerate ` +
+            `instruction.json from the source instruction.ts.`,
+        );
+    }
+    return obj[key];
+}
+
+/** Read an optional PascalCase key. Returns the value or `fallback` (default undefined). */
+function opt(obj, key, fallback = undefined) {
+    if (!obj || typeof obj !== "object") return fallback;
+    return key in obj && obj[key] !== undefined ? obj[key] : fallback;
 }
 
 /* ------------------------------------------------------------------ */
@@ -141,40 +159,44 @@ function ensureFreshInstructionJson(name, projectDir, sourceInstructionPath, ins
 
 function buildProjectEntry(name, instruction) {
     const basePath = `projects/scripts/${name}`;
+    const where = `instruction.json[${name}]`;
 
-    // Read seed block from instruction (the single source of truth).
-    // Prefer PascalCase, fall back to legacy camelCase during migration.
-    const seed = pick(instruction, "Seed", "seed") || {};
-    const assets = pick(instruction, "Assets", "assets") || {};
+    // Read seed + assets blocks. Required at the top level so a malformed
+    // instruction.json fails the build with a precise message instead of
+    // silently producing an empty project entry.
+    const seed = need(instruction, "Seed", where);
+    const assets = need(instruction, "Assets", where);
 
-    const displayName = pick(instruction, "DisplayName", "displayName") || name;
-    const version = pick(instruction, "Version", "version") || "1.0.0";
-    const description = pick(instruction, "Description", "description") || "";
-    const world = pick(instruction, "World", "world") || "MAIN";
-    const loadOrder = pick(instruction, "LoadOrder", "loadOrder") ?? 99;
-    const isGlobal = pick(instruction, "IsGlobal", "isGlobal") === true;
-    const dependencies = pick(instruction, "Dependencies", "dependencies") || [];
+    const displayName = opt(instruction, "DisplayName", name);
+    const version = opt(instruction, "Version", "1.0.0");
+    const description = opt(instruction, "Description", "");
+    const world = opt(instruction, "World", "MAIN");
+    const loadOrder = opt(instruction, "LoadOrder", 99);
+    const isGlobal = opt(instruction, "IsGlobal", false) === true;
+    const dependencies = opt(instruction, "Dependencies", []);
 
-    const seedId = pick(seed, "Id", "id") || `default-${name}`;
-    const seedOnInstall = pick(seed, "SeedOnInstall", "seedOnInstall") ?? true;
-    const isRemovable = pick(seed, "IsRemovable", "isRemovable") ?? true;
-    const seedRunAt = pick(seed, "RunAt", "runAt");
-    const seedAutoInject = pick(seed, "AutoInject", "autoInject") ?? true;
-    const seedCookieBinding = pick(seed, "CookieBinding", "cookieBinding");
-    const configSeedIds = pick(seed, "ConfigSeedIds", "configSeedIds") || {};
+    const seedId = opt(seed, "Id", `default-${name}`);
+    const seedOnInstall = opt(seed, "SeedOnInstall", true);
+    const isRemovable = opt(seed, "IsRemovable", true);
+    const seedRunAt = opt(seed, "RunAt");
+    const seedAutoInject = opt(seed, "AutoInject", true);
+    const seedCookieBinding = opt(seed, "CookieBinding");
+    const configSeedIds = opt(seed, "ConfigSeedIds", {});
 
-    // Build script entries from Assets.Scripts
+    // Build script entries from Assets.Scripts. `File` is required per
+    // entry — without it we cannot build a FilePath the seeder can fetch.
     const scripts = [];
-    const scriptAssets = pick(assets, "Scripts", "scripts") || [];
+    const scriptAssets = opt(assets, "Scripts", []);
     for (const s of scriptAssets) {
+        const file = need(s, "File", `${where}.Assets.Scripts[]`);
         scripts.push({
             SeedId: seedId,
-            File: pick(s, "File", "file"),
-            FilePath: `${basePath}/${pick(s, "File", "file")}`,
-            Order: pick(s, "Order", "order") ?? 0,
-            IsIife: pick(s, "IsIife", "isIife") ?? true,
-            ConfigBinding: pick(s, "ConfigBinding", "configBinding"),
-            ThemeBinding: pick(s, "ThemeBinding", "themeBinding"),
+            File: file,
+            FilePath: `${basePath}/${file}`,
+            Order: opt(s, "Order", 0),
+            IsIife: opt(s, "IsIife", true),
+            ConfigBinding: opt(s, "ConfigBinding"),
+            ThemeBinding: opt(s, "ThemeBinding"),
             CookieBinding: seedCookieBinding,
             RunAt: seedRunAt,
             Description: description,
@@ -182,60 +204,70 @@ function buildProjectEntry(name, instruction) {
         });
     }
 
-    // Build config entries from Assets.Configs
+    // Build config entries from Assets.Configs. `File` and `Key` are required.
     const configs = [];
-    const configAssets = pick(assets, "Configs", "configs") || [];
+    const configAssets = opt(assets, "Configs", []);
     for (const c of configAssets) {
-        const key = pick(c, "Key", "key");
+        const file = need(c, "File", `${where}.Assets.Configs[]`);
+        const key = need(c, "Key", `${where}.Assets.Configs[]`);
         configs.push({
             SeedId: configSeedIds[key] || `default-${name}-${key}`,
-            File: pick(c, "File", "file"),
-            FilePath: `${basePath}/${pick(c, "File", "file")}`,
+            File: file,
+            FilePath: `${basePath}/${file}`,
             Key: key,
-            InjectAs: pick(c, "InjectAs", "injectAs"),
+            InjectAs: opt(c, "InjectAs"),
             Description: `${key} config for ${displayName}`,
         });
     }
 
     // Build CSS entries
-    const cssAssets = pick(assets, "Css", "css") || [];
-    const css = cssAssets.map(c => ({
-        File: pick(c, "File", "file"),
-        FilePath: `${basePath}/${pick(c, "File", "file")}`,
-        Inject: pick(c, "Inject", "inject") || "head",
-    }));
+    const cssAssets = opt(assets, "Css", []);
+    const css = cssAssets.map((c) => {
+        const file = need(c, "File", `${where}.Assets.Css[]`);
+        return {
+            File: file,
+            FilePath: `${basePath}/${file}`,
+            Inject: opt(c, "Inject", "head"),
+        };
+    });
 
     // Build template entries
-    const templateAssets = pick(assets, "Templates", "templates") || [];
-    const templates = templateAssets.map(t => ({
-        File: pick(t, "File", "file"),
-        FilePath: `${basePath}/${pick(t, "File", "file")}`,
-        InjectAs: pick(t, "InjectAs", "injectAs"),
-    }));
+    const templateAssets = opt(assets, "Templates", []);
+    const templates = templateAssets.map((t) => {
+        const file = need(t, "File", `${where}.Assets.Templates[]`);
+        return {
+            File: file,
+            FilePath: `${basePath}/${file}`,
+            InjectAs: opt(t, "InjectAs"),
+        };
+    });
 
     // Build prompt entries
-    const promptAssets = pick(assets, "Prompts", "prompts") || [];
-    const prompts = promptAssets.map(p => ({
-        File: pick(p, "File", "file"),
-        FilePath: `${basePath}/${pick(p, "File", "file")}`,
+    const promptAssets = opt(assets, "Prompts", []);
+    const prompts = promptAssets.map((p) => {
+        const file = need(p, "File", `${where}.Assets.Prompts[]`);
+        return {
+            File: file,
+            FilePath: `${basePath}/${file}`,
+        };
+    });
+
+    // TargetUrls / Cookies / Settings — pure PascalCase, no fallback.
+    const targetUrlsRaw = opt(seed, "TargetUrls", []);
+    const targetUrls = targetUrlsRaw.map((u) => ({
+        Pattern: need(u, "Pattern", `${where}.Seed.TargetUrls[]`),
+        MatchType: need(u, "MatchType", `${where}.Seed.TargetUrls[]`),
     }));
 
-    // TargetUrls / Cookies / Settings — copy fields with PascalCase preference
-    const targetUrlsRaw = pick(seed, "TargetUrls", "targetUrls") || [];
-    const targetUrls = targetUrlsRaw.map(u => ({
-        Pattern: pick(u, "Pattern", "pattern"),
-        MatchType: pick(u, "MatchType", "matchType"),
+    const cookiesRaw = opt(seed, "Cookies", []);
+    const cookies = cookiesRaw.map((c) => ({
+        CookieName: need(c, "CookieName", `${where}.Seed.Cookies[]`),
+        Url: need(c, "Url", `${where}.Seed.Cookies[]`),
+        Role: need(c, "Role", `${where}.Seed.Cookies[]`),
+        Description: opt(c, "Description", ""),
     }));
 
-    const cookiesRaw = pick(seed, "Cookies", "cookies") || [];
-    const cookies = cookiesRaw.map(c => ({
-        CookieName: pick(c, "CookieName", "cookieName"),
-        Url: pick(c, "Url", "url"),
-        Role: pick(c, "Role", "role"),
-        Description: pick(c, "Description", "description"),
-    }));
-
-    const settings = pick(seed, "Settings", "settings") || {};
+    const settings = opt(seed, "Settings", {});
 
     return {
         Name: name,

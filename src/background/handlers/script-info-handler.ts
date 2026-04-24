@@ -16,20 +16,35 @@ import type { MessageRequest } from "../../shared/messages";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
+/*                                                                      */
+/*  Phase 2c (storage layer): the runtime reads the canonical          */
+/*  PascalCase `instruction.json` emitted by                            */
+/*  `scripts/compile-instruction.mjs`. The transitional camelCase      */
+/*  `instruction.compat.json` is consumed only by the vite copy plugin */
+/*  and MUST NOT leak back into runtime reads here. Keys are PascalCase */
+/*  with no fallback — a stale camelCase artifact will surface as a    */
+/*  precise "no scripts declared" error rather than be silently          */
+/*  remapped.                                                           */
 /* ------------------------------------------------------------------ */
 
+interface InstructionManifestScriptAsset {
+    File: string;
+    Order: number;
+    IsIife?: boolean;
+}
+
 interface InstructionManifest {
-    name: string;
-    displayName: string;
-    version: string;
-    description?: string;
-    world?: string;
-    dependencies?: string[];
-    assets?: {
-        scripts?: Array<{ file: string; order: number; isIife?: boolean }>;
-        css?: Array<{ file: string }>;
-        configs?: Array<{ file: string; key: string }>;
-        templates?: Array<{ file: string }>;
+    Name: string;
+    DisplayName: string;
+    Version: string;
+    Description?: string;
+    World?: string;
+    Dependencies?: string[];
+    Assets?: {
+        Scripts?: InstructionManifestScriptAsset[];
+        Css?: Array<{ File: string }>;
+        Configs?: Array<{ File: string; Key: string }>;
+        Templates?: Array<{ File: string }>;
     };
 }
 
@@ -89,11 +104,11 @@ async function fetchInstruction(folder: string): Promise<InstructionManifest> {
 
 /** Gets the primary output file from an instruction manifest. */
 function getPrimaryOutputFile(instruction: InstructionManifest): string | null {
-    const scripts = instruction.assets?.scripts;
+    const scripts = instruction.Assets?.Scripts;
     if (!scripts?.length) return null;
-    // Sort by order and return the first script's file
-    const sorted = [...scripts].sort((a, b) => a.order - b.order);
-    return sorted[0].file;
+    // Sort by Order and return the first script's File
+    const sorted = [...scripts].sort((a, b) => a.Order - b.Order);
+    return sorted[0].File;
 }
 
 /* ------------------------------------------------------------------ */
@@ -135,8 +150,8 @@ export async function handleGetScriptInfo(
 
         return {
             isOk: true,
-            scriptName: instruction.name,
-            bundledVersion: instruction.version,
+            scriptName: instruction.Name,
+            bundledVersion: instruction.Version,
             outputFile,
             sizeBytes,
         };
@@ -194,14 +209,14 @@ export async function handleHotReloadScript(
         }
 
         console.log(
-            `[Marco] HOT_RELOAD_SCRIPT: ${scriptName} v${instruction.version} (${scriptSource.length} bytes)`,
+            `[Marco] HOT_RELOAD_SCRIPT: ${scriptName} v${instruction.Version} (${scriptSource.length} bytes)`,
         );
 
         return {
             isOk: true,
-            scriptName: instruction.name,
-            version: instruction.version,
-            bundledVersion: instruction.version,
+            scriptName: instruction.Name,
+            version: instruction.Version,
+            bundledVersion: instruction.Version,
             outputFile,
             sizeBytes,
             scriptSource,

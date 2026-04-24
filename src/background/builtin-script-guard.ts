@@ -235,9 +235,14 @@ async function seedMissingBuiltinsDirectly(
         try {
             const instrResp = await fetch(instrAbsUrl);
             if (instrResp.ok) {
-                const instr = await instrResp.json();
-                description = instr.description || description;
-                version = instr.version || version;
+                // Phase 2c: instruction.json is the canonical PascalCase
+                // artifact. Reads use PascalCase keys with no fallback —
+                // a stale camelCase artifact will surface as defaults
+                // (description = "Built-in script: …", version = "1.0.0")
+                // rather than be silently remapped.
+                const instr = await instrResp.json() as { Description?: string; Version?: string };
+                description = instr.Description || description;
+                version = instr.Version || version;
                 console.log("[builtin-guard:fallback] ✅ Read instruction.json for %s: v%s (from %s)",
                     scriptName, version, instrAbsUrl);
             } else {

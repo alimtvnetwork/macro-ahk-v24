@@ -260,6 +260,36 @@ function fixHint(locationKey, scriptName) {
 function emitJsonReport(matrix) {
     const locations = LOCATIONS.map((loc) => ({ key: loc.key, label: loc.label }));
 
+    // ── locationsRegistry ───────────────────────────────────────────
+    // Object keyed by `LOCATIONS[].key` so external tools can do an
+    // O(1) lookup for the meaning + fix-target of a gap without
+    // re-iterating `locations[]`. Provides the SAME information that
+    // is documented inline in the source `LOCATIONS` array, so the
+    // JSON payload becomes self-documenting (a consumer never has to
+    // round-trip back to this script's source to render a matrix).
+    //
+    // Schema contract (frozen at schemaVersion 1.1):
+    //   {
+    //     <key>: {
+    //       label:   string,         // mirror of locations[].label
+    //       meaning: string,         // one-sentence "what is checked"
+    //       fixFile: string | null,  // repo-relative path to edit;
+    //                                // null when path is per-script
+    //                                // (e.g. tsconfig.<name>.json)
+    //     },
+    //     …
+    //   }
+    const locationsRegistry = Object.fromEntries(
+        LOCATIONS.map((loc) => [
+            loc.key,
+            {
+                label: loc.label,
+                meaning: loc.meaning,
+                fixFile: loc.fixFile,
+            },
+        ])
+    );
+
     const scriptsReport = matrix.map((row) => {
         const gaps = LOCATIONS
             .filter((loc) => !row.wiring[loc.key])
@@ -292,7 +322,9 @@ function emitJsonReport(matrix) {
     const willExit = STRICT && totalGaps > 0 ? 1 : 0;
 
     const report = {
-        schemaVersion: "1.0",
+        // Bumped 1.0 → 1.1: added top-level `locationsRegistry`.
+        // Minor bump (additive, every consumer pinned to ^1 still validates).
+        schemaVersion: "1.1",
         mode: STRICT ? "strict" : "report-only",
         generatedAt: new Date().toISOString(),
         repoRoot: REPO_ROOT,
@@ -303,6 +335,7 @@ function emitJsonReport(matrix) {
             gapCount: totalGaps,
         },
         locations,
+        locationsRegistry,
         scripts: scriptsReport,
         exitCode: willExit,
     };

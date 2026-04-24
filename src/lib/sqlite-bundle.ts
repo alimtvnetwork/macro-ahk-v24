@@ -488,6 +488,14 @@ export async function previewSqliteZip(file: File): Promise<BundlePreview> {
   const dbData = await dbFile.async("uint8array");
   const db = await openDb(dbData);
 
+  // Strict PascalCase v4 contract gate. Block the preview dialog from
+  // ever showing rows extracted from a malformed/legacy bundle.
+  const validation = validateBundleSchema(db, "full");
+  if (!validation.ok) {
+    db.close();
+    throw new Error(formatValidationError(validation));
+  }
+
   const projects = readProjects(db);
   const scripts = readScripts(db);
   const configs = readConfigs(db);

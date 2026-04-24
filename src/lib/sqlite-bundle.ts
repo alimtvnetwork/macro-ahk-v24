@@ -28,6 +28,7 @@ import type {
   StoredConfig,
 } from "@/hooks/use-projects-scripts";
 import type { PromptEntry } from "@/hooks/use-prompts";
+import { validateBundleSchema, formatValidationError } from "@/lib/sqlite-bundle-contract";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */

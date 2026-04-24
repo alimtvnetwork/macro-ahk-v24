@@ -50,15 +50,65 @@ const IS_CI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true"
 /** Folders inside standalone-scripts/ that are NOT discoverable as a standalone script. */
 const EXCLUDED_FOLDERS = new Set(["_generated", "types", "prompts"]);
 
-/** Locations every script must appear in. Stable, ordered for the matrix header. */
+/**
+ * Locations every script must appear in. Stable, ordered for the
+ * matrix header AND for the JSON `locations[]` / `locationsRegistry`
+ * fields. Each entry carries:
+ *   - `key`     — stable identifier; pinned by schemaVersion
+ *   - `label`   — short human-readable column header (matrix + JSON)
+ *   - `meaning` — one-sentence explanation of WHAT this location means
+ *                 (i.e. what is checked, why it must exist). Surfaced
+ *                 in the JSON `locationsRegistry` so external tools
+ *                 can render the matrix without round-tripping back
+ *                 to this file for documentation.
+ *   - `fixFile` — repo-relative path of the file that must be edited
+ *                 to satisfy this location (mirrors `fixHint(...).file`
+ *                 but available without knowing the script name).
+ *                 `null` when the path is per-script (tsconfig/vite).
+ */
 const LOCATIONS = [
-    { key: "pkgScript", label: "package.json scripts.build:<name>" },
-    { key: "pkgExtensionChain", label: "package.json build:extension chain" },
-    { key: "buildStandalone", label: "scripts/build-standalone.mjs" },
-    { key: "checkDist", label: "scripts/check-standalone-dist.mjs" },
-    { key: "tsconfig", label: "tsconfig.<name>.json" },
-    { key: "viteConfig", label: "vite.config.<name>.ts" },
-    { key: "ciJob", label: ".github/workflows/ci.yml build-<name>" },
+    {
+        key: "pkgScript",
+        label: "package.json scripts.build:<name>",
+        meaning: "A `build:<scriptName>` entry exists in root package.json `scripts` so the script can be built individually (and chained from `build:extension`).",
+        fixFile: "package.json",
+    },
+    {
+        key: "pkgExtensionChain",
+        label: "package.json build:extension chain",
+        meaning: "The root `build:extension` script either invokes `build:<scriptName>` or compiles `standalone-scripts/<scriptName>` so the extension build always picks up this script's dist.",
+        fixFile: "package.json",
+    },
+    {
+        key: "buildStandalone",
+        label: "scripts/build-standalone.mjs",
+        meaning: "The script name appears in the PROJECTS array of `scripts/build-standalone.mjs` so the orchestrator that builds every standalone in one pass includes it.",
+        fixFile: "scripts/build-standalone.mjs",
+    },
+    {
+        key: "checkDist",
+        label: "scripts/check-standalone-dist.mjs",
+        meaning: "The script name appears in `REQUIRED_ARTIFACTS` of `scripts/check-standalone-dist.mjs` so the post-build dist gate verifies its bundle and instruction.json exist.",
+        fixFile: "scripts/check-standalone-dist.mjs",
+    },
+    {
+        key: "tsconfig",
+        label: "tsconfig.<name>.json",
+        meaning: "A `tsconfig.<scriptName>.json` file exists at the repo root so the script has its own typecheck scope (extends the standalone base).",
+        fixFile: null,
+    },
+    {
+        key: "viteConfig",
+        label: "vite.config.<name>.ts",
+        meaning: "A `vite.config.<scriptName>.ts` file exists at the repo root so the script has its own bundle config that emits an IIFE bundle to `standalone-scripts/<scriptName>/dist/`.",
+        fixFile: null,
+    },
+    {
+        key: "ciJob",
+        label: ".github/workflows/ci.yml build-<name>",
+        meaning: "A `build-<scriptName>:` job exists in `.github/workflows/ci.yml` so CI builds and uploads the dist artifact that downstream jobs (`build-extension`, e2e) depend on.",
+        fixFile: ".github/workflows/ci.yml",
+    },
 ];
 
 // ───────────────────────── helpers ──────────────────────────────────

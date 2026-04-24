@@ -28,6 +28,7 @@ import type {
   StoredConfig,
 } from "@/hooks/use-projects-scripts";
 import type { PromptEntry } from "@/hooks/use-prompts";
+import { validateBundleSchema, formatValidationError } from "@/lib/sqlite-bundle-contract";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -487,6 +488,14 @@ export async function previewSqliteZip(file: File): Promise<BundlePreview> {
   const dbData = await dbFile.async("uint8array");
   const db = await openDb(dbData);
 
+  // Strict PascalCase v4 contract gate. Block the preview dialog from
+  // ever showing rows extracted from a malformed/legacy bundle.
+  const validation = validateBundleSchema(db, "full");
+  if (!validation.ok) {
+    db.close();
+    throw new Error(formatValidationError(validation));
+  }
+
   const projects = readProjects(db);
   const scripts = readScripts(db);
   const configs = readConfigs(db);
@@ -582,6 +591,16 @@ async function extractBundle(file: File) {
   if (!dbFile) throw new Error(`Invalid bundle: missing ${DB_FILENAME} inside the zip`);
   const dbData = await dbFile.async("uint8array");
   const db = await openDb(dbData);
+
+  // Strict PascalCase v4 contract gate. Runs BEFORE we read any rows so
+  // a malformed bundle never reaches the SAVE_* messaging layer (where
+  // partial writes could corrupt the live extension state).
+  const validation = validateBundleSchema(db, "full");
+  if (!validation.ok) {
+    db.close();
+    throw new Error(formatValidationError(validation));
+  }
+
   const projects = readProjects(db);
   const scripts = readScripts(db);
   const configs = readConfigs(db);
@@ -702,18 +721,28 @@ export async function exportPromptsAsSqliteZip(): Promise<void> {
   triggerDownload(blob, "marco-prompts-backup.zip");
 }
 
-/** Imports prompts from a SQLite ZIP (replace mode). */
-export async function importPromptsFromSqliteZip(file: File): Promise<{ promptCount: number }> {
+/** Shared extractor + strict validator for prompts-only bundles. */
+async function extractPromptsBundle(file: File): Promise<PromptEntry[]> {
   const arrayBuffer = await file.arrayBuffer();
   const JSZipCtor = await loadJSZip(); const zip = await JSZipCtor.loadAsync(arrayBuffer);
   const dbFile = zip.file(DB_FILENAME);
   if (!dbFile) throw new Error(`Invalid bundle: missing ${DB_FILENAME} inside the zip`);
   const dbData = await dbFile.async("uint8array");
   const db = await openDb(dbData);
+  const validation = validateBundleSchema(db, "prompts-only");
+  if (!validation.ok) {
+    db.close();
+    throw new Error(formatValidationError(validation));
+  }
   const prompts = readPrompts(db);
   db.close();
-
   if (prompts.length === 0) throw new Error("No prompts found in bundle");
+  return prompts;
+}
+
+/** Imports prompts from a SQLite ZIP (replace mode). */
+export async function importPromptsFromSqliteZip(file: File): Promise<{ promptCount: number }> {
+  const prompts = await extractPromptsBundle(file);
 
   // Delete existing non-default prompts, then save imported ones
   const existing = await sendMessage<{ prompts?: PromptEntry[] }>({ type: "GET_PROMPTS" });
@@ -734,21 +763,10 @@ export async function importPromptsFromSqliteZip(file: File): Promise<{ promptCo
 
 /** Merges prompts from a SQLite ZIP (no deletions). */
 export async function mergePromptsFromSqliteZip(file: File): Promise<{ promptCount: number }> {
-  const arrayBuffer = await file.arrayBuffer();
-  const JSZipCtor = await loadJSZip(); const zip = await JSZipCtor.loadAsync(arrayBuffer);
-  const dbFile = zip.file(DB_FILENAME);
-  if (!dbFile) throw new Error(`Invalid bundle: missing ${DB_FILENAME} inside the zip`);
-  const dbData = await dbFile.async("uint8array");
-  const db = await openDb(dbData);
-  const prompts = readPrompts(db);
-  db.close();
-
-  if (prompts.length === 0) throw new Error("No prompts found in bundle");
-
+  const prompts = await extractPromptsBundle(file);
   for (const p of prompts) {
     await sendMessage({ type: "SAVE_PROMPT", prompt: p });
   }
-
   return { promptCount: prompts.length };
 }
 

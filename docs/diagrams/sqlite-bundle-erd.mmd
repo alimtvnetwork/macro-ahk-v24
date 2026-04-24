@@ -1,15 +1,16 @@
 %%{init: {'theme': 'dark'}}%%
-%% Marco Extension — Bundle (Import/Export) SQLite ERD
+%% Marco Extension - Bundle Import/Export SQLite ERD
 %% Source of truth: src/lib/sqlite-bundle.ts
-%% Bundle file:     marco-backup.zip → contains marco-backup.db (sql.js export, format_version='4')
+%% Bundle file: marco-backup.zip contains marco-backup.db (sql.js export, format_version 4)
 %%
 %% Contract:
-%%   - All tables and columns are PascalCase (no underscores).
-%%   - All `Id` columns are INTEGER PRIMARY KEY AUTOINCREMENT (surrogate keys).
-%%   - Runtime UUIDs travel in a separate `Uid TEXT` column (v4+).
-%%     Legacy v3 bundles stored the runtime UUID in a TEXT `Id` column;
-%%     `resolveUid()` falls back transparently on import.
-%%   - `Meta` rows: ('exported_at', ISO-8601), ('format_version', '4').
+%%   - All tables and columns are PascalCase, no underscores.
+%%   - All Id columns are INTEGER PRIMARY KEY AUTOINCREMENT.
+%%   - Runtime UUIDs travel in a separate Uid TEXT column (v4+).
+%%   - Legacy v3 bundles stored the runtime UUID in a TEXT Id column.
+%%   - resolveUid() falls back transparently on import.
+%%   - Meta rows: exported_at (ISO-8601) and format_version 4.
+
 
 erDiagram
     Projects {

@@ -1,8 +1,13 @@
-# Global Instruction Types — Draft for Review
+# Global Instruction Types — Phase 1 (PascalCase) Landed
 
-**Status**: 🟢 Q1–Q4 locked (2026-04-24) — see `spec/21-app/01-chrome-extension/standalone-scripts-types/01-overview.md` §5. Build-out of the 19 files is unblocked. Q5 (runtime base class) is deferred and does not block.
-**Target consumers**: every standalone script (`marco-sdk`, `xpath`, `macro-controller`, `payment-banner-hider`, …).
-**Goal**: replace each project's local `ProjectInstruction` interface, ad-hoc string unions (`"MAIN" | "ISOLATED"`, `"glob" | "regex"`, `"document_idle" | "document_end"`), and inline array element types with a single shared, strongly-typed contract.
+**Status**: 🟢 Phase 1 complete (2026-04-25). Every standalone-script `instruction.ts` now imports `ProjectInstruction<TSettings>` from `./project-instruction.ts` and uses **PascalCase keys everywhere**. The Q4 long-camelCase draft (`injectionWorld`, `injectionRunAt`, `isImmediatelyInvokedFunction`, `injectInto`) is **withdrawn** — superseded by `mem://standards/pascalcase-json-keys`.
+
+`scripts/compile-instruction.mjs` runs in **dual-emit mode** during the transition: every PascalCase key (`Name`, `World`, `RunAt`, `IsIife`, …) is mirrored as a camelCase alias (`name`, `world`, `runAt`, `isIife`, …) on every nested object. The 47 legacy consumers in `src/background/`, `src/components/options/`, `src/options/`, `src/popup/`, `src/lib/`, and `scripts/generate-seed-manifest.mjs` therefore keep working unchanged.
+
+**Phase 2 (next loops)** rewrites every consumer to read the canonical PascalCase keys, then drops the dual-emit aliases (replaces `addCamelCaseAliases(obj)` with `obj`) and adds a one-shot `chrome.storage.local` migrator that PascalCase-rewrites already-persisted projects on extension upgrade.
+
+**Target consumers**: every standalone script (`marco-sdk`, `xpath`, `macro-controller`, `payment-banner-hider`, `lovable-common`, `lovable-owner-switch`, `lovable-user-add`).
+**Goal**: replace each project's local `ProjectInstruction` interface, ad-hoc string unions (`"MAIN" | "ISOLATED"`, `"glob" | "regex"`, `"document_idle" | "document_end"`), and inline array element types with a single shared, strongly-typed contract. **Phase 1 done.**
 
 ## Conventions enforced in this folder
 

@@ -755,21 +755,10 @@ export async function importPromptsFromSqliteZip(file: File): Promise<{ promptCo
 
 /** Merges prompts from a SQLite ZIP (no deletions). */
 export async function mergePromptsFromSqliteZip(file: File): Promise<{ promptCount: number }> {
-  const arrayBuffer = await file.arrayBuffer();
-  const JSZipCtor = await loadJSZip(); const zip = await JSZipCtor.loadAsync(arrayBuffer);
-  const dbFile = zip.file(DB_FILENAME);
-  if (!dbFile) throw new Error(`Invalid bundle: missing ${DB_FILENAME} inside the zip`);
-  const dbData = await dbFile.async("uint8array");
-  const db = await openDb(dbData);
-  const prompts = readPrompts(db);
-  db.close();
-
-  if (prompts.length === 0) throw new Error("No prompts found in bundle");
-
+  const prompts = await extractPromptsBundle(file);
   for (const p of prompts) {
     await sendMessage({ type: "SAVE_PROMPT", prompt: p });
   }
-
   return { promptCount: prompts.length };
 }
 

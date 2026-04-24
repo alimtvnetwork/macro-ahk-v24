@@ -78,8 +78,16 @@
  *
  * Exit codes:
  *   0 — every scanned project's two artifacts pass both shape checks
- *   1 — at least one violation (full per-key path report + GitHub
- *       Actions ::error annotations on the offending JSON files)
+ *   1 — at least one violation. When run inside GitHub Actions
+ *       (GITHUB_ACTIONS=true), one `::error file=<dist/.../instruction[.compat].json>`
+ *       annotation is emitted per offending JSON-pointer key (capped at
+ *       INSTRUCTION_CASING_MAX_ANNOTATIONS, default 50, per artifact),
+ *       so the violations show up inline in the PR Files Changed view
+ *       at the exact dist artifact path. A trailing file-level summary
+ *       annotation is always emitted naming the artifact + total count
+ *       so at least one inline marker exists even when the per-key cap
+ *       truncates output. Outside Actions the framed text block is the
+ *       sole output (no pseudo-annotation lines).
  *   2 — repo layout broken (no standalone-scripts/) or a referenced
  *       project lacks a dist/ — surfaces a missing-step problem
  *       instead of a false pass.
@@ -149,9 +157,59 @@ class WalkAbortError extends Error {
     }
 }
 
-/** Emit a GitHub Actions error annotation on the JSON file itself. */
-function annotate(file, msg) {
-    process.stdout.write(`::error file=${file}::${msg}\n`);
+/* ----------------------------------------------------------------- */
+/*  GitHub Actions annotations.                                       */
+/*                                                                    */
+/*  Two flavours:                                                     */
+/*    • annotateFile(file, msg)   — one summary `::error` on the      */
+/*      file (used for parse errors, walker aborts, and the trailing  */
+/*      "+N more" message when violations are truncated).             */
+/*    • annotateKey(file, v, shape) — one `::error` per offending     */
+/*      JSON-pointer key, so the developer sees the exact key in the  */
+/*      Actions UI without having to scroll the log.                  */
+/*                                                                    */
+/*  Both are no-ops outside `GITHUB_ACTIONS=true` so a local run      */
+/*  doesn't print pseudo-annotation lines that look like broken log   */
+/*  output. `--json` mode bypasses both via the JSON branch in main().*/
+/*                                                                    */
+/*  Per-file cap (MAX_ANNOTATIONS, default 50) prevents a totally-    */
+/*  broken artifact (thousands of bad keys) from drowning the Actions */
+/*  annotation pane — the cap matches the human-readable MAX_PRINT    */
+/*  framed-block cap so the two reports stay in sync. Override via    */
+/*  INSTRUCTION_CASING_MAX_ANNOTATIONS env var.                       */
+/* ----------------------------------------------------------------- */
+const IS_GITHUB_ACTIONS = process.env.GITHUB_ACTIONS === "true";
+const MAX_ANNOTATIONS = Number.parseInt(process.env.INSTRUCTION_CASING_MAX_ANNOTATIONS ?? "", 10) || 50;
+
+/** Escape a value for the message portion of a workflow command. */
+function ghEscapeMessage(s) {
+    return String(s).replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+}
+
+/** Emit a single GitHub Actions error annotation on the JSON file itself. */
+function annotateFile(file, msg) {
+    if (!IS_GITHUB_ACTIONS) return;
+    process.stdout.write(`::error file=${file}::${ghEscapeMessage(msg)}\n`);
+}
+
+/**
+ * Emit one GitHub Actions error annotation per violating JSON-pointer key.
+ * Capped at MAX_ANNOTATIONS; returns the count actually emitted so the
+ * caller can append a "+N more" summary annotation.
+ */
+function annotateKeys(file, violations, shape) {
+    if (!IS_GITHUB_ACTIONS) return 0;
+    const limit = Math.min(violations.length, MAX_ANNOTATIONS);
+    const expected = shape === "PascalCase" ? "PascalCase" : "camelCase";
+    for (let i = 0; i < limit; i++) {
+        const v = violations[i];
+        process.stdout.write(
+            `::error file=${file},title=${expected} casing violation::` +
+            ghEscapeMessage(`${v.path}  →  "${v.key}"  (expected ${expected})`) +
+            `\n`,
+        );
+    }
+    return limit;
 }
 
 /* ----------------------------------------------------------------- */
@@ -360,7 +418,7 @@ function reportProject(name, result) {
                 `│  error:           ${res.parseError}\n` +
                 `└──────────────────────────────────────────────────────────────\n`,
             );
-            annotate(fileRel, `Invalid JSON: ${res.parseError}`);
+            annotateFile(fileRel, `Invalid JSON in ${fileRel}: ${res.parseError}`);
             failures.push({ project: name, label: label.trim(), shape, fileRel, fileAbs, kind: "parse-error", count: 1 });
             exit = 1;
             continue;
@@ -379,7 +437,16 @@ function reportProject(name, result) {
                 `│  override:        INSTRUCTION_CASING_MAX_NODES / INSTRUCTION_CASING_MAX_DEPTH env vars\n` +
                 `└──────────────────────────────────────────────────────────────\n`,
             );
-            annotate(fileRel, `Walker aborted: ${explain}. Likely a runaway/oversized artifact — investigate compile-instruction.mjs output.`);
+            // Walker-aborted: emit the file-level summary AND per-key
+            // annotations for whatever partial violations were collected
+            // before the abort, so devs still see exact offending keys.
+            annotateFile(fileRel, `Walker aborted on ${fileRel}: ${explain}. Likely a runaway/oversized artifact — investigate compile-instruction.mjs output.`);
+            if (res.violations.length > 0) {
+                const emitted = annotateKeys(fileRel, res.violations, shape);
+                if (res.violations.length > emitted) {
+                    annotateFile(fileRel, `… and ${res.violations.length - emitted} more ${shape}-shape violation(s) before walker abort (run with --json or set INSTRUCTION_CASING_MAX_ANNOTATIONS for the full list).`);
+                }
+            }
             failures.push({ project: name, label: label.trim(), shape, fileRel, fileAbs, kind: "walker-aborted", count: res.violations.length });
             exit = 1;
             continue;
@@ -414,9 +481,25 @@ function reportProject(name, result) {
         }
         process.stderr.write(`└──────────────────────────────────────────────────────────────\n`);
 
-        annotate(
+        // Per-key GitHub Actions annotations: one ::error per
+        // offending JSON-pointer key, capped at MAX_ANNOTATIONS so a
+        // totally-broken file can't drown the Actions UI. When the
+        // cap kicks in, append a single summary annotation pointing
+        // at the file with the truncated-count and a how-to-see-all
+        // hint. Followed by a final file-level summary annotation
+        // that names the artifact + total violation count, so the
+        // PR Files Changed view always has at least one inline marker
+        // even when --json mode or local runs would skip per-key ones.
+        const emittedKeys = annotateKeys(fileRel, res.violations, shape);
+        if (res.violations.length > emittedKeys) {
+            annotateFile(
+                fileRel,
+                `… and ${res.violations.length - emittedKeys} more ${shape}-shape violation(s) in ${fileRel} (showing first ${emittedKeys}; run --json or raise INSTRUCTION_CASING_MAX_ANNOTATIONS for the full list).`,
+            );
+        }
+        annotateFile(
             fileRel,
-            `${res.violations.length} ${shape}-shape violation(s). First offender: ${res.violations[0].path} → "${res.violations[0].key}". ` +
+            `${res.violations.length} ${shape}-shape violation(s) in ${fileRel}. First offender: ${res.violations[0].path} → "${res.violations[0].key}". ` +
             `Fix compile-instruction.mjs or the source instruction.ts so this artifact stays pure ${shape}.`,
         );
         failures.push({ project: name, label: label.trim(), shape, fileRel, fileAbs, kind: "casing", count: res.violations.length });

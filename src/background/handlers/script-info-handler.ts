@@ -209,14 +209,14 @@ export async function handleHotReloadScript(
         }
 
         console.log(
-            `[Marco] HOT_RELOAD_SCRIPT: ${scriptName} v${instruction.version} (${scriptSource.length} bytes)`,
+            `[Marco] HOT_RELOAD_SCRIPT: ${scriptName} v${instruction.Version} (${scriptSource.length} bytes)`,
         );
 
         return {
             isOk: true,
-            scriptName: instruction.name,
-            version: instruction.version,
-            bundledVersion: instruction.version,
+            scriptName: instruction.Name,
+            version: instruction.Version,
+            bundledVersion: instruction.Version,
             outputFile,
             sizeBytes,
             scriptSource,

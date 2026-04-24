@@ -14,6 +14,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ShieldAlert, Play, Loader2, Timer, Check, Copy, AlertTriangle } from "lucide-react";
 import { sendMessage } from "@/lib/message-client";
+import {
+    loadDiagnosticsCache,
+    saveDiagnosticsCache,
+} from "./token-seeder-diagnostics-cache";
 
 type AccessDeniedCode =
     | "RESPECTIVE_HOST_PERMISSION"

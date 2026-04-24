@@ -389,13 +389,23 @@ function buildErrorToggleButton(btnStyle: string): HTMLElement {
     }
   };
 
-  // Poll badge count every 5s
-  setInterval(function () {
-    const count = getOverlayErrorCount();
-    const hasErrors = count > 0;
-    badge.style.display = hasErrors ? 'inline-block' : 'none';
-    badge.textContent = hasErrors ? (count > 99 ? '99+' : String(count)) : '';
-  }, 5000);
+  // PERF-2 (2026-04-25): self-clearing interval. Re-bootstrap stacking
+  // is prevented by the data-error-badge-poll guard, and the timer
+  // self-stops once the badge element is detached from the DOM (panel
+  // teardown / navigation), avoiding leaked intervals + closure refs.
+  if (!badge.hasAttribute('data-error-badge-poll')) {
+    badge.setAttribute('data-error-badge-poll', '1');
+    const badgePollId = setInterval(function () {
+      if (!badge.isConnected) {
+        clearInterval(badgePollId);
+        return;
+      }
+      const count = getOverlayErrorCount();
+      const hasErrors = count > 0;
+      badge.style.display = hasErrors ? 'inline-block' : 'none';
+      badge.textContent = hasErrors ? (count > 99 ? '99+' : String(count)) : '';
+    }, 5000);
+  }
 
   return btn;
 }

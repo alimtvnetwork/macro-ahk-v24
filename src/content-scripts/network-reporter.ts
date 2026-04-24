@@ -291,13 +291,39 @@ function extractInitiator(): string {
 /*  Initialization                                                     */
 /* ------------------------------------------------------------------ */
 
+let flushTimerId: ReturnType<typeof setInterval> | null = null;
+
+/** Stops the flush interval and clears any pending state. Idempotent. */
+function stopNetworkReporter(): void {
+    if (flushTimerId !== null) {
+        clearInterval(flushTimerId);
+        flushTimerId = null;
+    }
+}
+
 /** Initializes all network interception and status reporting. */
 function initNetworkReporter(): void {
+    // PERF-5 (2026-04-25): guard against re-injection — the same script
+    // can be executed multiple times by chrome.scripting.executeScript on
+    // the same tab; without this guard each call layered another
+    // setInterval + duplicate XHR/fetch wrappers.
+    if (flushTimerId !== null) return;
+
     interceptXhr();
     interceptFetch();
     registerNetworkListeners();
 
-    setInterval(flushBuffer, FLUSH_INTERVAL_MS);
+    flushTimerId = setInterval(flushBuffer, FLUSH_INTERVAL_MS);
+
+    // PERF-5: stop the flush interval when the tab is being unloaded or
+    // bfcache-frozen. Without this, long-lived tabs the user opened and
+    // forgot keep the timer running indefinitely.
+    const onPageHide = (): void => {
+        // Final best-effort flush before tearing down.
+        try { flushBuffer(); } catch { /* ignore */ }
+        stopNetworkReporter();
+    };
+    window.addEventListener("pagehide", onPageHide, { once: true });
 
     console.log("[Marco] Network reporter initialized");
 }

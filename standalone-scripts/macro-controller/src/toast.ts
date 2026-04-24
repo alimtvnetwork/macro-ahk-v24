@@ -98,7 +98,10 @@ import { RECENT_ERRORS_MAX, TOAST_QUEUE_MAX, TOAST_QUEUE_POLL_MS, TOAST_QUEUE_TT
 class ToastManager {
   private isVersionSeeded = false;
   private pendingStopLoopFn: (() => void) | null = null;
+  // PERF-8: track consecutive ticks where the SDK was unavailable so the
+  // drain timer can stop instead of ticking forever on non-target tabs.
   private queueDrainTimer: ReturnType<typeof setInterval> | null = null;
+  private sdkMissCount = 0;
   private readonly toastQueue: QueuedToast[] = [];
   private readonly errorChangeListeners: Array<() => void> = [];
 
@@ -216,9 +219,19 @@ class ToastManager {
     const hasNoNotify = notify === null;
 
     if (hasNoNotify) {
+      // PERF-8 (2026-04-25): when the SDK never injects (non-target tab,
+      // CSP block, etc.) drainQueue() used to spin forever. After 30
+      // consecutive misses (~30 * TOAST_QUEUE_POLL_MS) we stop the timer;
+      // a future enqueue() will restart it via startQueueDrain().
+      this.sdkMissCount += 1;
+      if (this.sdkMissCount >= 30) {
+        log('[Toast/queue] Stopping drain — SDK unavailable for 30 ticks', 'warn');
+        this.stopQueueDrain();
+      }
       return;
     }
 
+    this.sdkMissCount = 0;
     this.ensureVersion();
     this.flushPendingStopLoop(notify!);
 

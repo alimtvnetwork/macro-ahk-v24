@@ -118,10 +118,38 @@ export function usePopupData() {
         }
     }, [platform]);
 
+    // PERF-7 (2026-04-25): pause polling while the popup tab/window is
+    // hidden. The popup can be detached into its own window, in which
+    // case it would otherwise fan out 4 sendMessage calls every 30s
+    // forever (waking the SW each time).
     useEffect(() => {
         void loadData();
-        const interval = setInterval(() => void loadData(), 30_000);
-        return () => clearInterval(interval);
+
+        let intervalId: ReturnType<typeof setInterval> | null = null;
+        const startPolling = () => {
+            if (intervalId !== null) return;
+            intervalId = setInterval(() => void loadData(), 30_000);
+        };
+        const stopPolling = () => {
+            if (intervalId !== null) { clearInterval(intervalId); intervalId = null; }
+        };
+        const onVisChange = () => {
+            if (document.hidden) {
+                stopPolling();
+            } else {
+                // Refresh immediately on becoming visible to catch up on missed ticks.
+                void loadData();
+                startPolling();
+            }
+        };
+
+        if (!document.hidden) startPolling();
+        document.addEventListener("visibilitychange", onVisChange);
+
+        return () => {
+            stopPolling();
+            document.removeEventListener("visibilitychange", onVisChange);
+        };
     }, [loadData]);
 
     return {

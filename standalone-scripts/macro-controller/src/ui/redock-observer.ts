@@ -19,10 +19,17 @@ import { showToast } from '../toast';
 import type { PanelLayoutCtx } from './panel-layout';
 import { disableFloating } from './panel-layout';
 
-// CQ11: Singleton for redock observer state
+// CQ11: Singleton for redock observer state.
+// PERF-4 (2026-04-25): the legacy `pollTimer` setter was dead — actual
+// polling lives inside pollUntil() (no cancel handle). We now drive
+// cancellation through a generation token: each startRedockObserver()
+// bumps `generation`, and the polling condition short-circuits when its
+// captured token no longer matches the current one. resetRedockState()
+// bumps the generation, which causes any in-flight poll to resolve null
+// on its next tick.
 class RedockState {
-  private _pollTimer: ReturnType<typeof setInterval> | null = null;
   private _docked = false;
+  private _generation = 0;
 
   get docked(): boolean {
     return this._docked;
@@ -32,19 +39,14 @@ class RedockState {
     this._docked = v;
   }
 
-  get pollTimer(): ReturnType<typeof setInterval> | null {
-    return this._pollTimer;
+  get generation(): number {
+    return this._generation;
   }
 
-  set pollTimer(v: ReturnType<typeof setInterval> | null) {
-    this._pollTimer = v;
-  }
-
-  clearTimer(): void {
-    if (this._pollTimer) {
-      clearInterval(this._pollTimer);
-      this._pollTimer = null;
-    }
+  /** Invalidate any in-flight redock poll. Returns the new generation token. */
+  invalidate(): number {
+    this._generation += 1;
+    return this._generation;
   }
 }
 
@@ -62,7 +64,9 @@ export function startRedockObserver(ctx: PanelLayoutCtx): void {
   // Try immediate dock
   if (tryRedock(ctx)) return;
 
-  // Cancel any previous poll
+  // PERF-4: invalidate any in-flight poll, then capture the new generation
+  // so this observer's condition can short-circuit if reset/restarted.
+  const myGeneration = redockState.invalidate();
 
   const pollMs = TIMING.REDOCK_POLL_INTERVAL;
   const maxAttempts = TIMING.REDOCK_MAX_ATTEMPTS;
@@ -70,11 +74,16 @@ export function startRedockObserver(ctx: PanelLayoutCtx): void {
   log('[redock] Observing for XPath target (polling every ' + pollMs + 'ms, max ' + maxAttempts + ' attempts)', 'info');
 
   pollUntil(
-    function () { return tryRedock(ctx) || null; },
+    function () {
+      // Cancel: a newer generation has started, or state was reset.
+      if (redockState.generation !== myGeneration) return true as unknown as null;
+      return tryRedock(ctx) || null;
+    },
     {
       intervalMs: pollMs,
       timeoutMs: pollMs * maxAttempts,
       onTimeout: function () {
+        if (redockState.generation !== myGeneration) return;
         log('[redock] XPath target not found after ' + maxAttempts + ' attempts — staying in floating mode', 'warn');
       },
     },
@@ -126,7 +135,8 @@ function tryRedock(ctx: PanelLayoutCtx): boolean {
 /** Reset dock state (called on teardown/re-bootstrap). */
 export function resetRedockState(): void {
   redockState.docked = false;
-  redockState.clearTimer();
+  // PERF-4: bump generation so any in-flight pollUntil() bails on next tick.
+  redockState.invalidate();
 }
 
 /** Whether the panel is currently docked into the XPath target. */

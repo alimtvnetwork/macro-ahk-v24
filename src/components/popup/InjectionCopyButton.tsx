@@ -186,25 +186,79 @@ export function InjectionCopyButton() {
   const [errorCount, setErrorCount] = useState(0);
   const [isPulsing, setIsPulsing] = useState(false);
 
+  // PERF-6 (2026-04-25): subscribe to the existing ERROR_COUNT_CHANGED
+  // broadcast (same channel use-error-count.ts uses) instead of polling
+  // every 15s. The poll is kept as a slow fallback (60s) and is paused
+  // while the popup tab is hidden.
   useEffect(() => {
     let cancelled = false;
     let prevCount = 0;
+    let pollTimerId: ReturnType<typeof setInterval> | null = null;
+
+    const applyCount = (newCount: number): void => {
+      if (cancelled) return;
+      if (newCount > prevCount && prevCount >= 0) {
+        setIsPulsing(true);
+        setTimeout(() => { if (!cancelled) setIsPulsing(false); }, 3000);
+      }
+      prevCount = newCount;
+      setErrorCount(newCount);
+    };
+
     const poll = async () => {
       try {
         const res = await sendMessage<{ errors: ErrorEntry[] }>({ type: "GET_ACTIVE_ERRORS" });
-        if (cancelled) return;
-        const newCount = res.errors?.length ?? 0;
-        if (newCount > prevCount && prevCount >= 0) {
-          setIsPulsing(true);
-          setTimeout(() => { if (!cancelled) setIsPulsing(false); }, 3000);
-        }
-        prevCount = newCount;
-        setErrorCount(newCount);
+        applyCount(res.errors?.length ?? 0);
       } catch { /* silent */ }
     };
-    poll();
-    const id = setInterval(poll, 15_000);
-    return () => { cancelled = true; clearInterval(id); };
+
+    // Real-time listener — same broadcast use-error-count.ts subscribes to.
+    const runtime = (typeof chrome !== "undefined" ? chrome.runtime : undefined) as
+      | { onMessage?: { addListener: (fn: (msg: unknown) => void) => void; removeListener: (fn: (msg: unknown) => void) => void } }
+      | undefined;
+    const hasRuntime = runtime?.onMessage !== undefined;
+    let listenerAttached = false;
+
+    const handleBroadcast = (message: unknown): void => {
+      const msg = message as { type?: string; count?: number } | null;
+      if (msg?.type === "ERROR_COUNT_CHANGED") {
+        applyCount(msg.count ?? 0);
+      }
+    };
+
+    if (hasRuntime) {
+      try {
+        runtime!.onMessage!.addListener(handleBroadcast);
+        listenerAttached = true;
+      } catch { /* extension context invalidated */ }
+    }
+
+    // PERF-7-style visibility pause: only poll while visible.
+    const startPoll = (): void => {
+      if (pollTimerId !== null) return;
+      // 60s when the broadcast is wired (fallback only); 15s otherwise.
+      const intervalMs = listenerAttached ? 60_000 : 15_000;
+      pollTimerId = setInterval(() => void poll(), intervalMs);
+    };
+    const stopPoll = (): void => {
+      if (pollTimerId !== null) { clearInterval(pollTimerId); pollTimerId = null; }
+    };
+    const onVisChange = (): void => {
+      if (document.hidden) stopPoll(); else startPoll();
+    };
+
+    void poll();
+    if (!document.hidden) startPoll();
+    document.addEventListener("visibilitychange", onVisChange);
+
+    return () => {
+      cancelled = true;
+      stopPoll();
+      document.removeEventListener("visibilitychange", onVisChange);
+      if (listenerAttached) {
+        try { runtime!.onMessage!.removeListener(handleBroadcast); } catch { /* ignore */ }
+      }
+    };
   }, []);
 
   const handleCopy = useCallback(async () => {

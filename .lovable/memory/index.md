@@ -109,3 +109,4 @@ Updated: just now
 - [No error swallowing](mem://standards/no-error-swallowing) — `catch` may not silently `return null/undefined`; rethrow or log via `Logger.error()`
 - [Class-based standalone scripts](mem://standards/class-based-standalone-scripts) — Every `standalone-scripts/*/src/index.ts` exports a single default class
 - [Pre-write check](mem://standards/pre-write-check) — Mandatory standards review + sibling-file scan before writing/rewriting
+- [Contract generators need CI](mem://standards/contract-generators-need-ci) — Drift checker for any single-source-of-truth generator must be wired into CI in the same PR

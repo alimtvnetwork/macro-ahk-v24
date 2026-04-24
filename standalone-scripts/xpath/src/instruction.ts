@@ -3,67 +3,44 @@
  *
  * Global utility library. No configs, no CSS, just the JS bundle.
  * Loaded before all dependent projects.
+ *
+ * All keys PascalCase per `mem://standards/pascalcase-json-keys`.
  */
 
-import type { SeedBlock, SeedTargetUrl, SeedCookie } from "../../marco-sdk/src/instruction";
+import type { ProjectInstruction } from "../../types/instruction/project-instruction";
+import type { EmptySettings } from "../../types/instruction/seed/empty-settings";
 
-export interface ProjectInstruction {
-    schemaVersion: string;
-    name: string;
-    displayName: string;
-    version: string;
-    description: string;
-    world: "MAIN" | "ISOLATED";
-    isGlobal?: boolean;
-    dependencies: string[];
-    loadOrder: number;
-    seed: SeedBlock;
-    assets: {
-        css: Array<{ file: string; inject: "head" }>;
-        configs: Array<{ file: string; key: string; injectAs?: string }>;
-        scripts: Array<{ file: string; order: number; configBinding?: string; themeBinding?: string; isIife?: boolean }>;
-        templates: Array<{ file: string; injectAs?: string }>;
-        prompts: Array<{ file: string }>;
-    };
-}
-
-const instruction: ProjectInstruction = {
-    schemaVersion: "1.0",
-    name: "xpath",
-    displayName: "XPath Utilities",
-    version: "2.230.0",
-    description: "Global XPath utility library (getByXPath, findElement, reactClick)",
-    world: "MAIN",
-    isGlobal: true,
-    dependencies: [],
-    loadOrder: 1,
-    seed: {
-        id: "default-xpath-utils",
-        seedOnInstall: true,
-        isRemovable: false,
-        autoInject: true,
-        runAt: undefined,
-        cookieBinding: undefined,
-        targetUrls: [
-            { pattern: "https://lovable.dev/projects/*", matchType: "glob" },
-            { pattern: "https://*.lovable.app/*", matchType: "glob" },
-            { pattern: "https://*.lovableproject.com/*", matchType: "glob" },
+const instruction: ProjectInstruction<EmptySettings> = {
+    SchemaVersion: "1.0",
+    Name: "xpath",
+    DisplayName: "XPath Utilities",
+    Version: "2.230.0",
+    Description: "Global XPath utility library (getByXPath, findElement, reactClick)",
+    World: "MAIN",
+    IsGlobal: true,
+    Dependencies: [],
+    LoadOrder: 1,
+    Seed: {
+        Id: "default-xpath-utils",
+        SeedOnInstall: true,
+        IsRemovable: false,
+        AutoInject: true,
+        TargetUrls: [
+            { Pattern: "https://lovable.dev/projects/*", MatchType: "glob" },
+            { Pattern: "https://*.lovable.app/*", MatchType: "glob" },
+            { Pattern: "https://*.lovableproject.com/*", MatchType: "glob" },
         ],
-        cookies: [],
-        settings: {},
+        Cookies: [],
+        Settings: {},
     },
-    assets: {
-        css: [],
-        configs: [],
-        scripts: [
-            {
-                file: "xpath.js",
-                order: 1,
-                isIife: true,
-            },
+    Assets: {
+        Css: [],
+        Configs: [],
+        Scripts: [
+            { File: "xpath.js", Order: 1, IsIife: true },
         ],
-        templates: [],
-        prompts: [],
+        Templates: [],
+        Prompts: [],
     },
 };
 

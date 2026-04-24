@@ -81,7 +81,7 @@ function extractTitleFromMarkdown(markdown: string): string {
 /*  Container Detection                                                */
 /* ------------------------------------------------------------------ */
 
-import { SAVE_PROMPT_XPATH } from '../constants';
+import { SAVE_PROMPT_XPATH, SAVE_PROMPT_ACTION_ROW_XPATHS } from '../constants';
 const SAVE_PROMPT_CSS_FALLBACKS = [
   'form div[class*="flex"] > div[type="button"]',
   'main form div:last-child > div:last-child',
@@ -89,16 +89,33 @@ const SAVE_PROMPT_CSS_FALLBACKS = [
   'main form div.flex.items-center',
 ];
 
-export function findSavePromptContainer(): Element | null {
+function evalXPath(xpath: string): Element | null {
   try {
-    const xpathResult = document.evaluate(SAVE_PROMPT_XPATH, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-    const isFound = xpathResult !== null;
+    const node = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+    return (node as Element) ?? null;
+  } catch (_e: unknown) {
+    log('Save Prompt: XPath eval error: ' + (_e instanceof Error ? _e.message : String(_e)), 'warn');
+    return null;
+  }
+}
 
-    if (isFound) {
-      log('Save Prompt: Container found via XPath', 'check');
-      return xpathResult as Element;
+export function findSavePromptContainer(): Element | null {
+  // Preferred: right-side action row (alongside Build / mic / send, and the "Play and Add more"
+  // middle button when present). Buttons get prepended here, landing before button[1].
+  for (const xpath of SAVE_PROMPT_ACTION_ROW_XPATHS) {
+    const row = evalXPath(xpath);
+    if (row) {
+      log('Save Prompt: Container found via action-row XPath', 'check');
+      return row;
     }
-  } catch (_e: unknown) { log('Save Prompt: XPath eval error: ' + (_e instanceof Error ? _e.message : String(_e)), 'warn'); }
+  }
+
+  // Legacy left-side container (older Lovable DOM).
+  const legacy = evalXPath(SAVE_PROMPT_XPATH);
+  if (legacy) {
+    log('Save Prompt: Container found via legacy XPath (left-side fallback)', 'check');
+    return legacy;
+  }
 
   return findContainerViaCssFallback();
 }

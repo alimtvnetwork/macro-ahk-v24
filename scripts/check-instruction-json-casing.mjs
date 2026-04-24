@@ -543,7 +543,7 @@ function main() {
             if (jsonMode) {
                 process.stdout.write(JSON.stringify({
                     tool: "check-instruction-json-casing",
-                    version: 1,
+                    version: 2,
                     error: `Could not resolve project name from "${projectArg}"`,
                     exitCode: 2,
                     scannedProjects: 0,
@@ -558,7 +558,7 @@ function main() {
             if (jsonMode) {
                 process.stdout.write(JSON.stringify({
                     tool: "check-instruction-json-casing",
-                    version: 1,
+                    version: 2,
                     error: `Project not found: standalone-scripts/${name}`,
                     exitCode: 2,
                     scannedProjects: 0,
@@ -576,7 +576,7 @@ function main() {
             if (jsonMode) {
                 process.stdout.write(JSON.stringify({
                     tool: "check-instruction-json-casing",
-                    version: 1,
+                    version: 2,
                     error: `standalone-scripts/ not found at ${rel(STANDALONE_DIR)}`,
                     exitCode: 2,
                     scannedProjects: 0,

@@ -12,6 +12,9 @@
  */
 
 import { log, getProjectNameFromDom } from './logging';
+// ... keep existing code
+import { nsWrite, nsReadTyped } from './api-namespace';
+import { getIntervalSnapshot } from './interval-registry';
 import { getCachedWorkspaceName, cacheWorkspaceName } from './workspace-cache';
 import { timingStart, timingEnd, logTimingSummary } from './startup-timing';
 import { nsWrite, nsReadTyped } from './api-namespace';

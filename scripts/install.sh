@@ -413,12 +413,27 @@ install_extension() {
     fi
     mkdir -p "${install_dir}"
 
-    if command -v unzip >/dev/null 2>&1; then
-        unzip -qo "${archive_path}" -d "${install_dir}"
-    else
-        err "unzip not found. Install via apt/brew and retry."
-        exit 6
-    fi
+    # Spec §2 step 5 / AC-2: main-branch fallback ships a .tar.gz that
+    # extracts to <repo>-<branch>/... — a single wrapper directory that
+    # we strip so the install dir layout matches a release ZIP.
+    case "${archive_path}" in
+        *.tar.gz|*.tgz)
+            if ! command -v tar >/dev/null 2>&1; then
+                err "tar not found — required for main-branch tarball install."
+                exit 6
+            fi
+            # --strip-components=1 collapses the wrapper dir.
+            tar -xzf "${archive_path}" -C "${install_dir}" --strip-components=1
+            ;;
+        *)
+            if command -v unzip >/dev/null 2>&1; then
+                unzip -qo "${archive_path}" -d "${install_dir}"
+            else
+                err "unzip not found. Install via apt/brew and retry."
+                exit 6
+            fi
+            ;;
+    esac
 
     local file_count
     file_count="$(find "${install_dir}" -type f | wc -l | tr -d ' ')"
@@ -433,7 +448,13 @@ install_extension() {
         exit 6
     fi
 
-    echo "${version}" > "${install_dir}/VERSION"
+    # On main-branch fallback the "version" string is the sentinel — write
+    # a human-meaningful tag instead so downstream tools see something useful.
+    local recorded_version="${version}"
+    if [ "${version}" = "${MAIN_BRANCH_SENTINEL}" ]; then
+        recorded_version="${MAIN_BRANCH}@HEAD"
+    fi
+    echo "${recorded_version}" > "${install_dir}/VERSION"
     ok "Installed ${file_count} files to ${install_dir}"
 }
 

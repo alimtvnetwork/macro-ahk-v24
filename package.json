@@ -28,6 +28,7 @@
     "check:manifest": "node scripts/check-manifest-version.mjs",
     "check:permissions": "node scripts/check-manifest-permissions.mjs",
     "check:built-csp": "node scripts/check-built-manifest-csp.mjs",
+    "check:installer-contract-acids": "node scripts/check-installer-contract-acids.mjs",
     "check:installer-contract": "node scripts/check-installer-contract.mjs",
     "check:installer-constants-clean": "node scripts/check-installer-constants-clean.mjs",
     "installer:contract:gen": "node scripts/generate-installer-constants.mjs",

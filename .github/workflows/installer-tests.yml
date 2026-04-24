@@ -84,6 +84,16 @@ jobs:
           pwsh --version
 
       # ───────────────────────────────────────────────────────────
+      # AC-ID well-formedness + uniqueness gate — runs BEFORE the
+      # drift checker so a malformed/duplicated AC-ID in
+      # installer-contract.json fails fast with a precise report,
+      # rather than silently corrupting the spec mapping that the
+      # drift checker downstream consumes.
+      # ───────────────────────────────────────────────────────────
+      - name: Validate installer-contract AC-IDs (well-formed + unique)
+        run: node scripts/check-installer-contract-acids.mjs
+
+      # ───────────────────────────────────────────────────────────
       # Drift detector — runs BEFORE the test bundle so a contract
       # mismatch (install.sh / install.ps1 / installer-constants.{sh,ps1}
       # vs. installer-contract.json) fails fast. No Node deps required —

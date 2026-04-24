@@ -79,37 +79,64 @@ assert_contains() {
 
 # ── Mock helpers ─────────────────────────────────────────────────────
 
-# Build a temp PATH-shadowed mock for curl that returns either a fixed body
-# or a non-zero exit. Sets MOCK_DIR which the caller MUST add to PATH first.
+# Build a temp PATH-shadowed mock for curl that mimics real curl's
+# observable behavior used by install.sh's fetch_latest_version:
+#   - Honors -o <file>  → writes body to that file (NOT stdout).
+#   - Honors -w <fmt>   → on success, prints the formatted value to stdout.
+#                          We support %{http_code} only.
+#   - Without -o, writes body to stdout (used by download() / sibling probes).
+# This is required because fetch_latest_version uses
+#   curl -sSL -o BODY -w '%{http_code}' URL
+# to differentiate HTTP 200+empty (AC-2 main fallback) from 5xx/network
+# (AC-8 exit 5). A naïve mock that ignored -o/-w would feed the body into
+# the http_code variable and break the case-statement dispatch.
 make_mock_curl() {
     local mode="$1" body="${2:-}"
     MOCK_DIR="$(mktemp -d)"
+    case "${mode}" in
+        success)      MOCK_HTTP=200; MOCK_BODY="${body}"; MOCK_EXIT=0 ;;
+        network_fail) MOCK_HTTP=000; MOCK_BODY="";        MOCK_EXIT=6 ;;
+        not_found)    MOCK_HTTP=404; MOCK_BODY="";        MOCK_EXIT=22 ;;
+    esac
+    # Use a heredoc with EXPANDED expansion to bake values in, then a
+    # quoted heredoc for the runtime parsing logic.
     cat >"${MOCK_DIR}/curl" <<MOCKEOF
 #!/usr/bin/env bash
 # Mock curl — mode=${mode}
-MOCKEOF
-    case "${mode}" in
-        success)
-            cat >>"${MOCK_DIR}/curl" <<MOCKEOF
-cat <<'BODYEOF'
-${body}
+MOCK_HTTP='${MOCK_HTTP}'
+MOCK_EXIT='${MOCK_EXIT}'
+read -r -d '' MOCK_BODY <<'BODYEOF' || true
+${MOCK_BODY}
 BODYEOF
+MOCKEOF
+    cat >>"${MOCK_DIR}/curl" <<'MOCKEOF'
+out_file=""
+write_fmt=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -o)  out_file="$2"; shift 2 ;;
+        -w)  write_fmt="$2"; shift 2 ;;
+        --)  shift; break ;;
+        *)   shift ;;
+    esac
+done
+if [ "${MOCK_EXIT}" -ne 0 ]; then
+    echo "curl: mock failure (mode exit=${MOCK_EXIT})" >&2
+    exit "${MOCK_EXIT}"
+fi
+if [ -n "${out_file}" ]; then
+    printf '%s' "${MOCK_BODY}" > "${out_file}"
+else
+    printf '%s' "${MOCK_BODY}"
+fi
+if [ -n "${write_fmt}" ]; then
+    case "${write_fmt}" in
+        *%\{http_code\}*) printf '%s' "${MOCK_HTTP}" ;;
+        *)                 printf '%s' "${write_fmt}" ;;
+    esac
+fi
 exit 0
 MOCKEOF
-            ;;
-        network_fail)
-            cat >>"${MOCK_DIR}/curl" <<'MOCKEOF'
-echo "curl: (6) Could not resolve host" >&2
-exit 6
-MOCKEOF
-            ;;
-        not_found)
-            cat >>"${MOCK_DIR}/curl" <<'MOCKEOF'
-echo "curl: (22) The requested URL returned error: 404" >&2
-exit 22
-MOCKEOF
-            ;;
-    esac
     chmod +x "${MOCK_DIR}/curl"
     # Also shadow wget so the installer cannot fall through to it.
     cat >"${MOCK_DIR}/wget" <<'MOCKEOF'

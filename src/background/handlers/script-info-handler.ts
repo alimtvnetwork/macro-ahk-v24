@@ -16,20 +16,35 @@ import type { MessageRequest } from "../../shared/messages";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
+/*                                                                      */
+/*  Phase 2c (storage layer): the runtime reads the canonical          */
+/*  PascalCase `instruction.json` emitted by                            */
+/*  `scripts/compile-instruction.mjs`. The transitional camelCase      */
+/*  `instruction.compat.json` is consumed only by the vite copy plugin */
+/*  and MUST NOT leak back into runtime reads here. Keys are PascalCase */
+/*  with no fallback — a stale camelCase artifact will surface as a    */
+/*  precise "no scripts declared" error rather than be silently          */
+/*  remapped.                                                           */
 /* ------------------------------------------------------------------ */
 
+interface InstructionManifestScriptAsset {
+    File: string;
+    Order: number;
+    IsIife?: boolean;
+}
+
 interface InstructionManifest {
-    name: string;
-    displayName: string;
-    version: string;
-    description?: string;
-    world?: string;
-    dependencies?: string[];
-    assets?: {
-        scripts?: Array<{ file: string; order: number; isIife?: boolean }>;
-        css?: Array<{ file: string }>;
-        configs?: Array<{ file: string; key: string }>;
-        templates?: Array<{ file: string }>;
+    Name: string;
+    DisplayName: string;
+    Version: string;
+    Description?: string;
+    World?: string;
+    Dependencies?: string[];
+    Assets?: {
+        Scripts?: InstructionManifestScriptAsset[];
+        Css?: Array<{ File: string }>;
+        Configs?: Array<{ File: string; Key: string }>;
+        Templates?: Array<{ File: string }>;
     };
 }
 

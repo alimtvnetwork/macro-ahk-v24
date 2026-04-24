@@ -18,17 +18,23 @@ export interface PromoteCaches {
     UserIdByEmail: TtlCache<string>;
 }
 
-const measure = async <T>(
-    step: PromoteStepCode,
-    run: () => Promise<T>,
-): Promise<{ Outcome: PromoteRowOutcome; Value: T }> => {
+interface MeasuredString {
+    DurationMs: number;
+    Value: string;
+}
+
+const measureString = async (run: () => Promise<string>): Promise<MeasuredString> => {
     const startedAt = Date.now();
     const value = await run();
 
-    return {
-        Outcome: { Step: step, DurationMs: Date.now() - startedAt, WorkspaceId: null, UserId: null },
-        Value: value,
-    };
+    return { DurationMs: Date.now() - startedAt, Value: value };
+};
+
+const measureVoid = async (run: () => Promise<unknown>): Promise<number> => {
+    const startedAt = Date.now();
+    await run();
+
+    return Date.now() - startedAt;
 };
 
 interface ChainState {
@@ -42,27 +48,26 @@ const runChain = async (
     caches: PromoteCaches,
     request: PromoteRowRequest,
 ): Promise<ChainState> => {
-    const ws = await measure(PromoteStepCode.ResolveWorkspace, () =>
+    const ws = await measureString(() =>
         resolveWorkspaceId(api, caches.WorkspaceByLoginEmail, request.LoginEmail));
-    const uid = await measure(PromoteStepCode.ResolveUserId, () =>
+    const uid = await measureString(() =>
         resolveUserId(api, caches.UserIdByEmail, ws.Value, request.OwnerEmail));
-    const promo = await measure(PromoteStepCode.PromoteToOwner, () =>
-        api.promoteToOwner(ws.Value, uid.Value));
+    const promoMs = await measureVoid(() => api.promoteToOwner(ws.Value, uid.Value));
 
     return {
         Outcomes: [
-            { ...ws.Outcome, WorkspaceId: ws.Value },
-            { ...uid.Outcome, WorkspaceId: ws.Value, UserId: uid.Value },
-            { ...promo.Outcome, WorkspaceId: ws.Value, UserId: uid.Value },
+            { Step: PromoteStepCode.ResolveWorkspace, DurationMs: ws.DurationMs, WorkspaceId: ws.Value, UserId: null },
+            { Step: PromoteStepCode.ResolveUserId, DurationMs: uid.DurationMs, WorkspaceId: ws.Value, UserId: uid.Value },
+            { Step: PromoteStepCode.PromoteToOwner, DurationMs: promoMs, WorkspaceId: ws.Value, UserId: uid.Value },
         ],
         WorkspaceId: ws.Value,
         UserId: uid.Value,
     };
 };
 
-const failureFrom = (caught: unknown, lastStep: PromoteStepCode | null): PromoteRowResult => ({
+const failureFrom = (caught: unknown): PromoteRowResult => ({
     Outcomes: [],
-    FailedStep: lastStep,
+    FailedStep: null,
     Error: caught instanceof Error ? caught.message : String(caught),
 });
 
@@ -76,6 +81,6 @@ export const runPromote = async (
 
         return { Outcomes: chain.Outcomes, FailedStep: null, Error: null };
     } catch (caught: unknown) {
-        return failureFrom(caught, null);
+        return failureFrom(caught);
     }
 };

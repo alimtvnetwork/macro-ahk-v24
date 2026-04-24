@@ -30,6 +30,8 @@ const LS_SESSION_COOKIE_KEY = "lovable-session-id.id";
 const LS_MARCO_BEARER_KEY = "marco_bearer_token";
 const RESTRICTED_URL_RE = /^(chrome|edge|brave|opera|about|devtools|chrome-extension):\/\//i;
 const warnedInaccessibleTabs = new Set<string>();
+const inaccessibleSeedTargets = new Map<string, number>();
+const INACCESSIBLE_SEED_COOLDOWN_MS = 15_000;
 
 /* ------------------------------------------------------------------ */
 /*  Public API                                                         */
@@ -48,6 +50,10 @@ export async function seedTokensIntoTab(tabId: number): Promise<void> {
     const isSupportedTab = tabUrl !== null && isSupportedTargetUrl(tabUrl);
 
     if (!isSupportedTab) {
+        return;
+    }
+
+    if (tabUrl !== null && isKnownInaccessibleTarget(tabId, tabUrl)) {
         return;
     }
 
@@ -307,13 +313,19 @@ function isTabAccessDeniedError(error: unknown): boolean {
             ? error
             : "";
 
-    return message.includes("Cannot access contents of the page")
-        || message.includes("Missing host permission for the tab")
-        || message.includes("The extensions gallery cannot be scripted");
+    const normalizedMessage = message.toLowerCase();
+
+    return normalizedMessage.includes("cannot access contents of the page")
+        || normalizedMessage.includes("missing host permission for the tab")
+        || normalizedMessage.includes("must request permission to access the respective host")
+        || normalizedMessage.includes("the extensions gallery cannot be scripted")
+        || normalizedMessage.includes("cannot be scripted");
 }
 
 function warnInaccessibleTabOnce(tabId: number, tabUrl: string, reason: string): void {
     const key = `${tabId}::${tabUrl}`;
+
+    inaccessibleSeedTargets.set(key, Date.now());
 
     if (warnedInaccessibleTabs.has(key)) {
         return;
@@ -322,12 +334,31 @@ function warnInaccessibleTabOnce(tabId: number, tabUrl: string, reason: string):
     warnedInaccessibleTabs.add(key);
     logBgWarnError(
         BgLogTag.TOKEN_SEEDER,
-        `Skipping JWT seed for inaccessible tab\n  Path: chrome.scripting.executeScript → tabId=${tabId}, world=MAIN → localStorage["${LS_MARCO_BEARER_KEY}"]\n  Missing: Host permission for tab contents\n  Reason: ${reason}`,
+        `Skipping JWT seed for inaccessible tab\n  Path: chrome.scripting.executeScript → tabId=${tabId}, world=MAIN → localStorage["${LS_MARCO_BEARER_KEY}"]\n  Missing: MAIN-world scripting access to tab contents\n  Reason: ${reason}`,
     );
 }
 
 function clearInaccessibleWarning(tabId: number, tabUrl: string): void {
-    warnedInaccessibleTabs.delete(`${tabId}::${tabUrl}`);
+    const key = `${tabId}::${tabUrl}`;
+    warnedInaccessibleTabs.delete(key);
+    inaccessibleSeedTargets.delete(key);
+}
+
+function isKnownInaccessibleTarget(tabId: number, tabUrl: string): boolean {
+    const key = `${tabId}::${tabUrl}`;
+    const lastFailureAt = inaccessibleSeedTargets.get(key);
+
+    if (lastFailureAt === undefined) {
+        return false;
+    }
+
+    if (Date.now() - lastFailureAt < INACCESSIBLE_SEED_COOLDOWN_MS) {
+        return true;
+    }
+
+    inaccessibleSeedTargets.delete(key);
+    warnedInaccessibleTabs.delete(key);
+    return false;
 }
 
 async function getTabUrl(tabId: number): Promise<string | null> {

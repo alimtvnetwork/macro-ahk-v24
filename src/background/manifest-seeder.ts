@@ -5,6 +5,20 @@
  * into chrome.storage.local. Replaces hardcoded seed chunks.
  *
  * The manifest is generated at build time by `scripts/generate-seed-manifest.mjs`.
+ *
+ * ── PascalCase migration (Phase 2a) ──
+ *
+ * Reads PascalCase keys from `seed-manifest.json` (the single source of
+ * truth for everything we own). The only camelCase that survives is at
+ * third-party boundaries — `chrome.storage.local` keys (StoredScript /
+ * StoredConfig fields like `filePath`, `loadOrder`) are persistence
+ * shapes the runtime hands directly to existing handlers and the
+ * options UI; renaming them is Phase 2c (storage migrator) work.
+ *
+ * Schema versions accepted:
+ *   - v1 (legacy camelCase manifest) — kept readable for one release so a
+ *     stale dist directory does not brick the extension.
+ *   - v2 (PascalCase manifest, current) — the canonical shape this file targets.
  */
 
 import type { StoredScript, StoredConfig } from "../shared/script-config-types";
@@ -25,8 +39,8 @@ function buildStubCode(fileName: string): string {
     return STUB_PREFIX + `console.error("[manifest-seeder::buildStubCode] STUB: filePath fetch failed\\n  Path: projects/scripts/${fileName}\\n  Missing: Real script code for \\"${fileName}\\"\\n  Reason: Stub placeholder was never replaced — fetch at injection time did not succeed or was not attempted");`;
 }
 
-/** Supported schema versions: [min, max] inclusive range this seeder can handle. */
-const SUPPORTED_SCHEMA_VERSIONS = { min: 1, max: 1 };
+/** Supported schema versions: v1 (legacy camelCase) + v2 (PascalCase). Inclusive. */
+const SUPPORTED_SCHEMA_VERSIONS = { min: 1, max: 2 };
 
 /* ------------------------------------------------------------------ */
 /*  Public API                                                         */

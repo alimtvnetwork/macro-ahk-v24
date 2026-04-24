@@ -23,6 +23,7 @@ Updated: just now
 - **CI/CD Issues**: Logged in `.lovable/cicd-issues/XX-name.md` and indexed in `.lovable/cicd-index.md`. Stay in folder after resolution (set `## Status ✅ Resolved`); do NOT move to `solved-issues/`.
 - **Write-Memory Protocol**: Current = `.lovable/prompts/03-write-memory.md` (v3.0). Adds CI/CD folder + verbatim-spec capture.
 - **Pre-Write Check**: Read `mem://standards/pre-write-check` and the relevant standards index entries before creating/rewriting any file under `standalone-scripts/`, `src/`, `chrome-extension/`, or `scripts/`.
+- **PascalCase Instruction Keys**: Every key in `instruction.ts`, `instruction.json`, `seed-manifest.json`, and runtime reads of those files MUST be PascalCase. Case-only rename — values, string-literal unions, and Chrome API contracts are unchanged. Boundary exemptions: Chrome APIs, `ProjectManifest` user-export schema, `StoredScript`/`StoredProject` storage rows. Enforced by `scripts/check-pascalcase-instruction-migration.mjs` (preflight CI job + `build-extension` `needs:`). Full mapping in `mem://standards/pascalcase-json-keys`.
 
 ## Memories
 - [Timezone](mem://localization/timezone) — Asia/Kuala_Lumpur for local timezone formatting
@@ -40,7 +41,7 @@ Updated: just now
 - [Prompt management](mem://features/prompt-management) — Dual-cache (JsonCopy/HtmlCopy) in IndexedDB, manual-load
 - [Readiness reports](mem://workflow/readiness-reports) — Reliability and Failure-Chance Report before implementation
 - [Linting policy](mem://architecture/linting-policy) — Zero ESLint warnings/errors, strict No Explicit Unknown
-- [PascalCase JSON keys](mem://standards/pascalcase-json-keys) — All instruction.json keys + their TS source counterparts must be PascalCase (Name, World, RunAt, IsIife, …); supersedes Q4 long-camelCase draft
+- [PascalCase JSON keys](mem://standards/pascalcase-json-keys) — Full Phase 1+2 PascalCase contract for instruction tree end-to-end; canonical mapping table per type (`ProjectInstruction`, `SeedBlock`, `AssetBundle`, `CookieSpec`, `TargetUrl`, `SeedManifest`); third-party boundary exemptions; CI guard wired
 - [Constant naming](mem://architecture/constant-naming-convention) — SCREAMING_SNAKE_CASE prefixes (ID_, SEL_, ATTR_, CSS_)
 - [UI framework selection](mem://architecture/ui-framework-selection) — React rejected; modular UIManager architecture used
 - [Diagram visual standards](mem://style/diagram-visual-standards) — PascalCase, dark XMind aesthetic, top-down
@@ -58,6 +59,7 @@ Updated: just now
 - [Platform adapter pattern](mem://architecture/platform-adapter-pattern) — Abstract environment-specific APIs
 - [Documentation standards](mem://workflow/documentation-standards) — readme.md, CHANGELOG.md, CONTRIBUTING.md
 - [Instruction-driven seeding](mem://architecture/instruction-driven-seeding) — declarative manifest source via instruction.ts
+- [Instruction dual-emit (Phase 2b → 2c)](mem://architecture/instruction-dual-emit-phase-2b) — compile-instruction emits PascalCase canonical + camelCase compat snapshot; CI enforces; Phase 2c migrates the vite copy plugin and removes the compat emit
 - [Extension error management](mem://architecture/extension-error-management) — Multi-layered UI error reporting, BootFailureBanner
 - [Real-time error sync](mem://architecture/real-time-error-synchronization) — ERROR_COUNT_CHANGED message broadcast across contexts
 - [Injection cache](mem://architecture/injection-cache-management) — build-aware cache invalidation and canonical script prioritization

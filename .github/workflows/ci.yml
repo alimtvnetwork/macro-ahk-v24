@@ -1000,6 +1000,16 @@ jobs:
   casing-instruction-json:
     name: "Casing · ${{ matrix.project }}"
     runs-on: ubuntu-latest
+    # Restrict to the two events that gate merges to main:
+    #   • pull_request → catches drift before review.
+    #   • push to main → catches drift on direct pushes / merges.
+    # Any future trigger added to the workflow (workflow_dispatch,
+    # schedule, release, etc.) will SKIP this job — the casing gate
+    # only matters at merge time, so running it on an ad-hoc
+    # workflow_dispatch or nightly cron just wastes runner minutes.
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
     needs:
       - build-sdk
       - build-xpath

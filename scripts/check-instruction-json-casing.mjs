@@ -49,6 +49,19 @@
  *     → scans only that one project (matches compile-instruction.mjs CLI)
  *     → e.g. node scripts/check-instruction-json-casing.mjs standalone-scripts/macro-controller
  *
+ *   node scripts/check-instruction-json-casing.mjs --json [<project-folder>]
+ *     → emits a single JSON document to stdout describing every scanned
+ *       project, the two artifacts, and every casing violation with its
+ *       JSON-Pointer-like path. Suppresses human-readable logs and GitHub
+ *       Actions ::error annotations so the stdout stream is pure JSON
+ *       (machine-parseable for debugging, dashboards, or piping into jq).
+ *       Exit code semantics are unchanged. Schema:
+ *         { tool, version, scannedProjects, exitCode,
+ *           projects: [{ name, skipped, missingArtifact,
+ *             artifacts: { canonical: { path, shape, ok, parseError,
+ *               violationCount, violations: [{ path, key, expected }] },
+ *                          compat:    { … } } }] }
+ *
  * Exit codes:
  *   0 — every scanned project's two artifacts pass both shape checks
  *   1 — at least one violation (full per-key path report + GitHub

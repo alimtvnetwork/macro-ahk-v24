@@ -2,13 +2,9 @@
  * Shared XPath Editor — top-level mount.
  *
  * Storage-agnostic shell: assembles header + table + Reset/Save
- * buttons, injects the `lcx-` stylesheet once, wires button handlers
- * against the caller-supplied `OnSave` / `OnReset`. No SQLite import
- * — Owner Switch and User Add bind their own persistence layer.
- *
- * Reset rebuilds the table in place from `DefaultRows` and invokes
- * the optional `OnReset` callback so callers can clear stored
- * overrides in their backing store.
+ * buttons, injects the `lcx-` stylesheet once, delegates handler
+ * wiring to `xpath-editor-buttons.ts`. No SQLite import — Owner
+ * Switch and User Add bind their own persistence layer.
  */
 
 import {
@@ -19,8 +15,9 @@ import {
 } from "./xpath-editor-constants";
 import { xpathEditorCss } from "./xpath-editor-css";
 import { buildEditorTable } from "./xpath-editor-table";
-import { readEditorRows } from "./xpath-editor-reader";
-import type { XPathEditorOptions, XPathEditorRow } from "./xpath-editor-types";
+import { wireEditorButtons } from "./xpath-editor-buttons";
+import type { MountedEditor } from "./xpath-editor-buttons";
+import type { XPathEditorOptions } from "./xpath-editor-types";
 
 const ensureStylesheet = (doc: Document): void => {
     if (doc.getElementById(`${ID_XPATH_EDITOR_ROOT}-css`) !== null) {
@@ -57,39 +54,6 @@ const buildHeader = (doc: Document): HTMLDivElement => {
     return header;
 };
 
-interface MountedEditor {
-    Root: HTMLDivElement;
-    Table: HTMLTableElement;
-    CurrentRows: XPathEditorRow[];
-}
-
-const replaceTable = (mounted: MountedEditor, doc: Document, rows: ReadonlyArray<XPathEditorRow>): void => {
-    const fresh = buildEditorTable(doc, rows);
-    mounted.Table.replaceWith(fresh);
-    mounted.Table = fresh;
-    mounted.CurrentRows = [...rows];
-};
-
-const wireButtons = (mounted: MountedEditor, doc: Document, options: XPathEditorOptions): void => {
-    const reset = mounted.Root.querySelector(`#${ID_RESET_BUTTON}`);
-    const save = mounted.Root.querySelector(`#${ID_SAVE_BUTTON}`);
-
-    if (reset instanceof HTMLButtonElement) {
-        reset.addEventListener("click", () => {
-            replaceTable(mounted, doc, options.DefaultRows);
-            options.OnReset?.();
-        });
-    }
-
-    if (save instanceof HTMLButtonElement) {
-        save.addEventListener("click", () => {
-            const next = readEditorRows(mounted.Table, mounted.CurrentRows);
-            mounted.CurrentRows = [...next];
-            options.OnSave(next);
-        });
-    }
-};
-
 export const mountXPathEditor = (host: HTMLElement, options: XPathEditorOptions): void => {
     const doc = host.ownerDocument;
     ensureStylesheet(doc);
@@ -101,5 +65,5 @@ export const mountXPathEditor = (host: HTMLElement, options: XPathEditorOptions)
     root.appendChild(table);
     host.appendChild(root);
     const mounted: MountedEditor = { Root: root, Table: table, CurrentRows: [...options.InitialRows] };
-    wireButtons(mounted, doc, options);
+    wireEditorButtons(mounted, doc, options);
 };

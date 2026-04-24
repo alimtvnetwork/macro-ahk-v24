@@ -1,7 +1,11 @@
 /**
  * Stable string identifier — typically `kebab-case`. Used for
- * `ProjectInstruction.name`, `SeedBlock.id`, dependency project IDs, etc.
+ * `ProjectInstruction.Name`, `SeedBlock.Id`, dependency project IDs, etc.
  *
- * Branded so it cannot be confused with a display name or arbitrary text.
+ * Kept as a structural alias (not a branded type) for the Phase 1
+ * PascalCase migration: every `instruction.ts` ships plain string
+ * literals, so a brand would force a wave of `as Identifier` casts
+ * with no extra safety. A future phase may introduce `asIdentifier()`
+ * + a brand if/when construction helpers are added.
  */
-export type Identifier = string & { readonly __brand: "Identifier" };
+export type Identifier = string;

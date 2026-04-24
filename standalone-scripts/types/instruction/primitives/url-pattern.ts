@@ -2,7 +2,7 @@
  * URL pattern string. Interpretation depends on the sibling `MatchType`
  * value on the owning `TargetUrl`.
  *
- * Branded so generic strings cannot be assigned without going through
- * `asUrlPattern()` (lives next to consumers).
+ * Kept as a structural alias (not a branded type) for the Phase 1
+ * PascalCase migration. See the rationale in `./identifier.ts`.
  */
-export type UrlPattern = string & { readonly __brand: "UrlPattern" };
+export type UrlPattern = string;

@@ -26,6 +26,15 @@
 //                        Probed via HEAD /repos/:owner/:repo
 //   MOCK_MISSING_ASSETS  CSV of versions whose ZIP returns 404 (strict-mode
 //                        exit-4 testing), e.g. "v9.9.9,v0.0.1"
+//   MOCK_ZERO_RELEASES   "1" → /releases/latest returns 200 + "{}" body
+//                        (host reachable, repo has zero releases). Triggers
+//                        the spec §2 step 5 / AC-2 main-branch fallback.
+//                        "404" → /releases/latest returns 404 (GitHub's
+//                        actual contract for "no releases yet"), which the
+//                        installer also treats as zero-releases.
+//   MOCK_MAIN_BRANCH     Branch name advertised at the tarball route
+//                        (default "main"). The route served is
+//                        /:owner/:repo/archive/refs/heads/:branch.tar.gz.
 //   MOCK_CHECKSUM_MODE   "correct"  (default) → checksums.txt lists the real
 //                                    SHA-256 of the served ZIP for ${tag}.
 //                        "wrong"    → checksums.txt lists a deterministic but
@@ -52,6 +61,7 @@
 const http = require('http');
 const crypto = require('crypto');
 const fs = require('fs');
+const zlib = require('zlib');
 const path = require('path');
 
 const PORT = parseInt(process.env.MOCK_PORT || '0', 10);
@@ -61,6 +71,8 @@ const SIBLINGS = parseSiblings(process.env.MOCK_SIBLINGS || '');
 const MISSING_ASSETS = new Set(
     (process.env.MOCK_MISSING_ASSETS || '').split(',').map(s => s.trim()).filter(Boolean)
 );
+const ZERO_RELEASES = process.env.MOCK_ZERO_RELEASES || '';
+const MAIN_BRANCH = process.env.MOCK_MAIN_BRANCH || 'main';
 const CHECKSUM_MODE = (process.env.MOCK_CHECKSUM_MODE || 'correct').toLowerCase();
 const PORT_FILE = process.env.MOCK_PORT_FILE || path.join(process.cwd(), '.mock-port');
 const LOG = process.env.MOCK_LOG === '1';

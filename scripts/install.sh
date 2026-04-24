@@ -774,12 +774,16 @@ main() {
 
     # Per spec §2.1 / §2.2 — banner identifying mode + version on first line.
     # Strict mode = URL-pinned OR explicit semver --version (NOT 'latest').
+    # Main-branch fallback (AC-2) gets its own 🌿 banner.
     local mode_banner
     local is_explicit_pin=0
     if [ -n "${VERSION_OVERRIDE}" ] && [ "${VERSION_OVERRIDE}" != "latest" ]; then
         is_explicit_pin=1
     fi
-    if [ "${URL_PINNED}" -eq 1 ] || [ "${is_explicit_pin}" -eq 1 ]; then
+    if [ "${version}" = "${MAIN_BRANCH_SENTINEL}" ]; then
+        MAIN_FALLBACK=1
+        mode_banner="🌿 Discovery mode — main branch (no releases found)"
+    elif [ "${URL_PINNED}" -eq 1 ] || [ "${is_explicit_pin}" -eq 1 ]; then
         mode_banner="🔒 Strict mode — pinned to ${version}"
     else
         mode_banner="🌊 Discovery mode — resolved ${version}"

@@ -26,7 +26,7 @@ const instruction: ProjectInstruction = {
         autoInject: false,
         runAt: "document_idle",
         cookieBinding: undefined,
-        targetUrls: ["https://lovable.dev/*"],
+        targetUrls: [{ pattern: "https://lovable.dev/*", matchType: "glob" }],
         cookies: [],
         settings: {},
     },

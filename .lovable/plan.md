@@ -35,7 +35,7 @@ _Nothing currently in progress._
 | P5  | Owner Switch SQLite migration + seeds | ✅ 2026-04-24 (`migrations/{ddl,task-status-seed,xpath-setting-seed,index}.ts`) |
 | P6  | Owner Switch CSV parser + validator | ✅ 2026-04-24 (`csv/{splitter,header,cell,parser,validator,email-validator,types,column}.ts` — Q4 cap=2 OwnerEmail cols) |
 | P7  | Owner Switch popup UI shell | ✅ 2026-04-24 (`ui/{popup-shell,popup-sections,popup-elements,popup-rows,popup-errors,popup-file-input,popup-css,popup-constants}.ts`) |
-| P8  | Owner Switch login automation | ⏳ |
+| P8  | Owner Switch login automation | ✅ 2026-04-24 (`flow/{run-login,login-steps,login-types,dom-xpath,dom-actions,wait-for-xpath,xpath-resolver}.ts`) |
 | P9  | Owner Switch promote step (uses shared client) | ⏳ |
 | P10 | Owner Switch sign-out + per-row state machine | ⏳ |
 | P11 | User Add project scaffold | ⏳ |

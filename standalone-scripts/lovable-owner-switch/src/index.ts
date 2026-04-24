@@ -5,7 +5,8 @@
  * P5: migration v1 (DDL + TaskStatus + XPathSetting seeds).
  * P6: CSV parser + validator (`parseOwnerSwitchCsv`).
  * P7: popup UI shell (`mountPopup`).
- * Future phases append login/promote/sign-out flow.
+ * P8: login automation (`runLogin`).
+ * Future phases: promote (P9), sign-out + state machine (P10).
  */
 
 export { LovableOwnerSwitch } from "./lovable-owner-switch";
@@ -15,3 +16,5 @@ export { OwnerSwitchTaskStatusCode } from "./migrations/task-status-seed";
 export { parseOwnerSwitchCsv, OwnerSwitchCsvColumn } from "./csv";
 export type { OwnerSwitchCsvRow, OwnerSwitchCsvParseResult } from "./csv";
 export { mountPopup } from "./ui";
+export { runLogin, LoginStepCode } from "./flow";
+export type { LoginFlowOptions, LoginRunResult } from "./flow";

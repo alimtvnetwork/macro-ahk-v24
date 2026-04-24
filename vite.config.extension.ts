@@ -513,7 +513,9 @@ export default defineConfig(({ mode }) => {
             copyManifest(),
             copyIcons(),
             validateNoBackgroundDynamicImport(),
-            generateBuildMeta(),
+            // PERF-1 (2026-04-25): only emit build-meta.json in development.
+            // Shipping it in production keeps the SW awake every 1s via hot-reload.ts.
+            isDev ? generateBuildMeta() : null,
             copyProjectScripts(),
             verifyWasmAsset(),
             // Bundle visualizer — gated behind ANALYZE=1 to keep the output slim.

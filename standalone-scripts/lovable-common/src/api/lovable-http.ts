@@ -9,6 +9,10 @@ const MIME_JSON = "application/json";
 const BEARER_PREFIX = "Bearer ";
 const EMPTY_JSON_BODY = "{}";
 
+export interface WireRecord {
+    [key: string]: string;
+}
+
 export type LovableHttpMethod = "GET" | "POST" | "PUT";
 
 export interface LovableHttpRequest {
@@ -58,11 +62,39 @@ const readBodyOrThrow = async (response: Response, endpoint: string): Promise<st
     return bodyText;
 };
 
-export const lovableHttpJson = async (request: LovableHttpRequest): Promise<object> => {
+const fetchAndParse = async (request: LovableHttpRequest): Promise<object> => {
     const response = await fetch(request.endpoint, buildInit(request));
     const bodyText = await readBodyOrThrow(response, request.endpoint);
     const safeText = bodyText.length === 0 ? EMPTY_JSON_BODY : bodyText;
     const parsed: object = JSON.parse(safeText);
 
     return parsed;
+};
+
+const ensureRecord = (value: object, endpoint: string): WireRecord => {
+    if (Array.isArray(value)) {
+        throw new LovableApiError("Lovable API returned an array, expected an object", 0, endpoint, "");
+    }
+
+    return value as WireRecord;
+};
+
+const ensureRecordArray = (value: object, endpoint: string): WireRecord[] => {
+    if (!Array.isArray(value)) {
+        throw new LovableApiError("Lovable API returned an object, expected an array", 0, endpoint, "");
+    }
+
+    return value;
+};
+
+export const lovableHttpRecord = async (request: LovableHttpRequest): Promise<WireRecord> => {
+    const parsed = await fetchAndParse(request);
+
+    return ensureRecord(parsed, request.endpoint);
+};
+
+export const lovableHttpRecordArray = async (request: LovableHttpRequest): Promise<WireRecord[]> => {
+    const parsed = await fetchAndParse(request);
+
+    return ensureRecordArray(parsed, request.endpoint);
 };

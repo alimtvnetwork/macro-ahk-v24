@@ -16,6 +16,7 @@ const InjectionErrorPanel = lazy(() => import("@/components/popup/InjectionError
 const InjectionModeToggle = lazy(() => import("@/components/popup/InjectionModeToggle").then(m => ({ default: m.InjectionModeToggle })));
 const InjectionDiagnosticsPanel = lazy(() => import("@/components/popup/InjectionDiagnosticsPanel").then(m => ({ default: m.InjectionDiagnosticsPanel })));
 const DependencyChainPanel = lazy(() => import("@/components/popup/DependencyChainPanel").then(m => ({ default: m.DependencyChainPanel })));
+const SdkSelfTestPanel = lazy(() => import("@/components/popup/SdkSelfTestPanel").then(m => ({ default: m.SdkSelfTestPanel })));
 const ScriptToggleList = lazy(() => import("@/components/popup/ScriptToggleList").then(m => ({ default: m.ScriptToggleList })));
 const ImportPreviewDialog = lazy(() => import("@/components/popup/ImportPreviewDialog").then(m => ({ default: m.ImportPreviewDialog })));
 import { Separator } from "@/components/ui/separator";
@@ -205,6 +206,7 @@ const PopupPage = () => {
             <InjectionErrorPanel />
             <InjectionDiagnosticsPanel />
             <DependencyChainPanel />
+            <SdkSelfTestPanel />
           </Suspense>
           <Separator />
           <Suspense fallback={null}>

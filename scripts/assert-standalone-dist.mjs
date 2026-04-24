@@ -248,24 +248,75 @@ function main() {
         stdout.write(`  API URL:     ${args.artifactApiUrl}\n`);
     }
 
-    // ── 1. Dist dir present ─────────────────────────────────────────
-    if (!existsSync(distDirAbs)) {
+    // ── 1. Artifact itself was actually downloaded ──────────────────
+    // `actions/download-artifact@v4` exits 0 in several "soft failure"
+    // modes that leave us with NO usable files but no error either:
+    //   a) The artifact name was a typo → step warns "no artifact
+    //      found" and creates an EMPTY directory.
+    //   b) The upstream upload step was skipped (e.g. previous job
+    //      `if:` was false) → again, empty dir, exit 0.
+    //   c) The artifact has expired (>90 days for free tier).
+    //   d) `path:` pointed somewhere unexpected and the dir was
+    //      never created at all.
+    // We must distinguish "the artifact is missing/empty" from
+    // "the artifact is present but the bundle file is missing"
+    // because the fixes are completely different (re-run upstream
+    // job vs. fix the build config).
+    const distDirExists = existsSync(distDirAbs);
+    const distDirEntries = distDirExists ? readdirSync(distDirAbs) : [];
+
+    if (!distDirExists || distDirEntries.length === 0) {
+        const reason = !distDirExists
+            ? `directory does not exist`
+            : `directory exists but is EMPTY (0 files)`;
+
         stdout.write(
-            `::error file=${args.distDir},title=${args.scriptName} dist directory missing::`
-            + `Expected directory ${distDirAbs} after downloading artifact '${args.artifactName}'`
-            + `${args.artifactId ? ` (id=${args.artifactId})` : ""}. `
-            + `${args.artifactUrl ? `Browser URL: ${args.artifactUrl}. ` : ""}`
-            + `The download step likely failed silently — verify the upstream upload-artifact step ran.\n`
+            `::error file=${args.distDir},title=Artifact '${args.artifactName}' missing or empty::`
+            + `Expected files at ${distDirAbs} after downloading artifact '${args.artifactName}'`
+            + `${args.artifactId ? ` (id=${args.artifactId})` : ""}, `
+            + `but the ${reason}. `
+            + `${args.artifactUrl ? `Open ${args.artifactUrl} to inspect what was actually uploaded. ` : ""}`
+            + `Likely causes: `
+            + `(1) the upstream 'upload-artifact' step in 'build-${args.scriptName}' did not run `
+            + `(check that job's status and any 'if:' conditions); `
+            + `(2) the artifact name on upload does not match '${args.artifactName}' on download; `
+            + `(3) the artifact has expired (>90 days); `
+            + `(4) the 'path:' on the download step points to a different directory than this assertion expects.\n`
         );
 
         exit(1);
     }
 
-    stdout.write(`── Contents of dist dir ──\n`);
+    stdout.write(`── Contents of dist dir (${distDirEntries.length} entries) ──\n`);
 
-    for (const entry of readdirSync(distDirAbs)) {
+    for (const entry of distDirEntries) {
         const entryStat = statSync(resolve(distDirAbs, entry));
         stdout.write(`  ${entry}  (${entryStat.size} bytes)\n`);
+    }
+
+    // ── 1b. Total artifact payload sanity ──────────────────────────
+    // Even with files present, a totally-empty payload (every file
+    // 0 bytes) almost always means the upstream build crashed but
+    // still uploaded its empty `dist/`. Catch this BEFORE the
+    // bundle-specific check so the error message points at the
+    // artifact, not the bundle.
+    const totalBytes = distDirEntries.reduce(
+        (sum, entry) => sum + statSync(resolve(distDirAbs, entry)).size,
+        0
+    );
+
+    if (totalBytes === 0) {
+        stdout.write(
+            `::error file=${args.distDir},title=Artifact '${args.artifactName}' is empty (all files 0 bytes)::`
+            + `Downloaded artifact '${args.artifactName}'`
+            + `${args.artifactId ? ` (id=${args.artifactId})` : ""} `
+            + `contains ${distDirEntries.length} file(s) but the total payload is 0 bytes — `
+            + `the upstream build for '${args.scriptName}' likely crashed after creating empty output files. `
+            + `${args.artifactUrl ? `Open ${args.artifactUrl} to confirm. ` : ""}`
+            + `Re-run job 'build-${args.scriptName}' and inspect its build logs.\n`
+        );
+
+        exit(1);
     }
 
     // ── 2. Bundle file present ──────────────────────────────────────

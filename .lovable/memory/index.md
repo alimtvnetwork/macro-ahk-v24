@@ -59,6 +59,7 @@ Updated: just now
 - [Platform adapter pattern](mem://architecture/platform-adapter-pattern) — Abstract environment-specific APIs
 - [Documentation standards](mem://workflow/documentation-standards) — readme.md, CHANGELOG.md, CONTRIBUTING.md
 - [Instruction-driven seeding](mem://architecture/instruction-driven-seeding) — declarative manifest source via instruction.ts
+- [Instruction dual-emit (Phase 2b → 2c)](mem://architecture/instruction-dual-emit-phase-2b) — compile-instruction emits PascalCase canonical + camelCase compat snapshot; CI enforces; Phase 2c migrates the vite copy plugin and removes the compat emit
 - [Extension error management](mem://architecture/extension-error-management) — Multi-layered UI error reporting, BootFailureBanner
 - [Real-time error sync](mem://architecture/real-time-error-synchronization) — ERROR_COUNT_CHANGED message broadcast across contexts
 - [Injection cache](mem://architecture/injection-cache-management) — build-aware cache invalidation and canonical script prioritization

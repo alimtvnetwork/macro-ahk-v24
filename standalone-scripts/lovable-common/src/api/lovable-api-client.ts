@@ -1,5 +1,5 @@
 import { LovableApiEndpoint } from "./lovable-api-endpoint";
-import { lovableHttpJson } from "./lovable-http";
+import { lovableHttpJson, type LovableHttpMethod } from "./lovable-http";
 import { MembershipRoleApiCode } from "./membership-role-api-code";
 import {
     mapMembership,
@@ -70,7 +70,7 @@ export class LovableApiClient {
         return this.updateMembershipRole(workspaceId, userId, { Role: MembershipRoleApiCode.Owner });
     }
 
-    private async send(method: "GET" | "POST" | "PUT", endpoint: string, jsonBody?: object): Promise<object> {
+    private async send(method: LovableHttpMethod, endpoint: string, jsonBody?: object): Promise<object> {
         const bearerToken = await this.tokenProvider();
 
         return lovableHttpJson({ method, endpoint, bearerToken, jsonBody });

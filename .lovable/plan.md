@@ -14,7 +14,7 @@ _Nothing currently in progress._
 
 | # | Item | Priority | Reference |
 |---|---|---|---|
-| 1 | **Refactor `payment-banner-hider` per Issue 98 RCA** — class split (`PaymentBannerHider` + `BannerMatcher` + `BannerObserver` + `BannerHidingStrategy`), sibling `css/payment-banner-hider.css`, enums for selectors/classes/events/states, no `!important`, no `as` casts, no rAF, no swallowed errors | **High** | `spec/22-app-issues/98-payment-banner-hider-violation-rca.md` |
+| 1 | ~~Refactor `payment-banner-hider` per Issue 98 RCA~~ — ✅ **2026-04-24** completed: class split (`PaymentBannerHider` + injected `BannerLocator`), sibling `css/payment-banner-hider.css` declared via `instruction.assets.css`, `BannerState` enum, scoped `[data-marco-banner-hider]` selectors, zero `!important`/casts/rAF/swallowed catches. Build green (`npm run build:payment-banner-hider`), tsc clean, all 4 mandated greps return only doc/comment hits. Version bumped 1.0.0 → 2.230.0. New `scripts/copy-payment-banner-hider-css.mjs` ships the CSS into dist; `check-standalone-dist.mjs` extended to require both artifacts. | ~~High~~ | `spec/22-app-issues/98-payment-banner-hider-violation-rca.md` |
 | 2 | Per-script migration to shared `ProjectInstruction` types (Priority 0.2–0.6) | Low | checklist ready |
 | 3 | Installer hardening v0.3 — sign `checksums.txt` (minisign or cosign) | Low | spec §7.1.4 rule 5 |
 | 4 | Mirror AC-2 main-branch fallback in `install.ps1` | Medium | spec §2 step 5 |
@@ -53,7 +53,7 @@ _Nothing currently in progress._
 
 | # | Item | Where stored | Verify |
 |---|---|---|---|
-| R1 | No `!important` rule | `mem://standards/no-css-important` | grep `standalone-scripts/**` — must be 0 hits (currently 16 in `payment-banner-hider/src/index.ts`) |
+| R1 | No `!important` rule | `mem://standards/no-css-important` | grep `standalone-scripts/**` — must be 0 hits ✅ (banner-hider refactored 2026-04-24, only doc/comment hits remain) |
 | R2 | No error swallowing | `mem://standards/no-error-swallowing` | grep `catch \{` and `catch (_) \{` across `standalone-scripts/**` |
 | R3 | Blank line before return | `mem://standards/blank-line-before-return` | visual diff or planned ESLint rule (Task 0.8) |
 | R4 | Class-based standalone scripts | `mem://standards/class-based-standalone-scripts` | every `standalone-scripts/*/src/index.ts` exports a single default class |

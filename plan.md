@@ -12,6 +12,33 @@
 
 ---
 
+## 🆕 2026-04-24 — Project Import/Export E2E Audit (in progress)
+
+**Spec**: `spec/30-import-export/` (3 docs: 01-rca, 02-erd, 03-test-plan).
+**Diagrams**: `/mnt/documents/import-export-erd.mmd`, `/mnt/documents/import-export-flow.mmd`.
+**Memory**: `.lovable/memory/architecture/project-import-export.md`, `.lovable/memory/architecture/prompt-pipeline.md`.
+
+### Completed in this session
+- ✅ Audited two parallel exporters; designated `src/lib/sqlite-bundle.ts` canonical, `src/lib/project-exporter.ts` deprecated.
+- ✅ Documented real PascalCase SQLite schema (Projects/Scripts/Configs/Prompts/Meta) — does **not** match earlier user spec (no Dependencies/Variables/DatabaseInfo tables).
+- ✅ Migrated all 14 `standalone-scripts/prompts/*/info.json` from camelCase to PascalCase keys.
+- ✅ Updated `scripts/aggregate-prompts.mjs` to read PascalCase canonically with camelCase fallback + deprecation warning.
+- ✅ Verified aggregator still produces 14 prompts (output shape unchanged).
+- ✅ Wrote ERD + flow Mermaid diagrams for user review.
+
+### Pending — triggered when user replies "next"
+1. **E2E test suite** (12 files, ≈67 tests) — setup-once + parallel asserts. Layout in `spec/30-import-export/03-test-plan.md` §3.
+2. **CI job** `import-export-e2e` runs after `derive-casing-matrix`, uploads bundle artifact on failure.
+
+### Follow-ups (queued, not in current task)
+1. Rewire `ProjectEditor.tsx` + `ProjectsSection.tsx` from `project-exporter.ts` → `exportProjectAsSqliteZip()`; delete the legacy file.
+2. Promote `dependencies` and `variables` from JSON-blob to first-class PascalCase tables (`Dependencies`, `Variables`) with a `SchemaVersion` bump — requires migration.
+3. Export `PromptsCategory` + `PromptsToCategory` to preserve multi-category prompt linkage (currently lossy — flattened to `Prompts.Category`).
+4. Add explicit `ImportStrictPascalCase` flag and gate the snake_case/camelCase fallback readers in `sqlite-bundle.ts:371-372` etc. behind `legacy=true`.
+5. Extend the existing `casing-instruction-json` CI job (or add a sibling) to validate `standalone-scripts/prompts/*/info.json` PascalCase compliance.
+
+---
+
 ## Current Status: v7.23 AHK + Extension v2.139.0 + Macro Controller v2.139.0 — Stable
 
 All critical AHK features implemented. 44 issue write-ups documented. 26 engineering standards established. Chrome Extension at v2.139.0 with full React UI unification, session-bridge auth (unified `getBearerToken()` contract), SQLite bundles, User Script API, Context Menu, relative scaling, view transitions, hover micro-interactions, 7-stage injection pipeline with cache gate, 4-tier CSP fallback, and Cross-Project Sync (Phase 1 data layer + Phase 2 Library UI). Macro Controller at v2.139.0 with typed namespace API, centralized constants (Phase 1+2), zero ESLint warnings, and all Supabase references purged. All immediate workstream items complete.

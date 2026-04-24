@@ -183,7 +183,17 @@ interface InjectCtx {
  * (e.g., empty toolbar shell during cold-load).
  */
 function insertBeforeFirstButton(container: Element, ...wrappers: HTMLElement[]): void {
-  const firstButton = container.querySelector(':scope > button, :scope > [type="button"]');
+  // Match the first child that either IS a button or WRAPS a button
+  // (Lovable shells use both patterns: bare <button> or <div type="button"><button/></div>).
+  // We must skip our own previously-injected wrappers so re-injections stay idempotent.
+  const directChildren = Array.from(container.children) as HTMLElement[];
+  const firstButton = directChildren.find(function (child) {
+    const isOurs = child.id === 'marco-save-prompt-btn' || child.id === 'marco-chatbox-prompts-btn';
+    if (isOurs) return false;
+    const isButton = child.tagName === 'BUTTON';
+    const wrapsButton = child.querySelector(':scope > button') !== null;
+    return isButton || wrapsButton;
+  }) ?? null;
 
   if (firstButton) {
     for (const wrapper of wrappers) {

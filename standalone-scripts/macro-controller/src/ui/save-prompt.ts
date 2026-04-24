@@ -192,11 +192,10 @@ function tryInjectSavePrompt(ctx: InjectCtx): boolean {
     const promptsWrapper = buildPromptsButton(ctx.deps);
     const saveWrapper = buildSaveButton(ctx.deps);
 
-    container!.prepend(saveWrapper);
-    container!.prepend(promptsWrapper);
+    insertBeforeFirstButton(container!, promptsWrapper, saveWrapper);
 
     ctx.injected = true;
-    log('Save Prompt + Prompts buttons injected into chatbox toolbar', 'info');
+    log('Save Prompt + Prompts buttons injected into chatbox toolbar (before button[1])', 'info');
 
     return true;
   } catch (e: unknown) {

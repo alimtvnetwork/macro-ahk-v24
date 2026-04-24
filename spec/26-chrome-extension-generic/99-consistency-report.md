@@ -37,7 +37,7 @@
 | 10 | `10-testing-and-qa/` | 🟡 Skeleton |
 | 11 | `11-cicd-and-release/` | 🟡 Skeleton |
 | 12 | `12-templates/` | ✅ Authored (15 full artifacts + overview) |
-| 13 | `13-ai-onboarding-prompt.md` | 🟡 Placeholder |
+| 13 | `13-ai-onboarding-prompt.md` | ✅ Authored |
 | 97 | `97-acceptance-criteria.md` | 🟡 Placeholder |
 | 98 | `98-changelog.md` | ✅ Present |
 | 99 | `99-consistency-report.md` | ✅ Present |

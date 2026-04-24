@@ -307,6 +307,7 @@ function buildFixture(): MockStore {
 /* ------------------------------------------------------------------ */
 
 describe("sqlite-bundle — full round-trip", () => {
+  // eslint-disable-next-line sonarjs/cognitive-complexity -- single integration test asserting every contracted field; splitting would hide round-trip coverage
   it("exports a fixture project to a single-DB zip and imports it intact into a clean workspace", async () => {
     /* ---- 1. Seed source workspace ---- */
     const fixture = buildFixture();

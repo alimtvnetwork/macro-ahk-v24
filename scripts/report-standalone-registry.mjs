@@ -38,6 +38,7 @@ const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
 const STANDALONE_DIR = path.join(REPO_ROOT, "standalone-scripts");
 
 const STRICT = process.argv.includes("--strict");
+const JSON_MODE = process.argv.includes("--json");
 const IS_CI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
 
 /** Folders inside standalone-scripts/ that are NOT discoverable as a standalone script. */

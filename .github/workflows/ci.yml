@@ -1074,8 +1074,8 @@ jobs:
 
       # Zero-dep test (uses `node:test` from Node 20 stdlib). No
       # `pnpm install` needed — keeps this job under ~10 s end-to-end.
-      - name: Run truncation fixture test
-        run: node --test scripts/__tests__/check-instruction-json-casing-truncation.test.mjs
+      - name: Run truncation fixture tests (counts + line snapshot)
+        run: node --test scripts/__tests__/check-instruction-json-casing-truncation.test.mjs scripts/__tests__/check-instruction-json-casing-truncation-snapshot.test.mjs
 
     name: "Casing · ${{ matrix.project }}"
     runs-on: ubuntu-latest

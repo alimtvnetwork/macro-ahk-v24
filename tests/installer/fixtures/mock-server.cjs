@@ -26,6 +26,14 @@
 //                        Probed via HEAD /repos/:owner/:repo
 //   MOCK_MISSING_ASSETS  CSV of versions whose ZIP returns 404 (strict-mode
 //                        exit-4 testing), e.g. "v9.9.9,v0.0.1"
+//   MOCK_CHECKSUM_MODE   "correct"  (default) → checksums.txt lists the real
+//                                    SHA-256 of the served ZIP for ${tag}.
+//                        "wrong"    → checksums.txt lists a deterministic but
+//                                    bogus hash so the installer rejects it
+//                                    with exit 6 (spec §7.1, §8 rule 2).
+//                        "missing"  → /checksums.txt returns 404 — covers the
+//                                    soft-warn-and-continue back-compat path
+//                                    for releases predating v0.2 hardening.
 //   MOCK_PORT_FILE       Path to write the resolved port (default
 //                        ./.mock-port).  Useful when MOCK_PORT=0.
 //   MOCK_LOG             "1" → log every request to stderr
@@ -34,7 +42,7 @@
 //   - Writes the listening port to MOCK_PORT_FILE (atomic write).
 //   - Listens until SIGTERM / SIGINT, then exits 0.
 //
-// Spec reference: spec/14-update/01-generic-installer-behavior.md §2-4.
+// Spec reference: spec/14-update/01-generic-installer-behavior.md §2-4, §7.1.
 //
 // File extension is `.cjs` because the repo's package.json sets
 // "type": "module" — using `.cjs` keeps this file in CommonJS mode so
@@ -42,6 +50,7 @@
 // ─────────────────────────────────────────────────────────────────────
 
 const http = require('http');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
@@ -52,8 +61,10 @@ const SIBLINGS = parseSiblings(process.env.MOCK_SIBLINGS || '');
 const MISSING_ASSETS = new Set(
     (process.env.MOCK_MISSING_ASSETS || '').split(',').map(s => s.trim()).filter(Boolean)
 );
+const CHECKSUM_MODE = (process.env.MOCK_CHECKSUM_MODE || 'correct').toLowerCase();
 const PORT_FILE = process.env.MOCK_PORT_FILE || path.join(process.cwd(), '.mock-port');
 const LOG = process.env.MOCK_LOG === '1';
+
 
 function parseSiblings(csv) {
     const map = new Map();

@@ -163,10 +163,12 @@ async function injectJwtIntoTab(tabId: number, jwt: string): Promise<void> {
     } catch (seedError) {
         if (isTabAccessDeniedError(seedError)) {
             const tabUrl = await getTabUrl(tabId);
+            const reason = seedError instanceof Error ? seedError.message : String(seedError);
             warnInaccessibleTabOnce(
                 tabId,
                 tabUrl ?? "unknown-tab-url",
-                seedError instanceof Error ? seedError.message : String(seedError),
+                reason,
+                classifyAccessDeniedError(reason),
             );
             return;
         }

@@ -232,6 +232,7 @@ class ToastManager {
     }
 
     this.sdkMissCount = 0;
+    this.ensureVersion();
     this.flushPendingStopLoop(notify!);
 
     const now = Date.now();

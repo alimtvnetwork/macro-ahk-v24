@@ -18,6 +18,7 @@ import "./globals.d";
 import { BannerLocator } from "./banner-locator";
 import {
     BannerState,
+    OBSERVER_DEBOUNCE_MS,
     REMOVE_DELAY_MS,
     STATE_ATTR,
     type PaymentBannerHiderApi,
@@ -30,6 +31,7 @@ export class PaymentBannerHider implements PaymentBannerHiderApi {
 
     private readonly locator: BannerLocator;
     private observer: MutationObserver | null = null;
+    private debounceTimer: number | null = null;
 
     public constructor(locator: BannerLocator = new BannerLocator()) {
         this.locator = locator;

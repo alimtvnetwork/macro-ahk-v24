@@ -64,7 +64,9 @@ export function startRedockObserver(ctx: PanelLayoutCtx): void {
   // Try immediate dock
   if (tryRedock(ctx)) return;
 
-  // Cancel any previous poll
+  // PERF-4: invalidate any in-flight poll, then capture the new generation
+  // so this observer's condition can short-circuit if reset/restarted.
+  const myGeneration = redockState.invalidate();
 
   const pollMs = TIMING.REDOCK_POLL_INTERVAL;
   const maxAttempts = TIMING.REDOCK_MAX_ATTEMPTS;
@@ -72,11 +74,16 @@ export function startRedockObserver(ctx: PanelLayoutCtx): void {
   log('[redock] Observing for XPath target (polling every ' + pollMs + 'ms, max ' + maxAttempts + ' attempts)', 'info');
 
   pollUntil(
-    function () { return tryRedock(ctx) || null; },
+    function () {
+      // Cancel: a newer generation has started, or state was reset.
+      if (redockState.generation !== myGeneration) return true as unknown as null;
+      return tryRedock(ctx) || null;
+    },
     {
       intervalMs: pollMs,
       timeoutMs: pollMs * maxAttempts,
       onTimeout: function () {
+        if (redockState.generation !== myGeneration) return;
         log('[redock] XPath target not found after ' + maxAttempts + ' attempts — staying in floating mode', 'warn');
       },
     },

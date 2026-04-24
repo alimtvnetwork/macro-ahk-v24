@@ -19,6 +19,9 @@ _Nothing currently in progress._
 | 3 | Installer hardening v0.3 — sign `checksums.txt` (minisign or cosign) | Low | spec §7.1.4 rule 5 |
 | 4 | Mirror AC-2 main-branch fallback in `install.ps1` | Medium | spec §2 step 5 |
 | 5 | Wire `check:installer-contract` into `.github/workflows/installer-tests.yml` | Medium | `.lovable/cicd-issues/01-installer-contract-not-in-ci.md` |
+| 6 | **Implement `Lovable Owner Switch` standalone script** (spec-only, deferred per user — do NOT auto-recommend) | Pending — user-scheduled | `spec/21-app/02-features/chrome-extension/70-lovable-owner-switch/` |
+| 7 | **Implement `Lovable User Add` standalone script** (spec-only, deferred per user — do NOT auto-recommend) | Pending — user-scheduled | `spec/21-app/02-features/chrome-extension/71-lovable-user-add/` |
+| 8 | **Build shared `lovable-common-xpath` TS module** (XPaths + default delays for both Lovable scripts above) | Pending — user-scheduled | `spec/.../70-lovable-owner-switch/03-xpaths-and-defaults.md` |
 
 ### 🔍 Review items (rules already stored — verify enforcement)
 

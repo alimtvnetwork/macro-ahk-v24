@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useStatus } from "@/hooks/use-extension-data";
 import { RefreshCw, Shield, Wifi, WifiOff, Key, Settings2 } from "lucide-react";
 import { WasmStatusBanner } from "./WasmStatusBanner";
+import { TokenSeederStatusIndicator } from "./TokenSeederStatusIndicator";
 
 const stateConfig: Record<string, { bg: string; text: string; pulse: boolean }> = {
   HEALTHY: {
@@ -112,6 +113,9 @@ export function StatusPanel() {
             {status?.config?.source ?? "—"}
           </Badge>
         </div>
+
+        {/* Token Seeder access status — auto-hides when no tabs are blocked */}
+        <TokenSeederStatusIndicator />
 
         {/* Version & Logging */}
         <div className="flex items-center justify-between border-t border-border pt-3">

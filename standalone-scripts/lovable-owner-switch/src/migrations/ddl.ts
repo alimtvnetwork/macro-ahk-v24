@@ -59,10 +59,14 @@ export const DDL_INDEX_ROW_TASK = `
 CREATE INDEX IF NOT EXISTS IX_OwnerSwitchRow_TaskId ON OwnerSwitchRow(TaskId);
 `.trim();
 
+import { DDL_OWNER_SWITCH_LOG, DDL_INDEX_LOG_TASK } from "./log-ddl";
+
 export const ALL_DDL: ReadonlyArray<string> = Object.freeze([
     DDL_TASK_STATUS,
     DDL_XPATH_SETTING,
     DDL_OWNER_SWITCH_TASK,
     DDL_OWNER_SWITCH_ROW,
     DDL_INDEX_ROW_TASK,
+    DDL_OWNER_SWITCH_LOG,
+    DDL_INDEX_LOG_TASK,
 ]);

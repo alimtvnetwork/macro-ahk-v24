@@ -11,12 +11,20 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const STANDALONE_DIR = path.join(ROOT, "standalone-scripts");
 
-/** Map of project folder → required dist files */
+/** Map of project folder → required dist files.
+ *
+ * `instruction.json`        — canonical, PascalCase (Phase 2b+)
+ * `instruction.compat.json` — transitional, camelCase-only snapshot
+ *                             emitted alongside the canonical file by
+ *                             scripts/compile-instruction.mjs. Required
+ *                             until Phase 2c migrates the last
+ *                             camelCase reader (vite copyProjectScripts).
+ */
 const REQUIRED_ARTIFACTS = {
-  "marco-sdk": ["marco-sdk.js", "instruction.json"],
-  "macro-controller": ["macro-looping.js", "instruction.json"],
-  "xpath": ["xpath.js", "instruction.json"],
-  "payment-banner-hider": ["payment-banner-hider.js", "payment-banner-hider.css", "instruction.json"],
+  "marco-sdk": ["marco-sdk.js", "instruction.json", "instruction.compat.json"],
+  "macro-controller": ["macro-looping.js", "instruction.json", "instruction.compat.json"],
+  "xpath": ["xpath.js", "instruction.json", "instruction.compat.json"],
+  "payment-banner-hider": ["payment-banner-hider.js", "payment-banner-hider.css", "instruction.json", "instruction.compat.json"],
 };
 
 let failed = false;

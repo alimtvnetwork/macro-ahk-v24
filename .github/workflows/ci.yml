@@ -666,6 +666,76 @@ jobs:
           name: prompts-dist
           path: standalone-scripts/prompts/
 
+      - name: Download Payment Banner Hider dist
+        uses: actions/download-artifact@v4
+        with:
+          name: payment-banner-hider-dist
+          path: standalone-scripts/payment-banner-hider/dist/
+
+      # ── Pre-build artifact assertion ────────────────────────────
+      # Hard gate run BEFORE `pnpm run build:extension` so a missing
+      # payment-banner-hider artifact fails fast with a precise
+      # error pointing at the exact file the extension build expects.
+      # Historically `check-standalone-dist.mjs` (chained inside
+      # build:extension) caught this — but only after ~30s of
+      # unrelated setup work. This step short-circuits in <1s and
+      # produces an inline `::error file=…::` annotation on the PR.
+      - name: Assert payment-banner-hider dist artifact present
+        shell: bash
+        run: |
+          set -euo pipefail
+          DIST_DIR="$(pwd)/standalone-scripts/payment-banner-hider/dist"
+          BUNDLE="${DIST_DIR}/payment-banner-hider.js"
+          INSTRUCTION="${DIST_DIR}/instruction.json"
+
+          echo "── Asserting payment-banner-hider dist before extension build ──"
+          echo "DIST_DIR=${DIST_DIR}"
+
+          if [ ! -d "$DIST_DIR" ]; then
+            echo "::error file=standalone-scripts/payment-banner-hider/dist,title=Payment Banner Hider dist directory missing::Expected directory ${DIST_DIR} after downloading artifact 'payment-banner-hider-dist' from job 'build-payment-banner-hider'. The download step likely failed silently — verify the upstream upload-artifact step ran."
+            exit 1
+          fi
+
+          echo "── Contents of dist dir ──"
+          ls -la "$DIST_DIR"
+
+          if [ ! -f "$BUNDLE" ]; then
+            echo "::error file=standalone-scripts/payment-banner-hider/dist/payment-banner-hider.js,title=payment-banner-hider.js missing from dist artifact::Expected ${BUNDLE} but it was not found. Files actually present: $(ls "$DIST_DIR" | tr '\n' ' '). Check vite.config.payment-banner-hider.ts → build.rollupOptions.output.entryFileNames is 'payment-banner-hider.js' (not hashed)."
+            exit 1
+          fi
+
+          if [ ! -f "$INSTRUCTION" ]; then
+            echo "::error file=standalone-scripts/payment-banner-hider/dist/instruction.json,title=instruction.json missing from dist artifact::Expected ${INSTRUCTION}. Check that scripts/compile-instruction.mjs ran during build:payment-banner-hider."
+            exit 1
+          fi
+
+          BYTES=$(wc -c < "$BUNDLE" | tr -d ' ')
+          if [ "$BYTES" -lt 100 ]; then
+            echo "::error file=standalone-scripts/payment-banner-hider/dist/payment-banner-hider.js,title=payment-banner-hider.js suspiciously small (${BYTES} bytes)::Bundle exists but is < 100 bytes — likely a build error produced an empty file. Re-run build-payment-banner-hider."
+            exit 1
+          fi
+
+          VERSION=$(node -p "require('${INSTRUCTION}').version")
+          SHA=$(sha256sum "$BUNDLE" | awk '{print $1}')
+
+          echo "✅ payment-banner-hider dist verified"
+          echo "   path:    ${BUNDLE}"
+          echo "   bytes:   ${BYTES}"
+          echo "   sha256:  ${SHA}"
+          echo "   version: ${VERSION}"
+
+          {
+            echo "## ✅ Pre-build assertion — Payment Banner Hider dist"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Bundle path | \`${BUNDLE}\` |"
+            echo "| Size (bytes) | \`${BYTES}\` |"
+            echo "| SHA-256 | \`${SHA}\` |"
+            echo "| Version | \`${VERSION}\` |"
+            echo "| Source artifact | \`payment-banner-hider-dist\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Build Chrome extension
         run: pnpm run build:extension
 

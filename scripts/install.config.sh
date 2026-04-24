@@ -28,7 +28,14 @@ SIBLING_DISCOVERY_ENABLED="${SIBLING_DISCOVERY_ENABLED:-0}"
 # number (2, 3, 4, …); {base} is the current repo's bare name (the part
 # after owner/). For this repo (macro-ahk-v23), siblings would be
 # macro-ahk-v24, macro-ahk-v25, … so the pattern is:
-: "${SIBLING_NAME_PATTERN:=macro-ahk-v{N}}"
+#
+# NOTE: bash's ${VAR:=default} parameter-expansion form treats the FIRST `}`
+# it sees as the closer of the expansion, so a literal `macro-ahk-v{N}` would
+# silently truncate to `macro-ahk-v{N`. Assign via a temporary so the literal
+# survives intact.
+__SIBLING_NAME_PATTERN_DEFAULT='macro-ahk-v{N}'
+SIBLING_NAME_PATTERN="${SIBLING_NAME_PATTERN:-${__SIBLING_NAME_PATTERN_DEFAULT}}"
+unset __SIBLING_NAME_PATTERN_DEFAULT
 
 # How many versions ahead to probe. Default per spec §4 = 20.
 SIBLING_PROBE_DEPTH="${SIBLING_PROBE_DEPTH:-20}"

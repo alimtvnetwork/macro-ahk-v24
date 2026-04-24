@@ -76,7 +76,13 @@ MARCO_DOWNLOAD_BASE="${MARCO_DOWNLOAD_BASE:-https://github.com}"
 # is enforced in decide_sibling_discovery() below — config CANNOT
 # override it.
 SIBLING_DISCOVERY_ENABLED="${SIBLING_DISCOVERY_ENABLED:-0}"
-: "${SIBLING_NAME_PATTERN:=macro-ahk-v{N}}"
+# NOTE: bash's ${VAR:=default} parameter-expansion form treats the FIRST `}`
+# it sees as the closer of the expansion. A literal `macro-ahk-v{N}` default
+# therefore parses as `macro-ahk-v{N` (the inner `}` is consumed). Assign
+# via a temporary so the literal survives intact.
+__SIBLING_NAME_PATTERN_DEFAULT='macro-ahk-v{N}'
+SIBLING_NAME_PATTERN="${SIBLING_NAME_PATTERN:-${__SIBLING_NAME_PATTERN_DEFAULT}}"
+unset __SIBLING_NAME_PATTERN_DEFAULT
 SIBLING_PROBE_DEPTH="${SIBLING_PROBE_DEPTH:-20}"
 SIBLING_PARALLELISM="${SIBLING_PARALLELISM:-8}"
 SIBLING_PROBE_TIMEOUT_SECS="${SIBLING_PROBE_TIMEOUT_SECS:-5}"

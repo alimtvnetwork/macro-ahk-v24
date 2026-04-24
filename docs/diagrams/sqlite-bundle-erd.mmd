@@ -19,11 +19,11 @@ erDiagram
         TEXT    Name
         TEXT    Version
         TEXT    Description
-        TEXT    TargetUrls   "JSON array"
-        TEXT    Scripts      "JSON array"
-        TEXT    Configs      "JSON array"
-        TEXT    CookieRules  "JSON array"
-        TEXT    Settings     "JSON object"
+        TEXT    TargetUrls
+        TEXT    Scripts
+        TEXT    Configs
+        TEXT    CookieRules
+        TEXT    Settings
         TEXT    CreatedAt
         TEXT    UpdatedAt
     }
@@ -75,5 +75,5 @@ erDiagram
     %% Bundle tables are intentionally flat — no FOREIGN KEYs.
     %% Cross-table linkage lives inside Projects.Scripts / Projects.Configs
     %% as JSON path arrays resolved by Uid (preferred) or Name on import.
-    Projects }o..o{ Scripts : "denormalised JSON refs (Uid/Name)"
-    Projects }o..o{ Configs : "denormalised JSON refs (Uid/Name)"
+    Projects }o--o{ Scripts : "JSON refs by Uid or Name"
+    Projects }o--o{ Configs : "JSON refs by Uid or Name"

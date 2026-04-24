@@ -50,14 +50,30 @@ fi
 
 set -euo pipefail
 
-REPO="alimtvnetwork/macro-ahk-v23"
-VERSION_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$'
+# ── Shared installer contract (spec/14-update/01-…) ────────────────
+# scripts/installer-constants.sh is generated from
+# scripts/installer-contract.json by scripts/generate-installer-constants.mjs.
+# When present beside this script it provides MARCO_DEFAULT_REPO,
+# MARCO_VERSION_REGEX, MARCO_MAIN_BRANCH_SENTINEL, MARCO_EXIT_*, and the
+# MARCO_API_BASE / MARCO_DOWNLOAD_BASE / MARCO_MAIN_BRANCH defaults
+# (already env-var-aware via `: ${VAR:=…}`). When absent (curl-piped
+# standalone install) the inline fallbacks below take over so install.sh
+# remains a single self-sufficient file.
+__CONST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd)" || __CONST_DIR=""
+if [ -n "${__CONST_DIR}" ] && [ -f "${__CONST_DIR}/installer-constants.sh" ]; then
+    # shellcheck disable=SC1090,SC1091
+    . "${__CONST_DIR}/installer-constants.sh"
+fi
+unset __CONST_DIR
+
+REPO="${MARCO_DEFAULT_REPO:-alimtvnetwork/macro-ahk-v23}"
+VERSION_REGEX="${MARCO_VERSION_REGEX:-^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$}"
 # Sentinel returned by fetch_latest_version when the API responds 200 OK
 # but reports zero releases. Triggers spec §2 step 5 main-branch fallback
 # (AC-2) — distinct from a network/5xx failure which still exits 5.
-MAIN_BRANCH_SENTINEL="__MAIN_BRANCH__"
+MAIN_BRANCH_SENTINEL="${MARCO_MAIN_BRANCH_SENTINEL:-__MAIN_BRANCH__}"
 # Default branch used by the main-branch fallback. Override per repo via
-# MARCO_MAIN_BRANCH env var or by editing this line.
+# MARCO_MAIN_BRANCH env var or via the shared contract.
 MAIN_BRANCH="${MARCO_MAIN_BRANCH:-main}"
 TMP_DIR=""
 URL_PINNED=0

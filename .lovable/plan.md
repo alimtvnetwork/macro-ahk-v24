@@ -17,7 +17,6 @@ _Nothing currently in progress — TS Migration V2 backlog fully cleared at v2.2
 | 1 | Surface latest sdkSelfTest + kv/files/gkv round-trip results in popup (✅/❌ + last-run timestamp) | Medium | `.lovable/suggestions.md` |
 | 2 | Release installer hardening v0.2 — checksum verification + signing | Medium | `mem://workflow/13-next-commands` |
 | 3 | **AC-2 main-branch fallback in installer** — implement spec §2 step 5 (currently exits 5 instead of falling through with `🌿` banner) | Medium | `.lovable/memory/suggestions/20260424-1900-suggestion-installer-ac2-main-branch-fallback.md` |
-| 4 | Pre-existing resolver-suite failure: `SIBLING_NAME_PATTERN` from `install.config.sh` not sourced when test cwd ≠ repo root (1/46 fail) | Low | `tests/installer/resolver.test.sh:357` |
 
 
 ---
@@ -43,6 +42,7 @@ _Nothing currently in progress — TS Migration V2 backlog fully cleared at v2.2
 | Add explicit AC-1 (no-flag + releases-exist → install latest) coverage to `tests/installer/mock-server.test.sh` | ✅ — 7 new assertions; mock-server suite **39/39** passing |
 | Vitest regression suite for handler-guards (missing-field payloads → clean `{ isOk:false }`, DB never touched) | ✅ — `src/test/regression/handler-guards.test.ts` adds **27 tests** across kv / grouped-kv / file-storage / project-api; full suite **478/478** passing |
 | Eliminate sql.js typecheck noise (17 pre-existing errors) | ✅ — installed `@types/sql.js@1.4.9`, deleted local `src/types/sql.js.d.ts` stub, redirected 5 `SqlValue` imports to `handler-types`, switched `SqlJs` aliases to `SqlJsStatic`, narrowed `BindParams` Array.isArray guards in `sqlite-bind-safety.ts`. `tsc --noEmit` clean; 478/478 tests green. |
+| Fix resolver-suite `SIBLING_NAME_PATTERN` failure | ✅ — root cause was NOT cwd/sourcing as logged. Bash `${VAR:=macro-ahk-v{N}}` parses the FIRST `}` as the parameter-expansion closer, silently truncating the default to `macro-ahk-v{N`. Refactored both `scripts/install.sh` and `scripts/install.config.sh` to assign the literal via a temp variable. Resolver suite now **46/46** passing; mock-server suite still **39/39**. |
 
 ### Session 2026-04-23 — v2.225.0 (TS Migration V2 cleared)
 

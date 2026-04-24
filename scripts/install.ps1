@@ -380,8 +380,71 @@ function Get-Asset([string]$version) {
     }
 
     Write-OK "Downloaded successfully."
+    Test-Checksum -Version $version -AssetName $assetName -ZipPath $zipPath -TmpDir $tmpDir
     return @{ ZipPath = $zipPath; TmpDir = $tmpDir }
 }
+
+# --- Checksum verification (spec/14-update §7.1, §8 rule 2) ---
+#
+# Mirrors install.sh's verify_checksum: fetches checksums.txt from the
+# same release, finds the line for $AssetName, compares its SHA-256 to
+# Get-FileHash on the local archive.
+#   - Match    → continue.
+#   - Mismatch → exit 6.
+#   - Missing  → soft-warn, continue (back-compat with pre-v0.2 releases).
+function Test-Checksum {
+    param(
+        [string]$Version,
+        [string]$AssetName,
+        [string]$ZipPath,
+        [string]$TmpDir
+    )
+
+    $checksumsUrl = "$script:DownloadBase/$Repo/releases/download/$Version/checksums.txt"
+    $checksumsPath = Join-Path $TmpDir "checksums.txt"
+
+    Write-Step "Verifying SHA-256 of $AssetName..."
+
+    try {
+        Invoke-WebRequest -Uri $checksumsUrl -OutFile $checksumsPath -UseBasicParsing -ErrorAction Stop
+    }
+    catch {
+        Write-Warn "checksums.txt not found at $checksumsUrl"
+        Write-Warn "Skipping checksum verification (older release predating v0.2 hardening)."
+        return
+    }
+
+    $expected = $null
+    foreach ($line in Get-Content -LiteralPath $checksumsPath) {
+        # sha256sum format: "<hex>  <name>" or "<hex>  *<name>" (binary mode)
+        if ($line -match '^([0-9a-fA-F]{64})\s+\*?(.+)$' -and $matches[2] -eq $AssetName) {
+            $expected = $matches[1].ToLowerInvariant()
+            break
+        }
+    }
+    if (-not $expected) {
+        Write-Warn "checksums.txt does not list $AssetName — skipping verification."
+        return
+    }
+
+    $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $ZipPath).Hash.ToLowerInvariant()
+
+    if ($expected -eq $actual) {
+        Write-OK "Checksum verified ($AssetName)."
+        return
+    }
+
+    Write-Err "Checksum MISMATCH for $AssetName"
+    Write-Err "  expected: $expected"
+    Write-Err "  actual:   $actual"
+    Write-Err "  source:   $checksumsUrl"
+    Write-Err ""
+    Write-Err "The downloaded archive does not match the published SHA-256."
+    Write-Err "Refusing to install — possible mirror tampering or corruption."
+    Remove-PathSafely -Path $TmpDir -Reason "checksum-mismatch cleanup" | Out-Null
+    exit 6
+}
+
 
 # --- Reboot-safe delete (Windows MoveFileEx + scheduled-task fallback) ---
 #

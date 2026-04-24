@@ -12,14 +12,15 @@
     "repoRoot",
     "totals",
     "locations",
+    "locationsRegistry",
     "scripts",
     "exitCode"
   ],
   "properties": {
     "schemaVersion": {
-      "description": "Semver-ish version of the payload shape. Consumers should pin to a major (e.g. accept '1.x'). Bumped on any breaking change to required fields, types, or enums.",
+      "description": "Semver-ish version of the payload shape. Consumers should pin to a major (e.g. accept '1.x'). Bumped on any breaking change to required fields, types, or enums. 1.0 → 1.1: added top-level `locationsRegistry` (additive, minor).",
       "type": "string",
-      "const": "1.0"
+      "enum": ["1.0", "1.1"]
     },
     "mode": {
       "description": "Whether the script was invoked with --strict (CI gate) or in report-only mode.",

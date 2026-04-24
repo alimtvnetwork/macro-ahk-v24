@@ -144,9 +144,10 @@ async function openDb(data: Uint8Array): Promise<Database> {
 
 function insertProjects(db: Database, projects: StoredProject[]): void {
   const stmt = db.prepare(`
-    INSERT INTO Projects (Uid, SchemaVersion, Name, Version, Description,
-      TargetUrls, Scripts, Configs, CookieRules, Settings, CreatedAt, UpdatedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO Projects (Uid, SchemaVersion, Name, Slug, Version, Description,
+      TargetUrls, Scripts, Configs, Cookies, CookieRules, Dependencies, Settings,
+      IsGlobal, IsRemovable, CreatedAt, UpdatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const now = new Date().toISOString();
@@ -156,13 +157,21 @@ function insertProjects(db: Database, projects: StoredProject[]): void {
       p.id ?? null,
       p.schemaVersion ?? 1,
       p.name ?? "",
+      p.slug ?? null,
       p.version ?? "1.0.0",
       p.description ?? null,
       JSON.stringify(p.targetUrls ?? []),
       JSON.stringify(p.scripts ?? []),
       JSON.stringify(p.configs ?? []),
+      // v5: serialize the modern cookies[] AND the deprecated cookieRules
+      // separately so a round-trip never silently merges or drops one.
+      JSON.stringify(p.cookies ?? []),
       JSON.stringify(p.cookieRules ?? []),
+      JSON.stringify(p.dependencies ?? []),
       JSON.stringify(p.settings ?? {}),
+      // Defaults match StoredProject runtime semantics: not global, removable.
+      p.isGlobal === true ? 1 : 0,
+      p.isRemovable === false ? 0 : 1,
       p.createdAt ?? now,
       p.updatedAt ?? now,
     ]);
@@ -173,8 +182,9 @@ function insertProjects(db: Database, projects: StoredProject[]): void {
 function insertScripts(db: Database, scripts: StoredScript[]): void {
   const stmt = db.prepare(`
     INSERT INTO Scripts (Uid, Name, Description, Code, RunOrder, RunAt,
-      ConfigBinding, IsIife, HasDomUsage, CreatedAt, UpdatedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ConfigBinding, IsIife, HasDomUsage, UpdateUrl, LastUpdateCheck,
+      CreatedAt, UpdatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const now = new Date().toISOString();
@@ -190,6 +200,8 @@ function insertScripts(db: Database, scripts: StoredScript[]): void {
       s.configBinding ?? null,
       s.isIife ? 1 : 0,
       s.hasDomUsage ? 1 : 0,
+      s.updateUrl ?? null,
+      s.lastUpdateCheck ?? null,
       s.createdAt ?? now,
       s.updatedAt ?? now,
     ]);
@@ -221,19 +233,25 @@ function insertConfigs(db: Database, configs: StoredConfig[]): void {
 function insertMeta(db: Database): void {
   const now = new Date().toISOString();
   db.run(`INSERT INTO Meta (Key, Value) VALUES ('exported_at', ?)`, [now]);
-  db.run(`INSERT INTO Meta (Key, Value) VALUES ('format_version', '4')`, []);
+  // CURRENT_FORMAT_VERSION is the canonical source — never inline the literal.
+  db.run(
+    `INSERT INTO Meta (Key, Value) VALUES ('format_version', ?)`,
+    [CURRENT_FORMAT_VERSION],
+  );
 }
 
 function insertPrompts(db: Database, prompts: PromptEntry[]): void {
   const stmt = db.prepare(`
-    INSERT INTO Prompts (Uid, Name, Text, RunOrder, IsDefault, IsFavorite,
+    INSERT INTO Prompts (Uid, Slug, Name, Text, RunOrder, IsDefault, IsFavorite,
       Category, CreatedAt, UpdatedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const now = new Date().toISOString();
   for (const p of prompts) {
     stmt.run([
       p.id ?? null,
+      // v5: emit Slug — required by the Task Next prompt resolver.
+      p.slug ?? null,
       p.name ?? "",
       p.text ?? "",
       p.order ?? 0,
@@ -246,8 +264,6 @@ function insertPrompts(db: Database, prompts: PromptEntry[]): void {
   }
   stmt.free();
 }
-
-/** Fetches all data, builds a SQLite DB, zips it, and triggers download. */
 // eslint-disable-next-line max-lines-per-function
 export async function exportAllAsSqliteZip(): Promise<void> {
   const [projRes, scriptsRes, configsRes, promptsRes] = await Promise.all([

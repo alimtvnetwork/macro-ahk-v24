@@ -973,11 +973,111 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ════════════════════════════════════════════════════════════
+  # Job 3f: Casing Gate · per-project matrix
+  #
+  # Runs `pnpm run check:instruction-json-casing standalone-scripts/<name>`
+  # ONCE PER PROJECT in a matrix, so the GitHub Actions checks tab
+  # surfaces a separate green/red row per standalone script
+  # (`Casing · marco-sdk`, `Casing · xpath`, …). When a regression
+  # lands, a reviewer immediately sees WHICH project's instruction
+  # JSON drifted — no need to grep through a single combined log.
+  #
+  # Each matrix leg downloads only the one `<name>-dist` artifact it
+  # needs (so a broken upstream `build-xpath` only fails the `xpath`
+  # leg, not all four). The shared no-arg variant of this script
+  # also runs inside `build-extension` as a final sweep — the matrix
+  # is the per-project visibility layer, the in-build call is the
+  # last-line gate before vite copies the JSON files into the
+  # extension bundle.
+  #
+  # Matrix entries: every standalone-scripts/<name>/src/instruction.ts
+  # found in the repo at the time this workflow was authored. Adding
+  # a new project requires extending the `project` list AND the
+  # `artifact-name → dist-path` map — both are colocated below for
+  # easy review. The `--json` flag is also honoured per-leg via
+  # GITHUB_STEP_SUMMARY so a failed leg uploads a parseable report.
+  # ════════════════════════════════════════════════════════════
+  casing-instruction-json:
+    name: "Casing · ${{ matrix.project }}"
+    runs-on: ubuntu-latest
+    needs:
+      - build-sdk
+      - build-xpath
+      - build-payment-banner-hider
+      - build-macro-controller
+
+    strategy:
+      # Don't short-circuit the other legs when one project fails —
+      # we want EVERY failing project surfaced in the same run so a
+      # multi-project regression doesn't require N CI re-runs to
+      # uncover.
+      fail-fast: false
+      matrix:
+        include:
+          - project: marco-sdk
+            artifact: sdk-dist
+            dist-path: standalone-scripts/marco-sdk/dist
+          - project: xpath
+            artifact: xpath-dist
+            dist-path: standalone-scripts/xpath/dist
+          - project: payment-banner-hider
+            artifact: payment-banner-hider-dist
+            dist-path: standalone-scripts/payment-banner-hider/dist
+          - project: macro-controller
+            artifact: macro-controller-dist
+            dist-path: standalone-scripts/macro-controller/dist
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      # No install needed — the script is zero-dep node. Skipping
+      # `pnpm install` keeps each matrix leg under ~15 s end-to-end.
+
+      - name: Download ${{ matrix.project }} dist
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.dist-path }}
+
+      - name: Validate ${{ matrix.project }} instruction casing
+        run: node scripts/check-instruction-json-casing.mjs standalone-scripts/${{ matrix.project }}
+
+      # Run again in --json mode and stash the report on the run
+      # summary so a failed leg has a parseable artefact attached
+      # without re-running the workflow. Always-on so a passing leg
+      # also publishes its (empty-violation) baseline for trend
+      # tracking.
+      - name: Publish JSON report to step summary
+        if: always()
+        run: |
+          {
+            echo "### Casing report — \`${{ matrix.project }}\`"
+            echo ""
+            echo '```json'
+            node scripts/check-instruction-json-casing.mjs --json standalone-scripts/${{ matrix.project }} || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ════════════════════════════════════════════════════════════
   # Job 4: Build Chrome Extension (depends on all standalone)
   # ════════════════════════════════════════════════════════════
   build-extension:
     name: Build · Chrome Extension
-    needs: [spec-links, contract-checkers-wired, pascalcase-instruction-migration, report-standalone-registry, typecheck-standalone, lint-standalone, build-sdk, build-xpath, build-payment-banner-hider, build-macro-controller, build-prompts]
+    needs: [spec-links, contract-checkers-wired, pascalcase-instruction-migration, report-standalone-registry, typecheck-standalone, lint-standalone, build-sdk, build-xpath, build-payment-banner-hider, build-macro-controller, build-prompts, casing-instruction-json]
     runs-on: ubuntu-latest
 
     steps:

@@ -176,6 +176,16 @@ function main() {
         wiring: checkWiring(scriptName),
     }));
 
+    // ── --json output mode ──────────────────────────────────────────
+    // Stable schema for automated debugging / CI annotation pipelines.
+    // Bypasses every human-readable section so stdout is parseable.
+    // Schema versioned via `schemaVersion` so consumers can pin.
+    if (JSON_MODE) {
+        emitJsonReport(matrix);
+
+        return;
+    }
+
     // ── Section A: Wiring matrix ────────────────────────────────────
     console.log("\nStandalone Registry Report");
     console.log("══════════════════════════");

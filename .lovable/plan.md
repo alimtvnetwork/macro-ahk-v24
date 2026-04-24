@@ -14,11 +14,11 @@ _Nothing currently in progress — TS Migration V2 backlog fully cleared at v2.2
 
 | # | Item | Priority | Reference |
 |---|---|---|---|
-| 1 | Vitest regression suite for handler-guards (missing-field payloads → clean `{ isOk:false }`) | Medium | `.lovable/suggestions.md` |
-| 2 | Surface latest sdkSelfTest + kv/files/gkv round-trip results in popup (✅/❌ + last-run timestamp) | Medium | `.lovable/suggestions.md` |
-| 3 | Release installer hardening v0.2 — checksum verification + signing | Medium | `mem://workflow/13-next-commands` |
-| 4 | **AC-2 main-branch fallback in installer** — implement spec §2 step 5 (currently exits 5 instead of falling through with `🌿` banner) | Medium | `.lovable/memory/suggestions/20260424-1900-suggestion-installer-ac2-main-branch-fallback.md` |
-| 5 | Pre-existing resolver-suite failure: `SIBLING_NAME_PATTERN` from `install.config.sh` not sourced when test cwd ≠ repo root (1/46 fail) | Low | `tests/installer/resolver.test.sh:357` |
+| 1 | Surface latest sdkSelfTest + kv/files/gkv round-trip results in popup (✅/❌ + last-run timestamp) | Medium | `.lovable/suggestions.md` |
+| 2 | Release installer hardening v0.2 — checksum verification + signing | Medium | `mem://workflow/13-next-commands` |
+| 3 | **AC-2 main-branch fallback in installer** — implement spec §2 step 5 (currently exits 5 instead of falling through with `🌿` banner) | Medium | `.lovable/memory/suggestions/20260424-1900-suggestion-installer-ac2-main-branch-fallback.md` |
+| 4 | Pre-existing resolver-suite failure: `SIBLING_NAME_PATTERN` from `install.config.sh` not sourced when test cwd ≠ repo root (1/46 fail) | Low | `tests/installer/resolver.test.sh:357` |
+| 5 | Pre-existing typecheck noise: `sql.js@1.14.0` ships no `.d.ts` and `@types/sql.js` not installed — 17 errors across `db-manager`, `db-persistence`, `project-db-manager`, `project-query-builder`, 3 handlers. Runtime unaffected; tests green. | Low | `package.json` (add `@types/sql.js`) |
 
 
 ---
@@ -35,6 +35,14 @@ _Nothing currently in progress — TS Migration V2 backlog fully cleared at v2.2
 ---
 
 ## ✅ Completed
+
+### Session 2026-04-24 — Installer audit + handler-guards regression suite
+
+| Task | Result |
+|---|---|
+| Audit `scripts/install.{ps1,sh}` against generic installer spec §2/§3/§5/§6 | ✅ — resolver order, exit codes, CLI surface all conform; AC-2 main-branch fallback gap logged for sign-off |
+| Add explicit AC-1 (no-flag + releases-exist → install latest) coverage to `tests/installer/mock-server.test.sh` | ✅ — 7 new assertions; mock-server suite **39/39** passing |
+| Vitest regression suite for handler-guards (missing-field payloads → clean `{ isOk:false }`, DB never touched) | ✅ — `src/test/regression/handler-guards.test.ts` adds **27 tests** across kv / grouped-kv / file-storage / project-api; full suite **478/478** passing |
 
 ### Session 2026-04-23 — v2.225.0 (TS Migration V2 cleared)
 

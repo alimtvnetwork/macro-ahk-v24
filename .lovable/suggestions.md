@@ -26,10 +26,11 @@
 - **Resolution:** New file `src/test/regression/sqlite-bind-safety.test.ts` adds 20 tests across 3 describe blocks: `BindError` shape, `assertBindable` column inference (8 SQL shapes incl. INSERT, INSERT OR REPLACE, UPDATE, SELECT, DELETE, fallback, first-undefined, long-SQL truncation, null-vs-undefined), and `wrapDatabaseWithBindSafety` Proxy interception (run/exec/prepare/Statement.bind/Statement.run/pass-through). Full suite: 293 tests passing in CI via `pnpm run test`.
 
 ### Vitest tests for handler-guards regression suite
-- **Status:** Pending
+- **Status:** ✅ Implemented — 2026-04-24
 - **Priority:** Medium
 - **Description:** Call `handleKvGet`, `handleGkvList`, `handleFileSave`, `handleProjectApi` with payloads missing each required field; assert clean `{ isOk:false, errorMessage }` responses (no SQLite throw).
 - **Added:** 2026-04-20
+- **Resolution:** New file `src/test/regression/handler-guards.test.ts` adds **27 tests** across 4 describe blocks (kv-handler 9, grouped-kv-handler 7, file-storage-handler 7, project-api-handler 4). Strongest invariant verified: when a required field is missing, the underlying SQLite Database is **never touched** (no `prepare`/`run`/`exec` calls) — proven via call-tracking fake DbManager. Also verifies error-message shape (`[<op>]` prefix + `'<field>'` name) and edge cases (empty-string, non-string, both-missing ordering). Full suite: **478/478** passing in `npx vitest run`.
 
 ### Hook `BindError` into the global Errors panel reporter
 - **Status:** Pending

@@ -212,7 +212,7 @@ if (wantsCheck) {
         .filter(Boolean)
         .sort();
 
-    const expectedBuildJobs = include.map((e) => `build-${e.project}`).sort();
+    const expectedBuildJobs = include.map((e) => buildJobNameFor(e.project)).sort();
     // Allow extra unrelated `needs` entries (none today, but future-proof);
     // only flag missing required entries.
     const missing = expectedBuildJobs.filter((j) => !declaredNeeds.includes(j));

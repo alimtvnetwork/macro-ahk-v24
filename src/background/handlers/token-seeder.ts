@@ -275,13 +275,14 @@ function isSupportedTargetUrl(url: string): boolean {
 
 async function canAccessTabContents(tabId: number, tabUrl: string): Promise<boolean> {
     if (RESTRICTED_URL_RE.test(tabUrl)) {
+        recordInaccessibleTarget(tabId, tabUrl, `Restricted browser scheme: ${tabUrl.split(":")[0]}://`, "RESTRICTED_SCHEME");
         return false;
     }
 
     const originPattern = toOriginPermissionPattern(tabUrl);
 
     if (originPattern === null) {
-        warnInaccessibleTabOnce(tabId, tabUrl, "No valid origin pattern could be derived for host permission verification.");
+        warnInaccessibleTabOnce(tabId, tabUrl, "No valid origin pattern could be derived for host permission verification.", "NO_HOST_PATTERN");
         return false;
     }
 
@@ -293,7 +294,7 @@ async function canAccessTabContents(tabId: number, tabUrl: string): Promise<bool
         const hasPermission = await chrome.permissions.contains({ origins: [originPattern] });
 
         if (!hasPermission) {
-            warnInaccessibleTabOnce(tabId, tabUrl, `Host permission is not granted for ${originPattern}.`);
+            warnInaccessibleTabOnce(tabId, tabUrl, `Host permission is not granted for ${originPattern}.`, "PERMISSION_NOT_GRANTED");
             return false;
         }
 
@@ -334,11 +335,8 @@ async function probeTabScriptingAccess(tabId: number, tabUrl: string): Promise<b
         return true;
     } catch (probeError) {
         if (isTabAccessDeniedError(probeError)) {
-            warnInaccessibleTabOnce(
-                tabId,
-                tabUrl,
-                probeError instanceof Error ? probeError.message : String(probeError),
-            );
+            const reason = probeError instanceof Error ? probeError.message : String(probeError);
+            warnInaccessibleTabOnce(tabId, tabUrl, reason, classifyAccessDeniedError(reason));
             return false;
         }
 
@@ -356,25 +354,73 @@ function tokenSeederAccessProbe(): boolean {
 }
 
 function isTabAccessDeniedError(error: unknown): boolean {
-    const message = error instanceof Error
+    return classifyAccessDeniedError(extractErrorMessage(error)) !== "UNKNOWN";
+}
+
+function extractErrorMessage(error: unknown): string {
+    return error instanceof Error
         ? error.message
         : typeof error === "string"
             ? error
             : "";
-
-    const normalizedMessage = message.toLowerCase();
-
-    return normalizedMessage.includes("cannot access contents of the page")
-        || normalizedMessage.includes("missing host permission for the tab")
-        || normalizedMessage.includes("must request permission to access the respective host")
-        || normalizedMessage.includes("the extensions gallery cannot be scripted")
-        || normalizedMessage.includes("cannot be scripted");
 }
 
-function warnInaccessibleTabOnce(tabId: number, tabUrl: string, reason: string): void {
+/** Classifies a Chrome error message into a stable AccessDeniedCode. */
+function classifyAccessDeniedError(message: string): AccessDeniedCode {
+    const normalized = message.toLowerCase();
+
+    if (normalized.includes("must request permission to access the respective host")) {
+        return "RESPECTIVE_HOST_PERMISSION";
+    }
+    if (normalized.includes("missing host permission for the tab")) {
+        return "MISSING_HOST_PERMISSION";
+    }
+    if (normalized.includes("the extensions gallery cannot be scripted")) {
+        return "EXTENSIONS_GALLERY_BLOCKED";
+    }
+    if (normalized.includes("cannot access contents of the page")) {
+        return "PAGE_CONTENTS_BLOCKED";
+    }
+    if (normalized.includes("cannot be scripted")) {
+        return "GENERIC_CANNOT_SCRIPT";
+    }
+    return "UNKNOWN";
+}
+
+function recordInaccessibleTarget(
+    tabId: number,
+    tabUrl: string,
+    reason: string,
+    code: AccessDeniedCode,
+): InaccessibleSeedTarget {
+    const key = `${tabId}::${tabUrl}`;
+    const now = Date.now();
+    const existing = inaccessibleSeedTargets.get(key);
+
+    const entry: InaccessibleSeedTarget = {
+        tabId,
+        tabUrl,
+        reason,
+        code,
+        firstFailureAt: existing?.firstFailureAt ?? now,
+        lastFailureAt: now,
+        attemptCount: (existing?.attemptCount ?? 0) + 1,
+        cooldownMs: INACCESSIBLE_SEED_COOLDOWN_MS,
+    };
+
+    inaccessibleSeedTargets.set(key, entry);
+    return entry;
+}
+
+function warnInaccessibleTabOnce(
+    tabId: number,
+    tabUrl: string,
+    reason: string,
+    code: AccessDeniedCode = "UNKNOWN",
+): void {
     const key = `${tabId}::${tabUrl}`;
 
-    inaccessibleSeedTargets.set(key, Date.now());
+    recordInaccessibleTarget(tabId, tabUrl, reason, code);
 
     if (warnedInaccessibleTabs.has(key)) {
         return;
@@ -383,7 +429,7 @@ function warnInaccessibleTabOnce(tabId: number, tabUrl: string, reason: string):
     warnedInaccessibleTabs.add(key);
     logBgWarnError(
         BgLogTag.TOKEN_SEEDER,
-        `Skipping JWT seed for inaccessible tab\n  Path: chrome.scripting.executeScript → tabId=${tabId}, world=MAIN → localStorage["${LS_MARCO_BEARER_KEY}"]\n  Missing: MAIN-world scripting access to tab contents\n  Reason: ${reason}`,
+        `Skipping JWT seed for inaccessible tab\n  Path: chrome.scripting.executeScript → tabId=${tabId}, world=MAIN → localStorage["${LS_MARCO_BEARER_KEY}"]\n  Missing: MAIN-world scripting access to tab contents\n  Code: ${code}\n  Reason: ${reason}`,
     );
 }
 
@@ -395,13 +441,13 @@ function clearInaccessibleWarning(tabId: number, tabUrl: string): void {
 
 function isKnownInaccessibleTarget(tabId: number, tabUrl: string): boolean {
     const key = `${tabId}::${tabUrl}`;
-    const lastFailureAt = inaccessibleSeedTargets.get(key);
+    const entry = inaccessibleSeedTargets.get(key);
 
-    if (lastFailureAt === undefined) {
+    if (entry === undefined) {
         return false;
     }
 
-    if (Date.now() - lastFailureAt < INACCESSIBLE_SEED_COOLDOWN_MS) {
+    if (Date.now() - entry.lastFailureAt < INACCESSIBLE_SEED_COOLDOWN_MS) {
         return true;
     }
 

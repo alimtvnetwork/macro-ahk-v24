@@ -164,6 +164,100 @@ function fixHint(locationKey, scriptName) {
 
 // ───────────────────────── report ───────────────────────────────────
 
+/**
+ * Stable JSON schema emitted by `--json`. Versioned so downstream
+ * consumers (CI annotators, dashboards, slack bots) can pin against
+ * `schemaVersion` and detect breaking changes.
+ *
+ * Top-level shape:
+ *   {
+ *     schemaVersion: "1.0",
+ *     mode: "strict" | "report-only",
+ *     generatedAt: ISO-8601 string,
+ *     repoRoot: absolute path,
+ *     totals: { scripts, fullyWired, withGaps, gapCount },
+ *     locations: [{ key, label }, …],         ← ordered, matches matrix columns
+ *     scripts: [
+ *       {
+ *         name: "payment-banner-hider",
+ *         fullyWired: false,
+ *         wiring: { pkgScript: true, … },     ← per-location boolean
+ *         gaps: [
+ *           {
+ *             location: "buildStandalone",    ← matches LOCATIONS[].key
+ *             label: "scripts/build-standalone.mjs",
+ *             reason: "Missing entry in scripts/build-standalone.mjs PROJECTS array",
+ *             fix: {
+ *               file: "scripts/build-standalone.mjs",
+ *               at: "PROJECTS array",
+ *               snippet: "\"payment-banner-hider\","
+ *             }
+ *           },
+ *           …
+ *         ]
+ *       },
+ *       …
+ *     ],
+ *     exitCode: 0 | 1                         ← what the process WILL exit with
+ *   }
+ */
+function emitJsonReport(matrix) {
+    const locations = LOCATIONS.map((loc) => ({ key: loc.key, label: loc.label }));
+
+    const scriptsReport = matrix.map((row) => {
+        const gaps = LOCATIONS
+            .filter((loc) => !row.wiring[loc.key])
+            .map((loc) => {
+                const hint = fixHint(loc.key, row.name);
+                const at = hint.jsonPath ?? hint.yamlKey ?? null;
+
+                return {
+                    location: loc.key,
+                    label: loc.label,
+                    reason: `Missing entry for "${row.name}" in ${hint.file}${at ? ` (${at})` : ""}`,
+                    fix: {
+                        file: hint.file,
+                        at,
+                        snippet: hint.snippet,
+                    },
+                };
+            });
+
+        return {
+            name: row.name,
+            fullyWired: gaps.length === 0,
+            wiring: { ...row.wiring },
+            gaps,
+        };
+    });
+
+    const totalGaps = scriptsReport.reduce((sum, script) => sum + script.gaps.length, 0);
+    const withGaps = scriptsReport.filter((script) => !script.fullyWired).length;
+    const willExit = STRICT && totalGaps > 0 ? 1 : 0;
+
+    const report = {
+        schemaVersion: "1.0",
+        mode: STRICT ? "strict" : "report-only",
+        generatedAt: new Date().toISOString(),
+        repoRoot: REPO_ROOT,
+        totals: {
+            scripts: scriptsReport.length,
+            fullyWired: scriptsReport.length - withGaps,
+            withGaps,
+            gapCount: totalGaps,
+        },
+        locations,
+        scripts: scriptsReport,
+        exitCode: willExit,
+    };
+
+    process.stdout.write(JSON.stringify(report, null, 2) + "\n");
+
+    if (willExit !== 0) {
+        process.exit(willExit);
+    }
+}
+
 function main() {
     const scripts = discoverScripts();
     if (scripts.length === 0) {

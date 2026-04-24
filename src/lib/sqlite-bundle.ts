@@ -582,6 +582,16 @@ async function extractBundle(file: File) {
   if (!dbFile) throw new Error(`Invalid bundle: missing ${DB_FILENAME} inside the zip`);
   const dbData = await dbFile.async("uint8array");
   const db = await openDb(dbData);
+
+  // Strict PascalCase v4 contract gate. Runs BEFORE we read any rows so
+  // a malformed bundle never reaches the SAVE_* messaging layer (where
+  // partial writes could corrupt the live extension state).
+  const validation = validateBundleSchema(db, "full");
+  if (!validation.ok) {
+    db.close();
+    throw new Error(formatValidationError(validation));
+  }
+
   const projects = readProjects(db);
   const scripts = readScripts(db);
   const configs = readConfigs(db);

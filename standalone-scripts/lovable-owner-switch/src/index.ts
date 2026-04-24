@@ -6,7 +6,8 @@
  * P6: CSV parser + validator (`parseOwnerSwitchCsv`).
  * P7: popup UI shell (`mountPopup`).
  * P8: login automation (`runLogin`).
- * Future phases: promote (P9), sign-out + state machine (P10).
+ * P9: promote step (`runPromote`, uses shared `promoteToOwner` — R12).
+ * Future: sign-out + state machine (P10).
  */
 
 export { LovableOwnerSwitch } from "./lovable-owner-switch";
@@ -16,5 +17,11 @@ export { OwnerSwitchTaskStatusCode } from "./migrations/task-status-seed";
 export { parseOwnerSwitchCsv, OwnerSwitchCsvColumn } from "./csv";
 export type { OwnerSwitchCsvRow, OwnerSwitchCsvParseResult } from "./csv";
 export { mountPopup } from "./ui";
-export { runLogin, LoginStepCode } from "./flow";
-export type { LoginFlowOptions, LoginRunResult } from "./flow";
+export { runLogin, LoginStepCode, runPromote, PromoteStepCode, TtlCache } from "./flow";
+export type {
+    LoginFlowOptions,
+    LoginRunResult,
+    PromoteRowRequest,
+    PromoteRowResult,
+    PromoteCaches,
+} from "./flow";

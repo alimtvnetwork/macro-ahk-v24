@@ -302,7 +302,7 @@ function formatSkipReason(reason?: string): string {
       const importFn = mode === "merge" ? mergeFromSqliteZip : importFromSqliteZip;
       const result = await importFn(file);
       toast.success(
-        `Imported ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs (${mode})`
+        `Imported ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs, ${result.promptCount} prompts (${mode})`
       );
       setImportPreviewOpen(false);
       setImportPreview(null);

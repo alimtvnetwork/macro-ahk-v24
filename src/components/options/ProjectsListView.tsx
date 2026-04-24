@@ -107,10 +107,10 @@ export const ProjectsListView = forwardRef<HTMLDivElement, Props>(function Proje
     try {
       if (importMode === "replace") {
         const result = await importFromSqliteZip(file);
-        toast.success(`Replaced with ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs`);
+        toast.success(`Replaced with ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs, ${result.promptCount} prompts`);
       } else {
         const result = await mergeFromSqliteZip(file);
-        toast.success(`Merged ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs`);
+        toast.success(`Merged ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs, ${result.promptCount} prompts`);
       }
       window.location.reload();
     } catch (err) {
@@ -129,7 +129,7 @@ export const ProjectsListView = forwardRef<HTMLDivElement, Props>(function Proje
     try {
       const result = await importFromSqliteZip(pendingFile);
       toast.success(
-        `Replaced with ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs`,
+        `Replaced with ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs, ${result.promptCount} prompts`,
       );
       window.location.reload();
     } catch (err) {
@@ -149,7 +149,7 @@ export const ProjectsListView = forwardRef<HTMLDivElement, Props>(function Proje
     try {
       const result = await mergeFromSqliteZip(pendingFile);
       toast.success(
-        `Merged ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs`,
+        `Merged ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs, ${result.promptCount} prompts`,
       );
       window.location.reload();
     } catch (err) {

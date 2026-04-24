@@ -22,6 +22,32 @@ _Nothing currently in progress._
 | 6 | **Implement `Lovable Owner Switch` standalone script** (spec-only, deferred per user — do NOT auto-recommend) | Pending — user-scheduled | `spec/21-app/02-features/chrome-extension/70-lovable-owner-switch/` |
 | 7 | **Implement `Lovable User Add` standalone script (v2 — two-step Owner promotion: POST as Member then PUT to Owner via shared `LovableApiClient.promoteToOwner`)** (spec-only, deferred per user — do NOT auto-recommend) | Pending — user-scheduled | `spec/21-app/02-features/chrome-extension/71-lovable-user-add/` + `mem://features/lovable-user-add-v2-two-step-owner` |
 | 8 | **Build shared `lovable-common-xpath` TS module** (XPaths + default delays) and **`LovableApiClient`** (shared `promoteToOwner` etc.) for both Lovable scripts above | Pending — user-scheduled | `spec/.../70-lovable-owner-switch/03-xpaths-and-defaults.md` + `spec/.../71-lovable-user-add/01-overview.md` §11 |
+| 9 | **20-Phase Plan — execute on `next`** (P1..P20 covering tasks 6+7+8 above) — phases, AC coverage map, and open questions captured | Pending — user-scheduled | `spec/21-app/02-features/chrome-extension/72-lovable-owner-switch-and-user-add-phase-plan/` |
+
+#### 20-Phase breakdown (one row per `next`)
+
+| Phase | Title | Status |
+|---|---|---|
+| P1  | Shared XPath module scaffold | ⏳ |
+| P2  | Shared `LovableApiClient` skeleton | ⏳ |
+| P3  | `LovableApiClient` wired to `getBearerToken()` | ⏳ |
+| P4  | Owner Switch project scaffold | ⏳ |
+| P5  | Owner Switch SQLite migration + seeds | ⏳ |
+| P6  | Owner Switch CSV parser + validator | ⏳ |
+| P7  | Owner Switch popup UI shell | ⏳ |
+| P8  | Owner Switch login automation | ⏳ |
+| P9  | Owner Switch promote step (uses shared client) | ⏳ |
+| P10 | Owner Switch sign-out + per-row state machine | ⏳ |
+| P11 | User Add project scaffold | ⏳ |
+| P12 | User Add SQLite migration + `MembershipRole` seed | ⏳ |
+| P13 | User Add CSV parser + validator (Editor→Member) | ⏳ |
+| P14 | User Add popup UI shell + default-role select | ⏳ |
+| P15 | User Add Step A — POST membership | ⏳ |
+| P16 | User Add Step B — Owner promotion via shared `promoteToOwner` | ⏳ |
+| P17 | User Add per-row state machine + sign-out | ⏳ |
+| P18 | Shared XPath/delay editor + Reset | ⏳ |
+| P19 | Logs viewer + copy-to-clipboard (Step A vs B distinct) | ⏳ |
+| P20 | Cross-spec audit (R12) + unified version bump | ⏳ |
 
 ### 🔍 Review items (rules already stored — verify enforcement)
 

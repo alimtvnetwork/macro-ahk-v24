@@ -7,8 +7,8 @@
  * unchanged into the viewer's filter dropdown — no text parsing.
  */
 
-import { LogViewerSeverityCode } from "lovable-common";
-import type { LogViewerEntry } from "lovable-common";
+import { LogViewerSeverityCode } from "../../../lovable-common/src/ui/log-viewer-types";
+import type { LogViewerEntry } from "../../../lovable-common/src/ui/log-viewer-types";
 import { UserAddLogSeverity } from "./log-sink";
 import type { UserAddLogEntry } from "./log-sink";
 

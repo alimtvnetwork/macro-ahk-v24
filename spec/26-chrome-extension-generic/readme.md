@@ -100,19 +100,110 @@ That's it. The AI never needs to ask you questions unless a verification fails o
 
 **Ends at:** `## Stop conditions` (line ~285) — the section immediately following the checklist that defines the four situations when the AI may stop and ask for human guidance.
 
-**Excerpt:**
+**Full checklist excerpt (Steps 1–10, copy-paste from `13-ai-onboarding-prompt.md`):**
 
+<!-- BEGIN: 10-Step Build Checklist excerpt — keep in sync with 13-ai-onboarding-prompt.md -->
+
+> ## The 10-Step Build Checklist
+>
+> Execute in order. Do not skip, parallelise, or reorder.
+>
 > ### Step 1 — Scaffold the repository layout
+>
 > **Source of truth:** `02-folder-and-build/01-repository-layout.md`
+>
 > Create the project root, all sub-folders (`src/`, `src/background/`, `src/content/`, `src/options/`, `src/popup/`, `src/sdk/`, `src/messaging/`, `src/storage/`, `src/auth/`, `src/types/`, `src/config/`, `tests/`, `scripts/`, `public/`), and empty `.gitkeep` files where the spec requires.
+>
 > **Verification:** `tree -L 3 -I node_modules` matches the layout diagram in `02-folder-and-build/01-repository-layout.md`.
 >
-> [... Steps 2–9 ...]
+> ### Step 2 — Copy and tokenise the templates
+>
+> **Source of truth:** `12-templates/00-overview.md` and every `*.template.*` file in that folder.
+>
+> Copy each template to its destination path, performing exactly five global substitutions: `<PROJECT_NAME>`, `<ROOT_NAMESPACE>`, `<VERSION>`, `<HOST_MATCHES>`, `<EXTENSION_ID>`. Strip the `.template` infix from filenames. Preserve all other content byte-for-byte.
+>
+> **Verification:** `rg "<(PROJECT_NAME|ROOT_NAMESPACE|VERSION|HOST_MATCHES|EXTENSION_ID)>" -l` returns no matches anywhere in the project.
+>
+> ### Step 3 — Install dependencies
+>
+> **Source of truth:** `02-folder-and-build/05-package-json-scripts.md` and `12-templates/package.json.template`.
+>
+> Run `npm install` (or `bun install` if the spec specifies bun). Do not add, remove, or upgrade any dependency outside the spec's pinned versions.
+>
+> **Verification:** `npm ls --depth=0` shows every dependency from `package.json` resolved with no `UNMET` or `extraneous` warnings.
+>
+> ### Step 4 — Wire TypeScript and ESLint with zero warnings
+>
+> **Source of truth:** `03-typescript-and-linter/01-typescript-rules.md`, `03-typescript-and-linter/02-eslint-config.md`, `03-typescript-and-linter/05-zero-warnings-policy.md`.
+>
+> Confirm `tsconfig.app.json`, `tsconfig.sdk.json`, `tsconfig.node.json`, `eslint.config.js`, and `.prettierrc` are in place from Step 2. The `no-bare-fs-error` blueprint rule must be enabled at severity `error`.
+>
+> **Verification:** `npm run lint` exits zero with `0 warnings, 0 errors` and `npm run typecheck` exits zero on all three tsconfigs.
+>
+> ### Step 5 — Implement `AppError` and the namespace logger
+>
+> **Source of truth:** `07-error-management/01-error-model.md`, `07-error-management/02-error-code-registry.md`, `07-error-management/03-file-path-error-rule.md`, `07-error-management/04-namespace-logger.md`.
+>
+> Place `AppError` at `src/types/error-model.ts` (verbatim from the template). Place the logger at `src/diagnostics/namespace-logger.ts` and attach it to `window.<ROOT_NAMESPACE>.Logger` in every entry point. Seed the error code registry table from `02-error-code-registry.md` into `tests/error-codes.spec.ts` as a guard test.
+>
+> **Verification:** `npm test -- error-codes` passes; `rg "throw new Error\(" src/` returns zero matches (only `AppError` may be thrown).
+>
+> ### Step 6 — Implement the platform adapter and Chrome adapter
+>
+> **Source of truth:** `04-architecture/04-platform-adapter.md` and `12-templates/{platform-adapter,chrome-adapter}.template.ts`.
+>
+> Place the typed `PlatformAdapter` interface at `src/platform/platform-adapter.ts` and the Chrome implementation at `src/platform/chrome-adapter.ts`. Every `chrome.*` API used in the project MUST be reached through this adapter.
+>
+> **Verification:** `rg "\bchrome\." src/ -g '!src/platform/**'` returns zero matches.
+>
+> ### Step 7 — Implement the three-world message relay
+>
+> **Source of truth:** `04-architecture/02-three-world-model.md`, `04-architecture/03-message-relay.md`, and `12-templates/message-client.template.ts`.
+>
+> Place the relay client at `src/messaging/client.ts`, the router at `src/messaging/router.ts`, and the page-bridge for the MAIN world at `src/sdk/page-bridge.ts`. Define every message type via the `defineMessage(...)` factory — no inline string types.
+>
+> **Verification:** `npm test -- messaging` passes; a manual postMessage round-trip from MAIN → ISOLATED → background → ISOLATED → MAIN completes in under 100 ms in the dev build.
+>
+> ### Step 8 — Implement the chosen storage tier(s)
+>
+> **Source of truth:** `05-storage-layers/00-overview.md` and the per-tier files (`02-sqlite-in-background.md`, `03-sqlite-schema-conventions.md`, `04-indexeddb-page-cache.md`, `05-chrome-storage-local.md`, `06-localstorage-bridges.md`, `07-self-healing-and-migrations.md`).
+>
+> Use the tier matrix in `01-storage-tier-matrix.md` to pick the minimum tiers required. SQLite-in-background is the default for any data that must survive cleanup; IndexedDB for page-side caches; `chrome.storage.local` for small typed config; localStorage TTL bridges only for ≤ 10-min credential hand-offs to the MAIN world.
+>
+> **Verification:** `npm test -- storage` passes; `npm run check:codered` (the `scripts/check-error-rule.mjs` validator) exits zero.
+>
+> ### Step 9 — Build the UI shells (Options, Popup, optional injected controller)
+>
+> **Source of truth:** `06-ui-and-design-system/05-options-page-shell.md`, `06-ui-and-design-system/06-popup-shell.md`, `06-ui-and-design-system/07-injected-controller-ui.md`, `06-ui-and-design-system/01-design-tokens.md`, `06-ui-and-design-system/02-dark-only-theme.md`.
+>
+> Place `index.css` (HSL tokens) and `tailwind.config.ts` from Step 2. Build the Options page at `src/options/`, the Popup at `src/popup/`, and (if the project ships an injected controller) the controller UI at `src/sdk/ui/`. All colours come from semantic tokens — no hex literals in components.
+>
+> **Verification:** `rg "#[0-9a-fA-F]{3,8}\b" src/ -g '!**/*.css' -g '!**/*.md'` returns zero matches; the Options page renders with the dark theme on first load.
 >
 > ### Step 10 — Build, package, and verify install
-> **Source of truth:** `11-cicd-and-release/03-build-pipeline.md`, `11-cicd-and-release/04-release-zip-contract.md`, `02-folder-and-build/06-packaging-and-zip.md`
-> Run `npm run validate`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run package`. Then in Chrome: open `chrome://extensions`, enable Developer Mode, click **Load unpacked** and select `dist/`. Confirm no errors badge, icon appears, popup shows dark shell, options page renders, background service worker is `active`.
-> **Verification:** `npm run validate:zip` exits zero and the in-Chrome checklist passes.
+>
+> **Source of truth:** `11-cicd-and-release/03-build-pipeline.md`, `11-cicd-and-release/04-release-zip-contract.md`, `02-folder-and-build/06-packaging-and-zip.md`.
+>
+> Run, in order:
+>
+> ```bash
+> npm run validate     # all check-*.mjs scripts
+> npm run lint         # zero warnings policy
+> npm run typecheck    # all tsconfigs
+> npm test             # vitest unit suite
+> npm run build        # vite production build
+> npm run package      # zip with the release contract
+> ```
+>
+> Then in Chrome: open `chrome://extensions`, enable Developer Mode, click **Load unpacked** and select `dist/`. Confirm: no errors badge, icon appears, popup shows the dark-themed shell, options page renders the navigation, and the background service worker is `active`.
+>
+> **Verification:** `npm run validate:zip` exits zero and the in-Chrome checklist above passes.
+>
+> ---
+>
+> *(End of checklist — the next section in `13-ai-onboarding-prompt.md` is `## Stop conditions`.)*
+
+<!-- END: 10-Step Build Checklist excerpt -->
 
 ---
 

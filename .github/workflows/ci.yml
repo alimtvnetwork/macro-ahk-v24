@@ -237,65 +237,70 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # fetch-depth: 0 → full history so `git diff` against the
-          # PR base or the previous push commit resolves correctly.
-          # Cheap (<1s additional clone time on this repo).
+          # fetch-depth: 0 → full history is required by dorny/paths-filter
+          # for `push` events (it falls back to `git diff` against
+          # `github.event.before` when there is no PR API surface).
+          # For `pull_request` events, dorny calls the GitHub Files API
+          # directly using the workflow token — that path works for
+          # fork PRs too (read-only `pull-requests: read` permission is
+          # all it needs and the default `GITHUB_TOKEN` already has it
+          # on `pull_request` events from forks).
           fetch-depth: 0
 
-      - name: Detect readme/checker changes vs base
-        id: detect
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          set -e
-          # Watched paths: the README itself and either compliance script.
-          WATCH='^(readme\.md|scripts/check-readme-compliance\.mjs|scripts/check-readme-hero-layout\.mjs)$'
-          # On a brand-new branch / first push, BASE_SHA can be empty
-          # or the all-zero SHA. In that case, treat as "changed" so
-          # we don't silently skip on the first push of a new branch.
-          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
-            echo "No base SHA available — treating as changed (first-push fallback)."
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          # Resolve the diff. If the base commit isn't reachable
-          # (force-push, shallow history corner case), fall back to
-          # HEAD~1 — and if that also fails, fail-open to "changed"
-          # rather than silently skip.
-          if ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
-            echo "Base SHA $BASE_SHA not reachable — treating as changed (safety)."
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
-          echo "Changed files in this PR/push:"
-          echo "$CHANGED_FILES" | sed 's/^/  /'
-          if echo "$CHANGED_FILES" | grep -qE "$WATCH"; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "→ readme.md or a checker script changed; running checks."
-          else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "→ readme.md and checker scripts untouched; skipping checks (gate stays required + green)."
-          fi
+      # ─── Path-aware change detection (dorny/paths-filter) ──────────
+      # Why dorny over a hand-rolled `git diff`:
+      #   • Correctly handles fork PRs — the previous bash version
+      #     resolved `BASE_SHA` from the PR event payload, but on
+      #     fork PRs the base commit is not in the head repo's git
+      #     history, so `git cat-file -e $BASE_SHA` failed and the
+      #     script took the "fail-open ⇒ changed=true" branch on
+      #     EVERY fork PR. Dorny uses the GitHub Files API for PRs,
+      #     which returns the authoritative changed-files list
+      #     regardless of fork/base relationship.
+      #   • Pinned to a verified release SHA (v3.0.2) — the SHA pin
+      #     prevents tag-replay supply-chain attacks while still
+      #     letting Dependabot bump it on review.
+      #
+      # Output `steps.changes.outputs.readme` is `'true'` iff any of
+      # the watched paths changed in the PR/push diff. There is no
+      # fail-open branch: if the action errors (network, API rate
+      # limit, etc.) the job fails red — preserving merge-blocking
+      # semantics. README regressions cannot slip through a degraded
+      # detect step.
+      - name: Detect README / checker script changes
+        id: changes
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        with:
+          # On `push` events dorny needs the previous SHA to diff
+          # against — pull it from the push event payload. On
+          # `pull_request` events this is ignored (API path is used).
+          base: ${{ github.event_name == 'push' && github.event.before || '' }}
+          # Filters: any of these paths flips `readme=true`. Keeping
+          # both checker scripts in the watch list ensures a rule
+          # change re-validates the current README on the same PR.
+          filters: |
+            readme:
+              - 'readme.md'
+              - 'scripts/check-readme-compliance.mjs'
+              - 'scripts/check-readme-hero-layout.mjs'
 
       - name: Setup Node.js
-        if: steps.detect.outputs.changed == 'true'
+        if: steps.changes.outputs.readme == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
       - name: Assert readme.md complies with root-readme conventions
-        if: steps.detect.outputs.changed == 'true'
+        if: steps.changes.outputs.readme == 'true'
         run: node scripts/check-readme-compliance.mjs
 
       - name: Assert hero/badge/logo markup stays inside the allowed regions
-        if: steps.detect.outputs.changed == 'true'
+        if: steps.changes.outputs.readme == 'true'
         run: node scripts/check-readme-hero-layout.mjs
 
-      - name: No-op summary (readme unchanged)
-        if: steps.detect.outputs.changed != 'true'
-        run: echo "::notice::readme.md unchanged in this PR/push; conventions check skipped (gate stays required and green)."
+      - name: No-op summary (readme + checker scripts unchanged)
+        if: steps.changes.outputs.readme != 'true'
+        run: echo "::notice::readme.md and checker scripts unchanged in this PR/push; conventions check skipped (gate stays required and green)."
 
   #
   # Runs `tsc --noEmit` against every standalone-script tsconfig

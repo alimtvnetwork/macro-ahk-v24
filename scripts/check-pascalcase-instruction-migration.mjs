@@ -84,6 +84,20 @@ const COMPAT_READER_ALLOWLIST = new Set([
     "scripts/check-standalone-dist.mjs",
     "scripts/generate-seed-manifest.mjs",
     "scripts/check-pascalcase-instruction-migration.mjs",
+    // The dual-emit casing checker itself: it must know the compat
+    // filename to (a) verify the dual-emit ran (existsSync at L325),
+    // (b) render the present/MISSING status block to humans (L396),
+    // and (c) label which artifact each summary row came from (L721).
+    // It never *reads* keys from the compat file — keys are walked via
+    // a separate parser keyed by file path, not by camelCase access.
+    "scripts/check-instruction-json-casing.mjs",
+    // Truncation tests for the casing checker: they construct a
+    // synthetic fixture containing BOTH instruction.json and
+    // instruction.compat.json so the checker has a complete dual-emit
+    // pair to scan. The compat fixture is intentionally camelCase —
+    // that's the input under test, not a consumption site.
+    "scripts/__tests__/check-instruction-json-casing-truncation.test.mjs",
+    "scripts/__tests__/check-instruction-json-casing-truncation-snapshot.test.mjs",
 ]);
 
 /* ----------------------------------------------------------------- */

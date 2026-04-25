@@ -195,6 +195,42 @@ jobs:
           CI: 'true'
         run: node scripts/report-standalone-registry.mjs --strict
 
+  # ════════════════════════════════════════════════════════════
+  # Job 0a4: Root README conventions — fast-fail guard
+  #
+  # Asserts that `readme.md` complies with the structural rules in
+  # `spec/01-spec-authoring-guide/11-root-readme-conventions.md`:
+  # exactly one H1, centered hero <div> wrapping the logo + H1 +
+  # tagline blockquote + badges, all 5 required badge group markers
+  # (Build & Release / Repo activity / Community / Code-quality /
+  # Stack & standards), ≥5 total badges, properly closed hero before
+  # the first ## section, and a complete Author + Company + License
+  # tail. Regressions here have shipped to main twice already (the
+  # `<h1 align="center">` shortcut and a missing badge-group marker
+  # both slipped through PR review), so we gate it in CI before any
+  # install or build burns minutes.
+  #
+  # Pure Node + repo files. No install needed. Listed in
+  # build-extension's `needs:` (below) so a README regression blocks
+  # merge even if downstream builds re-pass.
+  # ════════════════════════════════════════════════════════════
+  readme-conventions:
+    name: Preflight · Root README Conventions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Assert readme.md complies with root-readme conventions
+        run: node scripts/check-readme-compliance.mjs
 
   #
   # Runs `tsc --noEmit` against every standalone-script tsconfig

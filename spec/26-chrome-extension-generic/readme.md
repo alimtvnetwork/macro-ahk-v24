@@ -16,6 +16,21 @@ A **drop-in, AI-portable foundation** for building production-quality Chrome MV3
 
 ---
 
+## Table of contents
+
+1. [What this is](#what-this-is)
+2. [Quick start for AI agents](#quick-start-for-ai-agents)
+3. [Folder map](#folder-map)
+4. [For humans: one-minute summary](#for-humans-one-minute-summary)
+5. [Where the 10-step checklist lives](#where-the-10-step-checklist-lives) — file path, anchor, end boundary, full Steps 1–10 excerpt
+6. [All verification commands (Steps 1–10) — quick copy/paste](#all-verification-commands-steps-110--quick-copypaste)
+7. [Cross-References](#cross-references)
+8. [Troubleshooting FAQ — checklist verification failures](#troubleshooting-faq--checklist-verification-failures)
+9. [Validate this README](#validate-this-readme)
+10. [Generification policy](#generification-policy)
+
+---
+
 ## Quick start for AI agents
 
 ### 1. Open the onboarding prompt

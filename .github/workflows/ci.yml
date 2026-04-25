@@ -232,6 +232,14 @@ jobs:
   readme-conventions:
     name: Preflight · Root README Conventions
     runs-on: ubuntu-latest
+    # dorny/paths-filter calls the GitHub Files API on `pull_request`
+    # events. Explicitly grant `pull-requests: read` so the action
+    # works on fork PRs even if the workflow-level `permissions:`
+    # block is tightened in the future. `contents: read` is needed
+    # for the `push`-event git-diff fallback.
+    permissions:
+      contents: read
+      pull-requests: read
 
     steps:
       - name: Checkout repository

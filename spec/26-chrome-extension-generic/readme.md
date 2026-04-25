@@ -119,8 +119,14 @@ That's it. The AI never needs to ask you questions unless a verification fails o
 
 **Full checklist excerpt (Steps 1–10, copy-paste from `13-ai-onboarding-prompt.md`):**
 
+> 📋 **Tip:** Copy everything between the `▼ CHECKLIST STARTS HERE ▼` and `▲ CHECKLIST ENDS HERE ▲` markers below. The HTML comments (`<!-- BEGIN/END … -->`) mark the same boundary for scripts.
+
 <!-- BEGIN: 10-Step Build Checklist excerpt — keep in sync with 13-ai-onboarding-prompt.md -->
 
+> ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+> ▼ **CHECKLIST STARTS HERE** ▼ — copy from the next line through the matching `▲ CHECKLIST ENDS HERE ▲` marker.
+> ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+>
 > ## The 10-Step Build Checklist
 >
 > Execute in order. Do not skip, parallelise, or reorder.

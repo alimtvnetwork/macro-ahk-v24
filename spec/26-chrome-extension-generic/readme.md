@@ -128,6 +128,67 @@ That's it. The AI never needs to ask you questions unless a verification fails o
 
 ---
 
+## Troubleshooting FAQ — checklist verification failures
+
+The 10-step checklist in `13-ai-onboarding-prompt.md` has a verification command after every step. When one fails, use this guide before asking for help.
+
+### Step 2 — token substitution still shows unmatched tokens
+
+**Symptom:** `rg "<(PROJECT_NAME|ROOT_NAMESPACE|VERSION|HOST_MATCHES|EXTENSION_ID)>" -l` returns files.
+
+**Fix:**
+1. Re-run the substitution on every `.template.*` file before renaming.
+2. Check for tokens inside comments or string literals you may have skipped.
+3. Ensure the regex covers all five tokens — no abbreviations or alternate spellings.
+
+### Step 4 — `npm run lint` shows warnings
+
+**Symptom:** Lint exits non-zero or reports > 0 warnings.
+
+**Fix:**
+1. Do not add `// eslint-disable` comments. Fix the root cause.
+2. If the warning is from a template file you haven't customised yet, the template itself may need a tweak — check `12-templates/00-overview.md` for known template issues.
+3. Run `npm run lint -- --fix` only if the auto-fix does not introduce new warnings.
+
+### Step 5 — `rg "throw new Error"` returns matches
+
+**Symptom:** Bare `throw new Error(...)` still exists outside test files.
+
+**Fix:**
+1. Replace every bare `throw new Error` with `throw AppError.from(...)` or `AppError.fromFsFailure(...)` for file/path errors.
+2. Check `src/` only — `tests/` and `scripts/` may use bare errors intentionally.
+3. Re-run `rg "throw new Error" src/` to confirm zero matches.
+
+### Step 6 — direct `chrome.*` API calls outside `src/platform/`
+
+**Symptom:** `rg "\bchrome\." src/ -g '!src/platform/**'` returns matches.
+
+**Fix:**
+1. Move every direct `chrome.*` call into `src/platform/chrome-adapter.ts`.
+2. Expose it through the `PlatformAdapter` interface in `src/platform/platform-adapter.ts`.
+3. Replace the call site with an adapter method invocation.
+
+### Step 8 — `npm run check:codered` fails
+
+**Symptom:** The CODE-RED validator reports missing `path` or `missing` fields.
+
+**Fix:**
+1. Every FS / storage / DB / OPFS / IDB error must use `AppError.fromFsFailure({ path, missing, reason })`.
+2. Check that `path` is the exact resource path, `missing` is a single token describing what was absent (e.g. `file`, `table`, `key`), and `reason` is a human-readable sentence.
+3. Re-run `npm run check:codered` until it exits zero.
+
+### Step 10 — Chrome `Load unpacked` shows errors
+
+**Symptom:** The extension loads with a red error badge, or the popup/options page is blank.
+
+**Fix:**
+1. Check `chrome://extensions` for the error text. If it mentions CSP, verify `manifest.json` `content_security_policy` matches the Vite build output hashes.
+2. If the popup is blank, open the popup's DevTools (right-click → Inspect) and check the Console for missing module errors — usually a path alias or import resolution issue.
+3. If the options page fails, verify `src/options/options.html` points to the correct built JS/CSS paths.
+4. If the background service worker shows errors, go to the extension's detail page → Service Worker → Inspect, and check for `AppError` or adapter initialization failures.
+
+---
+
 ## Generification policy
 
 This folder MUST contain **zero** project-specific identifiers. Before

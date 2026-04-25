@@ -119,21 +119,40 @@ const record = (id, label, ok, detail, expected, found) => {
     );
 }
 
-// ─── Rule 2: Exactly one <div align="center"> in the entire file ─────────────
+// ─── Rule 2: <div align="center"> wrappers — only hero + Author allowed ──────
+//
+// Two centered wrappers are legitimate per the spec:
+//   1. The hero wrapper at the top of the file.
+//   2. An optional centered wrapper INSIDE the `## Author` section,
+//      used to center the author's name + role line.
+// Any other centered <div> is a guardrail violation (e.g. someone
+// centering a mid-document section, which would visually mimic a
+// second hero and confuse the page hierarchy).
 {
+    // Locate Author section bounds (start = `## Author` line; end = next `## ` or EOF).
+    const authorStart = LINES.findIndex((l) => /^##\s+Author\b/i.test(l));
+    let authorEnd = LINES.length - 1;
+    if (authorStart !== -1) {
+        for (let i = authorStart + 1; i < LINES.length; i++) {
+            if (/^##\s+/.test(LINES[i])) { authorEnd = i - 1; break; }
+        }
+    }
+    const isInAuthor = (i) => authorStart !== -1 && i >= authorStart && i <= authorEnd;
+
     const allOpens = LINES
         .map((l, i) => ({ l, i }))
         .filter(({ l }) => /<div\s+align=["']center["']\s*>/i.test(l));
-    const ok = allOpens.length === 1;
+    const offenders = allOpens.filter(({ i }) => i !== heroOpenIdx && !isInAuthor(i));
+    const ok = offenders.length === 0;
     record(
         "single-hero-wrapper",
-        "Exactly one <div align=\"center\"> wrapper in file",
+        "Centered <div> wrappers limited to hero + Author section",
         ok,
         ok
-            ? "single hero wrapper found"
-            : `found ${allOpens.length} centered <div> wrappers at lines: ${allOpens.map((o) => o.i + 1).join(", ")}`,
-        "exactly one `<div align=\"center\">` (the hero wrapper)",
-        `${allOpens.length} \`<div align="center">\` wrapper(s) detected`,
+            ? `${allOpens.length} centered <div>(s) — all in allowed regions (hero + Author)`
+            : `disallowed centered <div>(s) at line(s): ${offenders.map((o) => o.i + 1).join(", ")}`,
+        "`<div align=\"center\">` only inside the hero block or inside the `## Author` section",
+        `${allOpens.length} centered wrapper(s); ${offenders.length} outside allowed regions`,
     );
 }
 

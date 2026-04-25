@@ -189,6 +189,78 @@ The 10-step checklist in `13-ai-onboarding-prompt.md` has a verification command
 
 ---
 
+## Validate this README
+
+Run these commands from the repository root to confirm every link, anchor, and checklist reference in this README is correct.
+
+### 1. Verify the onboarding prompt file exists and contains the checklist anchor
+
+```bash
+# The file must exist
+test -f spec/26-chrome-extension-generic/13-ai-onboarding-prompt.md && echo "PASS: file exists" || echo "FAIL: file missing"
+
+# The checklist anchor must be present
+grep -q "^## The 10-Step Build Checklist" spec/26-chrome-extension-generic/13-ai-onboarding-prompt.md && echo "PASS: checklist anchor found" || echo "FAIL: checklist anchor missing"
+
+# The stop-conditions boundary must be present (marks checklist end)
+grep -q "^## Stop conditions" spec/26-chrome-extension-generic/13-ai-onboarding-prompt.md && echo "PASS: stop-conditions boundary found" || echo "FAIL: stop-conditions boundary missing"
+```
+
+### 2. Verify every cross-referenced spec file exists
+
+```bash
+for f in \
+  spec/26-chrome-extension-generic/00-overview.md \
+  spec/26-chrome-extension-generic/01-fundamentals.md \
+  spec/26-chrome-extension-generic/02-folder-and-build/01-repository-layout.md \
+  spec/26-chrome-extension-generic/03-typescript-and-linter/01-typescript-rules.md \
+  spec/26-chrome-extension-generic/03-typescript-and-linter/02-eslint-config.md \
+  spec/26-chrome-extension-generic/03-typescript-and-linter/05-zero-warnings-policy.md \
+  spec/26-chrome-extension-generic/04-architecture/02-three-world-model.md \
+  spec/26-chrome-extension-generic/04-architecture/03-message-relay.md \
+  spec/26-chrome-extension-generic/04-architecture/04-platform-adapter.md \
+  spec/26-chrome-extension-generic/05-storage-layers/01-storage-tier-matrix.md \
+  spec/26-chrome-extension-generic/06-ui-and-design-system/01-design-tokens.md \
+  spec/26-chrome-extension-generic/06-ui-and-design-system/02-dark-only-theme.md \
+  spec/26-chrome-extension-generic/07-error-management/01-error-model.md \
+  spec/26-chrome-extension-generic/07-error-management/03-file-path-error-rule.md \
+  spec/26-chrome-extension-generic/08-auth-and-tokens/03-no-retry-policy.md \
+  spec/26-chrome-extension-generic/11-cicd-and-release/03-build-pipeline.md \
+  spec/26-chrome-extension-generic/11-cicd-and-release/04-release-zip-contract.md \
+  spec/26-chrome-extension-generic/12-templates/00-overview.md \
+  spec/26-chrome-extension-generic/97-acceptance-criteria.md \
+  spec/26-chrome-extension-generic/98-changelog.md \
+  spec/26-chrome-extension-generic/99-consistency-report.md; do
+  test -f "$f" && echo "PASS: $f" || echo "FAIL: $f MISSING"
+done
+```
+
+### 3. Verify generification (zero project-specific identifiers)
+
+```bash
+# This must return ZERO hits (excluding this README's generification policy note)
+rg -i 'riseup|marco|lovable|supabase' spec/26-chrome-extension-generic/ -g '!*/readme.md'
+```
+
+### 4. Verify all template files have token placeholders
+
+```bash
+# Every .template.* file must contain at least one of the five canonical tokens
+for f in spec/26-chrome-extension-generic/12-templates/*.template.*; do
+  if grep -qE '<(PROJECT_NAME|ROOT_NAMESPACE|VERSION|HOST_MATCHES|EXTENSION_ID)>' "$f"; then
+    echo "PASS: $f has tokens"
+  else
+    echo "WARN: $f missing tokens (may be intentional)"
+  fi
+done
+```
+
+### Expected result
+
+All `PASS` lines above should print. Any `FAIL` indicates a broken link, missing file, or stale reference in this README. Fix before using the blueprint.
+
+---
+
 ## Generification policy
 
 This folder MUST contain **zero** project-specific identifiers. Before

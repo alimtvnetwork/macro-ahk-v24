@@ -207,6 +207,58 @@ That's it. The AI never needs to ask you questions unless a verification fails o
 
 ---
 
+## All verification commands (Steps 1–10) — quick copy/paste
+
+Run these in order from the project root. Each block corresponds to one step in the 10-step checklist. Every command must exit zero / return empty before moving to the next.
+
+```bash
+# Step 1 — Repository layout matches the spec diagram
+tree -L 3 -I node_modules
+
+# Step 2 — All five canonical tokens are fully resolved (must return empty)
+rg "<(PROJECT_NAME|ROOT_NAMESPACE|VERSION|HOST_MATCHES|EXTENSION_ID)>" -l
+
+# Step 3 — Dependencies installed cleanly (no UNMET / extraneous)
+npm ls --depth=0
+
+# Step 4 — Lint (zero warnings, zero errors) and typecheck (all tsconfigs)
+npm run lint
+npm run typecheck
+
+# Step 5 — Error model in place (test passes; no bare `throw new Error` in src/)
+npm test -- error-codes
+rg "throw new Error\(" src/
+
+# Step 6 — No direct chrome.* API calls outside the platform adapter
+rg "\bchrome\." src/ -g '!src/platform/**'
+
+# Step 7 — Three-world message relay tests pass
+npm test -- messaging
+
+# Step 8 — Storage tests pass and CODE-RED file/path rule is satisfied
+npm test -- storage
+npm run check:codered
+
+# Step 9 — No hex colour literals in src/ components (semantic tokens only)
+rg "#[0-9a-fA-F]{3,8}\b" src/ -g '!**/*.css' -g '!**/*.md'
+
+# Step 10 — Full build + package + ZIP contract validation
+npm run validate
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm run package
+npm run validate:zip
+# Then: chrome://extensions → Developer Mode → Load unpacked → select dist/
+```
+
+**Pass criteria:** Every `npm` command exits `0`. Every `rg` command returns no output. `npm ls` shows no `UNMET` or `extraneous` warnings. Chrome `Load unpacked` shows no errors badge.
+
+If any command fails, jump to the **Troubleshooting FAQ** section above.
+
+---
+
 ## Cross-References
 
 | Reference | Location |

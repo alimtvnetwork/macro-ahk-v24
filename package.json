@@ -54,6 +54,8 @@
     "check:spec-folders:verbose": "node scripts/spec-folder-guard.mjs --verbose",
     "check:readme": "node scripts/check-readme-compliance.mjs",
     "check:readme:json": "node scripts/check-readme-compliance.mjs --json",
+    "check:readme:hero-layout": "node scripts/check-readme-hero-layout.mjs",
+    "check:readme:hero-layout:json": "node scripts/check-readme-hero-layout.mjs --json",
     "lint:no-bun": "node scripts/no-bun-in-scripts.mjs",
     "lint:e2e-paths": "node scripts/check-no-hardcoded-extension-paths.mjs",
     "lint:e2e-paths:json": "node scripts/check-no-hardcoded-extension-paths.mjs --json",

@@ -347,6 +347,134 @@ The 10-step checklist in `13-ai-onboarding-prompt.md` has a verification command
 
 ---
 
+### If a step fails — diagnostic commands per step
+
+When a verification fails, run the matching diagnostic block below to gather the exact logs and signals you need before changing code or asking for help.
+
+#### Step 3 — Dependency install fails
+
+```bash
+# Show full npm error log path and last error
+npm install --loglevel=verbose 2>&1 | tail -80
+cat ~/.npm/_logs/$(ls -t ~/.npm/_logs/ | head -1)
+
+# Check Node and npm versions match the spec
+node --version
+npm --version
+
+# Check for lockfile drift
+git status package-lock.json
+```
+
+#### Step 4 — Lint or typecheck fails
+
+```bash
+# Full lint output with rule names and file paths
+npm run lint -- --format=stylish 2>&1 | tee /tmp/lint.log
+
+# Typecheck per tsconfig (find which one fails)
+npx tsc --noEmit -p tsconfig.app.json
+npx tsc --noEmit -p tsconfig.sdk.json
+npx tsc --noEmit -p tsconfig.node.json
+
+# Verify the no-bare-fs-error rule is wired
+rg "no-bare-fs-error" eslint.config.js
+```
+
+#### Step 5 — `AppError` / error-codes test fails
+
+```bash
+# Run the specific test with full output
+npm test -- error-codes --reporter=verbose
+
+# Find every bare throw in src/ with file + line
+rg -n "throw new Error\(" src/
+
+# Confirm AppError is exported correctly
+rg -n "export.*class AppError" src/types/error-model.ts
+```
+
+#### Step 6 — Direct `chrome.*` usage outside the platform adapter
+
+```bash
+# List every offending call with file + line
+rg -n "\bchrome\." src/ -g '!src/platform/**'
+
+# Confirm the adapter exists and exports the expected API
+rg -n "export" src/platform/platform-adapter.ts
+rg -n "export" src/platform/chrome-adapter.ts
+```
+
+#### Step 7 — Message relay tests fail
+
+```bash
+# Run with verbose reporter to see which assertion failed
+npm test -- messaging --reporter=verbose
+
+# Check that all three world entry points exist
+test -f src/messaging/client.ts && echo "OK client" || echo "MISSING client"
+test -f src/messaging/router.ts && echo "OK router" || echo "MISSING router"
+test -f src/sdk/page-bridge.ts && echo "OK page-bridge" || echo "MISSING page-bridge"
+
+# Confirm no inline message strings (must use defineMessage factory)
+rg -n "chrome.runtime.sendMessage\(\s*\{\s*type:\s*['\"]" src/
+```
+
+#### Step 8 — Storage tests or CODE-RED check fails
+
+```bash
+# Storage test failures with verbose output
+npm test -- storage --reporter=verbose
+
+# CODE-RED validator full report
+npm run check:codered 2>&1 | tee /tmp/codered.log
+
+# Find FS/storage error sites missing path/missing fields
+rg -n "AppError" src/ | rg -v "fromFsFailure|path:|missing:"
+```
+
+#### Step 9 — Hex colour literals found in components
+
+```bash
+# List every hex colour with file + line
+rg -n "#[0-9a-fA-F]{3,8}\b" src/ -g '!**/*.css' -g '!**/*.md'
+
+# Confirm semantic tokens exist in index.css
+rg -n "^\s*--" src/index.css | head -30
+```
+
+#### Step 10 — Build, package, or Chrome load fails
+
+```bash
+# Build output (tee for inspection)
+npm run build 2>&1 | tee /tmp/build.log
+tail -50 /tmp/build.log
+
+# Inspect the produced manifest in dist/
+cat dist/manifest.json | head -40
+
+# Validate the ZIP contract
+npm run validate:zip 2>&1 | tee /tmp/zip.log
+
+# Inspect the built bundle for chunk size + entry points
+ls -lh dist/
+ls -lh dist/assets/
+```
+
+**In Chrome (Step 10 runtime errors):**
+
+1. `chrome://extensions` → toggle Developer Mode → click **Errors** on the extension card → screenshot the full stack.
+2. Background service worker: extension card → **Service worker** link → DevTools → Console + Network tabs.
+3. Popup: right-click the toolbar icon → **Inspect popup** → Console.
+4. Options page: open it, then `Cmd/Ctrl+Shift+I` → Console + Network.
+5. Content script: open a target tab matching `<HOST_MATCHES>` → DevTools → Console → filter by your `<ROOT_NAMESPACE>` log prefix.
+
+**General escalation rule:** Capture the exact command, exit code, last 50 lines of output, and (for Chrome runtime errors) a screenshot of the `chrome://extensions` Errors panel. Only then ask for human guidance per the **Stop conditions** in `13-ai-onboarding-prompt.md`.
+
+---
+
+
+
 ## Validate this README
 
 Run these commands from the repository root to confirm every link, anchor, and checklist reference in this README is correct.

@@ -225,6 +225,10 @@ That's it. The AI never needs to ask you questions unless a verification fails o
 > ---
 >
 > *(End of checklist — the next section in `13-ai-onboarding-prompt.md` is `## Stop conditions`.)*
+>
+> ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+> ▲ **CHECKLIST ENDS HERE** ▲ — stop copying at the previous line. Everything below this marker is README context, not part of the checklist.
+> ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 <!-- END: 10-Step Build Checklist excerpt -->
 

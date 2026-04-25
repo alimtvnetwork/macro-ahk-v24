@@ -245,44 +245,96 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # fetch-depth: 0 → full history is required by dorny/paths-filter
-          # for `push` events (it falls back to `git diff` against
-          # `github.event.before` when there is no PR API surface).
-          # For `pull_request` events, dorny calls the GitHub Files API
-          # directly using the workflow token — that path works for
-          # fork PRs too (read-only `pull-requests: read` permission is
-          # all it needs and the default `GITHUB_TOKEN` already has it
-          # on `pull_request` events from forks).
+          # fetch-depth: 0 → unshallow clone. Required for two reasons:
+          #   (1) dorny/paths-filter on `push` events runs `git diff
+          #       <base>..<head>` locally, which needs both commits in
+          #       the local history. A shallow clone (the GitHub
+          #       default of depth=1) silently makes that diff return
+          #       empty/garbage when `base` is older than the shallow
+          #       boundary — the exact "incorrectly skip checks"
+          #       failure mode this job must avoid.
+          #   (2) The `Resolve safe diff base` step below uses
+          #       `git cat-file -e` to verify the push event's
+          #       `before` SHA is reachable; that probe is meaningful
+          #       only on a full-history clone.
+          # fetch-depth: 0 is cheap on this repo (<2s) and is the
+          # ONLY reliable way to make `git diff` semantically correct
+          # across force-pushes, branch rewrites, and merge-base drift.
           fetch-depth: 0
+
+      # ─── Resolve a safe `base` ref for the push-event diff ──────────
+      # On `pull_request` events this step is a no-op — dorny uses
+      # the GitHub Files API and ignores its `base:` input.
+      # On `push` events we must hand dorny a base SHA that is
+      # actually reachable in the local clone. Three failure modes
+      # exist here, all of which would silently skip checks if not
+      # handled:
+      #   A) First push to a new branch → `event.before` is the all-
+      #      zero SHA. `git diff 0000…0000 HEAD` returns empty (no
+      #      ancestor) on some git versions and "everything" on
+      #      others → unreliable.
+      #   B) Force-push that rewrites history → `event.before` no
+      #      longer exists in the remote, so even `fetch-depth: 0`
+      #      can't resolve it. `git diff <missing>..HEAD` errors out
+      #      and dorny would either fail the job red OR (worse, in
+      #      older versions) silently produce empty output.
+      #   C) Branch deletion event (`event.after` is zero) → not
+      #      applicable for our trigger filter (branches: [main]),
+      #      but defensive code costs nothing.
+      #
+      # Resolution policy: when `event.before` is unreachable for any
+      # reason, fall back to an empty `base` — dorny then treats the
+      # entire HEAD tree as changed, which RE-RUNS the README checks.
+      # That is the correct fail-CLOSED-but-run-checks behavior:
+      # we never silently skip, and a README regression still fails
+      # the job red. The 2-second cost of an unnecessary check run
+      # on a force-push is acceptable; a missed regression is not.
+      - name: Resolve safe diff base for push events
+        id: base
+        if: github.event_name == 'push'
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          ZERO='0000000000000000000000000000000000000000'
+          if [ -z "${BEFORE:-}" ] || [ "$BEFORE" = "$ZERO" ]; then
+            echo "First-push or branch-create event (before=$BEFORE)."
+            echo "→ base='' → dorny will treat HEAD as fully changed → checks will run."
+            echo "value=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            echo "Reachable previous SHA: $BEFORE → using as diff base."
+            echo "value=${BEFORE}" >> "$GITHUB_OUTPUT"
+          else
+            echo "Previous SHA $BEFORE not reachable in local history (force-push or rewritten branch)."
+            echo "→ base='' → dorny will treat HEAD as fully changed → checks will run."
+            echo "value=" >> "$GITHUB_OUTPUT"
+          fi
 
       # ─── Path-aware change detection (dorny/paths-filter) ──────────
       # Why dorny over a hand-rolled `git diff`:
-      #   • Correctly handles fork PRs — the previous bash version
-      #     resolved `BASE_SHA` from the PR event payload, but on
-      #     fork PRs the base commit is not in the head repo's git
-      #     history, so `git cat-file -e $BASE_SHA` failed and the
-      #     script took the "fail-open ⇒ changed=true" branch on
-      #     EVERY fork PR. Dorny uses the GitHub Files API for PRs,
-      #     which returns the authoritative changed-files list
-      #     regardless of fork/base relationship.
+      #   • Correctly handles fork PRs — a hand-rolled bash diff has
+      #     no access to the base repo's commits. Dorny uses the
+      #     GitHub Files API on `pull_request` events, which returns
+      #     the authoritative changed-files list regardless of
+      #     fork/base relationship.
       #   • Pinned to a verified release SHA (v3.0.2) — the SHA pin
       #     prevents tag-replay supply-chain attacks while still
       #     letting Dependabot bump it on review.
       #
       # Output `steps.changes.outputs.readme` is `'true'` iff any of
-      # the watched paths changed in the PR/push diff. There is no
-      # fail-open branch: if the action errors (network, API rate
-      # limit, etc.) the job fails red — preserving merge-blocking
-      # semantics. README regressions cannot slip through a degraded
-      # detect step.
+      # the watched paths changed in the PR/push diff. The base SHA
+      # used for `push` events is the one resolved above — guaranteed
+      # to be either a reachable commit OR empty (which makes dorny
+      # treat HEAD as fully changed and run the checks). There is NO
+      # code path where `readme` can be `'false'` due to a degraded
+      # detect step — we either get a real diff or we run the checks.
       - name: Detect README / checker script changes
         id: changes
         uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
         with:
-          # On `push` events dorny needs the previous SHA to diff
-          # against — pull it from the push event payload. On
-          # `pull_request` events this is ignored (API path is used).
-          base: ${{ github.event_name == 'push' && github.event.before || '' }}
+          base: ${{ github.event_name == 'push' && steps.base.outputs.value || '' }}
           # Filters: any of these paths flips `readme=true`. Keeping
           # both checker scripts in the watch list ensures a rule
           # change re-validates the current README on the same PR.

@@ -90,6 +90,32 @@ That's it. The AI never needs to ask you questions unless a verification fails o
 
 ---
 
+## Where the 10-step checklist lives
+
+**File:** `13-ai-onboarding-prompt.md`
+
+**Anchor:** `## The 10-Step Build Checklist` (line ~118)
+
+**What it covers:** Steps 1–10 span from repository scaffolding through build, package, and Chrome load-unpacked verification. Each step includes a source-of-truth reference, detailed instructions, and a mandatory verification command.
+
+**Ends at:** `## Stop conditions` (line ~285) — the section immediately following the checklist that defines the four situations when the AI may stop and ask for human guidance.
+
+**Excerpt:**
+
+> ### Step 1 — Scaffold the repository layout
+> **Source of truth:** `02-folder-and-build/01-repository-layout.md`
+> Create the project root, all sub-folders (`src/`, `src/background/`, `src/content/`, `src/options/`, `src/popup/`, `src/sdk/`, `src/messaging/`, `src/storage/`, `src/auth/`, `src/types/`, `src/config/`, `tests/`, `scripts/`, `public/`), and empty `.gitkeep` files where the spec requires.
+> **Verification:** `tree -L 3 -I node_modules` matches the layout diagram in `02-folder-and-build/01-repository-layout.md`.
+>
+> [... Steps 2–9 ...]
+>
+> ### Step 10 — Build, package, and verify install
+> **Source of truth:** `11-cicd-and-release/03-build-pipeline.md`, `11-cicd-and-release/04-release-zip-contract.md`, `02-folder-and-build/06-packaging-and-zip.md`
+> Run `npm run validate`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run package`. Then in Chrome: open `chrome://extensions`, enable Developer Mode, click **Load unpacked** and select `dist/`. Confirm no errors badge, icon appears, popup shows dark shell, options page renders, background service worker is `active`.
+> **Verification:** `npm run validate:zip` exits zero and the in-Chrome checklist passes.
+
+---
+
 ## Cross-References
 
 | Reference | Location |

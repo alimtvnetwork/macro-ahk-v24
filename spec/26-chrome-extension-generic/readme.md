@@ -23,13 +23,13 @@ A **drop-in, AI-portable foundation** for building production-quality Chrome MV3
 3. [Folder map](#folder-map)
 4. [For humans: one-minute summary](#for-humans-one-minute-summary)
 5. [Where the 10-step checklist lives](#where-the-10-step-checklist-lives) — file path, anchor, end boundary, full Steps 1–10 excerpt
-6. [All verification commands (Steps 1–10) — quick copy/paste](#all-verification-commands-steps-110--quick-copypaste)
+6. [All verification commands (Steps 1–10) — quick copy/paste](#all-verification-commands-steps-110-quick-copypaste)
 7. [Cross-references](#cross-references)
-8. [Troubleshooting FAQ — checklist verification failures](#troubleshooting-faq--checklist-verification-failures)
+8. [Troubleshooting FAQ — checklist verification failures](#troubleshooting-faq-checklist-verification-failures)
 9. [Validate this README](#validate-this-readme)
 10. [Generification policy](#generification-policy)
 
-> **New here?** Jump straight to **§5 — [Where the 10-step checklist lives](#where-the-10-step-checklist-lives)** for the full Steps 1–10 excerpt, or **§6 — [All verification commands](#all-verification-commands-steps-110--quick-copypaste)** for a single copy/paste block. Everything else on this page is context for those two sections.
+> **New here?** Jump straight to **§5 — [Where the 10-step checklist lives](#where-the-10-step-checklist-lives)** for the full Steps 1–10 excerpt, or **§6 — [All verification commands](#all-verification-commands-steps-110-quick-copypaste)** for a single copy/paste block. Everything else on this page is context for those two sections.
 
 ---
 

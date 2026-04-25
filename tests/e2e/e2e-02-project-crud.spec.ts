@@ -1,5 +1,5 @@
 import { test, expect, chromium } from '@playwright/test';
-import { launchExtension, getExtensionId, openOptions } from './fixtures';
+import { launchExtension, getExtensionId, openOptions, optionsUrl } from './fixtures';
 
 /**
  * E2E-02 — Project CRUD Lifecycle
@@ -25,7 +25,7 @@ async function seedOnboardingComplete(context: import('@playwright/test').Browse
   // Open a throwaway extension page so we can write to chrome.storage.local
   // *before* the test's Options page boot reads the onboarding flag.
   const seedPage = await context.newPage();
-  await seedPage.goto(`chrome-extension://${extensionId}/src/options/options.html`);
+  await seedPage.goto(optionsUrl(extensionId));
   await seedPage.evaluate(async () => {
     await new Promise<void>(resolve =>
       chrome.storage.local.set({ marco_onboarding_complete: true }, () => resolve()),

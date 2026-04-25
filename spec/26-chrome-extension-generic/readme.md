@@ -276,7 +276,7 @@ If any command fails, jump to the **Troubleshooting FAQ** section above.
 
 ---
 
-## Cross-References
+## Cross-references
 
 | Reference | Location |
 |----------|----------|

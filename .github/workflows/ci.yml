@@ -232,6 +232,9 @@ jobs:
       - name: Assert readme.md complies with root-readme conventions
         run: node scripts/check-readme-compliance.mjs
 
+      - name: Assert hero/badge/logo markup stays inside the allowed regions
+        run: node scripts/check-readme-hero-layout.mjs
+
   #
   # Runs `tsc --noEmit` against every standalone-script tsconfig
   # in a single job. Catches TS2304/TS2345/etc errors in seconds

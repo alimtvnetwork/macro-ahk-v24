@@ -1,29 +1,17 @@
-<p align="center">
-  <img src="docs/assets/marco-logo.png" alt="Marco Extension Logo" width="128" height="128" />
-</p>
+<div align="center">
 
-<h1 align="center">Marco Chrome Extension</h1>
+<img src="docs/assets/marco-logo.png" alt="Marco Extension Logo" width="128" height="128" />
 
-<p align="center">
-  <strong>Browser automation for workspace management, credit monitoring, and AI-driven macro execution</strong> — built as a Manifest V3 Chrome extension with a modular standalone script architecture.
-</p>
+# Marco Chrome Extension
 
-<p align="center">
-  <a href="https://github.com/alimtvnetwork/macro-ahk-v23/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/alimtvnetwork/macro-ahk-v23/ci.yml?branch=main&label=CI&logo=github&style=flat-square" alt="CI" /></a>
-  <a href="#license"><img src="https://img.shields.io/github/license/alimtvnetwork/macro-ahk-v23?style=flat-square" alt="License" /></a>
-  <a href="https://github.com/alimtvnetwork/macro-ahk-v23/issues"><img src="https://img.shields.io/github/issues/alimtvnetwork/macro-ahk-v23?style=flat-square&logo=github" alt="Issues" /></a>
-  <a href="https://github.com/alimtvnetwork/macro-ahk-v23/pulls"><img src="https://img.shields.io/github/issues-pr/alimtvnetwork/macro-ahk-v23?style=flat-square&logo=github" alt="Pull Requests" /></a>
-  <a href="https://github.com/alimtvnetwork/macro-ahk-v23"><img src="https://img.shields.io/github/repo-size/alimtvnetwork/macro-ahk-v23?style=flat-square" alt="Repo Size" /></a>
-</p>
+> **Browser automation for workspace management, credit monitoring, and AI-driven macro execution** — built as a Manifest V3 Chrome extension with a modular standalone script architecture.
 
-<p align="center">
-  <a href="https://github.com/alimtvnetwork/macro-ahk-v23/issues?q=is%3Aissue+label%3Asecurity"><img src="https://img.shields.io/github/issues-search/alimtvnetwork/macro-ahk-v23?query=is%3Aissue%20label%3Asecurity&label=security&style=flat-square&logo=github" alt="Security Issues" /></a>
-  <a href="https://github.com/alimtvnetwork/macro-ahk-v23/pulls?q=is%3Apr+label%3Adependencies"><img src="https://img.shields.io/github/issues-pr-raw/alimtvnetwork/macro-ahk-v23?label=dependency%20PRs&style=flat-square&logo=dependabot" alt="Dependency PRs" /></a>
-</p>
+<!-- Build & Release --> [![CI](https://img.shields.io/github/actions/workflow/status/alimtvnetwork/macro-ahk-v23/ci.yml?branch=main&label=CI&logo=github&style=flat-square)](https://github.com/alimtvnetwork/macro-ahk-v23/actions/workflows/ci.yml) <!-- Repo activity --> [![Issues](https://img.shields.io/github/issues/alimtvnetwork/macro-ahk-v23?style=flat-square&logo=github)](https://github.com/alimtvnetwork/macro-ahk-v23/issues) [![Pull Requests](https://img.shields.io/github/issues-pr/alimtvnetwork/macro-ahk-v23?style=flat-square&logo=github)](https://github.com/alimtvnetwork/macro-ahk-v23/pulls) [![Repo Size](https://img.shields.io/github/repo-size/alimtvnetwork/macro-ahk-v23?style=flat-square)](https://github.com/alimtvnetwork/macro-ahk-v23)
+<!-- Community --> <!-- (intentionally empty — see mem://constraints/no-static-mockup-badges) --> <!-- Code-quality --> [![Security Issues](https://img.shields.io/github/issues-search/alimtvnetwork/macro-ahk-v23?query=is%3Aissue%20label%3Asecurity&label=security&style=flat-square&logo=github)](https://github.com/alimtvnetwork/macro-ahk-v23/issues?q=is%3Aissue+label%3Asecurity) [![Dependency PRs](https://img.shields.io/github/issues-pr-raw/alimtvnetwork/macro-ahk-v23?label=dependency%20PRs&style=flat-square&logo=dependabot)](https://github.com/alimtvnetwork/macro-ahk-v23/pulls?q=is%3Apr+label%3Adependencies) <!-- Stack & standards --> [![License](https://img.shields.io/github/license/alimtvnetwork/macro-ahk-v23?style=flat-square)](#license)
 
-<p align="center">
-  <img src="docs/assets/marco-extension-hero.png" alt="Marco Chrome Extension — Projects view inside the options page" width="820" />
-</p>
+<img src="docs/assets/marco-extension-hero.png" alt="Marco Chrome Extension — Projects view inside the options page" width="820" />
+
+</div>
 
 **Current Version:** v2.158.0 | **Macro Controller:** v7.41
 

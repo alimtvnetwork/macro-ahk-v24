@@ -133,7 +133,7 @@ const record = (id, label, ok, detail, expected, found) => {
             ? "single hero wrapper found"
             : `found ${allOpens.length} centered <div> wrappers at lines: ${allOpens.map((o) => o.i + 1).join(", ")}`,
         "exactly one `<div align=\"center\">` (the hero wrapper)",
-        `${allOpens.length} `<div align=\"center\">` wrapper(s) detected`,
+        `${allOpens.length} \`<div align="center">\` wrapper(s) detected`,
     );
 }
 

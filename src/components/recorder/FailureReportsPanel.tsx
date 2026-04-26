@@ -81,6 +81,7 @@ export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureRepo
     const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
     const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
     const [pickedStep, setPickedStep] = useState<string | null>(null);
+    const [exportFormat, setExportFormat] = useState<ExportFormat>(DEFAULT_EXPORT_FORMAT);
 
     const stepOptions = useMemo(() => listStepFailureOptions(reports), [reports]);
 

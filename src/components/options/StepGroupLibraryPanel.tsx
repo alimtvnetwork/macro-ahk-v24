@@ -154,6 +154,14 @@ export default function StepGroupLibraryPanel() {
         fileName: string | null;
     }>({ open: false, explanation: null, fileName: null });
 
+    /**
+     * Tracks the *exact* (innermost) StepGroup row currently under the
+     * cursor. Lifted to panel scope so a hovered child does not also
+     * light up its ancestor `<li>` wrappers — only the deepest node
+     * with `hoveredId === id` renders the highlighter.
+     */
+    const [hoveredId, setHoveredId] = useState<number | null>(null);
+
     // Dialog state
     const [createDialog, setCreateDialog] = useState<{ open: boolean; parent: number | null; name: string }>({
         open: false, parent: null, name: "",

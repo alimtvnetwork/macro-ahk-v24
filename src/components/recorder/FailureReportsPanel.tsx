@@ -236,6 +236,22 @@ export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureRepo
                     >
                         {allSelected ? "Clear" : "Select all"}
                     </Button>
+                    <Select
+                        value={exportFormat}
+                        onValueChange={(v) => setExportFormat(v as ExportFormat)}
+                    >
+                        <SelectTrigger
+                            className="h-8 w-[140px] text-xs"
+                            aria-label="JSON output format for exported failure reports"
+                            title="Choose Pretty (2-space indent, easier to read in tickets) or Minified (single line, smaller files)"
+                        >
+                            <SelectValue placeholder="Format…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="pretty">Pretty JSON</SelectItem>
+                            <SelectItem value="minified">Minified JSON</SelectItem>
+                        </SelectContent>
+                    </Select>
                     <Button
                         variant="outline"
                         size="sm"

@@ -522,6 +522,13 @@ export function useStepLibrary(): UseStepLibraryApi {
         persist();
     }, [lib, project, stepsByGroup, persist]);
 
+    const reorderSteps = useCallback<UseStepLibraryApi["reorderSteps"]>((stepGroupId, orderedStepIds) => {
+        if (lib === null || project === null) return;
+        lib.reorderSteps(stepGroupId, orderedStepIds);
+        refreshFromDb(lib, project.ProjectId, setGroups, setStepsByGroup);
+        persist();
+    }, [lib, project, persist]);
+
     const resetAll = useCallback(() => {
         try {
             localStorage.removeItem(STORAGE_KEY);

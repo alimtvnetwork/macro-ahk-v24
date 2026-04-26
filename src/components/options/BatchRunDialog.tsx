@@ -50,6 +50,8 @@ import {
 } from "@/background/recorder/step-library/input-source";
 import type { GroupInputBag } from "@/background/recorder/step-library/group-inputs";
 
+import RunResultsSummaryPanel from "./RunResultsSummaryPanel";
+
 interface BatchRunDialogProps {
     readonly open: boolean;
     readonly onOpenChange: (open: boolean) => void;
@@ -92,6 +94,13 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
     const [reports, setReports] = useState<ReadonlyArray<BatchGroupReport>>([]);
     const [running, setRunning] = useState(false);
     const [continueOnFailure, setContinueOnFailure] = useState(false);
+    /**
+     * Total wall-clock duration of the just-completed run. `null` until
+     * the first run finishes; cleared back to `null` whenever the user
+     * re-opens the dialog so a stale duration can't bleed into the
+     * next batch's summary panel.
+     */
+    const [lastRunDurationMs, setLastRunDurationMs] = useState<number | null>(null);
 
     // Reset per-open: seed order, clear prior status rows.
     useEffect(() => {

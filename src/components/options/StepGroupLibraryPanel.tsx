@@ -98,6 +98,7 @@ import ImportErrorDialog from "./ImportErrorDialog";
 import { GroupInputsDialog } from "./GroupInputsDialog";
 import { CsvInputDialog } from "./CsvInputDialog";
 import WebhookSettingsDialog from "./WebhookSettingsDialog";
+import InputSourceDialog from "./InputSourceDialog";
 import {
     explainImportFailure,
     type ImportErrorExplanation,
@@ -153,6 +154,7 @@ export default function StepGroupLibraryPanel() {
     const [showArchived, setShowArchived] = useState(false);
     const [batchOpen, setBatchOpen] = useState(false);
     const [webhookOpen, setWebhookOpen] = useState(false);
+    const [inputSourceOpen, setInputSourceOpen] = useState(false);
     const [lastExport, setLastExport] = useState<LastExportSummary | null>(null);
     const [lastImport, setLastImport] = useState<LastImportSummary | null>(null);
     const [importError, setImportError] = useState<{

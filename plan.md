@@ -174,6 +174,85 @@ All critical AHK features implemented. 44 issue write-ups documented. 26 enginee
 
 ---
 
+## 🛡️ Priority 0 — Logging & Diagnostics Enforcement (always-on, applies to every new feature)
+
+> **Source of truth**: `mem://standards/verbose-logging-and-failure-diagnostics`, `mem://standards/error-logging-requirements`, `mem://constraints/file-path-error-logging-code-red.md`, `mem://standards/error-logging-via-namespace-logger.md`.
+> **Build-time guard**: `scripts/check-failure-log-schema.mjs` (wired into `build:extension`) — fails the build if any new `logFailure()`/`buildFailureReport()` callsite omits `SourceFile`/`Phase`/`Error` or constructs a `FailureReport` literal directly.
+> **Runtime fixtures**: `src/background/recorder/__tests__/__fixtures__/failure-report-fixtures.ts` + `failure-report-fixtures.test.ts` (48 tests) pin the required-field schema and verbose vs non-verbose payload contract.
+
+These rules apply to **every** future feature that emits a failure log, captures DOM context, or runs a recorder/replay step. Treat them like lint rules — a PR that violates any of them is incomplete.
+
+### LOG-1 — Failure-log schema is mandatory (every new emitter)
+
+| | |
+|---|---|
+| **Owner** | Author of any feature that adds a new `logFailure(...)` / `buildFailureReport(...)` callsite, OR a new failure-emitting subsystem (recorder phase, JS step sandbox, data-source loader, network reporter, injection guard, etc.). |
+| **Rule** | Every failure log MUST be produced via `buildFailureReport` / `logFailure` — never an object literal. Every callsite MUST pass `Phase`, `Error`, and `SourceFile`; `Selectors` or `EvaluatedAttempts` MUST be populated for selector failures; `Variables` MUST be populated for variable/data failures. `null` is acceptable for unknown sub-fields, but the keys themselves MUST exist. |
+| **Acceptance criteria** | 1. `node scripts/check-failure-log-schema.mjs` passes (already wired into `build:extension`). 2. New emitter has at least one fixture in `__fixtures__/failure-report-fixtures.ts` covering its scenario, in **both** `Verbose: true` and `Verbose: false` modes. 3. New emitter is referenced by at least one test asserting `REQUIRED_REPORT_FIELDS` presence. 4. PR description lists the new `SourceFile` value(s) so reviewers can grep. |
+| **Definition of done** | All four boxes ticked + `bunx vitest run src/background/recorder/__tests__/failure-report-fixtures.test.ts` green. |
+
+### LOG-2 — Verbose toggle must gate payload, never classification
+
+| | |
+|---|---|
+| **Owner** | Anyone touching `failure-logger.ts`, `verbose-logging.ts`, the `Settings → Debugging → Verbose failure logging` toggle, or any code that reads `resolveVerboseLogging(...)`. |
+| **Rule** | The verbose flag MUST gate ONLY: (a) `DomContext.OuterHtml` / `DomContext.Text`, (b) top-level `CapturedHtml`, (c) raw form values inside `FormSnapshot.Values`. It MUST NOT change `Reason`, `ReasonDetail`, `Selectors`, `Variables`, or any field-name metadata. Persisted toggle lives in `ExtensionSettings.verboseLogging` (`chrome.storage.local`); every `GET_SETTINGS`/`SAVE_SETTINGS` MUST mirror it into `setVerboseLogging(null, …)` so the in-memory store stays in sync. |
+| **Acceptance criteria** | 1. New code reads via `resolveVerboseLogging(projectId)` — no hard-coded `true`/`false`. 2. Fixture for the new emitter compares `Verbose.Reason === NonVerbose.Reason`, same for `ReasonDetail`/`Selectors`/`Variables`. 3. If a new bulky payload field is added, it is documented as verbose-gated in the field's TSDoc and excluded from non-verbose snapshots. 4. The settings round-trip test (`settings-handler-verbose.test.ts`) is extended if a new persisted knob is added. |
+| **Definition of done** | All four boxes ticked + `bunx vitest run src/background/recorder/__tests__/verbose-logging.test.ts src/background/handlers/__tests__/settings-handler-verbose.test.ts` green. |
+
+### LOG-3 — File-path / "what was missing" / "why" — CODE RED
+
+| | |
+|---|---|
+| **Owner** | Anyone adding a `throw new Error(...)`, `Logger.error(...)`, or hard-fail return in a code path that touches files, paths, storage keys, manifest entries, instruction registries, or chrome.storage. |
+| **Rule** | Per `mem://constraints/file-path-error-logging-code-red.md`: every hard error MUST include (a) the **exact** path/key/identifier, (b) **what** was missing or invalid, (c) **why** the code expected it. Stack traces are not a substitute. Optimised for AI consumption — a pasted error must be enough for ChatGPT/Claude to RCA without source access. |
+| **Acceptance criteria** | 1. New error messages include all three (path, missing-thing, reason) — verified by reviewer. 2. New errors emit through `RiseupAsiaMacroExt.Logger.error(...)` (or `console.error(formatFailureReport(...))` for recorder reports) — never bare `console.log` / silent `catch {}`. 3. Stack traces from build chunks (`chunk-*.js`, `assets/*.js`) are filtered per `mem://preferences/stack-trace-filtering`. |
+| **Definition of done** | Reviewer signs off + grep shows zero new bare `catch {}` or `console.log(error)` calls in the diff. |
+
+### LOG-4 — Diagnostics export must include any new failure source
+
+| | |
+|---|---|
+| **Owner** | Anyone introducing a new failure-log table, OPFS file, IndexedDB store, or chrome.storage key that holds diagnostic data. |
+| **Rule** | Per `mem://features/log-diagnostics-export`: the human-readable ZIP bundle is the canonical "send this to support" artefact. Every new diagnostic surface MUST be added to the bundle producer **in the same PR** that adds the surface — no "we'll wire it next sprint". The bundle MUST keep the `logs.txt` headline format and append the new source as a clearly labelled section. |
+| **Acceptance criteria** | 1. Bundle producer code lists the new source. 2. A bundle integration test loads a fixture that includes the new source and asserts it lands in the unzipped output. 3. The `verbose` snapshot map (`snapshotVerboseLoggingStore()`) is included so debuggers can tell whether captured payloads are full or truncated. |
+| **Definition of done** | Bundle test green; manual export from a dev build shows the new section. |
+
+### LOG-5 — Recorder/Replay step contracts (form snapshots, selector traces, XPath)
+
+| | |
+|---|---|
+| **Owner** | Anyone adding a new `RecordedStepKind`, a new selector strategy, or a new replay phase. |
+| **Rule** | New step kinds that touch a DOM target MUST: (a) capture an XPath via `xpathOfElement` and store it on the `DomContext`, (b) capture a `FormSnapshot` if the target is inside a form (always field names+types; values only when verbose), (c) when failing, emit a `FailureReport` whose `Selectors` includes every attempted strategy with `Matched`/`MatchCount`/`FailureReason`. New selector strategies MUST extend `AttemptStrategy`, populate `EvaluatedAttempt.Strategy`, and add a row to `SelectorReplayTracePanel`. |
+| **Acceptance criteria** | 1. New step kind has unit tests in `src/background/recorder/__tests__/` covering capture + replay + failure paths. 2. `SelectorReplayTracePanel` renders the new strategy without "Unknown" fallbacks. 3. `FormSnapshotBadge` appears on the trace row when applicable. 4. Sensitive-field masking regex still applies (`password|secret|token|otp|pin|cvv|ssn|credit`). |
+| **Definition of done** | All four boxes ticked + manual smoke run of record→replay→fail flow shows the new step in the trace panel. |
+
+### LOG-6 — Test-fixture parity (verbose × non-verbose)
+
+| | |
+|---|---|
+| **Owner** | Anyone adding a fixture or scenario to `__fixtures__/failure-report-fixtures.ts`. |
+| **Rule** | Every scenario MUST be exposed as a `FixtureBundle = { NonVerbose, Verbose }` built via `buildFailureReport` (never literals). Both modes MUST go through the schema test loop (`for (const mode of ["NonVerbose", "Verbose"] as const)`). |
+| **Acceptance criteria** | 1. New fixture appears in `allFixtures()`. 2. The 48-test baseline grows by exactly 12 tests per new scenario (4 schema assertions × 2 modes + 4 reason/format assertions). 3. No fixture leaves a detached jsdom node — `beforeEach(() => { document.body.innerHTML = ""; })` is honoured. |
+| **Definition of done** | Test count grows monotonically; `bunx vitest run` stays green. |
+
+### How to apply LOG-1..6 to a new feature (checklist)
+
+```
+[ ] Failure emitter goes through buildFailureReport / logFailure (LOG-1)
+[ ] Verbose toggle resolved via resolveVerboseLogging(...) — no hard-coded bool (LOG-2)
+[ ] Hard errors carry path + what + why (LOG-3)
+[ ] Diagnostics bundle producer updated in same PR (LOG-4)
+[ ] New step/strategy wired through trace panel + form-snapshot path (LOG-5)
+[ ] Fixture bundle (NonVerbose + Verbose) added; schema loop covers it (LOG-6)
+[ ] `node scripts/check-failure-log-schema.mjs` passes
+[ ] `bunx vitest run src/background/recorder/__tests__/failure-report-fixtures.test.ts` passes
+```
+
+> **Enforcement**: PRs touching failure-log surfaces MUST paste the checklist into the description with each box ticked. Reviewers reject the PR if any box is unticked without a written waiver linked from `.lovable/memory/suggestions/`.
+
+---
+
 ## Remaining Backlog
 
 ### Priority 0: Standalone Scripts — Global Instruction Types (2026-04-24)
@@ -333,5 +412,6 @@ Memory: `.lovable/memory/features/release-installer.md`
 7. SQLite Schema Consistency
 8. Issue Write-Up Mandatory
 9. NEVER change code without discussing with user first
+10. **Logging & Diagnostics Enforcement** — every new failure surface obeys LOG-1..6 above (schema, verbose-gating, code-red errors, diagnostics bundle, recorder contracts, fixture parity).
 
 Full list: `/spec/02-coding-guidelines/engineering-standards.md` (26 standards)

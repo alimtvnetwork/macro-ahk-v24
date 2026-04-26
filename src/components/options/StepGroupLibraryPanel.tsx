@@ -141,6 +141,8 @@ export default function StepGroupLibraryPanel() {
     const [expanded, setExpanded] = useState<Set<number>>(new Set());
     const [showArchived, setShowArchived] = useState(false);
     const [batchOpen, setBatchOpen] = useState(false);
+    const [lastExport, setLastExport] = useState<LastExportSummary | null>(null);
+    const [lastImport, setLastImport] = useState<LastImportSummary | null>(null);
 
     // Dialog state
     const [createDialog, setCreateDialog] = useState<{ open: boolean; parent: number | null; name: string }>({

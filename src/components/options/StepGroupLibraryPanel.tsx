@@ -39,6 +39,7 @@ import {
     FileSpreadsheet,
     FilePlus2,
     FolderTree,
+    Globe,
     GripVertical,
     MoreHorizontal,
     Pencil,
@@ -98,6 +99,7 @@ import ImportErrorDialog from "./ImportErrorDialog";
 import { GroupInputsDialog } from "./GroupInputsDialog";
 import { CsvInputDialog } from "./CsvInputDialog";
 import WebhookSettingsDialog from "./WebhookSettingsDialog";
+import InputSourceDialog from "./InputSourceDialog";
 import {
     explainImportFailure,
     type ImportErrorExplanation,
@@ -153,6 +155,7 @@ export default function StepGroupLibraryPanel() {
     const [showArchived, setShowArchived] = useState(false);
     const [batchOpen, setBatchOpen] = useState(false);
     const [webhookOpen, setWebhookOpen] = useState(false);
+    const [inputSourceOpen, setInputSourceOpen] = useState(false);
     const [lastExport, setLastExport] = useState<LastExportSummary | null>(null);
     const [lastImport, setLastImport] = useState<LastImportSummary | null>(null);
     const [importError, setImportError] = useState<{
@@ -522,6 +525,15 @@ export default function StepGroupLibraryPanel() {
                     <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => setInputSourceOpen(true)}
+                        title="Configure run-time input source"
+                    >
+                        <Globe className="mr-1 h-4 w-4" />
+                        Input source
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => setWebhookOpen(true)}
                         title="Configure result webhook"
                     >
@@ -826,11 +838,18 @@ export default function StepGroupLibraryPanel() {
                 projectId={lib.Project?.ProjectId ?? null}
                 initialOrder={selectionOrder}
                 groupsById={groupsById}
+                groupInputs={lib.GroupInputs}
+                onApplyMergedInput={(gid, bag) => lib.setGroupInput(gid, bag)}
             />
 
             <WebhookSettingsDialog
                 open={webhookOpen}
                 onOpenChange={setWebhookOpen}
+            />
+
+            <InputSourceDialog
+                open={inputSourceOpen}
+                onOpenChange={setInputSourceOpen}
             />
 
             <ImportErrorDialog

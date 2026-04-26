@@ -50,6 +50,8 @@ import {
 } from "@/background/recorder/step-library/input-source";
 import type { GroupInputBag } from "@/background/recorder/step-library/group-inputs";
 
+import RunResultsSummaryPanel from "./RunResultsSummaryPanel";
+
 interface BatchRunDialogProps {
     readonly open: boolean;
     readonly onOpenChange: (open: boolean) => void;
@@ -92,13 +94,21 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
     const [reports, setReports] = useState<ReadonlyArray<BatchGroupReport>>([]);
     const [running, setRunning] = useState(false);
     const [continueOnFailure, setContinueOnFailure] = useState(false);
+    /**
+     * Total wall-clock duration of the just-completed run. `null` until
+     * the first run finishes; cleared back to `null` whenever the user
+     * re-opens the dialog so a stale duration can't bleed into the
+     * next batch's summary panel.
+     */
+    const [lastRunDurationMs, setLastRunDurationMs] = useState<number | null>(null);
 
-    // Reset per-open: seed order, clear prior status rows.
+    // Reset per-open: seed order, clear prior status rows + summary.
     useEffect(() => {
         if (open) {
             setOrder(initialOrder);
             setReports(initialOrder.map((id) => emptyReport(id)));
             setRunning(false);
+            setLastRunDurationMs(null);
         }
     }, [open, initialOrder]);
 
@@ -173,6 +183,7 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
             },
         });
         setRunning(false);
+        setLastRunDurationMs(result.DurationMs);
         // Always emit a final BatchComplete event.
         void dispatchWebhook(
             "BatchComplete",
@@ -228,6 +239,14 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
                         <span>Continue on failure</span>
                     </label>
                 </div>
+
+                {lastRunDurationMs !== null && !running && (
+                    <RunResultsSummaryPanel
+                        reports={reports}
+                        totalDurationMs={lastRunDurationMs}
+                        groupName={(id) => groupsById.get(id)?.Name ?? `Group #${id}`}
+                    />
+                )}
 
                 <ScrollArea className="max-h-[55vh] rounded-md border">
                     <ol className="divide-y">

@@ -498,17 +498,47 @@ export default function StepGroupListPanel() {
                     </div>
                     <ScrollArea className="flex-1">
                         {filtered.length === 0 ? (
-                            <div className="flex h-full flex-col items-center justify-center gap-2 px-4 py-12 text-center text-sm text-muted-foreground">
+                            <div className="flex h-full flex-col items-center justify-center gap-3 px-6 py-16 text-center">
                                 {lib.Groups.length === 0 ? (
                                     <>
-                                        <span>This project has no step groups yet.</span>
-                                        <Button size="sm" variant="outline" onClick={openCreate}>
-                                            <FilePlus2 className="mr-1 h-4 w-4" />
-                                            Create the first one
-                                        </Button>
+                                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                            <FolderTree className="h-7 w-7" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-medium text-foreground">
+                                                No step groups yet
+                                            </p>
+                                            <p className="max-w-[34ch] text-xs text-muted-foreground">
+                                                Step groups bundle related actions you can
+                                                replay later. Create your first one or import
+                                                a ZIP bundle exported from another project.
+                                            </p>
+                                        </div>
+                                        <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                                            <Button size="sm" onClick={openCreate}>
+                                                <FilePlus2 className="mr-1 h-4 w-4" />
+                                                Create the first one
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => fileInputRef.current?.click()}
+                                            >
+                                                <Upload className="mr-1 h-4 w-4" />
+                                                Import ZIP
+                                            </Button>
+                                        </div>
                                     </>
                                 ) : (
-                                    <span>No groups match "{query}".</span>
+                                    <>
+                                        <Search className="h-8 w-8 text-muted-foreground/40" />
+                                        <p className="text-sm text-muted-foreground">
+                                            No groups match “{query}”.
+                                        </p>
+                                        <Button variant="ghost" size="sm" onClick={() => setQuery("")}>
+                                            Clear search
+                                        </Button>
+                                    </>
                                 )}
                             </div>
                         ) : (

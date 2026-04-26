@@ -1041,6 +1041,10 @@ function TreeNodeRow(props: TreeNodeRowProps) {
                         <DropdownMenuItem onSelect={() => onExportThis(id)}>
                             <Download className="mr-2 h-4 w-4" /> Export this group
                         </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onApplyInputs(node.Group)}>
+                            <FileJson className="mr-2 h-4 w-4" />
+                            {hasInputs(id) ? "Edit input data…" : "Apply input data…"}
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onSelect={() => onArchiveToggle(node.Group)}>
                             {isArchived ? (

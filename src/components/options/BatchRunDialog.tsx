@@ -240,6 +240,14 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
                     </label>
                 </div>
 
+                {lastRunDurationMs !== null && !running && (
+                    <RunResultsSummaryPanel
+                        reports={reports}
+                        totalDurationMs={lastRunDurationMs}
+                        groupName={(id) => groupsById.get(id)?.Name ?? `Group #${id}`}
+                    />
+                )}
+
                 <ScrollArea className="max-h-[55vh] rounded-md border">
                     <ol className="divide-y">
                         {order.map((gid, idx) => {

@@ -46,6 +46,7 @@ import {
     Plus,
     Trash2,
     Upload,
+    Webhook,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -96,6 +97,7 @@ import BundleExchangePanel, {
 import ImportErrorDialog from "./ImportErrorDialog";
 import { GroupInputsDialog } from "./GroupInputsDialog";
 import { CsvInputDialog } from "./CsvInputDialog";
+import WebhookSettingsDialog from "./WebhookSettingsDialog";
 import {
     explainImportFailure,
     type ImportErrorExplanation,
@@ -150,6 +152,7 @@ export default function StepGroupLibraryPanel() {
     const [expanded, setExpanded] = useState<Set<number>>(new Set());
     const [showArchived, setShowArchived] = useState(false);
     const [batchOpen, setBatchOpen] = useState(false);
+    const [webhookOpen, setWebhookOpen] = useState(false);
     const [lastExport, setLastExport] = useState<LastExportSummary | null>(null);
     const [lastImport, setLastImport] = useState<LastImportSummary | null>(null);
     const [importError, setImportError] = useState<{
@@ -517,6 +520,15 @@ export default function StepGroupLibraryPanel() {
                         Import ZIP
                     </Button>
                     <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setWebhookOpen(true)}
+                        title="Configure result webhook"
+                    >
+                        <Webhook className="mr-1 h-4 w-4" />
+                        Webhook
+                    </Button>
+                    <Button
                         variant="secondary"
                         size="sm"
                         disabled={selectedCount === 0}
@@ -814,6 +826,11 @@ export default function StepGroupLibraryPanel() {
                 projectId={lib.Project?.ProjectId ?? null}
                 initialOrder={selectionOrder}
                 groupsById={groupsById}
+            />
+
+            <WebhookSettingsDialog
+                open={webhookOpen}
+                onOpenChange={setWebhookOpen}
             />
 
             <ImportErrorDialog

@@ -39,6 +39,11 @@ import {
 } from "@/background/recorder/step-library/run-batch";
 import type { StepGroupRow, StepLibraryDb } from "@/background/recorder/step-library/db";
 import type { LeafStepExecutor } from "@/background/recorder/step-library/run-group-runner";
+import {
+    buildBatchCompletePayload,
+    buildGroupRunPayload,
+    dispatchWebhook,
+} from "@/background/recorder/step-library/result-webhook";
 
 interface BatchRunDialogProps {
     readonly open: boolean;
@@ -105,9 +110,46 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
             onGroupStatus: (report, idx) => {
                 live[idx] = report;
                 setReports(live.slice());
+                // Fire per-group webhook on terminal statuses (fire-and-forget).
+                if (report.Status === "Succeeded" || report.Status === "Failed") {
+                    const groupRow = groupsById.get(report.StepGroupId);
+                    const runResult = report.Result;
+                    const failureReason = runResult !== null && !runResult.Ok
+                        ? runResult.Reason
+                        : undefined;
+                    const failedStepId = runResult !== null && !runResult.Ok
+                        ? runResult.FailedStepId
+                        : undefined;
+                    void dispatchWebhook(
+                        report.Status === "Succeeded" ? "GroupRunSucceeded" : "GroupRunFailed",
+                        buildGroupRunPayload({
+                            ProjectId: projectId,
+                            GroupId: report.StepGroupId,
+                            GroupName: groupRow?.Name ?? `#${report.StepGroupId}`,
+                            DurationMs: report.DurationMs,
+                            StepsExecuted: runResult?.Trace.length ?? 0,
+                            Outcome: report.Status,
+                            FailureReason: failureReason,
+                            FailedStepId: failedStepId,
+                        }),
+                    );
+                }
             },
         });
         setRunning(false);
+        // Always emit a final BatchComplete event.
+        void dispatchWebhook(
+            "BatchComplete",
+            buildBatchCompletePayload({
+                ProjectId: projectId,
+                TotalGroups: order.length,
+                Succeeded: result.Succeeded,
+                Failed: result.Failed,
+                Skipped: result.Skipped,
+                DurationMs: result.DurationMs,
+                Ok: result.Ok,
+            }),
+        );
         if (result.Ok) {
             toast.success(`Batch complete — ${result.Succeeded} group(s) ran in ${formatDuration(result.DurationMs)}`);
         } else {

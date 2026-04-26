@@ -80,7 +80,7 @@ export function parseGroupInputJson(raw: string): ParseResult {
             Reason: `Expected a JSON object (e.g. { "Email": "you@example.com" }), got ${describeKind(parsed)}.`,
         };
     }
-    return { Ok: true, Value: parsed };
+    return { Ok: true, Value: parsed as GroupInputBag };
 }
 
 function describeKind(v: JsonValue): string {

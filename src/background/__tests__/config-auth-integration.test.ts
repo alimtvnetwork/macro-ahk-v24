@@ -120,7 +120,7 @@ async function setupTest(options: {
     (globalThis as Record<string, unknown>).chrome = chromeMock;
 
     const fetchResponses = options.fetchResponses ?? new Map();
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
         const url = typeof input === "string" ? input : input.toString();
 
         for (const [pattern, response] of fetchResponses) {
@@ -194,6 +194,35 @@ describe("fetchAuthToken — integration", () => {
         const result = await mod.fetchAuthToken(null, PROJECT_ID);
         expect(result).toBe(FAKE_JWT);
         expect(globalThis.fetch).not.toHaveBeenCalled();
+    });
+
+    it("exchanges an opaque session cookie for a JWT when localStorage has no token", async () => {
+        const tabs = [
+            { id: 1, url: `https://lovable.dev/projects/${PROJECT_ID}`, active: true } as chrome.tabs.Tab,
+        ];
+
+        const scriptResults = new Map<number, unknown>();
+        scriptResults.set(1, null);
+
+        const cookies = makeCookieStore([
+            { url: "https://lovable.dev", name: "lovable-session-id-v2", value: "session-opaque" },
+        ]);
+
+        const fetchResponses = new Map<string, { ok: boolean; status: number; json: unknown }>();
+        fetchResponses.set(`/projects/${PROJECT_ID}/auth-token`, {
+            ok: true,
+            status: 200,
+            json: { token: FAKE_JWT },
+        });
+
+        const { mod } = await setupTest({ tabs, scriptResults, cookies, fetchResponses });
+
+        const result = await mod.fetchAuthToken(null, PROJECT_ID);
+        expect(result).toBe(FAKE_JWT);
+        expect(globalThis.fetch).toHaveBeenCalledWith(
+            `https://api.lovable.dev/projects/${PROJECT_ID}/auth-token`,
+            { method: "GET", credentials: "include" },
+        );
     });
 
     it("returns a signed URL token when cookies are unavailable", async () => {
@@ -277,6 +306,25 @@ describe("handleGetToken — integration", () => {
         const result = await mod.handleGetToken(PROJECT_ID);
         expect(result.token).toBe(FAKE_JWT);
         expect(result.cookieName).toBe("lovable-session-id-v2");
+    });
+
+    it("returns an exchanged JWT for opaque session cookies", async () => {
+        const tabs = [
+            { id: 1, url: `https://lovable.dev/projects/${PROJECT_ID}`, active: true } as chrome.tabs.Tab,
+        ];
+        const scriptResults = new Map<number, unknown>();
+        scriptResults.set(1, null);
+        const cookies = makeCookieStore([
+            { url: "https://lovable.dev", name: "lovable-session-id-v2", value: "session-opaque" },
+        ]);
+        const fetchResponses = new Map<string, { ok: boolean; status: number; json: unknown }>();
+        fetchResponses.set(`/projects/${PROJECT_ID}/auth-token`, { ok: true, status: 200, json: { data: { access_token: FAKE_JWT } } });
+
+        const { mod } = await setupTest({ tabs, scriptResults, cookies, fetchResponses });
+
+        const result = await mod.handleGetToken(PROJECT_ID);
+        expect(result.token).toBe(FAKE_JWT);
+        expect(result.cookieName).toBe("auth-token-exchange");
     });
 
     it("returns error message when no auth method succeeds", async () => {

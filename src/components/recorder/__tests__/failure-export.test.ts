@@ -149,3 +149,82 @@ describe("last-failure export — round-trip preserves EvaluatedAttempts", () =>
         expect(parsed.Selectors[1].MatchCount).toBe(1);
     });
 });
+
+/* ------------------------------------------------------------------ */
+/*  Per-step lookup (Step-picker export)                               */
+/* ------------------------------------------------------------------ */
+
+import {
+    listStepFailureOptions,
+    pickFailureReportByStepId,
+} from "../failure-export";
+
+function reportAt(stepId: number | null, ts: string, kind: string | null = "Click"): FailureReport {
+    const r = buildFailureReport({
+        Phase: "Replay",
+        Error: new Error("x"),
+        StepId: stepId ?? undefined,
+        StepKind: kind ?? undefined,
+        SourceFile: "src/test.ts",
+        Now: () => new Date(ts),
+    });
+    // buildFailureReport defaults StepId/StepKind to null when undefined; ensure we honor null intent.
+    return { ...r, StepId: stepId, StepKind: kind, Timestamp: ts };
+}
+
+describe("listStepFailureOptions", () => {
+    it("returns empty array for empty input", () => {
+        expect(listStepFailureOptions([])).toEqual([]);
+    });
+
+    it("groups by StepId, counts occurrences, and tracks LatestTimestamp", () => {
+        const opts = listStepFailureOptions([
+            reportAt(1, "2026-04-26T10:00:00.000Z"),
+            reportAt(2, "2026-04-26T10:05:00.000Z"),
+            reportAt(1, "2026-04-26T10:10:00.000Z"),
+        ]);
+        const step1 = opts.find((o) => o.StepId === 1);
+        const step2 = opts.find((o) => o.StepId === 2);
+        expect(step1?.Count).toBe(2);
+        expect(step1?.LatestTimestamp).toBe("2026-04-26T10:10:00.000Z");
+        expect(step2?.Count).toBe(1);
+    });
+
+    it("sorts most-recent-first and sinks null StepId to the bottom", () => {
+        const opts = listStepFailureOptions([
+            reportAt(null, "2026-04-26T11:00:00.000Z"),
+            reportAt(1, "2026-04-26T10:00:00.000Z"),
+            reportAt(2, "2026-04-26T10:30:00.000Z"),
+        ]);
+        expect(opts.map((o) => o.StepId)).toEqual([2, 1, null]);
+    });
+
+    it("uses the most recent StepKind for the bucket label", () => {
+        const opts = listStepFailureOptions([
+            reportAt(1, "2026-04-26T10:00:00.000Z", "Click"),
+            reportAt(1, "2026-04-26T10:05:00.000Z", "Type"),
+        ]);
+        expect(opts[0].StepKind).toBe("Type");
+    });
+});
+
+describe("pickFailureReportByStepId", () => {
+    it("returns null when no report matches the StepId", () => {
+        expect(pickFailureReportByStepId([reportAt(1, "2026-04-26T10:00:00.000Z")], 99))
+            .toBeNull();
+    });
+
+    it("returns the latest report for the given StepId", () => {
+        const a = reportAt(1, "2026-04-26T10:00:00.000Z");
+        const b = reportAt(1, "2026-04-26T10:05:00.000Z");
+        const c = reportAt(2, "2026-04-26T10:10:00.000Z");
+        expect(pickFailureReportByStepId([a, b, c], 1)).toBe(b);
+    });
+
+    it("matches StepId === null explicitly (not just falsy)", () => {
+        const noid = reportAt(null, "2026-04-26T10:00:00.000Z");
+        const withid = reportAt(0, "2026-04-26T10:05:00.000Z");
+        expect(pickFailureReportByStepId([noid, withid], null)).toBe(noid);
+        expect(pickFailureReportByStepId([noid, withid], 0)).toBe(withid);
+    });
+});

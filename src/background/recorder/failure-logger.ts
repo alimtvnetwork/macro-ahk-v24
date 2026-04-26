@@ -337,11 +337,34 @@ function extractStack(err: unknown): string | null {
     return null;
 }
 
-function toSelectorAttempt(s: PersistedSelector): SelectorAttempt {
+function toAttemptFromPersisted(s: PersistedSelector): SelectorAttempt {
+    // Record-phase fallback: no live evaluation happened, so Matched /
+    // MatchCount / FailureReason are reported as "NotEvaluated" so the
+    // consumer can tell apart "we tried and it missed" vs "we never tried".
     return {
-        Kind: SELECTOR_KIND_NAMES[s.SelectorKindId] ?? `Kind${s.SelectorKindId}`,
+        SelectorId: s.SelectorId,
+        Strategy: SELECTOR_KIND_NAMES[s.SelectorKindId] ?? `Kind${s.SelectorKindId}`,
         Expression: s.Expression,
+        ResolvedExpression: s.Expression,
         IsPrimary: s.IsPrimary === 1,
+        Matched: false,
+        MatchCount: 0,
+        FailureReason: "NotEvaluated",
+        FailureDetail: null,
+    };
+}
+
+function toAttemptFromEvaluated(a: EvaluatedAttempt): SelectorAttempt {
+    return {
+        SelectorId: a.SelectorId,
+        Strategy: a.Strategy,
+        Expression: a.Expression,
+        ResolvedExpression: a.ResolvedExpression,
+        IsPrimary: a.IsPrimary,
+        Matched: a.Matched,
+        MatchCount: a.MatchCount,
+        FailureReason: a.FailureReason,
+        FailureDetail: a.FailureDetail,
     };
 }
 

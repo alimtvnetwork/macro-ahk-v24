@@ -169,6 +169,7 @@ export function useStepLibrary(): UseStepLibraryApi {
                 setLib(wrapper);
                 setProject(wrapper.listProjects().find((p) => p.ProjectId === projectId) ?? null);
                 refreshFromDb(wrapper, projectId, setGroups, setStepsByGroup);
+                setGroupInputs(readAllGroupInputs());
                 setLoading(false);
             } catch (err) {
                 if (cancelled) return;

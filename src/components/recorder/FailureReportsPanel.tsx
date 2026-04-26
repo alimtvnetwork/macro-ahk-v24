@@ -22,11 +22,14 @@ import type { FailureReport } from "@/background/recorder/failure-logger";
 import {
     buildFailureBundle,
     serializeFailureBundle,
+    serializeJson,
     buildFailureBundleFilename,
     pickLastFailureReport,
     buildLastFailureFilename,
     listStepFailureOptions,
     pickFailureReportByStepId,
+    DEFAULT_EXPORT_FORMAT,
+    type ExportFormat,
 } from "./failure-export";
 import { validateFailureReportPayload } from "./failure-report-validator";
 import {
@@ -78,6 +81,7 @@ export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureRepo
     const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
     const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
     const [pickedStep, setPickedStep] = useState<string | null>(null);
+    const [exportFormat, setExportFormat] = useState<ExportFormat>(DEFAULT_EXPORT_FORMAT);
 
     const stepOptions = useMemo(() => listStepFailureOptions(reports), [reports]);
 
@@ -122,7 +126,7 @@ export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureRepo
         }
         const bundle = buildFailureBundle(picked);
         const filename = buildFailureBundleFilename();
-        const contents = serializeFailureBundle(bundle);
+        const contents = serializeFailureBundle(bundle, exportFormat);
         (onDownload ?? defaultDownload)(filename, contents);
         const validation = validateFailureReportPayload(contents);
         if (!validation.Valid) {
@@ -141,7 +145,7 @@ export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureRepo
             return;
         }
         const filename = buildLastFailureFilename(last);
-        const contents = JSON.stringify(last, null, 2);
+        const contents = serializeJson(last, exportFormat);
         (onDownload ?? defaultDownload)(filename, contents);
         const stepLabel = last.StepId !== null ? ` (Step #${last.StepId})` : "";
         const validation = validateFailureReportPayload(contents);
@@ -162,7 +166,7 @@ export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureRepo
             toast.error("No failures recorded yet");
             return;
         }
-        const contents = JSON.stringify(last, null, 2);
+        const contents = serializeJson(last, exportFormat);
         const stepLabel = last.StepId !== null ? ` (Step #${last.StepId})` : "";
         try {
             await (onCopy ?? defaultCopy)(contents);
@@ -200,7 +204,7 @@ export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureRepo
             return;
         }
         const filename = buildLastFailureFilename(report);
-        const contents = JSON.stringify(report, null, 2);
+        const contents = serializeJson(report, exportFormat);
         (onDownload ?? defaultDownload)(filename, contents);
         const stepLabel = stepId === null ? " (no Step ID)" : ` (Step #${stepId})`;
         const validation = validateFailureReportPayload(contents);
@@ -232,6 +236,22 @@ export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureRepo
                     >
                         {allSelected ? "Clear" : "Select all"}
                     </Button>
+                    <Select
+                        value={exportFormat}
+                        onValueChange={(v) => setExportFormat(v as ExportFormat)}
+                    >
+                        <SelectTrigger
+                            className="h-8 w-[140px] text-xs"
+                            aria-label="JSON output format for exported failure reports"
+                            title="Choose Pretty (2-space indent, easier to read in tickets) or Minified (single line, smaller files)"
+                        >
+                            <SelectValue placeholder="Format…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="pretty">Pretty JSON</SelectItem>
+                            <SelectItem value="minified">Minified JSON</SelectItem>
+                        </SelectContent>
+                    </Select>
                     <Button
                         variant="outline"
                         size="sm"

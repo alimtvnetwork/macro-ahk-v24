@@ -49,9 +49,29 @@ export function buildFailureBundle(
     };
 }
 
+/**
+ * JSON output format for the export pipeline. "Pretty" uses 2-space
+ * indent and trailing newline (default — best for diffing and pasting
+ * into a ticket). "Minified" omits whitespace (best when uploading to
+ * a service that parses bytes-on-the-wire or when filesize matters).
+ */
+export type ExportFormat = "pretty" | "minified";
+
+export const DEFAULT_EXPORT_FORMAT: ExportFormat = "pretty";
+
+/** Serialize ANY JSON value using the chosen export format. */
+export function serializeJson(value: unknown, format: ExportFormat): string {
+    return format === "pretty"
+        ? JSON.stringify(value, null, 2)
+        : JSON.stringify(value);
+}
+
 /** Pretty-printed JSON ready to drop into a Blob. */
-export function serializeFailureBundle(bundle: FailureBundle): string {
-    return JSON.stringify(bundle, null, 2);
+export function serializeFailureBundle(
+    bundle: FailureBundle,
+    format: ExportFormat = DEFAULT_EXPORT_FORMAT,
+): string {
+    return serializeJson(bundle, format);
 }
 
 /**

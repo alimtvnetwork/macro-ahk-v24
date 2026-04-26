@@ -228,3 +228,62 @@ describe("pickFailureReportByStepId", () => {
         expect(pickFailureReportByStepId([noid, withid], 0)).toBe(withid);
     });
 });
+
+/* ------------------------------------------------------------------ */
+/*  Export format (pretty vs minified)                                 */
+/* ------------------------------------------------------------------ */
+
+import {
+    serializeJson,
+    DEFAULT_EXPORT_FORMAT,
+    type ExportFormat,
+} from "../failure-export";
+
+describe("serializeJson", () => {
+    it("default format is pretty (2-space indent, multi-line)", () => {
+        expect(DEFAULT_EXPORT_FORMAT).toBe("pretty");
+        const out = serializeJson({ a: 1, b: [2, 3] }, "pretty");
+        expect(out).toContain("\n  ");
+        expect(out.split("\n").length).toBeGreaterThan(1);
+    });
+
+    it("minified format produces a single line with no indent whitespace", () => {
+        const out = serializeJson({ a: 1, b: [2, 3] }, "minified");
+        expect(out).not.toContain("\n");
+        expect(out).toBe('{"a":1,"b":[2,3]}');
+    });
+
+    it("both formats produce JSON.parse-equivalent output", () => {
+        const value = { Phase: "Replay", Selectors: [], Verbose: false };
+        for (const fmt of ["pretty", "minified"] as ReadonlyArray<ExportFormat>) {
+            expect(JSON.parse(serializeJson(value, fmt))).toEqual(value);
+        }
+    });
+});
+
+describe("serializeFailureBundle — format param", () => {
+    it("defaults to pretty when no format passed (back-compat)", () => {
+        const bundle = buildFailureBundle([sampleReport("x", 1)], { Now: FIXED_NOW });
+        const out = serializeFailureBundle(bundle);
+        expect(out).toContain("\n  ");
+    });
+
+    it("emits a single line when format='minified'", () => {
+        const bundle = buildFailureBundle([sampleReport("x", 1)], { Now: FIXED_NOW });
+        const out = serializeFailureBundle(bundle, "minified");
+        expect(out).not.toContain("\n");
+        // Bundle wrapper still parseable.
+        const parsed = JSON.parse(out);
+        expect(parsed.Generator).toBe("marco-extension");
+        expect(parsed.Reports).toHaveLength(1);
+    });
+
+    it("minified is strictly smaller than pretty for the same payload", () => {
+        const bundle = buildFailureBundle([sampleReport("x", 1), sampleReport("y", 2)], {
+            Now: FIXED_NOW,
+        });
+        const pretty = serializeFailureBundle(bundle, "pretty");
+        const min = serializeFailureBundle(bundle, "minified");
+        expect(min.length).toBeLessThan(pretty.length);
+    });
+});

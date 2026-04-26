@@ -16,11 +16,13 @@ import { logCaughtError, logBgWarnError, BgLogTag} from "./bg-logger";
 
 const RUN_SCRIPTS_COMMAND = "run-scripts";
 const FORCE_RUN_SCRIPTS_COMMAND = "force-run-scripts";
+const TOGGLE_RECORDING_COMMAND = "toggle-recording";
 
 interface ActiveProjectResponse {
     activeProject?: {
         id?: string;
         name?: string;
+        slug?: string;
         scripts?: ScriptEntry[];
     } | null;
 }
@@ -34,6 +36,8 @@ export function registerShortcutCommands(): void {
             void runScriptsFromShortcut(false);
         } else if (command === FORCE_RUN_SCRIPTS_COMMAND) {
             void runScriptsFromShortcut(true);
+        } else if (command === TOGGLE_RECORDING_COMMAND) {
+            void toggleRecordingFromShortcut();
         }
     });
 

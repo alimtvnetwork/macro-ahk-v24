@@ -61,6 +61,13 @@
                 "mac": "Command+Shift+Up"
             },
             "description": "Force re-run active project scripts (bypass idempotency)"
+        },
+        "toggle-recording": {
+            "suggested_key": {
+                "default": "Ctrl+Shift+R",
+                "mac": "Command+Shift+R"
+            },
+            "description": "Start, pause, or resume macro recording in the active tab"
         }
     },
     "web_accessible_resources": [

@@ -1001,6 +1001,22 @@ export default function StepGroupLibraryPanel() {
                                 <FileSpreadsheet className="mr-1 h-4 w-4" />
                                 CSV
                             </Button>
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                disabled={activeGroup === null || activeSteps.length === 0}
+                                onClick={() => activeGroup !== null && setRunGroupDialog({ open: true, group: activeGroup })}
+                                title={
+                                    activeGroup === null
+                                        ? "Select a group first"
+                                        : activeSteps.length === 0
+                                            ? "Group has no steps to run"
+                                            : "Execute this group and view its trace + failure reason"
+                                }
+                            >
+                                <Play className="mr-1 h-4 w-4" />
+                                Run group
+                            </Button>
                         </div>
                     </div>
                     <ScrollArea className="flex-1">

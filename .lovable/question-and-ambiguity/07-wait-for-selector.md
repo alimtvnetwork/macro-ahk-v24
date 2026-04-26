@@ -34,3 +34,19 @@ Future tasks can:
 - Promote storage to a sql.js column on `Step` once the schema bumps.
 - Add per-group wait defaults + per-step overrides.
 - Expose extra conditions (`Stable`, `Count >=`, `Text matches`) by extending the `Condition` enum without breaking persisted rows.
+
+## Addendum — "Test selector" UI control (2026-04-26)
+
+Added a **Test selector** button inside `StepWaitDialog` that runs
+`evaluateSelector` against the live options-page `document` and reports
+`{TotalCount, VisibleCount, DurationMs}` (or the compile error). Result
+state is invalidated whenever the selector text or kind changes so the
+chip can never go stale.
+
+Caveat surfaced in the dialog: the probe runs against the page hosting
+the options UI, **not** the recorder's target tab. It still catches the
+overwhelming majority of authoring mistakes (typos, malformed brackets,
+wrong axis, accidental `//` prefix on a CSS expression). Promoting the
+probe to the recorder's active tab would require a background message
+round-trip and is left for a follow-up task.
+

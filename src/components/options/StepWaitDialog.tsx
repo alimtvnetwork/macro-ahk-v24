@@ -19,7 +19,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Eye, EyeOff, MousePointer2, Trash2 } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, MousePointer2, SearchCheck, Trash2, XCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -45,13 +45,46 @@ import {
     DEFAULT_WAIT_CONFIG,
     clearStepWait,
     detectSelectorKind,
+    evaluateSelector,
     readStepWait,
     validateSelector,
     writeStepWait,
+    type ElementLike,
     type SelectorKind,
     type WaitCondition,
     type WaitConfig,
 } from "@/background/recorder/step-library/step-wait";
+
+/**
+ * Result of clicking "Test selector" — counts matches in the current
+ * options-page document so the user can see whether their expression
+ * resolves anything before saving.
+ *
+ * Note: this only probes the page hosting the options UI, not the
+ * recorder's target tab. It still catches the most common authoring
+ * mistakes (typos, wrong axis, missing brackets) and proves the
+ * expression compiles.
+ */
+interface TestResult {
+    readonly Kind: SelectorKind;
+    readonly TotalCount: number;
+    readonly VisibleCount: number;
+    readonly DurationMs: number;
+    readonly Error: string | null;
+}
+
+function countVisible(matches: ReadonlyArray<ElementLike>): number {
+    let n = 0;
+    for (const el of matches) {
+        const w = typeof el.offsetWidth === "number" ? el.offsetWidth : 0;
+        const h = typeof el.offsetHeight === "number" ? el.offsetHeight : 0;
+        if (w > 0 || h > 0) { n += 1; continue; }
+        if (typeof el.getClientRects === "function" && el.getClientRects().length > 0) {
+            n += 1;
+        }
+    }
+    return n;
+}
 
 interface Props {
     readonly open: boolean;
@@ -84,6 +117,7 @@ export default function StepWaitDialog(props: Props) {
     const [condition, setCondition] = useState<WaitCondition>(DEFAULT_WAIT_CONFIG.Condition);
     const [timeoutMs, setTimeoutMs] = useState<number>(DEFAULT_WAIT_CONFIG.TimeoutMs);
     const [hasExisting, setHasExisting] = useState(false);
+    const [testResult, setTestResult] = useState<TestResult | null>(null);
 
     useEffect(() => {
         if (!open || stepId === null) return;
@@ -101,7 +135,13 @@ export default function StepWaitDialog(props: Props) {
             setTimeoutMs(existing.TimeoutMs);
             setHasExisting(true);
         }
+        setTestResult(null);
     }, [open, stepId]);
+
+    // Invalidate stale test results whenever the inputs change.
+    useEffect(() => {
+        setTestResult(null);
+    }, [selector, kindMode]);
 
     const detected: SelectorKind = useMemo(
         () => detectSelectorKind(selector),
@@ -141,6 +181,47 @@ export default function StepWaitDialog(props: Props) {
         } catch (e) {
             const detail = e instanceof Error ? e.message : "Unknown error";
             toast.error(`Could not save: ${detail}`);
+        }
+    };
+
+    const handleTest = () => {
+        if (selector.trim().length === 0) {
+            toast.error("Enter a selector first");
+            return;
+        }
+        if (!validation.Ok) {
+            setTestResult({
+                Kind: effectiveKind,
+                TotalCount: 0,
+                VisibleCount: 0,
+                DurationMs: 0,
+                Error: validation.Reason,
+            });
+            return;
+        }
+        const startedAt = performance.now();
+        try {
+            const matches = evaluateSelector({
+                Selector: selector.trim(),
+                Kind: effectiveKind,
+            });
+            const elapsed = Math.max(0, Math.round(performance.now() - startedAt));
+            setTestResult({
+                Kind: effectiveKind,
+                TotalCount: matches.length,
+                VisibleCount: countVisible(matches),
+                DurationMs: elapsed,
+                Error: null,
+            });
+        } catch (e) {
+            const detail = e instanceof Error ? e.message : "Unknown evaluation error";
+            setTestResult({
+                Kind: effectiveKind,
+                TotalCount: 0,
+                VisibleCount: 0,
+                DurationMs: Math.max(0, Math.round(performance.now() - startedAt)),
+                Error: detail,
+            });
         }
     };
 
@@ -191,6 +272,56 @@ export default function StepWaitDialog(props: Props) {
                             Auto-detect picks XPath when the expression starts with <code>/</code>,
                             <code> ./</code>, <code>(/</code>, <code>(./</code>, or contains <code>//</code>.
                         </p>
+
+                        {/* Test selector against the live document */}
+                        <div className="flex items-center gap-2 pt-1">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={handleTest}
+                                disabled={selector.trim().length === 0}
+                            >
+                                <SearchCheck className="mr-1 h-3.5 w-3.5" />
+                                Test selector
+                            </Button>
+                            {testResult !== null && testResult.Error === null && (
+                                <span
+                                    className={
+                                        testResult.TotalCount > 0
+                                            ? "flex items-center gap-1 text-xs text-emerald-500"
+                                            : "flex items-center gap-1 text-xs text-amber-500"
+                                    }
+                                >
+                                    {testResult.TotalCount > 0
+                                        ? <CheckCircle2 className="h-3.5 w-3.5" />
+                                        : <XCircle className="h-3.5 w-3.5" />}
+                                    {testResult.TotalCount} match
+                                    {testResult.TotalCount === 1 ? "" : "es"}
+                                    {testResult.TotalCount > 0 && (
+                                        <span className="text-muted-foreground">
+                                            · {testResult.VisibleCount} visible
+                                        </span>
+                                    )}
+                                    <span className="text-muted-foreground">
+                                        · {testResult.DurationMs} ms
+                                    </span>
+                                </span>
+                            )}
+                            {testResult !== null && testResult.Error !== null && (
+                                <span className="flex items-center gap-1 text-xs text-destructive">
+                                    <XCircle className="h-3.5 w-3.5" />
+                                    {testResult.Error}
+                                </span>
+                            )}
+                        </div>
+                        {testResult !== null && testResult.Error === null && testResult.TotalCount === 0 && (
+                            <p className="text-xs text-muted-foreground">
+                                No elements matched on the current options page. The selector
+                                will still be evaluated against the recorder's target tab at run
+                                time — this preview only catches typos and compile errors.
+                            </p>
+                        )}
                     </div>
 
                     {/* Kind override */}

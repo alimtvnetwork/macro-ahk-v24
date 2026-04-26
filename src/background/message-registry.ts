@@ -106,6 +106,13 @@ import {
 } from "./handlers/recorder-step-handler";
 
 import {
+    handleRecorderJsSnippetUpsert,
+    handleRecorderJsSnippetList,
+    handleRecorderJsSnippetDelete,
+    handleRecorderJsStepDryRun,
+} from "./handlers/recorder-js-handler";
+
+import {
     handleGetActiveErrors,
     handleUserScriptError,
     handleClearErrors,

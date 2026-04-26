@@ -213,21 +213,30 @@ describe("runGroup — safety: cycles & depth", () => {
 });
 
 describe("runGroup — target validation", () => {
-    it("returns MissingTargetGroup when TargetStepGroupId became NULL", async () => {
+    it("returns MissingTargetGroup when TargetStepGroupId points at a vanished row (corrupt DB)", async () => {
+        // The schema's CHECK + FK combo prevents this state at rest (deleting
+        // the target would either CASCADE-delete the parent step's row or be
+        // rejected by the CHECK when SET NULL fires). The runner still has a
+        // defensive branch for corrupted DBs / FK-off scenarios — exercise it
+        // by disabling FKs and pointing the column at a non-existent group.
         const db = freshDb();
         const projectId = setupProject(db);
         const parent = db.createGroup({ ProjectId: projectId, ParentStepGroupId: null, Name: "Parent" });
         const child  = db.createGroup({ ProjectId: projectId, ParentStepGroupId: null, Name: "Child" });
-        db.appendStep({ StepGroupId: parent, StepKindId: StepKindId.RunGroup, TargetStepGroupId: child, Label: "Call" });
+        const stepId = db.appendStep({
+            StepGroupId: parent, StepKindId: StepKindId.RunGroup, TargetStepGroupId: child, Label: "Call",
+        });
 
-        // Drop the child — FK ON DELETE SET NULL clears Target on the parent step.
-        db.deleteGroup(child);
+        db.raw.exec("PRAGMA foreign_keys = OFF;");
+        db.raw.exec(`UPDATE Step SET TargetStepGroupId = 99999 WHERE StepId = ${stepId};`);
+        db.raw.exec(`DELETE FROM StepGroup WHERE StepGroupId = ${child};`);
+        db.raw.exec("PRAGMA foreign_keys = ON;");
 
         const failure = asFailure(await runGroup({
             db, projectId, rootGroupId: parent, executeLeafStep: noopExecutor(),
         }));
         expect(failure.Reason).toBe("MissingTargetGroup");
-        expect(failure.FailedStepId).not.toBeNull();
+        expect(failure.FailedStepId).toBe(stepId);
     });
 
     it("returns MissingRootGroup for an unknown rootGroupId", async () => {

@@ -24,7 +24,17 @@ export interface ParsedDataSource {
     readonly DataSourceKindId: number;
     readonly Columns: ReadonlyArray<string>;
     readonly RowCount: number;
+    /** Optional row payload — populated by Js / Endpoint kinds. */
+    readonly Rows?: ReadonlyArray<Record<string, string>>;
 }
+
+/** Extended kind ids used by spec 17 §2.2. Mirrors planned migration 003. */
+export const ExtendedDataSourceKindId = {
+    Csv: 1,
+    Json: 2,
+    Js: 3,
+    Endpoint: 4,
+} as const;
 
 /* ------------------------------------------------------------------ */
 /*  CSV                                                                */

@@ -131,4 +131,44 @@ describe("executeReplay", () => {
         expect(a.value).toBe("hi");
         expect(clicked).toHaveBeenCalledTimes(1);
     });
+
+    it("fails Type step with Reason=VariableMissing and full Variable diagnostics", async () => {
+        document.body.innerHTML = `<input id="a" />`;
+        const steps: ReplayStepInput[] = [{
+            StepId: 20, Index: 1, Kind: "Type",
+            Selectors: cssSelector(20, "#a"),
+            Value: "Hi {{Email}}",
+        }];
+        const outcome = await executeReplay(steps, {
+            Doc: document,
+            Row: { Name: "Alice" },   // Email is missing
+        });
+        const r = outcome.Results[0]!;
+        expect(r.Ok).toBe(false);
+        expect(r.FailureReport).toBeDefined();
+        expect(r.FailureReport!.Reason).toBe("VariableMissing");
+        expect(r.FailureReport!.Variables).toHaveLength(1);
+        expect(r.FailureReport!.Variables[0]).toMatchObject({
+            Name: "Email", FailureReason: "MissingColumn", ResolvedValue: null,
+        });
+        // The DOM was not touched because we short-circuited on the variable.
+        expect((document.getElementById("a") as HTMLInputElement).value).toBe("");
+    });
+
+    it("fails Type step with Reason=VariableNull when value is explicitly null", async () => {
+        document.body.innerHTML = `<input id="a" />`;
+        const steps: ReplayStepInput[] = [{
+            StepId: 21, Index: 1, Kind: "Type",
+            Selectors: cssSelector(21, "#a"),
+            Value: "{{Phone}}",
+        }];
+        // Cast — runtime FieldRow may carry null when sourced from SQLite.
+        const outcome = await executeReplay(steps, {
+            Doc: document,
+            Row: { Phone: null } as unknown as Record<string, string>,
+        });
+        const r = outcome.Results[0]!;
+        expect(r.FailureReport!.Reason).toBe("VariableNull");
+        expect(r.FailureReport!.Variables[0].Name).toBe("Phone");
+    });
 });

@@ -155,9 +155,26 @@ export default function RunGroupDialog(props: RunGroupDialogProps) {
                         Run group{group !== null ? ` — ${group.Name}` : ""}
                     </DialogTitle>
                     <DialogDescription>
-                        Executes this group with the preview leaf executor. Disabled steps are skipped; nested RunGroup steps are expanded recursively up to the runner's depth limit.
+                        Executes this group. Disabled steps are skipped; nested RunGroup steps are expanded recursively up to the runner's depth limit.
                     </DialogDescription>
                 </DialogHeader>
+
+                <div className="flex items-center justify-between gap-4 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                    <div className="min-w-0">
+                        <div className="font-medium text-foreground">Live execution</div>
+                        <div className="text-xs text-muted-foreground">
+                            {liveMode
+                                ? "Each leaf step dispatches real DOM events into this page via the replay bridge."
+                                : "Preview mode — every leaf reports success without touching the DOM."}
+                        </div>
+                    </div>
+                    <Switch
+                        checked={liveMode}
+                        onCheckedChange={setLiveMode}
+                        disabled={running}
+                        aria-label="Toggle live execution"
+                    />
+                </div>
 
                 {result === null && !running && (
                     <div className="rounded-md border bg-muted/30 px-3 py-4 text-sm text-muted-foreground">

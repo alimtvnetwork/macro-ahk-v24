@@ -154,6 +154,7 @@ const overflowTabs: Array<{ id: ProjectTab; label: string; icon: typeof FileCode
   { id: "auth", label: "Auth", icon: Key },
   { id: "storage", label: "Storage", icon: Database },
   { id: "network", label: "Network", icon: Wifi },
+  { id: "recorder", label: "Recorder", icon: Activity },
   { id: "diagnostics", label: "Diagnostics", icon: Stethoscope },
 ];
 
@@ -330,6 +331,12 @@ export function ProjectDetailView({ project, allProjects, availableScripts, avai
             <TabsContent value="network" className="mt-4" forceMount={activeTab === "network" ? true : undefined}>
               <Suspense fallback={<TabFallback />}>
                 <NetworkPanel />
+              </Suspense>
+            </TabsContent>
+
+            <TabsContent value="recorder" className="mt-4" forceMount={activeTab === "recorder" ? true : undefined}>
+              <Suspense fallback={<TabFallback />}>
+                <RecorderVisualisationPanel projectSlug={projectSlug} />
               </Suspense>
             </TabsContent>
 

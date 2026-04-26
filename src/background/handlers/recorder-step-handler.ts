@@ -121,3 +121,30 @@ export async function handleRecorderStepResolve(
     const resolved = resolveStepSelector(selectors);
     return { resolved };
 }
+
+/* ------------------------------------------------------------------ */
+/*  Rename (variable name change)                                      */
+/* ------------------------------------------------------------------ */
+
+interface RenameRequest {
+    projectSlug: string;
+    stepId: number;
+    newVariableName: string;
+}
+
+export async function handleRecorderStepRename(
+    message: MessageRequest,
+): Promise<{ isOk: true; step: PersistedStep }> {
+    const req = message as unknown as RenameRequest;
+    if (!req.projectSlug || typeof req.stepId !== "number" || !req.newVariableName) {
+        throw new Error(
+            "RECORDER_STEP_RENAME requires projectSlug, stepId, and newVariableName",
+        );
+    }
+    const step = await updateStepVariableName(
+        req.projectSlug,
+        req.stepId,
+        req.newVariableName,
+    );
+    return { isOk: true, step };
+}

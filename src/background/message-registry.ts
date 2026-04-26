@@ -101,6 +101,7 @@ import {
     handleRecorderStepList,
     handleRecorderStepDelete,
     handleRecorderStepResolve,
+    handleRecorderStepRename,
 } from "./handlers/recorder-step-handler";
 
 import {

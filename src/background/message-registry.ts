@@ -91,6 +91,12 @@ import {
 } from "./handlers/recorder-data-source-handler";
 
 import {
+    handleRecorderFieldBindingUpsert,
+    handleRecorderFieldBindingList,
+    handleRecorderFieldBindingDelete,
+} from "./handlers/recorder-field-binding-handler";
+
+import {
     handleGetActiveErrors,
     handleUserScriptError,
     handleClearErrors,
@@ -373,6 +379,9 @@ export const HANDLER_REGISTRY = new Map<MessageType, MessageHandler>([
     [MessageType.VALIDATE_ALL_XPATHS, async (msg) => handleValidateAllXPaths(msg)],
     [MessageType.RECORDER_DATA_SOURCE_ADD, async (msg) => handleRecorderDataSourceAdd(msg)],
     [MessageType.RECORDER_DATA_SOURCE_LIST, async (msg) => handleRecorderDataSourceList(msg)],
+    [MessageType.RECORDER_FIELD_BINDING_UPSERT, async (msg) => handleRecorderFieldBindingUpsert(msg)],
+    [MessageType.RECORDER_FIELD_BINDING_LIST, async (msg) => handleRecorderFieldBindingList(msg)],
+    [MessageType.RECORDER_FIELD_BINDING_DELETE, async (msg) => handleRecorderFieldBindingDelete(msg)],
     [MessageType.USER_SCRIPT_ERROR, async (msg) => handleUserScriptError(msg)],
     [MessageType.USER_SCRIPT_LOG, async (msg) => handleUserScriptLog(msg)],
     [MessageType.USER_SCRIPT_DATA_SET, async (msg) => handleDataSet(msg)],

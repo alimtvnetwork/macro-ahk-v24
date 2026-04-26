@@ -455,6 +455,15 @@ export default function StepGroupLibraryPanel() {
                         Import ZIP
                     </Button>
                     <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={selectedCount === 0}
+                        onClick={() => setBatchOpen(true)}
+                    >
+                        <Play className="mr-1 h-4 w-4" />
+                        Run selected
+                    </Button>
+                    <Button
                         size="sm"
                         disabled={selectedCount === 0}
                         onClick={() => handleExport()}

@@ -72,3 +72,32 @@ that helper is extended.
 Coverage: 4 new tests in `live-dom-replay.test.ts` — pause-then-pass,
 pause-then-timeout, inline-WaitFor wins, no-config no-op. Suite total
 201/201.
+
+## Addendum — Structured failure report (2026-04-26)
+
+Wait-gate failures now emit a fully structured `FailureReport` so the
+existing `FailureDetailsPanel` / `failure-toast` UI can render them
+without any UI-side changes:
+
+| Field | Value |
+|-------|-------|
+| `Reason` | `"Timeout"` for budget exhaustion, `"XPathSyntaxError"` / `"CssSyntaxError"` for compile errors |
+| `ReasonDetail` | `WaitFor selector '<expr>' (Kind=<Css|XPath>) did not appear within <configured> ms (elapsed <actual> ms).` |
+| `Message` | Same string as `ReasonDetail` (also surfaces in `ReplayStepResult.Error`) |
+| `StepKind` | The actuating step kind (Click / Type / Select) |
+| `StepId` / `Index` | Locate the step in the project's Step list |
+
+The four user-requested fields — **selector**, **kind**, **configured
+timeout**, **elapsed time** — all appear in `ReasonDetail`, which the
+existing `ReasonBanner` renders prominently above the selector
+attempts. No new component needed; the panel's `GROUP_TONE["timeout"]`
+already paints the banner amber.
+
+`finalize()` in `live-dom-replay.ts` gained two optional fields
+(`Reason`, `ReasonDetail`) so any future post-action gate can reuse
+the same plumbing without re-classifying via the auto-derivation in
+`logFailure`.
+
+Coverage: 2 new tests assert the message text, the `Reason` code, and
+the `ReasonDetail` shape for both Timeout and CssSyntaxError paths.
+Suite total 221/221.

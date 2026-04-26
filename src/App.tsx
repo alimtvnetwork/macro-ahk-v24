@@ -3,6 +3,7 @@ import { ThemeProvider } from "./components/theme/ThemeProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import Popup from "./pages/Popup";
 import Options from "./pages/Options";
+import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
 export default function App() {
@@ -12,6 +13,7 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Options />} />
+            <Route path="/step-groups" element={<Index />} />
             <Route path="/popup" element={<Popup />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

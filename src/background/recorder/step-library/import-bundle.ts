@@ -347,7 +347,7 @@ export async function runStepGroupImport(
 
     /* --- Step 1: unzip + manifest + SHA verification --- */
     const unpacked = await unpackBundle(init.ZipBytes, init.JsZip);
-    if ("Reason" in unpacked && unpacked.Reason !== "Ok") return unpacked;
+    if ("Reason" in unpacked) return unpacked;
     const { Manifest: manifest, DbBytes: dbBytes } = unpacked;
 
     /* --- Step 2: open the source DB and apply schema (catches version/corrupt) --- */

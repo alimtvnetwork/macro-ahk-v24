@@ -28,11 +28,16 @@ import { useMemo, useRef, useState } from "react";
 import JSZip from "jszip";
 import { toast } from "sonner";
 import {
+    Archive,
+    ArchiveRestore,
     ChevronDown,
     ChevronRight,
+    ChevronUp,
+    ChevronDown as ChevronDownIcon,
     Download,
     FilePlus2,
     FolderTree,
+    GripVertical,
     MoreHorizontal,
     Pencil,
     Plus,
@@ -72,6 +77,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { Toaster } from "@/components/ui/sonner";
 
 import { stepKindLabel, useStepLibrary } from "@/hooks/use-step-library";
@@ -119,6 +125,7 @@ export default function StepGroupLibraryPanel() {
     const [selected, setSelected] = useState<Set<number>>(new Set());
     const [activeGroupId, setActiveGroupId] = useState<number | null>(null);
     const [expanded, setExpanded] = useState<Set<number>>(new Set());
+    const [showArchived, setShowArchived] = useState(false);
 
     // Dialog state
     const [createDialog, setCreateDialog] = useState<{ open: boolean; parent: number | null; name: string }>({
@@ -133,7 +140,14 @@ export default function StepGroupLibraryPanel() {
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const tree = useMemo(() => buildTree(lib.Groups), [lib.Groups]);
+    // Filter archived groups out of the tree by default. When the user
+    // flips the toggle they remain visible but render greyed-out (the
+    // TreeNodeRow handles the visual state via `node.Group.IsArchived`).
+    const visibleGroups = useMemo(
+        () => (showArchived ? lib.Groups : lib.Groups.filter((g) => !g.IsArchived)),
+        [lib.Groups, showArchived],
+    );
+    const tree = useMemo(() => buildTree(visibleGroups), [visibleGroups]);
     const activeGroup = useMemo(
         () => lib.Groups.find((g) => g.StepGroupId === activeGroupId) ?? null,
         [lib.Groups, activeGroupId],
@@ -225,6 +239,54 @@ export default function StepGroupLibraryPanel() {
             setDeleteDialog({ open: false, group: null });
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "Delete failed");
+        }
+    };
+
+    const handleMove = (id: number, direction: "up" | "down") => {
+        try {
+            lib.moveGroupWithinParent(id, direction);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Move failed");
+        }
+    };
+
+    const handleArchiveToggle = (group: StepGroupRow) => {
+        const next = !group.IsArchived;
+        try {
+            lib.setGroupArchived(group.StepGroupId, next);
+            toast.success(next ? `Archived “${group.Name}”` : `Restored “${group.Name}”`);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Archive failed");
+        }
+    };
+
+    /**
+     * Drag-and-drop within siblings ONLY. Cross-parent drag is
+     * intentionally out of scope here — moving across parents has
+     * additional invariants (depth check, name uniqueness) that
+     * deserve their own dialog. Sibling-only drag covers the common
+     * "I want this group above that one" case without surprises.
+     */
+    const handleDropReorder = (
+        parentId: number | null,
+        sourceId: number,
+        targetId: number,
+    ) => {
+        if (sourceId === targetId) return;
+        const siblings = visibleGroups
+            .filter((g) => (g.ParentStepGroupId ?? null) === parentId)
+            .sort((a, b) => a.OrderIndex - b.OrderIndex || a.Name.localeCompare(b.Name))
+            .map((g) => g.StepGroupId);
+        const fromIdx = siblings.indexOf(sourceId);
+        const toIdx = siblings.indexOf(targetId);
+        if (fromIdx === -1 || toIdx === -1) return;
+        const next = siblings.slice();
+        next.splice(fromIdx, 1);
+        next.splice(toIdx, 0, sourceId);
+        try {
+            lib.reorderSiblings(parentId, next);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Reorder failed");
         }
     };
 
@@ -338,6 +400,15 @@ export default function StepGroupLibraryPanel() {
                     )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                        <Switch
+                            checked={showArchived}
+                            onCheckedChange={setShowArchived}
+                            aria-label="Show archived groups"
+                        />
+                        Show archived
+                    </label>
+                    <Separator orientation="vertical" className="h-6" />
                     <span className="text-sm text-muted-foreground">
                         {selectedCount} selected
                     </span>
@@ -402,11 +473,13 @@ export default function StepGroupLibraryPanel() {
                             />
                         ) : (
                             <ul className="py-2">
-                                {tree.map((node) => (
+                                {tree.map((node, idx) => (
                                     <TreeNodeRow
                                         key={node.Group.StepGroupId}
                                         node={node}
                                         depth={0}
+                                        siblingIndex={idx}
+                                        siblingCount={tree.length}
                                         selected={selected}
                                         expanded={expanded}
                                         activeGroupId={activeGroupId}
@@ -424,6 +497,9 @@ export default function StepGroupLibraryPanel() {
                                             setDeleteDialog({ open: true, group: g })
                                         }
                                         onExportThis={(id) => handleExport([id])}
+                                        onMove={handleMove}
+                                        onArchiveToggle={handleArchiveToggle}
+                                        onDropReorder={handleDropReorder}
                                     />
                                 ))}
                             </ul>
@@ -603,6 +679,8 @@ export default function StepGroupLibraryPanel() {
 interface TreeNodeRowProps {
     readonly node: TreeNode;
     readonly depth: number;
+    readonly siblingIndex: number;
+    readonly siblingCount: number;
     readonly selected: ReadonlySet<number>;
     readonly expanded: ReadonlySet<number>;
     readonly activeGroupId: number | null;
@@ -614,29 +692,91 @@ interface TreeNodeRowProps {
     readonly onRename: (g: StepGroupRow) => void;
     readonly onDelete: (g: StepGroupRow) => void;
     readonly onExportThis: (id: number) => void;
+    readonly onMove: (id: number, direction: "up" | "down") => void;
+    readonly onArchiveToggle: (g: StepGroupRow) => void;
+    readonly onDropReorder: (parentId: number | null, sourceId: number, targetId: number) => void;
 }
+
+const DRAG_MIME = "application/x-marco-step-group";
 
 function TreeNodeRow(props: TreeNodeRowProps) {
     const {
-        node, depth, selected, expanded, activeGroupId,
+        node, depth, siblingIndex, siblingCount,
+        selected, expanded, activeGroupId,
         onToggleSelect, onToggleSubtree, onToggleExpanded,
         onActivate, onCreateChild, onRename, onDelete, onExportThis,
+        onMove, onArchiveToggle, onDropReorder,
     } = props;
     const id = node.Group.StepGroupId;
+    const parentId = node.Group.ParentStepGroupId ?? null;
     const hasChildren = node.Children.length > 0;
     const isOpen = expanded.has(id);
     const isActive = activeGroupId === id;
     const isChecked = selected.has(id);
+    const isArchived = node.Group.IsArchived;
+    const isFirst = siblingIndex === 0;
+    const isLast  = siblingIndex === siblingCount - 1;
+
+    const [dragOver, setDragOver] = useState(false);
+
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+        // Encode source id + parent so the drop target can validate
+        // sibling-only reorder without poking React state.
+        e.dataTransfer.setData(DRAG_MIME, JSON.stringify({ id, parentId }));
+        e.dataTransfer.effectAllowed = "move";
+    };
+
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        // Only accept drops from siblings of the SAME parent.
+        const types = Array.from(e.dataTransfer.types);
+        if (!types.includes(DRAG_MIME)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        if (!dragOver) setDragOver(true);
+    };
+
+    const handleDragLeave = () => {
+        if (dragOver) setDragOver(false);
+    };
+
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        setDragOver(false);
+        const raw = e.dataTransfer.getData(DRAG_MIME);
+        if (raw === "") return;
+        try {
+            const payload = JSON.parse(raw) as { id: number; parentId: number | null };
+            if (payload.parentId !== parentId) {
+                // Cross-parent drag — ignored intentionally; see handleDropReorder doc.
+                return;
+            }
+            if (payload.id === id) return;
+            onDropReorder(parentId, payload.id, id);
+        } catch {
+            /* malformed payload — ignore */
+        }
+    };
 
     return (
         <li>
             <div
+                draggable
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
                 className={[
-                    "group flex items-center gap-1 rounded px-2 py-1.5 text-sm",
+                    "group flex items-center gap-1 rounded px-2 py-1.5 text-sm transition-colors",
                     isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
+                    isArchived ? "opacity-50" : "",
+                    dragOver ? "ring-2 ring-primary/60" : "",
                 ].join(" ")}
                 style={{ paddingLeft: `${depth * 16 + 8}px` }}
             >
+                <GripVertical
+                    className="h-4 w-4 shrink-0 cursor-grab text-muted-foreground/40 opacity-0 group-hover:opacity-100 active:cursor-grabbing"
+                    aria-hidden="true"
+                />
                 {hasChildren ? (
                     <button
                         type="button"
@@ -651,12 +791,7 @@ function TreeNodeRow(props: TreeNodeRowProps) {
                 )}
                 <Checkbox
                     checked={isChecked}
-                    onCheckedChange={(v) => {
-                        // Shift-click could expand to subtree later — for
-                        // now plain click toggles only this row, while the
-                        // ⋯ menu offers "Select with descendants".
-                        onToggleSelect(id, v === true);
-                    }}
+                    onCheckedChange={(v) => onToggleSelect(id, v === true)}
                     aria-label={`Select ${node.Group.Name}`}
                     className="shrink-0"
                 />
@@ -667,7 +802,37 @@ function TreeNodeRow(props: TreeNodeRowProps) {
                     title={node.Group.Name}
                 >
                     {node.Group.Name}
+                    {isArchived && (
+                        <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Archived
+                        </span>
+                    )}
                 </button>
+
+                {/* Up / Down arrows — visible on hover, disabled at edges. */}
+                <div className="flex items-center opacity-0 group-hover:opacity-100">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        disabled={isFirst}
+                        onClick={() => onMove(id, "up")}
+                        aria-label={`Move ${node.Group.Name} up`}
+                    >
+                        <ChevronUp className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        disabled={isLast}
+                        onClick={() => onMove(id, "down")}
+                        aria-label={`Move ${node.Group.Name} down`}
+                    >
+                        <ChevronDownIcon className="h-3.5 w-3.5" />
+                    </Button>
+                </div>
+
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button
@@ -687,6 +852,13 @@ function TreeNodeRow(props: TreeNodeRowProps) {
                             <Pencil className="mr-2 h-4 w-4" /> Rename
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => onMove(id, "up")} disabled={isFirst}>
+                            <ChevronUp className="mr-2 h-4 w-4" /> Move up
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onMove(id, "down")} disabled={isLast}>
+                            <ChevronDownIcon className="mr-2 h-4 w-4" /> Move down
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem onSelect={() => onToggleSubtree(node, true)}>
                             Select with descendants
                         </DropdownMenuItem>
@@ -697,6 +869,13 @@ function TreeNodeRow(props: TreeNodeRowProps) {
                             <Download className="mr-2 h-4 w-4" /> Export this group
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => onArchiveToggle(node.Group)}>
+                            {isArchived ? (
+                                <><ArchiveRestore className="mr-2 h-4 w-4" /> Restore from archive</>
+                            ) : (
+                                <><Archive className="mr-2 h-4 w-4" /> Archive</>
+                            )}
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                             onSelect={() => onDelete(node.Group)}
                             className="text-destructive focus:text-destructive"
@@ -708,12 +887,14 @@ function TreeNodeRow(props: TreeNodeRowProps) {
             </div>
             {hasChildren && isOpen && (
                 <ul>
-                    {node.Children.map((child) => (
+                    {node.Children.map((child, idx) => (
                         <TreeNodeRow
                             key={child.Group.StepGroupId}
                             {...props}
                             node={child}
                             depth={depth + 1}
+                            siblingIndex={idx}
+                            siblingCount={node.Children.length}
                         />
                     ))}
                 </ul>

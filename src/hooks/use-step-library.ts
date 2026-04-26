@@ -93,6 +93,18 @@ export interface UseStepLibraryApi extends UseStepLibraryState {
     readonly createGroup: (input: { Name: string; ParentStepGroupId: number | null; Description?: string | null }) => number;
     readonly renameGroup: (stepGroupId: number, newName: string) => void;
     readonly deleteGroup: (stepGroupId: number) => void;
+    /**
+     * Move a group up or down among its current siblings (same parent).
+     * No-op when the move would push past either edge — the panel can
+     * still call it on every arrow-button click without checking.
+     */
+    readonly moveGroupWithinParent: (stepGroupId: number, direction: "up" | "down") => void;
+    /**
+     * Reorder all sibling groups under a parent in one shot. Used by
+     * the drag-and-drop handler — caller passes the COMPLETE new order.
+     */
+    readonly reorderSiblings: (parentStepGroupId: number | null, orderedIds: readonly number[]) => void;
+    readonly setGroupArchived: (stepGroupId: number, archived: boolean) => void;
     readonly resetAll: () => void;
 }
 
@@ -184,6 +196,41 @@ export function useStepLibrary(): UseStepLibraryApi {
         persist();
     }, [lib, project, persist]);
 
+    const moveGroupWithinParent = useCallback<UseStepLibraryApi["moveGroupWithinParent"]>((id, direction) => {
+        if (lib === null || project === null) return;
+        const all = lib.listGroups(project.ProjectId);
+        const target = all.find((g) => g.StepGroupId === id);
+        if (target === undefined) return;
+        const parent = target.ParentStepGroupId ?? null;
+        const siblings = all
+            .filter((g) => (g.ParentStepGroupId ?? null) === parent)
+            .sort((a, b) => a.OrderIndex - b.OrderIndex || a.Name.localeCompare(b.Name))
+            .map((g) => g.StepGroupId);
+        const idx = siblings.indexOf(id);
+        if (idx === -1) return;
+        const swapWith = direction === "up" ? idx - 1 : idx + 1;
+        if (swapWith < 0 || swapWith >= siblings.length) return; // already at edge
+        const next = siblings.slice();
+        [next[idx], next[swapWith]] = [next[swapWith], next[idx]];
+        lib.reorderGroups(project.ProjectId, parent, next);
+        refreshFromDb(lib, project.ProjectId, setGroups, setStepsByGroup);
+        persist();
+    }, [lib, project, persist]);
+
+    const reorderSiblings = useCallback<UseStepLibraryApi["reorderSiblings"]>((parent, orderedIds) => {
+        if (lib === null || project === null) return;
+        lib.reorderGroups(project.ProjectId, parent, orderedIds);
+        refreshFromDb(lib, project.ProjectId, setGroups, setStepsByGroup);
+        persist();
+    }, [lib, project, persist]);
+
+    const setGroupArchived = useCallback<UseStepLibraryApi["setGroupArchived"]>((id, archived) => {
+        if (lib === null || project === null) return;
+        lib.setGroupArchived(id, archived);
+        refreshFromDb(lib, project.ProjectId, setGroups, setStepsByGroup);
+        persist();
+    }, [lib, project, persist]);
+
     const resetAll = useCallback(() => {
         try {
             localStorage.removeItem(STORAGE_KEY);
@@ -207,8 +254,11 @@ export function useStepLibrary(): UseStepLibraryApi {
         createGroup,
         renameGroup,
         deleteGroup,
+        moveGroupWithinParent,
+        reorderSiblings,
+        setGroupArchived,
         resetAll,
-    }), [loading, error, sql, lib, project, groups, stepsByGroup, refresh, createGroup, renameGroup, deleteGroup, resetAll]);
+    }), [loading, error, sql, lib, project, groups, stepsByGroup, refresh, createGroup, renameGroup, deleteGroup, moveGroupWithinParent, reorderSiblings, setGroupArchived, resetAll]);
 }
 
 /* ------------------------------------------------------------------ */

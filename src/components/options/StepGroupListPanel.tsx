@@ -28,7 +28,7 @@
  * @see @/hooks/use-step-library — shared data source.
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
     Archive,

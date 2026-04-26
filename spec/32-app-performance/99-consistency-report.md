@@ -23,9 +23,11 @@
 | # | File | Status |
 |---|------|--------|
 | 00 | `00-overview.md` | ✅ Present |
+| 01 | `01-performance-findings.md` | ✅ Present |
+| 02 | `02-testing-findings.md` | ✅ Present |
 | 99 | `99-consistency-report.md` | ✅ Present |
 
-**Total:** 2 files (Phase 01 baseline; Phase 02 will add findings reports)
+**Total:** 4 files (Phase 02 baseline)
 
 ---
 
@@ -40,3 +42,4 @@ All internal links verified valid. ✅
 | Date | Version | Action |
 |------|---------|--------|
 | 2026-04-26 | 1.0.0 | Initial scaffold (Phase 01) |
+| 2026-04-26 | 1.1.0 | Added findings reports (Phase 02) |

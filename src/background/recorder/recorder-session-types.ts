@@ -40,7 +40,7 @@ export interface RecordedStep {
      * mem://standards/verbose-logging-and-failure-diagnostics and
      * mem://features/form-snapshot-capture.
      */
-    readonly FormSnapshot?: import("../recorder/form-snapshot").FormSnapshot;
+    readonly FormSnapshot?: FormSnapshot;
 }
 
 export interface RecordingSession {

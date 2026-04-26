@@ -78,6 +78,10 @@ export enum MessageType {
     TEST_XPATH = "TEST_XPATH",
     VALIDATE_ALL_XPATHS = "VALIDATE_ALL_XPATHS",
 
+    // ─── Macro Recorder Data Sources (from Spec 31, Phase 07) ───
+    RECORDER_DATA_SOURCE_ADD = "RECORDER_DATA_SOURCE_ADD",
+    RECORDER_DATA_SOURCE_LIST = "RECORDER_DATA_SOURCE_LIST",
+
     // ─── Config Notifications (from Spec 10) ───
     CONFIG_UPDATED = "CONFIG_UPDATED",
 
@@ -434,6 +438,8 @@ export type MessageRequest =
     | { type: MessageType.CLEAR_RECORDED_XPATHS }
     | { type: MessageType.TEST_XPATH; xpath: string }
     | { type: MessageType.VALIDATE_ALL_XPATHS; xpaths: Record<string, { xpath: string; selector?: string }> }
+    | { type: MessageType.RECORDER_DATA_SOURCE_ADD; projectSlug: string; filePath: string; mimeKind: "csv" | "json"; rawText: string }
+    | { type: MessageType.RECORDER_DATA_SOURCE_LIST; projectSlug: string }
     | { type: MessageType.USER_SCRIPT_ERROR; scriptId: string; message: string; stack: string; scriptCode?: string; projectId?: string }
     | { type: MessageType.GET_NETWORK_REQUESTS }
     | { type: MessageType.GET_NETWORK_STATS }

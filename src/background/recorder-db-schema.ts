@@ -129,6 +129,18 @@ CREATE TABLE IF NOT EXISTS FieldBinding (
 CREATE INDEX IF NOT EXISTS IxFieldBindingDataSource ON FieldBinding(DataSourceId);
 `;
 
+const JS_SNIPPET_TABLE_DDL = `
+CREATE TABLE IF NOT EXISTS JsSnippet (
+    JsSnippetId  INTEGER PRIMARY KEY AUTOINCREMENT,
+    Name         TEXT    NOT NULL UNIQUE,
+    Description  TEXT    NOT NULL DEFAULT '',
+    Body         TEXT    NOT NULL,
+    CreatedAt    TEXT    NOT NULL DEFAULT (datetime('now')),
+    UpdatedAt    TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS IxJsSnippetName ON JsSnippet(Name);
+`;
+
 /* ------------------------------------------------------------------ */
 /*  Composite schema                                                   */
 /* ------------------------------------------------------------------ */
@@ -144,7 +156,8 @@ export const RECORDER_DB_SCHEMA: string =
     DATA_SOURCE_TABLE_DDL +
     STEP_TABLE_DDL +
     SELECTOR_TABLE_DDL +
-    FIELD_BINDING_TABLE_DDL;
+    FIELD_BINDING_TABLE_DDL +
+    JS_SNIPPET_TABLE_DDL;
 
 /* ------------------------------------------------------------------ */
 /*  Code-side enum mirrors                                             */

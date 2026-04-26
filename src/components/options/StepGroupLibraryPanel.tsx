@@ -24,7 +24,7 @@
  * @see src/background/recorder/step-library/import-bundle.ts
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import JSZip from "jszip";
 import { toast } from "sonner";
 import {
@@ -89,6 +89,11 @@ import { Switch } from "@/components/ui/switch";
 import { Toaster } from "@/components/ui/sonner";
 
 import { stepKindLabel, useStepLibrary } from "@/hooks/use-step-library";
+import {
+    decodeNullableNumber,
+    decodeNumberSet,
+    usePersistedState,
+} from "@/hooks/use-persisted-state";
 import type { StepGroupRow, StepRow } from "@/background/recorder/step-library/db";
 import { StepKindId } from "@/background/recorder/step-library/schema";
 import { runStepGroupExport, previewStepGroupExport, type StepGroupExportPreview } from "@/background/recorder/step-library/export-bundle";

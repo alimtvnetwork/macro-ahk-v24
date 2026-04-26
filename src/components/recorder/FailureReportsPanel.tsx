@@ -1,0 +1,163 @@
+/**
+ * Marco Extension — Failure Reports Panel
+ *
+ * Renders a list of structured {@link FailureReport}s with per-row
+ * checkboxes and a single "Export selected" button that downloads the
+ * selection as a JSON bundle suitable for sharing with an AI assistant.
+ *
+ * Pure presentation — the parent passes the report list. Bundle building
+ * and filename formatting live in `./failure-export.ts` so they can be
+ * tested without jsdom.
+ */
+
+import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { FileDown, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
+import type { FailureReport } from "@/background/recorder/failure-logger";
+import {
+    buildFailureBundle,
+    serializeFailureBundle,
+    buildFailureBundleFilename,
+} from "./failure-export";
+
+interface FailureReportsPanelProps {
+    readonly reports: ReadonlyArray<FailureReport>;
+    /** Test seam: override the `download` side effect. */
+    readonly onDownload?: (filename: string, contents: string) => void;
+}
+
+function defaultDownload(filename: string, contents: string): void {
+    const blob = new Blob([contents], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function rowKey(r: FailureReport, idx: number): string {
+    return `${r.Timestamp}#${r.StepId ?? "noid"}#${idx}`;
+}
+
+export function FailureReportsPanel({ reports, onDownload }: FailureReportsPanelProps) {
+    const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+
+    const allKeys = useMemo(() => reports.map((r, i) => rowKey(r, i)), [reports]);
+    const allSelected = selected.size > 0 && selected.size === reports.length;
+    const noneSelected = selected.size === 0;
+
+    const toggle = (key: string) => {
+        setSelected((prev) => {
+            const next = new Set(prev);
+            if (next.has(key)) { next.delete(key); } else { next.add(key); }
+            return next;
+        });
+    };
+
+    const toggleAll = () => {
+        setSelected(allSelected ? new Set() : new Set(allKeys));
+    };
+
+    const handleExport = () => {
+        const picked = reports.filter((_, i) => selected.has(rowKey(reports[i], i)));
+        if (picked.length === 0) {
+            toast.error("Select at least one failure to export");
+            return;
+        }
+        const bundle = buildFailureBundle(picked);
+        const filename = buildFailureBundleFilename();
+        const contents = serializeFailureBundle(bundle);
+        (onDownload ?? defaultDownload)(filename, contents);
+        toast.success(`Exported ${picked.length} failure report${picked.length === 1 ? "" : "s"}`);
+    };
+
+    return (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-destructive" />
+                    Failure Reports
+                    <Badge variant="secondary" className="ml-1">{reports.length}</Badge>
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={toggleAll}
+                        disabled={reports.length === 0}
+                    >
+                        {allSelected ? "Clear" : "Select all"}
+                    </Button>
+                    <Button
+                        variant="default"
+                        size="sm"
+                        onClick={handleExport}
+                        disabled={noneSelected}
+                        aria-label="Export selected failure reports"
+                    >
+                        <FileDown className="h-3.5 w-3.5 mr-1.5" />
+                        Export failure reports
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent>
+                {reports.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic py-4 text-center">
+                        No failures recorded.
+                    </p>
+                ) : (
+                    <ScrollArea className="h-64 pr-2">
+                        <ul className="space-y-1.5">
+                            {reports.map((r, i) => {
+                                const key = rowKey(r, i);
+                                const checked = selected.has(key);
+                                return (
+                                    <li
+                                        key={key}
+                                        className="flex items-start gap-2 rounded-md border border-border bg-card px-2.5 py-2"
+                                    >
+                                        <Checkbox
+                                            id={`fr-${key}`}
+                                            checked={checked}
+                                            onCheckedChange={() => toggle(key)}
+                                            aria-label={`Select failure report ${i + 1}`}
+                                        />
+                                        <label
+                                            htmlFor={`fr-${key}`}
+                                            className="flex-1 cursor-pointer text-xs space-y-0.5"
+                                        >
+                                            <div className="flex items-center gap-1.5">
+                                                <Badge
+                                                    variant={r.Phase === "Replay" ? "destructive" : "outline"}
+                                                    className="text-[10px] px-1.5 py-0"
+                                                >
+                                                    {r.Phase}
+                                                </Badge>
+                                                {r.StepKind !== null && (
+                                                    <span className="text-muted-foreground">{r.StepKind}</span>
+                                                )}
+                                                {r.StepId !== null && (
+                                                    <span className="text-muted-foreground">· Step #{r.StepId}</span>
+                                                )}
+                                                <span className="text-muted-foreground ml-auto">
+                                                    {r.Timestamp}
+                                                </span>
+                                            </div>
+                                            <p className="text-foreground line-clamp-2">{r.Message}</p>
+                                        </label>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </ScrollArea>
+                )}
+            </CardContent>
+        </Card>
+    );
+}

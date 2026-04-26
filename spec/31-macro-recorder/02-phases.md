@@ -22,7 +22,7 @@
 |---|-------|--------|--------|
 | 01 | Discovery + Spec Scaffold | ✅ | `00-overview.md`, `01-glossary.md`, `02-phases.md`, `99-consistency-report.md` (this folder) + `32-app-performance/` skeleton |
 | 02 | Codebase + Testing Audit | ✅ | `32-app-performance/01-performance-findings.md` (15 inherited + 7 new findings) + `02-testing-findings.md` (5 unit gaps + 7 E2E gaps + 4 infra gaps) |
-| 03 | Data Model Design | ⬜ | `03-data-model.md` (PascalCase tables, Int-AutoIncrement PKs) + `03-erd.md` (Mermaid ERD) |
+| 03 | Data Model Design | ✅ | `03-data-model.md` (9 PascalCase tables, Int-AutoIncrement PKs, normalised lookup tables w/ Enums) + `03-erd.md` (Mermaid ERD w/ self-FK on Selector) |
 | 04 | Backend Provisioning | ⬜ | Lovable Cloud migrations for all tables + RLS owner-scoped policies |
 | 05 | Toolbar + Recording Control UI | 🟡 | Seed: `26-chrome-extension-generic/06-ui-and-design-system/10-toolbar-recording-ux.md`. Phase output: `RecorderStore` + toolbar wiring + shortcut |
 | 06 | XPath Capture Engine | 🟡 | Seed: `tests/e2e/e2e-21-xpath-capture.spec.ts` (full + relative + anchor + determinism). Phase output: anchor selection UI + PascalCase suggester wired to live capture |

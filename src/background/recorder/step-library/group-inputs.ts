@@ -127,7 +127,7 @@ function safeReadStore(): RawStore {
         const out: Record<string, GroupInputBag> = {};
         for (const [k, v] of Object.entries(parsed as JsonObject)) {
             if (v !== null && typeof v === "object" && !Array.isArray(v)) {
-                out[k] = v;
+                out[k] = v as GroupInputBag;
             }
         }
         return out;

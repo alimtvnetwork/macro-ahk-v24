@@ -1107,6 +1107,20 @@ export default function StepGroupLibraryPanel() {
                 </AlertDialogContent>
             </AlertDialog>
 
+            <BatchRenameDialog
+                open={batchRenameOpen}
+                onOpenChange={setBatchRenameOpen}
+                targets={selectedGroups}
+                allGroups={lib.Groups}
+                onApply={handleBatchRenameApply}
+            />
+            <BatchDeleteDialog
+                open={batchDeleteOpen}
+                onOpenChange={setBatchDeleteOpen}
+                rows={deletePreview}
+                onConfirm={handleBatchDeleteConfirm}
+            />
+
             <BatchRunDialog
                 open={batchOpen}
                 onOpenChange={setBatchOpen}

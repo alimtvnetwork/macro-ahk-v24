@@ -50,6 +50,14 @@ export interface ReplayStepInput {
     readonly Value?: string;
     /** For Wait — milliseconds. */
     readonly WaitMs?: number;
+    /**
+     * Optional backend-controlled gate: after the action dispatches the
+     * executor polls the live DOM until this selector resolves to an
+     * `HTMLElement`, or fails the step on timeout. Applies to Click /
+     * Type / Select only — Wait steps ignore it. See
+     * {@link WaitForSpec} for the selector grammar.
+     */
+    readonly WaitFor?: WaitForSpec;
 }
 
 export interface ReplayPersistOptions {

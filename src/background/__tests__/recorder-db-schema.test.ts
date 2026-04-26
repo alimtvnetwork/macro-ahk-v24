@@ -42,7 +42,7 @@ describe("RECORDER_DB_SCHEMA", () => {
     it("creates all 8 tables on a fresh DB", () => {
         const db = freshDb();
         const result = db.exec(
-            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
         );
         const names = result[0].values.map((r) => r[0]);
         expect(names).toEqual([

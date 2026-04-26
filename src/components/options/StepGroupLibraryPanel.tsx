@@ -48,6 +48,7 @@ import {
     Trash2,
     Upload,
     Webhook,
+    Timer,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -100,6 +101,11 @@ import { GroupInputsDialog } from "./GroupInputsDialog";
 import { CsvInputDialog } from "./CsvInputDialog";
 import WebhookSettingsDialog from "./WebhookSettingsDialog";
 import InputSourceDialog from "./InputSourceDialog";
+import StepWaitDialog from "./StepWaitDialog";
+import {
+    readAllStepWaits,
+    type WaitConfig,
+} from "@/background/recorder/step-library/step-wait";
 import {
     explainImportFailure,
     type ImportErrorExplanation,
@@ -156,6 +162,11 @@ export default function StepGroupLibraryPanel() {
     const [batchOpen, setBatchOpen] = useState(false);
     const [webhookOpen, setWebhookOpen] = useState(false);
     const [inputSourceOpen, setInputSourceOpen] = useState(false);
+    const [waitDialog, setWaitDialog] = useState<{ open: boolean; stepId: number | null; stepLabel: string | null }>({
+        open: false, stepId: null, stepLabel: null,
+    });
+    const [stepWaits, setStepWaits] = useState<ReadonlyMap<number, WaitConfig>>(() => readAllStepWaits());
+    const refreshStepWaits = () => setStepWaits(readAllStepWaits());
     const [lastExport, setLastExport] = useState<LastExportSummary | null>(null);
     const [lastImport, setLastImport] = useState<LastImportSummary | null>(null);
     const [importError, setImportError] = useState<{
@@ -694,7 +705,9 @@ export default function StepGroupLibraryPanel() {
                             </div>
                         ) : (
                             <ol className="divide-y">
-                                {activeSteps.map((s, idx) => (
+                                {activeSteps.map((s, idx) => {
+                                    const wait = stepWaits.get(s.StepId);
+                                    return (
                                     <li key={s.StepId} className="flex items-start gap-3 px-4 py-3">
                                         <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
                                             {idx + 1}
@@ -707,6 +720,11 @@ export default function StepGroupLibraryPanel() {
                                                 <span className="truncate text-sm font-medium">
                                                     {s.Label ?? "(no label)"}
                                                 </span>
+                                                {wait !== undefined && (
+                                                    <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400" title={`Wait for ${wait.Kind} "${wait.Selector}" to ${wait.Condition} (${wait.TimeoutMs} ms)`}>
+                                                        Wait · {wait.Condition}
+                                                    </span>
+                                                )}
                                             </div>
                                             {s.StepKindId === StepKindId.RunGroup && s.TargetStepGroupId !== null && (
                                                 <p className="mt-1 text-xs text-muted-foreground">
@@ -719,8 +737,18 @@ export default function StepGroupLibraryPanel() {
                                                 </pre>
                                             )}
                                         </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 shrink-0"
+                                            onClick={() => setWaitDialog({ open: true, stepId: s.StepId, stepLabel: s.Label })}
+                                            title={wait === undefined ? "Add wait condition" : "Edit wait condition"}
+                                        >
+                                            <Timer className="h-4 w-4" />
+                                        </Button>
                                     </li>
-                                ))}
+                                    );
+                                })}
                             </ol>
                         )}
                     </ScrollArea>
@@ -850,6 +878,14 @@ export default function StepGroupLibraryPanel() {
             <InputSourceDialog
                 open={inputSourceOpen}
                 onOpenChange={setInputSourceOpen}
+            />
+
+            <StepWaitDialog
+                open={waitDialog.open}
+                onOpenChange={(o) => setWaitDialog((p) => ({ ...p, open: o }))}
+                stepId={waitDialog.stepId}
+                stepLabel={waitDialog.stepLabel}
+                onChange={refreshStepWaits}
             />
 
             <ImportErrorDialog

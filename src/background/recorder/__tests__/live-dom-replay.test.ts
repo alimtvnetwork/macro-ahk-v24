@@ -8,10 +8,14 @@
  * `{{Column}}` templates resolved against the active data row.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { executeReplay, type ReplayStepInput } from "../live-dom-replay";
 import { SelectorKindId } from "../../recorder-db-schema";
 import type { PersistedSelector } from "../step-persistence";
+import {
+    clearAllStepWaits,
+    writeStepWait,
+} from "../step-library/step-wait";
 
 function fullXPathSelector(stepId: number, expr: string): PersistedSelector[] {
     return [{

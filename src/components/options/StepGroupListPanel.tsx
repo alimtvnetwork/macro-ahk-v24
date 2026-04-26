@@ -147,6 +147,11 @@ export default function StepGroupListPanel() {
         Project: lib.Project,
         SqlJs: lib.SqlJs,
     });
+    const importApi = useStepGroupImport({
+        lib: { Lib: lib.Lib, Project: lib.Project, SqlJs: lib.SqlJs },
+        onAfterImport: lib.refresh,
+    });
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [query, setQuery] = useState("");
     const [activeGroupId, setActiveGroupId] = useState<number | null>(null);
 

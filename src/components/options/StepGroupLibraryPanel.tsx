@@ -1445,6 +1445,43 @@ export default function StepGroupLibraryPanel() {
                 onOpenChange={(o) => setCsvDialog((p) => ({ ...p, open: o }))}
                 onApply={(gid, bag) => lib.setGroupInput(gid, bag)}
             />
+
+            {/* ---------- Step editor (add / edit) ---------- */}
+            <StepEditorDialog
+                open={stepEditor.open}
+                mode={stepEditor.mode}
+                groups={lib.Groups}
+                onCancel={() => setStepEditor({ open: false, mode: null })}
+                onSubmit={handleStepEditorSubmit}
+            />
+
+            {/* ---------- Step delete confirmation ---------- */}
+            <AlertDialog
+                open={deleteStepDialog.open}
+                onOpenChange={(open) => setDeleteStepDialog((p) => ({ ...p, open }))}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete this step?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {deleteStepDialog.step === null
+                                ? "No step selected."
+                                : `“${deleteStepDialog.step.Label ?? `Step #${deleteStepDialog.step.StepId}`}” will be removed from this group. This cannot be undone.`}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setDeleteStepDialog({ open: false, step: null })}>
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleStepDeleteConfirm}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Delete step
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

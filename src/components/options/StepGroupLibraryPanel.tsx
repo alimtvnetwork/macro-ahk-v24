@@ -593,6 +593,8 @@ export default function StepGroupLibraryPanel() {
                                         onExportThis={(id) => handleExport([id])}
                                         onMove={handleMove}
                                         onArchiveToggle={handleArchiveToggle}
+                                        onApplyInputs={(g) => setInputsDialog({ open: true, group: g })}
+                                        hasInputs={(gid) => lib.GroupInputs.has(gid)}
                                         onDropReorder={handleDropReorder}
                                     />
                                 ))}

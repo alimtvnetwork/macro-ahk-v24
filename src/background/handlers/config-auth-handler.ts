@@ -254,6 +254,26 @@ export async function handleGetToken(
         };
     }
 
+    // ── Strategy 4: Opaque session-cookie exchange ──
+    const refreshLookup = sessionLookup.value === null
+        ? await readCookieValueByNameCandidates(resolvedCookieNames.refreshNames, primaryUrl)
+        : { value: null, cookieName: null };
+    const exchangeToken = await fetchAuthTokenFromSessionExchange(
+        projectId,
+        sessionLookup.value !== null || refreshLookup.value !== null,
+    );
+
+    if (exchangeToken !== null) {
+        console.log("[config-auth] GET_TOKEN: exchanged opaque session cookie for JWT");
+        cachedSessionId = exchangeToken;
+        cachedAt = Date.now();
+        return {
+            token: exchangeToken,
+            refreshed: true,
+            cookieName: "auth-token-exchange",
+        };
+    }
+
     if (sessionLookup.value !== null) {
         logBgWarnError(BgLogTag.CONFIG_AUTH, "GET_TOKEN: session cookie exists but no JWT could be derived");
         return {

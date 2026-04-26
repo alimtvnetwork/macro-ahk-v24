@@ -253,6 +253,12 @@ export interface UseStepLibraryApi extends UseStepLibraryState {
      */
     readonly moveStepWithinGroup: (stepId: number, direction: "up" | "down") => void;
     /**
+     * Reorder all sibling steps under a StepGroup in one shot. Caller
+     * passes the COMPLETE new order (every existing StepId in the
+     * group). Used by the drag-and-drop handler.
+     */
+    readonly reorderSteps: (stepGroupId: number, orderedStepIds: readonly number[]) => void;
+    /**
      * Replace the input variable bag for one StepGroup. The bag must
      * be a plain JSON object — see `parseGroupInputJson` in
      * `group-inputs.ts`. Persisted immediately to localStorage.
@@ -516,6 +522,13 @@ export function useStepLibrary(): UseStepLibraryApi {
         persist();
     }, [lib, project, stepsByGroup, persist]);
 
+    const reorderSteps = useCallback<UseStepLibraryApi["reorderSteps"]>((stepGroupId, orderedStepIds) => {
+        if (lib === null || project === null) return;
+        lib.reorderSteps(stepGroupId, orderedStepIds);
+        refreshFromDb(lib, project.ProjectId, setGroups, setStepsByGroup);
+        persist();
+    }, [lib, project, persist]);
+
     const resetAll = useCallback(() => {
         try {
             localStorage.removeItem(STORAGE_KEY);
@@ -559,11 +572,12 @@ export function useStepLibrary(): UseStepLibraryApi {
         updateStep,
         deleteStep,
         moveStepWithinGroup,
+        reorderSteps,
         setGroupInput,
         clearGroupInput,
         resetAll,
         retryLoad,
-    }), [loading, error, loadError, sql, lib, project, groups, stepsByGroup, groupInputs, refresh, createGroup, renameGroup, deleteGroup, moveGroupWithinParent, reorderSiblings, setGroupArchived, setStepDisabled, appendStep, updateStep, deleteStep, moveStepWithinGroup, setGroupInput, clearGroupInput, resetAll, retryLoad]);
+    }), [loading, error, loadError, sql, lib, project, groups, stepsByGroup, groupInputs, refresh, createGroup, renameGroup, deleteGroup, moveGroupWithinParent, reorderSiblings, setGroupArchived, setStepDisabled, appendStep, updateStep, deleteStep, moveStepWithinGroup, reorderSteps, setGroupInput, clearGroupInput, resetAll, retryLoad]);
 }
 
 /* ------------------------------------------------------------------ */

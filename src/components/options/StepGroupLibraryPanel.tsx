@@ -301,6 +301,28 @@ export default function StepGroupLibraryPanel() {
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    /**
+     * ────── Optimistic reorder overrides ──────
+     *
+     * Drag-and-drop applies the new order to the screen *before* the
+     * persistence call so the row jumps to its new slot under the
+     * cursor without waiting for a refresh round-trip. The overrides
+     * are cleared on the next snapshot that already reflects the
+     * change (the success path) or rolled back to `null` if the
+     * underlying mutation throws (the failure path).
+     *
+     *   `pendingGroupOrder`  — keyed by parent id ("root" for
+     *                          top-level), value = full sibling order.
+     *   `pendingStepOrder`   — keyed by StepGroupId, value = full
+     *                          step order in that group.
+     */
+    const [pendingGroupOrder, setPendingGroupOrder] = useState<ReadonlyMap<number | "root", ReadonlyArray<number>>>(
+        () => new Map(),
+    );
+    const [pendingStepOrder, setPendingStepOrder] = useState<ReadonlyMap<number, ReadonlyArray<number>>>(
+        () => new Map(),
+    );
+
     // Filter archived groups out of the tree by default. When the user
     // flips the toggle they remain visible but render greyed-out (the
     // TreeNodeRow handles the visual state via `node.Group.IsArchived`).
@@ -308,7 +330,58 @@ export default function StepGroupLibraryPanel() {
         () => (showArchived ? lib.Groups : lib.Groups.filter((g) => !g.IsArchived)),
         [lib.Groups, showArchived],
     );
-    const tree = useMemo(() => buildTree(visibleGroups), [visibleGroups]);
+
+    /**
+     * Apply pending sibling overrides on top of the loaded data so the
+     * tree renders the optimistic order. The override is a *complete*
+     * sibling list per parent, so we just look it up and use it as the
+     * sort key. Any group missing from the override falls through to
+     * its DB OrderIndex.
+     */
+    const orderedGroups = useMemo(() => {
+        if (pendingGroupOrder.size === 0) return visibleGroups;
+        const positionByParent = new Map<number | "root", Map<number, number>>();
+        for (const [parentKey, ids] of pendingGroupOrder) {
+            const m = new Map<number, number>();
+            ids.forEach((id, i) => m.set(id, i));
+            positionByParent.set(parentKey, m);
+        }
+        return [...visibleGroups].sort((a, b) => {
+            const aKey = (a.ParentStepGroupId ?? "root") as number | "root";
+            const bKey = (b.ParentStepGroupId ?? "root") as number | "root";
+            if (aKey !== bKey) return 0; // different parents — keep relative order
+            const positions = positionByParent.get(aKey);
+            if (positions === undefined) return 0;
+            const ai = positions.get(a.StepGroupId);
+            const bi = positions.get(b.StepGroupId);
+            if (ai === undefined || bi === undefined) return 0;
+            return ai - bi;
+        });
+    }, [visibleGroups, pendingGroupOrder]);
+
+    const tree = useMemo(() => buildTree(orderedGroups), [orderedGroups]);
+
+    /**
+     * Drop the optimistic group override once the loaded snapshot
+     * already matches it — that's our success signal in lieu of an
+     * async confirmation. Same idea for steps below.
+     */
+    useEffect(() => {
+        if (pendingGroupOrder.size === 0) return;
+        let allSettled = true;
+        for (const [parentKey, ids] of pendingGroupOrder) {
+            const parentId = parentKey === "root" ? null : parentKey;
+            const actual = lib.Groups
+                .filter((g) => (g.ParentStepGroupId ?? null) === parentId)
+                .sort((a, b) => a.OrderIndex - b.OrderIndex || a.Name.localeCompare(b.Name))
+                .map((g) => g.StepGroupId);
+            if (actual.length !== ids.length || actual.some((id, i) => id !== ids[i])) {
+                allSettled = false;
+                break;
+            }
+        }
+        if (allSettled) setPendingGroupOrder(new Map());
+    }, [lib.Groups, pendingGroupOrder]);
 
     /**
      * Free-text search over group names. Empty string disables filtering.
@@ -357,8 +430,40 @@ export default function StepGroupLibraryPanel() {
         () => lib.Groups.find((g) => g.StepGroupId === activeGroupId) ?? null,
         [lib.Groups, activeGroupId],
     );
-    const activeSteps: ReadonlyArray<StepRow> =
-        activeGroupId === null ? [] : (lib.StepsByGroup.get(activeGroupId) ?? []);
+    const activeSteps: ReadonlyArray<StepRow> = useMemo(() => {
+        if (activeGroupId === null) return [];
+        const loaded = lib.StepsByGroup.get(activeGroupId) ?? [];
+        const override = pendingStepOrder.get(activeGroupId);
+        if (override === undefined) return loaded;
+        // Materialise the override against the loaded rows. Any step
+        // missing from the override (rare race after a concurrent
+        // append) is appended to the end so nothing disappears.
+        const byId = new Map(loaded.map((s) => [s.StepId, s] as const));
+        const out: StepRow[] = [];
+        for (const id of override) {
+            const row = byId.get(id);
+            if (row !== undefined) {
+                out.push(row);
+                byId.delete(id);
+            }
+        }
+        for (const remaining of byId.values()) out.push(remaining);
+        return out;
+    }, [activeGroupId, lib.StepsByGroup, pendingStepOrder]);
+
+    /** Same settle-and-clear pattern as `pendingGroupOrder`. */
+    useEffect(() => {
+        if (pendingStepOrder.size === 0) return;
+        let allSettled = true;
+        for (const [gid, ids] of pendingStepOrder) {
+            const actual = (lib.StepsByGroup.get(gid) ?? []).map((s) => s.StepId);
+            if (actual.length !== ids.length || actual.some((id, i) => id !== ids[i])) {
+                allSettled = false;
+                break;
+            }
+        }
+        if (allSettled) setPendingStepOrder(new Map());
+    }, [lib.StepsByGroup, pendingStepOrder]);
     const groupsById = useMemo(() => {
         const m = new Map<number, StepGroupRow>();
         for (const g of lib.Groups) m.set(g.StepGroupId, g);
@@ -644,7 +749,11 @@ export default function StepGroupLibraryPanel() {
         targetId: number,
     ) => {
         if (sourceId === targetId) return;
-        const siblings = visibleGroups
+        // Source-of-truth siblings come from `lib.Groups` (not the
+        // optimistic `orderedGroups` projection) so a chain of rapid
+        // drops always recomputes against the persisted state.
+        const siblings = lib.Groups
+            .filter((g) => !g.IsArchived || showArchived)
             .filter((g) => (g.ParentStepGroupId ?? null) === parentId)
             .sort((a, b) => a.OrderIndex - b.OrderIndex || a.Name.localeCompare(b.Name))
             .map((g) => g.StepGroupId);
@@ -654,9 +763,57 @@ export default function StepGroupLibraryPanel() {
         const next = siblings.slice();
         next.splice(fromIdx, 1);
         next.splice(toIdx, 0, sourceId);
+        // 1. Optimistic — paint the new order immediately.
+        const parentKey = (parentId ?? "root") as number | "root";
+        setPendingGroupOrder((prev) => {
+            const m = new Map(prev);
+            m.set(parentKey, next);
+            return m;
+        });
+        // 2. Persist — on failure, roll back the override.
         try {
             lib.reorderSiblings(parentId, next);
         } catch (err) {
+            setPendingGroupOrder((prev) => {
+                const m = new Map(prev);
+                m.delete(parentKey);
+                return m;
+            });
+            toast.error(err instanceof Error ? err.message : "Reorder failed");
+        }
+    };
+
+    /**
+     * Same shape as `handleDropReorder`, but for steps inside the
+     * active StepGroup. Sibling-only — cross-group step move would
+     * require renumbering both groups and isn't supported yet.
+     */
+    const handleStepDropReorder = (
+        stepGroupId: number,
+        sourceStepId: number,
+        targetStepId: number,
+    ): void => {
+        if (sourceStepId === targetStepId) return;
+        const ordered = (lib.StepsByGroup.get(stepGroupId) ?? []).map((s) => s.StepId);
+        const fromIdx = ordered.indexOf(sourceStepId);
+        const toIdx = ordered.indexOf(targetStepId);
+        if (fromIdx === -1 || toIdx === -1) return;
+        const next = ordered.slice();
+        next.splice(fromIdx, 1);
+        next.splice(toIdx, 0, sourceStepId);
+        setPendingStepOrder((prev) => {
+            const m = new Map(prev);
+            m.set(stepGroupId, next);
+            return m;
+        });
+        try {
+            lib.reorderSteps(stepGroupId, next);
+        } catch (err) {
+            setPendingStepOrder((prev) => {
+                const m = new Map(prev);
+                m.delete(stepGroupId);
+                return m;
+            });
             toast.error(err instanceof Error ? err.message : "Reorder failed");
         }
     };
@@ -1115,122 +1272,33 @@ export default function StepGroupLibraryPanel() {
                             <ol className="divide-y">
                                 {activeSteps.map((s, idx) => {
                                     const wait = stepWaits.get(s.StepId);
-                                    const isDisabled = s.IsDisabled;
+                                    const waitLabel = wait === undefined ? null : `Wait · ${wait.Condition}`;
+                                    const waitTitle = wait === undefined
+                                        ? null
+                                        : `Wait for ${wait.Kind} "${wait.Selector}" to ${wait.Condition} (${wait.TimeoutMs} ms)`;
                                     return (
-                                    <li
-                                        key={s.StepId}
-                                        className={`flex items-start gap-3 px-4 py-3 transition-opacity ${
-                                            isDisabled ? "opacity-50" : ""
-                                        }`}
-                                    >
-                                        <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
-                                            {idx + 1}
-                                        </span>
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex items-center gap-2">
-                                                <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                                                    {stepKindLabel(s.StepKindId)}
-                                                </span>
-                                                <span
-                                                    className={`truncate text-sm font-medium ${
-                                                        isDisabled ? "line-through" : ""
-                                                    }`}
-                                                >
-                                                    {s.Label ?? "(no label)"}
-                                                </span>
-                                                {isDisabled && (
-                                                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                                                        Skipped
-                                                    </span>
-                                                )}
-                                                {wait !== undefined && (
-                                                    <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400" title={`Wait for ${wait.Kind} "${wait.Selector}" to ${wait.Condition} (${wait.TimeoutMs} ms)`}>
-                                                        Wait · {wait.Condition}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            {s.StepKindId === StepKindId.RunGroup && s.TargetStepGroupId !== null && (
-                                                <p className="mt-1 text-xs text-muted-foreground">
-                                                    Invokes group #{s.TargetStepGroupId}
-                                                </p>
-                                            )}
-                                            {s.PayloadJson !== null && s.PayloadJson !== "" && (
-                                                <pre className="mt-1 overflow-x-auto rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground">
-                                                    {s.PayloadJson}
-                                                </pre>
-                                            )}
-                                        </div>
-                                        <div className="flex shrink-0 items-center gap-1">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7"
-                                                disabled={idx === 0}
-                                                onClick={() => handleStepMove(s.StepId, "up")}
-                                                title={idx === 0 ? "Already at the top" : "Move step up"}
-                                                aria-label="Move step up"
-                                            >
-                                                <ArrowUp className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7"
-                                                disabled={idx === activeSteps.length - 1}
-                                                onClick={() => handleStepMove(s.StepId, "down")}
-                                                title={idx === activeSteps.length - 1 ? "Already at the bottom" : "Move step down"}
-                                                aria-label="Move step down"
-                                            >
-                                                <ArrowDown className="h-4 w-4" />
-                                            </Button>
-                                            <Switch
-                                                checked={!isDisabled}
-                                                onCheckedChange={(checked) => {
-                                                    lib.setStepDisabled(s.StepId, !checked);
-                                                    toast.success(
-                                                        checked
-                                                            ? `Step "${s.Label ?? s.StepId}" enabled`
-                                                            : `Step "${s.Label ?? s.StepId}" disabled — will be skipped on run`,
-                                                    );
-                                                }}
-                                                aria-label={isDisabled ? "Enable step" : "Disable step"}
-                                                title={
-                                                    isDisabled
-                                                        ? "Disabled — runner will skip this step"
-                                                        : "Enabled — runner will execute this step"
-                                                }
-                                            />
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7"
-                                                onClick={() => setStepEditor({ open: true, mode: { Kind: "edit", Step: s } })}
-                                                title="Edit step"
-                                                aria-label="Edit step"
-                                            >
-                                                <Pencil className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7"
-                                                onClick={() => setWaitDialog({ open: true, stepId: s.StepId, stepLabel: s.Label })}
-                                                title={wait === undefined ? "Add wait condition" : "Edit wait condition"}
-                                            >
-                                                <Timer className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7 text-destructive hover:text-destructive"
-                                                onClick={() => setDeleteStepDialog({ open: true, step: s })}
-                                                title="Delete step"
-                                                aria-label="Delete step"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </li>
+                                        <StepRowItem
+                                            key={s.StepId}
+                                            step={s}
+                                            index={idx}
+                                            total={activeSteps.length}
+                                            stepGroupId={activeGroup!.StepGroupId}
+                                            waitLabel={waitLabel}
+                                            waitTitle={waitTitle}
+                                            onMove={handleStepMove}
+                                            onDropReorder={handleStepDropReorder}
+                                            onToggleDisabled={(step, nextDisabled) => {
+                                                lib.setStepDisabled(step.StepId, nextDisabled);
+                                                toast.success(
+                                                    nextDisabled
+                                                        ? `Step "${step.Label ?? step.StepId}" disabled — will be skipped on run`
+                                                        : `Step "${step.Label ?? step.StepId}" enabled`,
+                                                );
+                                            }}
+                                            onEdit={(step) => setStepEditor({ open: true, mode: { Kind: "edit", Step: step } })}
+                                            onEditWait={(step) => setWaitDialog({ open: true, stepId: step.StepId, stepLabel: step.Label })}
+                                            onDelete={(step) => setDeleteStepDialog({ open: true, step })}
+                                        />
                                     );
                                 })}
                             </ol>
@@ -1517,6 +1585,198 @@ interface TreeNodeRowProps {
 }
 
 const DRAG_MIME = "application/x-marco-step-group";
+const STEP_DRAG_MIME = "application/x-marco-step";
+
+/* ------------------------------------------------------------------ */
+/*  Step row (right-pane, draggable)                                   */
+/* ------------------------------------------------------------------ */
+
+interface StepRowItemProps {
+    readonly step: StepRow;
+    readonly index: number;
+    readonly total: number;
+    readonly stepGroupId: number;
+    readonly waitLabel: string | null;
+    readonly waitTitle: string | null;
+    readonly onMove: (stepId: number, direction: "up" | "down") => void;
+    readonly onDropReorder: (stepGroupId: number, sourceStepId: number, targetStepId: number) => void;
+    readonly onToggleDisabled: (step: StepRow, nextDisabled: boolean) => void;
+    readonly onEdit: (step: StepRow) => void;
+    readonly onEditWait: (step: StepRow) => void;
+    readonly onDelete: (step: StepRow) => void;
+}
+
+function StepRowItem(props: StepRowItemProps): JSX.Element {
+    const {
+        step: s, index: idx, total, stepGroupId, waitLabel, waitTitle,
+        onMove, onDropReorder, onToggleDisabled, onEdit, onEditWait, onDelete,
+    } = props;
+    const isDisabled = s.IsDisabled;
+    const [dragOver, setDragOver] = useState(false);
+    const [dragging, setDragging] = useState(false);
+
+    const handleDragStart = (e: React.DragEvent<HTMLLIElement>): void => {
+        // Encode source step id + owning group so the drop target can
+        // reject cross-group drops (cross-group step moves require
+        // renumbering both groups — out of scope for the basic DnD).
+        e.dataTransfer.setData(STEP_DRAG_MIME, JSON.stringify({ stepId: s.StepId, stepGroupId }));
+        e.dataTransfer.effectAllowed = "move";
+        setDragging(true);
+    };
+
+    const handleDragEnd = (): void => setDragging(false);
+
+    const handleDragOver = (e: React.DragEvent<HTMLLIElement>): void => {
+        const types = Array.from(e.dataTransfer.types);
+        if (!types.includes(STEP_DRAG_MIME)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        if (!dragOver) setDragOver(true);
+    };
+
+    const handleDragLeave = (): void => {
+        if (dragOver) setDragOver(false);
+    };
+
+    const handleDrop = (e: React.DragEvent<HTMLLIElement>): void => {
+        e.preventDefault();
+        setDragOver(false);
+        const raw = e.dataTransfer.getData(STEP_DRAG_MIME);
+        if (raw === "") return;
+        try {
+            const payload = JSON.parse(raw) as { stepId: number; stepGroupId: number };
+            // Reject cross-group drops at the UI level — the runner has
+            // no concept of "move a step into another group" yet.
+            if (payload.stepGroupId !== stepGroupId) return;
+            if (payload.stepId === s.StepId) return;
+            onDropReorder(stepGroupId, payload.stepId, s.StepId);
+        } catch {
+            /* malformed payload — ignore */
+        }
+    };
+
+    return (
+        <li
+            draggable
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={[
+                "flex items-start gap-3 px-4 py-3 transition-all",
+                isDisabled ? "opacity-50" : "",
+                dragging ? "opacity-30" : "",
+                dragOver ? "bg-primary/10 outline outline-2 outline-primary" : "",
+            ].join(" ").trim()}
+        >
+            <span
+                className="mt-0.5 inline-flex h-6 w-6 shrink-0 cursor-grab items-center justify-center text-muted-foreground hover:text-foreground active:cursor-grabbing"
+                title="Drag to reorder"
+                aria-hidden="true"
+            >
+                <GripVertical className="h-4 w-4" />
+            </span>
+            <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                {idx + 1}
+            </span>
+            <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                    <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                        {stepKindLabel(s.StepKindId)}
+                    </span>
+                    <span className={`truncate text-sm font-medium ${isDisabled ? "line-through" : ""}`}>
+                        {s.Label ?? "(no label)"}
+                    </span>
+                    {isDisabled && (
+                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Skipped
+                        </span>
+                    )}
+                    {waitLabel !== null && (
+                        <span
+                            className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400"
+                            title={waitTitle ?? undefined}
+                        >
+                            {waitLabel}
+                        </span>
+                    )}
+                </div>
+                {s.StepKindId === StepKindId.RunGroup && s.TargetStepGroupId !== null && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        Invokes group #{s.TargetStepGroupId}
+                    </p>
+                )}
+                {s.PayloadJson !== null && s.PayloadJson !== "" && (
+                    <pre className="mt-1 overflow-x-auto rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground">
+                        {s.PayloadJson}
+                    </pre>
+                )}
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    disabled={idx === 0}
+                    onClick={() => onMove(s.StepId, "up")}
+                    title={idx === 0 ? "Already at the top" : "Move step up"}
+                    aria-label="Move step up"
+                >
+                    <ArrowUp className="h-4 w-4" />
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    disabled={idx === total - 1}
+                    onClick={() => onMove(s.StepId, "down")}
+                    title={idx === total - 1 ? "Already at the bottom" : "Move step down"}
+                    aria-label="Move step down"
+                >
+                    <ArrowDown className="h-4 w-4" />
+                </Button>
+                <Switch
+                    checked={!isDisabled}
+                    onCheckedChange={(checked) => onToggleDisabled(s, !checked)}
+                    aria-label={isDisabled ? "Enable step" : "Disable step"}
+                    title={isDisabled
+                        ? "Disabled — runner will skip this step"
+                        : "Enabled — runner will execute this step"}
+                />
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => onEdit(s)}
+                    title="Edit step"
+                    aria-label="Edit step"
+                >
+                    <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => onEditWait(s)}
+                    title={waitLabel === null ? "Add wait condition" : "Edit wait condition"}
+                >
+                    <Timer className="h-4 w-4" />
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive hover:text-destructive"
+                    onClick={() => onDelete(s)}
+                    title="Delete step"
+                    aria-label="Delete step"
+                >
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </div>
+        </li>
+    );
+}
 
 function TreeNodeRow(props: TreeNodeRowProps) {
     const {

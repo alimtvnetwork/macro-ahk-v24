@@ -24,7 +24,7 @@
  * @see src/background/recorder/step-library/import-bundle.ts
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import JSZip from "jszip";
 import { toast } from "sonner";
 import {
@@ -89,6 +89,11 @@ import { Switch } from "@/components/ui/switch";
 import { Toaster } from "@/components/ui/sonner";
 
 import { stepKindLabel, useStepLibrary } from "@/hooks/use-step-library";
+import {
+    decodeNullableNumber,
+    decodeNumberSet,
+    usePersistedState,
+} from "@/hooks/use-persisted-state";
 import type { StepGroupRow, StepRow } from "@/background/recorder/step-library/db";
 import { StepKindId } from "@/background/recorder/step-library/schema";
 import { runStepGroupExport, previewStepGroupExport, type StepGroupExportPreview } from "@/background/recorder/step-library/export-bundle";
@@ -170,8 +175,25 @@ export default function StepGroupLibraryPanel() {
      * recover from a Set after re-toggles.
      */
     const [selectionOrder, setSelectionOrder] = useState<ReadonlyArray<number>>([]);
-    const [activeGroupId, setActiveGroupId] = useState<number | null>(null);
-    const [expanded, setExpanded] = useState<Set<number>>(new Set());
+    /**
+     * Active selection + expanded folders are persisted per-project so
+     * the two-pane layout restores exactly where the user left off
+     * across full page refreshes. Keys are namespaced by project id;
+     * the no-project case uses a `__noproject__` slot. A post-load
+     * effect prunes stale ids that no longer exist (e.g. groups
+     * deleted in another tab).
+     */
+    const projectKey = lib.Project?.ProjectId ?? "__noproject__";
+    const [activeGroupId, setActiveGroupId] = usePersistedState<number | null>(
+        `marco.library.activeGroup.${projectKey}`,
+        null,
+        decodeNullableNumber,
+    );
+    const [expanded, setExpanded] = usePersistedState<Set<number>>(
+        `marco.library.expanded.${projectKey}`,
+        new Set(),
+        decodeNumberSet,
+    );
     const [showArchived, setShowArchived] = useState(false);
     const [batchOpen, setBatchOpen] = useState(false);
     const [batchRenameOpen, setBatchRenameOpen] = useState(false);
@@ -318,6 +340,35 @@ export default function StepGroupLibraryPanel() {
         for (const g of lib.Groups) m.set(g.StepGroupId, g);
         return m;
     }, [lib.Groups]);
+
+    /**
+     * Prune persisted ids that no longer exist in the loaded library.
+     * This handles the case where a group was deleted in another tab
+     * (or by an import-with-replace) between sessions. We only run
+     * after groups have been loaded at least once — `lib.Project`
+     * being non-null is our readiness signal.
+     */
+    useEffect(() => {
+        if (lib.Project === null) return;
+        if (activeGroupId !== null && !groupsById.has(activeGroupId)) {
+            setActiveGroupId(null);
+        }
+        let needsPrune = false;
+        for (const id of expanded) {
+            if (!groupsById.has(id)) {
+                needsPrune = true;
+                break;
+            }
+        }
+        if (needsPrune) {
+            const next = new Set<number>();
+            for (const id of expanded) {
+                if (groupsById.has(id)) next.add(id);
+            }
+            setExpanded(next);
+        }
+    }, [lib.Project, groupsById, activeGroupId, expanded, setActiveGroupId, setExpanded]);
+
 
     /* ------------------------ Selection --------------------------- */
 

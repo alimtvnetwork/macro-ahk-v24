@@ -28,7 +28,7 @@
  * @see @/hooks/use-step-library — shared data source.
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
     Archive,
@@ -72,6 +72,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { stepKindLabel, useStepLibrary } from "@/hooks/use-step-library";
+import { decodeNullableNumber, usePersistedState } from "@/hooks/use-persisted-state";
 import { useStepGroupExport } from "@/hooks/use-step-group-export";
 import { useStepGroupImport } from "@/hooks/use-step-group-import";
 import type { StepGroupRow, StepRow } from "@/background/recorder/step-library/db";
@@ -160,7 +161,18 @@ export default function StepGroupListPanel() {
     });
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [query, setQuery] = useState("");
-    const [activeGroupId, setActiveGroupId] = useState<number | null>(null);
+    /**
+     * Active selection is persisted per-project so the details pane
+     * restores the previously-viewed group on refresh. The pruning
+     * effect below clears the id when it no longer points at a real
+     * group (e.g. deleted in another tab).
+     */
+    const projectKey = lib.Project?.ProjectId ?? "__noproject__";
+    const [activeGroupId, setActiveGroupId] = usePersistedState<number | null>(
+        `marco.list.activeGroup.${projectKey}`,
+        null,
+        decodeNullableNumber,
+    );
 
     /**
      * Multi-select state. A `Set` gives us O(1) membership checks for
@@ -198,6 +210,20 @@ export default function StepGroupListPanel() {
         for (const g of lib.Groups) m.set(g.StepGroupId, g);
         return m;
     }, [lib.Groups]);
+
+    /**
+     * Clear a persisted activeGroupId that no longer matches a real
+     * group (deleted elsewhere, project switched, etc.). Runs only
+     * once the project has loaded so we don't clobber the value
+     * during the brief hydration window before `lib.Groups` populates.
+     */
+    useEffect(() => {
+        if (lib.Project === null) return;
+        if (activeGroupId !== null && !groupsById.has(activeGroupId)) {
+            setActiveGroupId(null);
+        }
+    }, [lib.Project, groupsById, activeGroupId, setActiveGroupId]);
+
 
     const sortedGroups = useMemo(() => {
         return lib.Groups.slice().sort((a, b) => a.Name.localeCompare(b.Name));

@@ -18,7 +18,7 @@
  *   - Columns = union of keys across all rows, preserving first-seen order
  */
 
-import { DataSourceKindId } from "./recorder-db-schema";
+import { DataSourceKindId } from "../recorder-db-schema";
 
 export interface ParsedDataSource {
     readonly DataSourceKindId: number;

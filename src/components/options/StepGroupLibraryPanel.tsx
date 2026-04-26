@@ -183,6 +183,13 @@ export default function StepGroupLibraryPanel() {
     const [inputsDialog, setInputsDialog] = useState<{ open: boolean; group: StepGroupRow | null }>({
         open: false, group: null,
     });
+    /**
+     * Per-group CSV importer dialog. Same target shape as the JSON
+     * variant — both feed `setGroupInput` with the resulting bag.
+     */
+    const [csvDialog, setCsvDialog] = useState<{ open: boolean; group: StepGroupRow | null }>({
+        open: false, group: null,
+    });
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 

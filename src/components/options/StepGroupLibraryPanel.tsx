@@ -554,7 +554,7 @@ export default function StepGroupLibraryPanel() {
                         </span>
                     )}
                     <a
-                        href="/step-groups/list"
+                        href="#step-groups-list"
                         className="ml-2 text-xs text-primary underline-offset-2 hover:underline"
                         title="Switch to a flat searchable list"
                     >

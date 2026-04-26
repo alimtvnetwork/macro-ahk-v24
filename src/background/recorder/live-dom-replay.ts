@@ -403,3 +403,32 @@ function dispatchSelect(el: HTMLElement, value: string): void {
 function defaultSleep(ms: number): Promise<void> {
     return new Promise((r) => setTimeout(r, ms));
 }
+
+/**
+ * Bridge `WaitConfig` (persisted via the StepWaitDialog UI) into the
+ * inline `WaitForSpec` shape that `waitForElement` expects.
+ *
+ * `wait-for-element.ts` currently implements only the **Appears**
+ * predicate (returns when the element is found in the DOM). The
+ * `Disappears` and `Visible` modes from the dialog are accepted by the
+ * storage layer but cannot be honoured here yet — for those, we still
+ * resolve to `Appears` so the user gets *some* gating instead of silent
+ * no-op, and we leave a console warning so the discrepancy is traceable.
+ *
+ * Returns `null` when there's no persisted config so the caller can
+ * skip the wait branch entirely.
+ */
+function persistedWaitToSpec(cfg: WaitConfig | null): WaitForSpec | null {
+    if (cfg === null) return null;
+    if (cfg.Condition !== "Appears") {
+        console.warn(
+            `live-dom-replay: persisted wait condition '${cfg.Condition}' is ` +
+            `not yet supported by waitForElement; falling back to 'Appears'.`,
+        );
+    }
+    return {
+        Expression: cfg.Selector,
+        Kind: cfg.Kind === "XPath" ? "XPath" : "Css",
+        TimeoutMs: cfg.TimeoutMs,
+    };
+}

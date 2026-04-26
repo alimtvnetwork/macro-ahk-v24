@@ -1072,6 +1072,19 @@ export default function StepGroupLibraryPanel() {
                                 CSV
                             </Button>
                             <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={activeGroup === null}
+                                onClick={() => activeGroup !== null && setStepEditor({
+                                    open: true,
+                                    mode: { Kind: "create", StepGroupId: activeGroup.StepGroupId },
+                                })}
+                                title={activeGroup === null ? "Select a group first" : "Add a new step to this group"}
+                            >
+                                <Plus className="mr-1 h-4 w-4" />
+                                Add step
+                            </Button>
+                            <Button
                                 variant="secondary"
                                 size="sm"
                                 disabled={activeGroup === null || activeSteps.length === 0}

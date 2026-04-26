@@ -39,6 +39,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 
 import {
     runGroup,
@@ -47,6 +48,7 @@ import {
 } from "@/background/recorder/step-library/run-group-runner";
 import type { StepGroupRow, StepLibraryDb } from "@/background/recorder/step-library/db";
 import type { BatchGroupReport } from "@/background/recorder/step-library/run-batch";
+import { createLiveReplayExecutor } from "@/background/recorder/step-library/replay-bridge";
 
 import RunResultsSummaryPanel from "./RunResultsSummaryPanel";
 import RunTraceViewer from "./RunTraceViewer";
@@ -61,10 +63,10 @@ interface RunGroupDialogProps {
 }
 
 /**
- * Preview-mode leaf executor — mirrors the one in `BatchRunDialog`.
- * Lives here too rather than being shared so the failure case is
- * easy to swap in during local debugging without affecting the batch
- * surface.
+ * Preview-mode leaf executor — every leaf reports success so the user
+ * can dry-run the descent / RunGroup expansion / cycle-detection
+ * pipeline without touching the DOM. Switch to live mode via the
+ * dialog toggle to drive `executeReplay()` end-to-end.
  */
 const previewExecutor: LeafStepExecutor = () => null;
 

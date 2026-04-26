@@ -9,13 +9,13 @@
 
 ## Active
 
-| # | File | Title | Pipeline | Status | Priority |
-|---|---|---|---|---|---|
-| 01 | [`01-installer-contract-not-in-ci.md`](./cicd-issues/01-installer-contract-not-in-ci.md) | `check:installer-contract` not wired into installer-tests workflow | `.github/workflows/installer-tests.yml` | ⏳ Pending | Medium |
+_None — all known CI/CD issues resolved._
 
 ## Resolved
 
-_None yet — issues stay in this index with `✅ Resolved` status when fixed._
+| # | File | Title | Pipeline | Status | Resolved |
+|---|---|---|---|---|---|
+| 01 | [`01-installer-contract-not-in-ci.md`](./cicd-issues/01-installer-contract-not-in-ci.md) | `check:installer-contract` not wired into installer-tests workflow | `.github/workflows/installer-tests.yml` | ✅ Resolved | 2026-04-24 |
 
 ---
 

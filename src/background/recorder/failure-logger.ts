@@ -144,14 +144,23 @@ export function buildFailureReport(input: BuildFailureReportInput): FailureRepor
     const message = extractMessage(input.Error);
     const stack = extractStack(input.Error);
 
+    const attempts: ReadonlyArray<SelectorAttempt> =
+        input.EvaluatedAttempts !== undefined
+            ? input.EvaluatedAttempts.map(toAttemptFromEvaluated)
+            : (input.Selectors ?? []).map(toAttemptFromPersisted);
+
+    const { Reason, ReasonDetail } = classifyReason(input, attempts, message);
+
     return {
         Phase: input.Phase,
         Message: message,
+        Reason,
+        ReasonDetail,
         StackTrace: stack,
         StepId: input.StepId ?? null,
         Index: input.Index ?? null,
         StepKind: input.StepKind ?? null,
-        Selectors: (input.Selectors ?? []).map(toSelectorAttempt),
+        Selectors: attempts,
         DomContext: input.Target ? readDomContext(input.Target) : null,
         DataRow: input.DataRow ?? null,
         ResolvedXPath: input.ResolvedXPath ?? null,
@@ -161,11 +170,83 @@ export function buildFailureReport(input: BuildFailureReportInput): FailureRepor
 }
 
 /**
+ * Auto-classify the failure when the caller did not supply a Reason. The
+ * input attempts (one per persisted selector, primary-first) drive the
+ * classification:
+ *
+ *   - No selectors                 → "NoSelectors"
+ *   - Any attempt threw XPath      → "XPathSyntaxError"
+ *   - Any attempt threw CSS        → "CssSyntaxError"
+ *   - Any anchor unresolved        → "UnresolvedAnchor"
+ *   - Any expression empty         → "EmptyExpression"
+ *   - Primary missed, fallback OK  → "PrimaryMissedFallbackOk"
+ *   - All attempts returned 0      → "ZeroMatches"
+ *   - Otherwise                    → "Unknown"
+ */
+function classifyReason(
+    input: BuildFailureReportInput,
+    attempts: ReadonlyArray<SelectorAttempt>,
+    message: string,
+): { Reason: FailureReasonCode; ReasonDetail: string } {
+    if (input.Reason !== undefined) {
+        return {
+            Reason: input.Reason,
+            ReasonDetail: input.ReasonDetail ?? message,
+        };
+    }
+    if (attempts.length === 0) {
+        return { Reason: "NoSelectors", ReasonDetail: "Step has no persisted selectors to try." };
+    }
+    const reasons = new Set(attempts.map((a) => a.FailureReason));
+    if (reasons.has("XPathSyntaxError")) {
+        return { Reason: "XPathSyntaxError", ReasonDetail: firstDetail(attempts, "XPathSyntaxError") };
+    }
+    if (reasons.has("CssSyntaxError")) {
+        return { Reason: "CssSyntaxError", ReasonDetail: firstDetail(attempts, "CssSyntaxError") };
+    }
+    if (reasons.has("UnresolvedAnchor")) {
+        return { Reason: "UnresolvedAnchor", ReasonDetail: firstDetail(attempts, "UnresolvedAnchor") };
+    }
+    if (reasons.has("EmptyExpression")) {
+        return { Reason: "EmptyExpression", ReasonDetail: firstDetail(attempts, "EmptyExpression") };
+    }
+    const primary = attempts.find((a) => a.IsPrimary) ?? null;
+    const anyFallbackMatched = attempts.some((a) => !a.IsPrimary && a.Matched);
+    if (primary !== null && !primary.Matched && anyFallbackMatched) {
+        return {
+            Reason: "PrimaryMissedFallbackOk",
+            ReasonDetail:
+                `Primary selector '${primary.ResolvedExpression}' missed; ` +
+                `${attempts.filter((a) => !a.IsPrimary && a.Matched).length} fallback(s) matched.`,
+        };
+    }
+    if (attempts.every((a) => !a.Matched && a.MatchCount === 0)) {
+        return {
+            Reason: "ZeroMatches",
+            ReasonDetail:
+                `All ${attempts.length} selector(s) returned 0 nodes. ` +
+                `Tried: ${attempts.map((a) => a.ResolvedExpression).join(" | ")}`,
+        };
+    }
+    return { Reason: "Unknown", ReasonDetail: message };
+}
+
+function firstDetail(attempts: ReadonlyArray<SelectorAttempt>, code: AttemptFailureReason | "NotEvaluated"): string {
+    const hit = attempts.find((a) => a.FailureReason === code);
+    return hit?.FailureDetail ?? `Attempt failed with ${code}.`;
+}
+
+/**
  * Serializes a report to a multi-line block suitable for `console.error` or
  * a clipboard paste into AI chat. Format:
  *
  * ```
  * [MarcoReplay] Element not found for selector '#go'
+ *   Reason: PrimaryMissedFallbackOk — Primary missed; 1 fallback matched.
+ *   at src/background/recorder/live-dom-replay.ts (StepId=42, Index=3)
+ *   Selectors:
+ *     ✗ ✓ XPathFull   //button[@id='go'] → 0 matches (ZeroMatches: …)
+ *     ✓ · Css         #go                → 1 matches
  *   at src/background/recorder/live-dom-replay.ts (StepId=42, Index=3)
  *   Selectors:
  *     ✓ XPathFull   //button[@id='go']

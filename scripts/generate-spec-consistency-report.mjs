@@ -46,7 +46,10 @@ const STRICT = argv.includes('--strict');
 const outArg = argv.find((a) => a.startsWith('--out='));
 const TODAY = new Date().toISOString().slice(0, 10); // YYYY-MM-DD (UTC; close enough for filenames)
 const DEFAULT_OUT = join(VALIDATION_DIR, `${TODAY}-consistency-report.md`);
-const OUT_PATH = outArg ? join(REPO_ROOT, outArg.slice('--out='.length)) : DEFAULT_OUT;
+const outValue = outArg ? outArg.slice('--out='.length) : null;
+const OUT_PATH = outValue
+  ? (outValue.startsWith('/') ? outValue : join(REPO_ROOT, outValue))
+  : DEFAULT_OUT;
 
 // ─────────────────────────────────────────────────────────────
 // Section 1 — Folder inventory

@@ -3,13 +3,22 @@
  *
  * Decodes the JWT payload to extract `exp`, runs a 10s interval to update TTL,
  * and triggers REFRESH_TOKEN when TTL drops below the threshold.
+ *
+ * PERF-10 (idle-loop audit, 2026-04-25): the TTL polling interval is now
+ * driven by `useVisibilityPausedInterval`, so background tabs no longer
+ * decode the JWT every 10 s and no longer wake the MV3 service worker on
+ * each refresh-on-threshold attempt. On `visibilitychange → visible` the
+ * hook fires an immediate catch-up tick so a token that crossed the 5-min
+ * threshold while the tab was hidden is still refreshed promptly.
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { sendMessage } from "@/lib/message-client";
+import { useVisibilityPausedInterval } from "@/hooks/use-visibility-paused-interval";
 
 const REFRESH_THRESHOLD_SEC = 5 * 60; // 5 minutes
 const POLL_INTERVAL_MS = 10_000; // 10 seconds
+
 
 export interface TokenWatchdogState {
   /** Current token (masked for display) */
@@ -164,24 +173,20 @@ export function useTokenWatchdog(): TokenWatchdogState {
     void fetchToken();
   }, [fetchToken]);
 
-  // TTL countdown + auto-refresh
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const exp = expRef.current;
-      if (exp === null) return;
+  // TTL countdown + auto-refresh — visibility-paused (PERF-10).
+  useVisibilityPausedInterval(() => {
+    const exp = expRef.current;
+    if (exp === null) { return; }
 
-      const remaining = exp - Math.floor(Date.now() / 1000);
-      setTtlSec(remaining);
+    const remaining = exp - Math.floor(Date.now() / 1000);
+    setTtlSec(remaining);
 
-      // Auto-refresh when below threshold
-      if (remaining > 0 && remaining <= REFRESH_THRESHOLD_SEC && !autoRefreshTriggered.current) {
-        autoRefreshTriggered.current = true;
-        void doRefresh();
-      }
-    }, POLL_INTERVAL_MS);
-
-    return () => clearInterval(interval);
-  }, [doRefresh]);
+    // Auto-refresh when below threshold
+    if (remaining > 0 && remaining <= REFRESH_THRESHOLD_SEC && !autoRefreshTriggered.current) {
+      autoRefreshTriggered.current = true;
+      void doRefresh();
+    }
+  }, POLL_INTERVAL_MS);
 
   const isWarning = ttlSec !== null && ttlSec > 0 && ttlSec <= REFRESH_THRESHOLD_SEC;
   const isExpired = ttlSec !== null && ttlSec <= 0;

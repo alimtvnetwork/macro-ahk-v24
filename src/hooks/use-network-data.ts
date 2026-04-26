@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { sendMessage } from "@/lib/message-client";
+import { useVisibilityPausedInterval } from "@/hooks/use-visibility-paused-interval";
 
 export interface NetworkEntry {
   method: string;
@@ -29,7 +30,6 @@ export function useNetworkData() {
   const [stats, setStats] = useState<NetworkStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -50,15 +50,15 @@ export function useNetworkData() {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  // Auto-refresh polling
-  useEffect(() => {
-    if (autoRefresh) {
-      intervalRef.current = setInterval(() => { void refresh(); }, AUTO_REFRESH_INTERVAL);
-    }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [autoRefresh, refresh]);
+  // Auto-refresh polling — visibility-paused (PERF-11). The hook fires an
+  // immediate tick on mount + every visibilitychange→visible, so we no
+  // longer need the standalone `useEffect` initial-fetch above to also
+  // double as a poll seed.
+  useVisibilityPausedInterval(
+    () => { void refresh(); },
+    AUTO_REFRESH_INTERVAL,
+    autoRefresh,
+  );
 
   const toggleAutoRefresh = useCallback(() => {
     setAutoRefresh((prev) => !prev);

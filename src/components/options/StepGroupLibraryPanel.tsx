@@ -1379,14 +1379,30 @@ function TreeNodeRow(props: TreeNodeRowProps) {
 /*  Empty state                                                        */
 /* ------------------------------------------------------------------ */
 
-function EmptyTreeState({ onCreate }: { onCreate: () => void }) {
+function EmptyTreeState({ onCreate, onImport }: { onCreate: () => void; onImport?: () => void }) {
     return (
-        <div className="flex h-full flex-col items-center justify-center gap-3 px-4 py-12 text-center text-sm text-muted-foreground">
-            <FolderTree className="h-10 w-10 text-muted-foreground/50" />
-            <p>No step groups yet.</p>
-            <Button variant="outline" size="sm" onClick={onCreate}>
-                <Plus className="mr-1 h-4 w-4" /> Create your first group
-            </Button>
+        <div className="flex h-full flex-col items-center justify-center gap-3 px-6 py-12 text-center text-sm text-muted-foreground">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <FolderTree className="h-7 w-7" />
+            </div>
+            <div className="space-y-1">
+                <p className="font-medium text-foreground">No step groups yet</p>
+                <p className="max-w-[34ch] text-xs">
+                    Step groups bundle related actions you can replay later.
+                    Create your first one or import a ZIP bundle from another
+                    project.
+                </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                <Button size="sm" onClick={onCreate}>
+                    <Plus className="mr-1 h-4 w-4" /> Create your first group
+                </Button>
+                {onImport !== undefined && (
+                    <Button variant="outline" size="sm" onClick={onImport}>
+                        <Upload className="mr-1 h-4 w-4" /> Import ZIP
+                    </Button>
+                )}
+            </div>
         </div>
     );
 }

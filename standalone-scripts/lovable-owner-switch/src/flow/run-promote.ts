@@ -5,6 +5,11 @@
  * Calls `LovableApiClient.promoteToOwner(...)` — the SAME method User
  * Add Step B will reuse (R12 invariant: only one PUT call site across
  * `standalone-scripts/lovable-*`).
+ *
+ * On failure, returns the exact `FailedStep` so the per-row store can
+ * persist *which* sub-step broke (e.g. ResolveUserId vs PromoteToOwner)
+ * for replay diagnosis. No rollback is attempted — failure marking
+ * only (per operator direction).
  */
 
 import { LovableApiClient } from "../../../lovable-common/src/api/lovable-api-client";
@@ -43,16 +48,56 @@ interface ChainState {
     UserId: string;
 }
 
+interface StepTaggedError extends Error {
+    step: PromoteStepCode;
+}
+
+const failingStep = (caught: unknown, fallback: PromoteStepCode): PromoteStepCode => {
+    if (caught instanceof Error && "step" in caught && typeof (caught as { step?: unknown }).step === "string") {
+        return (caught as { step: PromoteStepCode }).step;
+    }
+
+    return fallback;
+};
+
+const tagAndThrow = (caught: unknown, fallback: PromoteStepCode): never => {
+    const tagged = Object.assign(
+        new Error(caught instanceof Error ? caught.message : String(caught)),
+        { step: failingStep(caught, fallback) },
+    ) as StepTaggedError;
+    throw tagged;
+};
+
 const runChain = async (
     api: LovableApiClient,
     caches: PromoteCaches,
     request: PromoteRowRequest,
 ): Promise<ChainState> => {
-    const ws = await measureString(() =>
-        resolveWorkspaceId(api, caches.WorkspaceByLoginEmail, request.LoginEmail));
-    const uid = await measureString(() =>
-        resolveUserId(api, caches.UserIdByEmail, ws.Value, request.OwnerEmail));
-    const promoMs = await measureVoid(() => api.promoteToOwner(ws.Value, uid.Value));
+    let ws: MeasuredString;
+
+    try {
+        ws = await measureString(() =>
+            resolveWorkspaceId(api, caches.WorkspaceByLoginEmail, request.LoginEmail));
+    } catch (caught: unknown) {
+        return tagAndThrow(caught, PromoteStepCode.ResolveWorkspace);
+    }
+
+    let uid: MeasuredString;
+
+    try {
+        uid = await measureString(() =>
+            resolveUserId(api, caches.UserIdByEmail, ws.Value, request.OwnerEmail));
+    } catch (caught: unknown) {
+        return tagAndThrow(caught, PromoteStepCode.ResolveUserId);
+    }
+
+    let promoMs: number;
+
+    try {
+        promoMs = await measureVoid(() => api.promoteToOwner(ws.Value, uid.Value));
+    } catch (caught: unknown) {
+        return tagAndThrow(caught, PromoteStepCode.PromoteToOwner);
+    }
 
     return {
         Outcomes: [
@@ -65,11 +110,17 @@ const runChain = async (
     };
 };
 
-const failureFrom = (caught: unknown): PromoteRowResult => ({
-    Outcomes: [],
-    FailedStep: null,
-    Error: caught instanceof Error ? caught.message : String(caught),
-});
+const failureFrom = (caught: unknown): PromoteRowResult => {
+    const step = caught instanceof Error && "step" in caught
+        ? (caught as { step: PromoteStepCode }).step
+        : null;
+
+    return {
+        Outcomes: [],
+        FailedStep: step,
+        Error: caught instanceof Error ? caught.message : String(caught),
+    };
+};
 
 export const runPromote = async (
     api: LovableApiClient,

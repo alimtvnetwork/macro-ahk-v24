@@ -35,6 +35,16 @@ export enum UserAddRowOutcomeCode {
     Succeeded = "Succeeded",
     StepAFailed = "StepAFailed",
     StepBFailed = "StepBFailed",
+    /**
+     * Step A POST succeeded (member is in the workspace) but Step B
+     * PUT promote-to-Owner failed. Distinct from generic StepBFailed
+     * so a re-run can SKIP Step A (avoiding 409 Conflict) and only
+     * retry the PUT promote.
+     *
+     * Per operator direction: failure is **marked**, NOT rolled back —
+     * the member added in Step A is intentionally left in place.
+     */
+    StepBFailedMemberAdded = "StepBFailedMemberAdded",
 }
 
 export interface UserAddRowResult {
@@ -45,4 +55,20 @@ export interface UserAddRowResult {
     LastError: string | null;
     DurationMs: number;
     StepBRan: boolean;
+    /**
+     * True when Step A's POST returned 2xx (membership exists in
+     * workspace) — even if the row overall failed at Step B.
+     * Persisted so re-runs can skip Step A.
+     */
+    StepASucceeded: boolean;
+    /**
+     * UserId returned by Step A. Captured so a re-run can address the
+     * PUT directly without re-issuing the POST. Null when Step A
+     * never completed.
+     */
+    UserId: string | null;
+    /**
+     * WorkspaceId resolved during Step A. Same rationale as UserId.
+     */
+    WorkspaceId: string | null;
 }

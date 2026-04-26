@@ -4,6 +4,12 @@
  * Resolves password (Row.Password ?? Task.CommonPassword), runs login →
  * owner-promotions → sign-out, finalizes row state. Fail-fast on
  * login/promote (Q8); sign-out failure is best-effort (Q6 default).
+ *
+ * Failure-marking policy (no rollback): when a promotion fails midway,
+ * the row is marked with `PromoteFailedPartial` (if any prior owner in
+ * the same row was promoted) or `PromoteFailed` (if none) and the
+ * per-OwnerEmail breakdown is persisted via `RowStateStore` for
+ * idempotent re-execution.
  */
 
 import { runLogin } from "./run-login";
@@ -13,7 +19,7 @@ import { finalizeRow } from "./row-finalize";
 import { RowOutcomeCode } from "./row-types";
 import { LogPhase, LogSeverity, buildEntry } from "./log-sink";
 import type { LogSink } from "./log-sink";
-import type { RowExecutionContext, RowExecutionResult } from "./row-types";
+import type { PromotedOwnerRecord, RowExecutionContext, RowExecutionResult } from "./row-types";
 import type { RowStateStore } from "./row-state-store";
 
 const resolvePassword = (ctx: RowExecutionContext): string | null => {
@@ -21,17 +27,21 @@ const resolvePassword = (ctx: RowExecutionContext): string | null => {
 };
 
 const failResult = (
-    ctx: RowExecutionContext, startedAt: number, outcome: RowOutcomeCode, error: string,
+    ctx: RowExecutionContext, startedAt: number, outcome: RowOutcomeCode,
+    error: string, promotedOwners: ReadonlyArray<PromotedOwnerRecord>,
 ): RowExecutionResult => ({
     RowIndex: ctx.Row.RowIndex, Outcome: outcome,
     IsDone: false, HasError: true, LastError: error,
-    DurationMs: Date.now() - startedAt,
+    DurationMs: Date.now() - startedAt, PromotedOwners: promotedOwners,
 });
 
-const succeedResult = (ctx: RowExecutionContext, startedAt: number): RowExecutionResult => ({
+const succeedResult = (
+    ctx: RowExecutionContext, startedAt: number,
+    promotedOwners: ReadonlyArray<PromotedOwnerRecord>,
+): RowExecutionResult => ({
     RowIndex: ctx.Row.RowIndex, Outcome: RowOutcomeCode.Succeeded,
     IsDone: true, HasError: false, LastError: null,
-    DurationMs: Date.now() - startedAt,
+    DurationMs: Date.now() - startedAt, PromotedOwners: promotedOwners,
 });
 
 const noteSignOut = (ctx: RowExecutionContext, sink: LogSink, error: string | null): void => {
@@ -39,6 +49,12 @@ const noteSignOut = (ctx: RowExecutionContext, sink: LogSink, error: string | nu
         ctx.Task.TaskId, ctx.Row.RowIndex, LogPhase.SignOut,
         LogSeverity.Warn, `Sign-out best-effort failed: ${error ?? "unknown"}`,
     ));
+};
+
+const promoteOutcomeCode = (records: ReadonlyArray<PromotedOwnerRecord>): RowOutcomeCode => {
+    const anyPromoted = records.some((r) => r.Promoted);
+
+    return anyPromoted ? RowOutcomeCode.PromoteFailedPartial : RowOutcomeCode.PromoteFailed;
 };
 
 export const runRow = async (
@@ -50,7 +66,7 @@ export const runRow = async (
     if (password === null) {
         return finalizeRow(ctx, sink, store, failResult(
             ctx, startedAt, RowOutcomeCode.PasswordMissing,
-            "Password missing on row and no CommonPassword fallback",
+            "Password missing on row and no CommonPassword fallback", [],
         ));
     }
 
@@ -61,18 +77,18 @@ export const runRow = async (
 
     if (login.Error !== null) {
         return finalizeRow(ctx, sink, store, failResult(
-            ctx, startedAt, RowOutcomeCode.LoginFailed, login.Error,
+            ctx, startedAt, RowOutcomeCode.LoginFailed, login.Error, [],
         ));
     }
 
-    const promoteFailure = await runOwnerEmails(ctx, sink);
+    const owners = await runOwnerEmails(ctx, sink);
 
-    if (promoteFailure !== null) {
+    if (owners.Failure !== null) {
         await runSignOut(ctx.XPathOverrides);
 
         return finalizeRow(ctx, sink, store, failResult(
-            ctx, startedAt, RowOutcomeCode.PromoteFailed,
-            `${promoteFailure.Email}: ${promoteFailure.Error}`,
+            ctx, startedAt, promoteOutcomeCode(owners.Records),
+            `${owners.Failure.Email}: ${owners.Failure.Error}`, owners.Records,
         ));
     }
 
@@ -82,5 +98,5 @@ export const runRow = async (
         noteSignOut(ctx, sink, signOut.Error);
     }
 
-    return finalizeRow(ctx, sink, store, succeedResult(ctx, startedAt));
+    return finalizeRow(ctx, sink, store, succeedResult(ctx, startedAt, owners.Records));
 };

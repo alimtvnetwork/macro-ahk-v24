@@ -9,12 +9,26 @@
  * `LogSink`.
  */
 
+import type { PromotedOwnerRecord, RowOutcomeCode } from "./row-types";
+
 export interface RowStateUpdate {
     RowIndex: number;
     IsDone: boolean;
     HasError: boolean;
     LastError: string | null;
     CompletedAtUtc: string | null;
+    /**
+     * Final outcome code — persisted alongside the boolean flags so
+     * the UI can distinguish PromoteFailedPartial from PromoteFailed
+     * without re-parsing `LastError`.
+     */
+    Outcome: RowOutcomeCode;
+    /**
+     * JSON-serializable per-OwnerEmail breakdown. The runtime SQLite
+     * adapter writes this as a TEXT column (JSON). Empty array means
+     * the row never reached the promote phase.
+     */
+    PromotedOwners: ReadonlyArray<PromotedOwnerRecord>;
 }
 
 export interface RowStateStore {

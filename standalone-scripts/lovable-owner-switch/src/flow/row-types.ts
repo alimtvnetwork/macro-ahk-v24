@@ -35,7 +35,29 @@ export enum RowOutcomeCode {
     Succeeded = "Succeeded",
     LoginFailed = "LoginFailed",
     PromoteFailed = "PromoteFailed",
+    /**
+     * At least one OwnerEmail in the row was promoted before another
+     * OwnerEmail (or sub-step) failed. Persisted distinctly so a
+     * re-run can SKIP the already-promoted owners and only retry the
+     * failing ones (mem://constraints/no-retry-policy still applies
+     * within a single run — re-execution is operator-driven).
+     *
+     * Per user direction: failure is **marked**, NOT rolled back.
+     */
+    PromoteFailedPartial = "PromoteFailedPartial",
     PasswordMissing = "PasswordMissing",
+}
+
+/**
+ * PromotedOwnerRecord — per-OwnerEmail outcome within a row.
+ * Persisted as part of `RowExecutionResult.PromotedOwners` so the
+ * SQLite store can serialize it (JSON column) for idempotent replay.
+ */
+export interface PromotedOwnerRecord {
+    OwnerEmail: string;
+    Promoted: boolean;
+    FailedStep: string | null;
+    Error: string | null;
 }
 
 export interface RowExecutionResult {
@@ -45,4 +67,10 @@ export interface RowExecutionResult {
     HasError: boolean;
     LastError: string | null;
     DurationMs: number;
+    /**
+     * Per-OwnerEmail breakdown. Empty when the row never reached the
+     * promote phase (e.g. login failed). Populated even on success so
+     * audit history is complete.
+     */
+    PromotedOwners: ReadonlyArray<PromotedOwnerRecord>;
 }

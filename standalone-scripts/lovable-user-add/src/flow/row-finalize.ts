@@ -4,6 +4,10 @@
  * Pure factories that emit the per-row log line and persist the row
  * state update. Extracted from `run-row.ts` to keep the orchestrator
  * focused on flow control and under the 100-line cap.
+ *
+ * Persists `Outcome`, `StepASucceeded`, `WorkspaceId`, `UserId` so
+ * the SQLite store carries enough context for idempotent re-runs
+ * without rolling back the partial Step A POST.
  */
 
 import { UserAddLogPhase, UserAddLogSeverity, buildUserAddEntry } from "./log-sink";
@@ -18,6 +22,10 @@ const buildUpdate = (rowIndex: number, result: UserAddRowResult): UserAddRowStat
     LastError: result.LastError,
     StepBRan: result.StepBRan,
     CompletedAtUtc: result.IsDone ? new Date().toISOString() : null,
+    Outcome: result.Outcome,
+    StepASucceeded: result.StepASucceeded,
+    UserId: result.UserId,
+    WorkspaceId: result.WorkspaceId,
 });
 
 const severityFor = (result: UserAddRowResult): UserAddLogSeverity => {

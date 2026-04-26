@@ -3,6 +3,10 @@
  *
  * Pure factories. Extracted from `run-row.ts` so that file stays under
  * the 100-line cap and each finalize/branch path remains clear.
+ *
+ * Persists `Outcome` + `PromotedOwners` so a re-run can deterministically
+ * skip OwnerEmails that already succeeded inside a row that overall
+ * failed (no rollback policy — failure marking only).
  */
 
 import { LogPhase, LogSeverity, buildEntry } from "./log-sink";
@@ -16,6 +20,8 @@ const buildUpdate = (rowIndex: number, result: RowExecutionResult): RowStateUpda
     HasError: result.HasError,
     LastError: result.LastError,
     CompletedAtUtc: result.IsDone ? new Date().toISOString() : null,
+    Outcome: result.Outcome,
+    PromotedOwners: result.PromotedOwners,
 });
 
 export const finalizeRow = (

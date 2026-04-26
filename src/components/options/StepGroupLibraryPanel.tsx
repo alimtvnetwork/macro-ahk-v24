@@ -565,6 +565,8 @@ export default function StepGroupLibraryPanel() {
                                         selected={selected}
                                         expanded={expanded}
                                         activeGroupId={activeGroupId}
+                                        hoveredId={hoveredId}
+                                        onHover={setHoveredId}
                                         onToggleSelect={toggleOne}
                                         onToggleSubtree={toggleSubtree}
                                         onToggleExpanded={toggleExpanded}

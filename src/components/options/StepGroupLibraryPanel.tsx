@@ -48,6 +48,7 @@ import {
     Trash2,
     Upload,
     Webhook,
+    Timer,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -161,6 +162,11 @@ export default function StepGroupLibraryPanel() {
     const [batchOpen, setBatchOpen] = useState(false);
     const [webhookOpen, setWebhookOpen] = useState(false);
     const [inputSourceOpen, setInputSourceOpen] = useState(false);
+    const [waitDialog, setWaitDialog] = useState<{ open: boolean; stepId: number | null; stepLabel: string | null }>({
+        open: false, stepId: null, stepLabel: null,
+    });
+    const [stepWaits, setStepWaits] = useState<ReadonlyMap<number, WaitConfig>>(() => readAllStepWaits());
+    const refreshStepWaits = () => setStepWaits(readAllStepWaits());
     const [lastExport, setLastExport] = useState<LastExportSummary | null>(null);
     const [lastImport, setLastImport] = useState<LastImportSummary | null>(null);
     const [importError, setImportError] = useState<{

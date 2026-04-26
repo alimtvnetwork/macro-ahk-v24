@@ -231,12 +231,15 @@ for (const filePath of tsFiles) {
     const sf = ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, true);
     walk(sf, (node) => {
         // (a) Call sites of buildFailureReport / logFailure must pass SourceFile.
+        //     The failure-logger module itself wraps buildFailureReport()
+        //     with a forwarded `input` variable in `logFailure()` — that
+        //     is the legitimate single chokepoint and is exempt.
         if (ts.isCallExpression(node)) {
             const callee = getCalleeName(node);
             if (callee === "buildFailureReport" || callee === "logFailure") {
                 const arg = node.arguments[0];
                 if (!arg || !ts.isObjectLiteralExpression(arg)) {
-                    if (!isTest) {
+                    if (!isTest && !isFailureLogger) {
                         callSiteErrors.push(loc(filePath, sf, node, {
                             kind: "non-literal-arg",
                             callee,

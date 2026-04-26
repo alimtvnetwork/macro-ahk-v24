@@ -44,6 +44,11 @@ import {
     buildGroupRunPayload,
     dispatchWebhook,
 } from "@/background/recorder/step-library/result-webhook";
+import {
+    mergeInputBags,
+    resolveBatchInputSnapshot,
+} from "@/background/recorder/step-library/input-source";
+import type { GroupInputBag } from "@/background/recorder/step-library/group-inputs";
 
 interface BatchRunDialogProps {
     readonly open: boolean;
@@ -52,6 +57,10 @@ interface BatchRunDialogProps {
     readonly projectId: number | null;
     readonly initialOrder: ReadonlyArray<number>;
     readonly groupsById: ReadonlyMap<number, StepGroupRow>;
+    /** Locally-saved input bag per group, used as the merge baseline. */
+    readonly groupInputs: ReadonlyMap<number, GroupInputBag>;
+    /** Persists the merged bag back so the rest of the app sees it. */
+    readonly onApplyMergedInput: (groupId: number, bag: GroupInputBag) => void;
 }
 
 const STATUS_STYLE: Record<BatchGroupStatus, string> = {
@@ -75,7 +84,10 @@ function formatDuration(ms: number): string {
 }
 
 export default function BatchRunDialog(props: BatchRunDialogProps) {
-    const { open, onOpenChange, db, projectId, initialOrder, groupsById } = props;
+    const {
+        open, onOpenChange, db, projectId, initialOrder, groupsById,
+        groupInputs, onApplyMergedInput,
+    } = props;
     const [order, setOrder] = useState<ReadonlyArray<number>>(initialOrder);
     const [reports, setReports] = useState<ReadonlyArray<BatchGroupReport>>([]);
     const [running, setRunning] = useState(false);

@@ -241,13 +241,19 @@ export function useStepLibrary(): UseStepLibraryApi {
     const [groups, setGroups] = useState<ReadonlyArray<StepGroupRow>>([]);
     const [stepsByGroup, setStepsByGroup] = useState<ReadonlyMap<number, ReadonlyArray<StepRow>>>(new Map());
     const [error, setError] = useState<string | null>(null);
+    const [loadError, setLoadError] = useState<StepLibraryLoadError | null>(null);
     const [groupInputs, setGroupInputs] = useState<GroupInputsMap>(() => new Map());
     const [loading, setLoading] = useState(true);
+    /** Bumping this triggers the bootstrap effect to re-run. */
+    const [bootstrapNonce, setBootstrapNonce] = useState(0);
 
     /* ------------------------ bootstrap --------------------------- */
 
     useEffect(() => {
         let cancelled = false;
+        setLoading(true);
+        setError(null);
+        setLoadError(null);
         (async () => {
             try {
                 const sqljs = await loadSql();

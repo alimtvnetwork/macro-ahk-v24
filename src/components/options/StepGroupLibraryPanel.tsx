@@ -357,6 +357,12 @@ export default function StepGroupLibraryPanel() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        setLastExport({
+            FileName: result.ZipFileName,
+            GroupCount: result.Manifest.Counts.StepGroups,
+            StepCount: result.Manifest.Counts.Steps,
+            At: new Date().toISOString(),
+        });
         toast.success(
             `Exported ${result.Manifest.Counts.StepGroups} group(s)`,
             { description: `${result.Manifest.Counts.Steps} steps · ${result.ZipFileName}` },
@@ -385,6 +391,12 @@ export default function StepGroupLibraryPanel() {
         }
         lib.refresh();
         const renames = result.RenamedRoots.length;
+        setLastImport({
+            GroupCount: result.Counts.StepGroups,
+            StepCount: result.Counts.Steps,
+            RenameCount: renames,
+            At: new Date().toISOString(),
+        });
         toast.success(
             `Imported ${result.Counts.StepGroups} group(s)`,
             {

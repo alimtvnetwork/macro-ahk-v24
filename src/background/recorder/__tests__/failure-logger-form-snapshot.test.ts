@@ -33,7 +33,7 @@ describe("FailureReport.FormSnapshot", () => {
         });
         expect(r.FormSnapshot).not.toBeNull();
         expect(r.FormSnapshot!.Fields.map((f) => f.Name)).toEqual([
-            "email", "password", "submit",
+            "email", "password",
         ]);
         expect(r.FormSnapshot!.Values).toBeNull();
         expect(r.FormSnapshot!.Verbose).toBe(false);

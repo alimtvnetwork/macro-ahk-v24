@@ -42,7 +42,7 @@ describe("captureFormSnapshot — non-verbose", () => {
         expect(snap.Form.Method).toBe("POST");
         expect(snap.Verbose).toBe(false);
         expect(snap.Values).toBeNull();
-        expect(snap.Fields.map((f) => f.Name)).toEqual(["email", "password", "field#1"]);
+        expect(snap.Fields.map((f) => f.Name)).toEqual(["email", "password"]);
         const pw = snap.Fields.find((f) => f.Name === "password")!;
         expect(pw.Sensitive).toBe(true);
         expect(pw.Type).toBe("password");

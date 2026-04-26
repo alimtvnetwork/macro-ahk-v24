@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Loader2, Play, X } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp, Loader2, Play, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,7 @@ import {
     type BatchGroupStatus,
 } from "@/background/recorder/step-library/run-batch";
 import type { StepGroupRow, StepLibraryDb } from "@/background/recorder/step-library/db";
-import type { LeafStepExecutor } from "@/background/recorder/step-library/run-group-runner";
+import type { LeafStepExecutor, RunStepTraceEntry } from "@/background/recorder/step-library/run-group-runner";
 import {
     buildBatchCompletePayload,
     buildGroupRunPayload,
@@ -51,6 +51,7 @@ import {
 import type { GroupInputBag } from "@/background/recorder/step-library/group-inputs";
 
 import RunResultsSummaryPanel from "./RunResultsSummaryPanel";
+import RunTraceViewer from "./RunTraceViewer";
 
 interface BatchRunDialogProps {
     readonly open: boolean;

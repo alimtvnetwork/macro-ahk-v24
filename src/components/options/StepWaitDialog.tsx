@@ -19,7 +19,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Eye, EyeOff, MousePointer2, Trash2 } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, MousePointer2, SearchCheck, Trash2, XCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -45,13 +45,46 @@ import {
     DEFAULT_WAIT_CONFIG,
     clearStepWait,
     detectSelectorKind,
+    evaluateSelector,
     readStepWait,
     validateSelector,
     writeStepWait,
+    type ElementLike,
     type SelectorKind,
     type WaitCondition,
     type WaitConfig,
 } from "@/background/recorder/step-library/step-wait";
+
+/**
+ * Result of clicking "Test selector" — counts matches in the current
+ * options-page document so the user can see whether their expression
+ * resolves anything before saving.
+ *
+ * Note: this only probes the page hosting the options UI, not the
+ * recorder's target tab. It still catches the most common authoring
+ * mistakes (typos, wrong axis, missing brackets) and proves the
+ * expression compiles.
+ */
+interface TestResult {
+    readonly Kind: SelectorKind;
+    readonly TotalCount: number;
+    readonly VisibleCount: number;
+    readonly DurationMs: number;
+    readonly Error: string | null;
+}
+
+function countVisible(matches: ReadonlyArray<ElementLike>): number {
+    let n = 0;
+    for (const el of matches) {
+        const w = typeof el.offsetWidth === "number" ? el.offsetWidth : 0;
+        const h = typeof el.offsetHeight === "number" ? el.offsetHeight : 0;
+        if (w > 0 || h > 0) { n += 1; continue; }
+        if (typeof el.getClientRects === "function" && el.getClientRects().length > 0) {
+            n += 1;
+        }
+    }
+    return n;
+}
 
 interface Props {
     readonly open: boolean;
@@ -84,6 +117,7 @@ export default function StepWaitDialog(props: Props) {
     const [condition, setCondition] = useState<WaitCondition>(DEFAULT_WAIT_CONFIG.Condition);
     const [timeoutMs, setTimeoutMs] = useState<number>(DEFAULT_WAIT_CONFIG.TimeoutMs);
     const [hasExisting, setHasExisting] = useState(false);
+    const [testResult, setTestResult] = useState<TestResult | null>(null);
 
     useEffect(() => {
         if (!open || stepId === null) return;
@@ -101,7 +135,13 @@ export default function StepWaitDialog(props: Props) {
             setTimeoutMs(existing.TimeoutMs);
             setHasExisting(true);
         }
+        setTestResult(null);
     }, [open, stepId]);
+
+    // Invalidate stale test results whenever the inputs change.
+    useEffect(() => {
+        setTestResult(null);
+    }, [selector, kindMode]);
 
     const detected: SelectorKind = useMemo(
         () => detectSelectorKind(selector),
@@ -141,6 +181,47 @@ export default function StepWaitDialog(props: Props) {
         } catch (e) {
             const detail = e instanceof Error ? e.message : "Unknown error";
             toast.error(`Could not save: ${detail}`);
+        }
+    };
+
+    const handleTest = () => {
+        if (selector.trim().length === 0) {
+            toast.error("Enter a selector first");
+            return;
+        }
+        if (!validation.Ok) {
+            setTestResult({
+                Kind: effectiveKind,
+                TotalCount: 0,
+                VisibleCount: 0,
+                DurationMs: 0,
+                Error: validation.Reason,
+            });
+            return;
+        }
+        const startedAt = performance.now();
+        try {
+            const matches = evaluateSelector({
+                Selector: selector.trim(),
+                Kind: effectiveKind,
+            });
+            const elapsed = Math.max(0, Math.round(performance.now() - startedAt));
+            setTestResult({
+                Kind: effectiveKind,
+                TotalCount: matches.length,
+                VisibleCount: countVisible(matches),
+                DurationMs: elapsed,
+                Error: null,
+            });
+        } catch (e) {
+            const detail = e instanceof Error ? e.message : "Unknown evaluation error";
+            setTestResult({
+                Kind: effectiveKind,
+                TotalCount: 0,
+                VisibleCount: 0,
+                DurationMs: Math.max(0, Math.round(performance.now() - startedAt)),
+                Error: detail,
+            });
         }
     };
 

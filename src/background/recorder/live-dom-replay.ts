@@ -30,6 +30,7 @@ import {
     logFailure,
     type FailureReport,
 } from "./failure-logger";
+import { evaluateAllSelectors } from "./selector-attempt-evaluator";
 
 const SOURCE_FILE = "src/background/recorder/live-dom-replay.ts";
 

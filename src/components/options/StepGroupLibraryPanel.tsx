@@ -400,6 +400,15 @@ export default function StepGroupLibraryPanel() {
                     )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                        <Switch
+                            checked={showArchived}
+                            onCheckedChange={setShowArchived}
+                            aria-label="Show archived groups"
+                        />
+                        Show archived
+                    </label>
+                    <Separator orientation="vertical" className="h-6" />
                     <span className="text-sm text-muted-foreground">
                         {selectedCount} selected
                     </span>

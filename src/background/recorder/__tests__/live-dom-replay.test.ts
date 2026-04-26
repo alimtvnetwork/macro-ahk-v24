@@ -231,12 +231,15 @@ describe("executeReplay — persisted per-step wait bridge", () => {
         // + actual elapsed ms — the four fields the user asked us to
         // expose in the failure UI.
         expect(r.Error).toMatch(/WaitFor selector '#never' \(Kind=Css\)/);
-        expect(r.Error).toMatch(/did not appear within 30 ms/);
+        // Storage clamps TimeoutMs to ≥250 ms (see step-wait.ts), so
+        // the surfaced number reflects the clamped value, not the raw
+        // input — that's the value the runner actually waited on.
+        expect(r.Error).toMatch(/did not appear within 250 ms/);
         expect(r.Error).toMatch(/elapsed \d+ ms/);
         // Structured FailureReport drives the FailureDetailsPanel banner.
         const report = r.FailureReport!;
         expect(report.Reason).toBe("Timeout");
-        expect(report.ReasonDetail).toMatch(/'#never'.*Kind=Css.*30 ms/s);
+        expect(report.ReasonDetail).toMatch(/'#never'.*Kind=Css.*250 ms/s);
         expect(report.ReasonDetail).toMatch(/elapsed \d+ ms/);
     });
 

@@ -57,6 +57,7 @@ import {
   X,
   RotateCcw,
   Zap,
+  Activity,
 } from "lucide-react";
 import type { StoredProject, StoredScript, StoredConfig } from "@/hooks/use-projects-scripts";
 import { DEFAULT_CHATBOX_XPATH } from "@/shared/defaults";
@@ -88,6 +89,7 @@ const ProjectUrlRulesEditor = lazy(() => import("./ProjectUrlRulesEditor").then(
 const ProjectFilesPanel = lazy(() => import("./ProjectFilesPanel").then(m => ({ default: m.ProjectFilesPanel })));
 const ProjectVariablesEditor = lazy(() => import("./ProjectVariablesEditor").then(m => ({ default: m.ProjectVariablesEditor })));
 const UpdaterPanel = lazy(() => import("./UpdaterPanel").then(m => ({ default: m.UpdaterPanel })));
+const RecorderVisualisationPanel = lazy(() => import("./recorder/RecorderVisualisationPanel"));
 import { exportProject } from "@/lib/project-exporter";
 
 /* ------------------------------------------------------------------ */
@@ -108,6 +110,7 @@ type ProjectTab =
   | "auth"
   | "storage"
   | "network"
+  | "recorder"
   | "diagnostics";
 
 interface Props {
@@ -151,6 +154,7 @@ const overflowTabs: Array<{ id: ProjectTab; label: string; icon: typeof FileCode
   { id: "auth", label: "Auth", icon: Key },
   { id: "storage", label: "Storage", icon: Database },
   { id: "network", label: "Network", icon: Wifi },
+  { id: "recorder", label: "Recorder", icon: Activity },
   { id: "diagnostics", label: "Diagnostics", icon: Stethoscope },
 ];
 
@@ -327,6 +331,12 @@ export function ProjectDetailView({ project, allProjects, availableScripts, avai
             <TabsContent value="network" className="mt-4" forceMount={activeTab === "network" ? true : undefined}>
               <Suspense fallback={<TabFallback />}>
                 <NetworkPanel />
+              </Suspense>
+            </TabsContent>
+
+            <TabsContent value="recorder" className="mt-4" forceMount={activeTab === "recorder" ? true : undefined}>
+              <Suspense fallback={<TabFallback />}>
+                <RecorderVisualisationPanel projectSlug={projectSlug} />
               </Suspense>
             </TabsContent>
 

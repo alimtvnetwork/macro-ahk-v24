@@ -25,6 +25,7 @@ import {
     listSteps,
     listSelectors,
     deleteStep,
+    updateStepVariableName,
     type PersistedStep,
     type PersistedSelector,
     type StepDraft,
@@ -88,6 +89,28 @@ export async function handleRecorderStepList(
 }
 
 /* ------------------------------------------------------------------ */
+/*  Selectors-for-step list                                            */
+/* ------------------------------------------------------------------ */
+
+interface SelectorsListRequest {
+    projectSlug: string;
+    stepId: number;
+}
+
+export async function handleRecorderStepSelectorsList(
+    message: MessageRequest,
+): Promise<{ selectors: ReadonlyArray<PersistedSelector> }> {
+    const req = message as unknown as SelectorsListRequest;
+    if (!req.projectSlug || typeof req.stepId !== "number") {
+        throw new Error(
+            "RECORDER_STEP_SELECTORS_LIST requires projectSlug and stepId",
+        );
+    }
+    const selectors = await listSelectors(req.projectSlug, req.stepId);
+    return { selectors };
+}
+
+/* ------------------------------------------------------------------ */
 /*  Delete                                                             */
 /* ------------------------------------------------------------------ */
 
@@ -119,4 +142,31 @@ export async function handleRecorderStepResolve(
     }
     const resolved = resolveStepSelector(selectors);
     return { resolved };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Rename (variable name change)                                      */
+/* ------------------------------------------------------------------ */
+
+interface RenameRequest {
+    projectSlug: string;
+    stepId: number;
+    newVariableName: string;
+}
+
+export async function handleRecorderStepRename(
+    message: MessageRequest,
+): Promise<{ isOk: true; step: PersistedStep }> {
+    const req = message as unknown as RenameRequest;
+    if (!req.projectSlug || typeof req.stepId !== "number" || !req.newVariableName) {
+        throw new Error(
+            "RECORDER_STEP_RENAME requires projectSlug, stepId, and newVariableName",
+        );
+    }
+    const step = await updateStepVariableName(
+        req.projectSlug,
+        req.stepId,
+        req.newVariableName,
+    );
+    return { isOk: true, step };
 }

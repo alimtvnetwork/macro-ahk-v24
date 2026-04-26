@@ -101,6 +101,8 @@ import {
     handleRecorderStepList,
     handleRecorderStepDelete,
     handleRecorderStepResolve,
+    handleRecorderStepRename,
+    handleRecorderStepSelectorsList,
 } from "./handlers/recorder-step-handler";
 
 import {
@@ -393,6 +395,8 @@ export const HANDLER_REGISTRY = new Map<MessageType, MessageHandler>([
     [MessageType.RECORDER_STEP_LIST, async (msg) => handleRecorderStepList(msg)],
     [MessageType.RECORDER_STEP_DELETE, async (msg) => handleRecorderStepDelete(msg)],
     [MessageType.RECORDER_STEP_RESOLVE, async (msg) => handleRecorderStepResolve(msg)],
+    [MessageType.RECORDER_STEP_RENAME, async (msg) => handleRecorderStepRename(msg)],
+    [MessageType.RECORDER_STEP_SELECTORS_LIST, async (msg) => handleRecorderStepSelectorsList(msg)],
     [MessageType.USER_SCRIPT_ERROR, async (msg) => handleUserScriptError(msg)],
     [MessageType.USER_SCRIPT_LOG, async (msg) => handleUserScriptLog(msg)],
     [MessageType.USER_SCRIPT_DATA_SET, async (msg) => handleDataSet(msg)],

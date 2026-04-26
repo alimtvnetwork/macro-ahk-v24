@@ -4,6 +4,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import Popup from "./pages/Popup";
 import Options from "./pages/Options";
 import Index from "./pages/Index";
+import StepGroupsList from "./pages/StepGroupsList";
 import NotFound from "./pages/NotFound";
 
 export default function App() {
@@ -14,6 +15,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Options />} />
             <Route path="/step-groups" element={<Index />} />
+            <Route path="/step-groups/list" element={<StepGroupsList />} />
             <Route path="/popup" element={<Popup />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
@@ -22,3 +24,4 @@ export default function App() {
     </ThemeProvider>
   );
 }
+

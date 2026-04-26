@@ -674,6 +674,20 @@ export default function StepGroupListPanel() {
                 </Card>
             </div>
 
+            {/* ---------- Export dialogs (preview + structured error) ---------- */}
+            <ExportPreviewDialog
+                open={exportApi.previewState.Open}
+                onOpenChange={exportApi.setPreviewOpen}
+                preview={exportApi.previewState.Preview}
+                includeDescendants={exportApi.previewState.Pending?.IncludeDescendants ?? true}
+                onConfirm={() => { void exportApi.confirmExport(); }}
+            />
+            <ExportErrorDialog
+                open={exportApi.errorState.Open}
+                onOpenChange={exportApi.setErrorOpen}
+                explanation={exportApi.errorState.Explanation}
+            />
+
             {/* ---------- Create dialog ---------- */}
             <Dialog
                 open={createDialog.open}

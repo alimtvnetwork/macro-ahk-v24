@@ -72,9 +72,23 @@ function rowKey(r: FailureReport, idx: number): string {
     return `${r.Timestamp}#${r.StepId ?? "noid"}#${idx}`;
 }
 
+const STEP_OPTION_NULL = "__null_step__";
+
 export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureReportsPanelProps) {
     const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
     const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+    const [pickedStep, setPickedStep] = useState<string | null>(null);
+
+    const stepOptions = useMemo(() => listStepFailureOptions(reports), [reports]);
+
+    // Reset / auto-clear the picker when the option list shrinks below the current pick.
+    const validPickedStep = useMemo(() => {
+        if (pickedStep === null) return null;
+        const exists = stepOptions.some(
+            (o) => (o.StepId === null ? STEP_OPTION_NULL : String(o.StepId)) === pickedStep,
+        );
+        return exists ? pickedStep : null;
+    }, [pickedStep, stepOptions]);
 
     const allKeys = useMemo(() => reports.map((r, i) => rowKey(r, i)), [reports]);
     const allSelected = selected.size > 0 && selected.size === reports.length;

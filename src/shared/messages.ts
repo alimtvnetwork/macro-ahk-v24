@@ -468,6 +468,10 @@ export type MessageRequest =
     | { type: MessageType.RECORDER_STEP_RESOLVE; projectSlug: string; stepId: number }
     | { type: MessageType.RECORDER_STEP_RENAME; projectSlug: string; stepId: number; newVariableName: string }
     | { type: MessageType.RECORDER_STEP_SELECTORS_LIST; projectSlug: string; stepId: number }
+    | { type: MessageType.RECORDER_JS_SNIPPET_UPSERT; projectSlug: string; draft: Record<string, JsonValue> }
+    | { type: MessageType.RECORDER_JS_SNIPPET_LIST; projectSlug: string }
+    | { type: MessageType.RECORDER_JS_SNIPPET_DELETE; projectSlug: string; jsSnippetId: number }
+    | { type: MessageType.RECORDER_JS_STEP_DRYRUN; body: string; context: Record<string, JsonValue> }
     | { type: MessageType.USER_SCRIPT_ERROR; scriptId: string; message: string; stack: string; scriptCode?: string; projectId?: string }
     | { type: MessageType.GET_NETWORK_REQUESTS }
     | { type: MessageType.GET_NETWORK_STATS }

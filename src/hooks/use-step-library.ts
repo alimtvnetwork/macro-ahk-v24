@@ -254,6 +254,27 @@ export function useStepLibrary(): UseStepLibraryApi {
         persist();
     }, [lib, project, persist]);
 
+    const setGroupInput = useCallback<UseStepLibraryApi["setGroupInput"]>((id, bag) => {
+        writeGroupInput(id, bag);
+        // Snapshot the bag with a defensive copy so a consumer who
+        // mutates the value after the call cannot rewrite our state.
+        setGroupInputs((prev) => {
+            const next = new Map(prev);
+            next.set(id, bag);
+            return next;
+        });
+    }, []);
+
+    const clearGroupInput = useCallback<UseStepLibraryApi["clearGroupInput"]>((id) => {
+        clearGroupInputStorage(id);
+        setGroupInputs((prev) => {
+            if (!prev.has(id)) return prev;
+            const next = new Map(prev);
+            next.delete(id);
+            return next;
+        });
+    }, []);
+
     const resetAll = useCallback(() => {
         try {
             localStorage.removeItem(STORAGE_KEY);
@@ -273,6 +294,7 @@ export function useStepLibrary(): UseStepLibraryApi {
         Project: project,
         Groups: groups,
         StepsByGroup: stepsByGroup,
+        GroupInputs: groupInputs,
         refresh,
         createGroup,
         renameGroup,
@@ -280,8 +302,10 @@ export function useStepLibrary(): UseStepLibraryApi {
         moveGroupWithinParent,
         reorderSiblings,
         setGroupArchived,
+        setGroupInput,
+        clearGroupInput,
         resetAll,
-    }), [loading, error, sql, lib, project, groups, stepsByGroup, refresh, createGroup, renameGroup, deleteGroup, moveGroupWithinParent, reorderSiblings, setGroupArchived, resetAll]);
+    }), [loading, error, sql, lib, project, groups, stepsByGroup, groupInputs, refresh, createGroup, renameGroup, deleteGroup, moveGroupWithinParent, reorderSiblings, setGroupArchived, setGroupInput, clearGroupInput, resetAll]);
 }
 
 /* ------------------------------------------------------------------ */

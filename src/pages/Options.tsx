@@ -554,3 +554,61 @@ const OptionsPage = () => {
 };
 
 export default OptionsPage;
+
+/* ------------------------------------------------------------------ */
+/*  Step Groups section                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Wrapper that hosts both Step-Group browsers (tree + list) inside the
+ * Options shell. A small toggle at the top swaps between them without
+ * leaving the page, so the panels keep all their existing toolbar +
+ * dialog behaviour while sitting inside the real sidebar layout.
+ */
+function StepGroupsSection(props: {
+  view: "tree" | "list";
+  onViewChange: (view: "tree" | "list") => void;
+}) {
+  const { view, onViewChange } = props;
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold tracking-tight">Step Groups</h2>
+          <p className="text-xs text-muted-foreground">
+            Browse, edit, import and export step-group bundles for the current project.
+          </p>
+        </div>
+        <div className="inline-flex rounded-md border border-border p-0.5 text-xs">
+          <button
+            type="button"
+            onClick={() => onViewChange("tree")}
+            className={`rounded px-3 py-1 transition-colors ${
+              view === "tree"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            aria-pressed={view === "tree"}
+          >
+            Tree
+          </button>
+          <button
+            type="button"
+            onClick={() => onViewChange("list")}
+            className={`rounded px-3 py-1 transition-colors ${
+              view === "list"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            aria-pressed={view === "list"}
+          >
+            List
+          </button>
+        </div>
+      </div>
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        {view === "tree" ? <StepGroupLibraryPanel /> : <StepGroupListPanel />}
+      </div>
+    </div>
+  );
+}

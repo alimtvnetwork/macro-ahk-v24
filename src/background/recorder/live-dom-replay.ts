@@ -33,6 +33,7 @@ import {
 } from "./replay-run-persistence";
 import {
     logFailure,
+    type FailureReasonCode,
     type FailureReport,
 } from "./failure-logger";
 import { evaluateAllSelectors } from "./selector-attempt-evaluator";

@@ -92,6 +92,12 @@ export interface UseStepLibraryState {
     readonly Project: ProjectRow | null;
     readonly Groups: ReadonlyArray<StepGroupRow>;
     readonly StepsByGroup: ReadonlyMap<number, ReadonlyArray<StepRow>>;
+    /**
+     * Per-StepGroup input variable bags. Empty Map until a user
+     * applies one via the GroupInputsDialog. Persisted to a sibling
+     * `localStorage` key — see `group-inputs.ts`.
+     */
+    readonly GroupInputs: GroupInputsMap;
 }
 
 export interface UseStepLibraryApi extends UseStepLibraryState {

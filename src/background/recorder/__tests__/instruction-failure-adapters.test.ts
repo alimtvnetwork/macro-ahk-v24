@@ -941,19 +941,22 @@ describe("Mixed-family bundle (UrlTabClick + ConditionTimeout + InvalidSelector)
         );
         expect(reports.map((r) => r.Index)).toEqual([0, 1, 2, 3, 4, 5, 6]);
         expect(reports.map((r) => r.Reason)).toEqual([
-            "Timeout",            // UrlTabClickTimeout      → Timeout
-            "UrlPatternMismatch", // explicit reason code
-            "SelectorNotFound",   // explicit reason code
-            "Timeout",            // Gate ConditionTimeout    → Timeout
-            "Timeout",            // ConditionStep timeout    → Timeout
-            "XPathSyntaxError",   // bad XPath
-            "CssSyntaxError",     // bad CSS
+            "Timeout",            // UrlTabClickTimeout         → Timeout
+            "Unknown",            // UrlPatternMismatch         → Unknown (per adapter contract)
+            "Unknown",            // SelectorNotFound           → Unknown (per adapter contract)
+            "Timeout",            // Gate ConditionTimeout      → Timeout
+            "Timeout",            // ConditionStep timeout      → Timeout
+            "XPathSyntaxError",   // bad XPath                  → XPathSyntaxError
+            "CssSyntaxError",     // bad CSS                    → CssSyntaxError
         ]);
 
-        // (5) All three families AND every targeted Reason are represented.
+        // (5) All three families AND every targeted Reason are represented in
+        //     the rendered ReasonDetail strings (the canonical reason codes
+        //     live in ReasonDetail even when Reason itself maps to Unknown).
         const detailBlob = reports.map((r) => r.ReasonDetail).join("\n---\n");
         expect(detailBlob).toContain("UrlTabClickTimeout");
         expect(detailBlob).toContain("UrlPatternMismatch");
+        expect(detailBlob).toContain("SelectorNotFound");
         expect(detailBlob).toContain("ConditionTimeout");
         expect(detailBlob).toContain("InvalidSelector");
         expect(detailBlob).toContain("Source=Gate");
@@ -961,20 +964,13 @@ describe("Mixed-family bundle (UrlTabClick + ConditionTimeout + InvalidSelector)
         expect(detailBlob).toContain("Kind=XPath");
         expect(detailBlob).toContain("Kind=Css");
 
-        // SourceFile fans out across all three modules — catches a regression
-        // where the wrong adapter would silently win.
+        // SourceFile fans out across every adapter — catches a regression
+        // where one adapter would silently win and stamp every report.
         const sourceFiles = new Set(reports.map((r) => r.SourceFile));
         expect(sourceFiles.has("src/background/recorder/condition-evaluator.ts")).toBe(true);
-        expect(
-            [...sourceFiles].some((f) => f.includes("url-tab-click")
-                || f.includes("urlTabClick")
-                || f.includes("UrlTabClick")
-                || f.includes("url_tab_click")
-                || f.includes("instruction-failure-adapters"))
-            // We don't pin the exact UrlTabClick path here (it varies by
-            // adapter version); we only assert the set spans >1 module.
-            || sourceFiles.size > 1,
-        ).toBe(true);
-        expect(sourceFiles.size).toBeGreaterThan(1);
+        expect(sourceFiles.has("src/background/recorder/url-tab-click.ts")).toBe(true);
+        // 3 families touched ⇒ ≥2 distinct SourceFiles (XPath/CSS predicate
+        // wrapper reuses the condition-evaluator path).
+        expect(sourceFiles.size).toBeGreaterThanOrEqual(2);
     });
 });

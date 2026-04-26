@@ -178,7 +178,10 @@ All critical AHK features implemented. 44 issue write-ups documented. 26 enginee
 
 > **Source of truth**: `mem://standards/verbose-logging-and-failure-diagnostics`, `mem://standards/error-logging-requirements`, `mem://constraints/file-path-error-logging-code-red.md`, `mem://standards/error-logging-via-namespace-logger.md`.
 > **Build-time guard**: `scripts/check-failure-log-schema.mjs` (wired into `build:extension`) — fails the build if any new `logFailure()`/`buildFailureReport()` callsite omits `SourceFile`/`Phase`/`Error` or constructs a `FailureReport` literal directly.
-> **Runtime fixtures**: `src/background/recorder/__tests__/__fixtures__/failure-report-fixtures.ts` + `failure-report-fixtures.test.ts` (48 tests) pin the required-field schema and verbose vs non-verbose payload contract.
+> **Runtime fixtures**: `src/background/recorder/__tests__/__fixtures__/failure-report-fixtures.ts` + `failure-report-fixtures.test.ts` (56 tests, 5 scenarios — Replay zero-matches, primary drift, variable missing, Record no-target, JS-inline threw) pin the required-field schema and verbose vs non-verbose payload contract.
+> **Subsystem coverage attested**:
+> - **Recorder/Replay DOM steps** — `failure-logger.ts` + fixtures.
+> - **JS-inline steps (StepKindId 4)** — `js-step-diagnostics.ts` (`buildJsStepFailureReport`, `runJsStepWithDiagnostics`) emits `Reason: "JsThrew"`, `Variables` with every `Vars`/`Row` key (sensitive masked), and captured `LogLines` as `JsLog` rows. Tests in `__tests__/js-step-diagnostics.test.ts` (18 tests).
 
 These rules apply to **every** future feature that emits a failure log, captures DOM context, or runs a recorder/replay step. Treat them like lint rules — a PR that violates any of them is incomplete.
 

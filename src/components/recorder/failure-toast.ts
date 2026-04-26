@@ -38,21 +38,50 @@ export async function copyFailureReportToClipboard(
     }
 }
 
-export function showFailureToast(report: FailureReport): string | number {
+export interface ShowFailureToastOpts {
+    /**
+     * Optional re-run handler. When supplied, the toast renders a primary
+     * "Retry step" action; "Copy report" stays available via the cancel
+     * slot so both choices are reachable. Sonner only renders the cancel
+     * button when both `action` and `cancel` are set.
+     */
+    readonly OnRetry?: () => void | Promise<void>;
+}
+
+export function showFailureToast(
+    report: FailureReport,
+    opts: ShowFailureToastOpts = {},
+): string | number {
     const where = report.StepId !== null
         ? `Step #${report.StepId}${report.StepKind !== null ? ` (${report.StepKind})` : ""}`
         : `${report.Phase} failure`;
+
+    const copyAction = {
+        label: "Copy report",
+        onClick: () => {
+            void copyFailureReportToClipboard(report).then((ok) => {
+                if (ok) { toast.success("Failure report copied to clipboard"); }
+                else    { toast.error("Clipboard unavailable — see DevTools console"); }
+            });
+        },
+    };
+
+    if (opts.OnRetry === undefined) {
+        return toast.error(`${where}: ${report.Message}`, {
+            description: `Phase: ${report.Phase} · ${report.Timestamp}`,
+            duration: 12000,
+            action: copyAction,
+        });
+    }
+
+    const onRetry = opts.OnRetry;
     return toast.error(`${where}: ${report.Message}`, {
         description: `Phase: ${report.Phase} · ${report.Timestamp}`,
         duration: 12000,
         action: {
-            label: "Copy report",
-            onClick: () => {
-                void copyFailureReportToClipboard(report).then((ok) => {
-                    if (ok) { toast.success("Failure report copied to clipboard"); }
-                    else    { toast.error("Clipboard unavailable — see DevTools console"); }
-                });
-            },
+            label: "Retry step",
+            onClick: () => { void onRetry(); },
         },
+        cancel: copyAction,
     });
 }

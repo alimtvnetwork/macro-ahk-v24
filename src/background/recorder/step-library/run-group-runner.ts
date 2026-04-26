@@ -510,3 +510,313 @@ function synthesizeFailureReport(step: StepRow, error: unknown, startedAt: Date)
         FormSnapshot: null,
     };
 }
+
+/* ================================================================== */
+/*  Static expansion (RunGroup → linear plan)                          */
+/* ================================================================== */
+
+/**
+ * One leaf step in the flattened execution plan produced by
+ * `expandRunGroups`. RunGroup steps NEVER appear here — they are
+ * dereferenced into the steps they invoke. The `GroupPath` records
+ * the call-stack of group names at expansion time so a UI can render
+ * "Login → Submit Order → Type 'email'" without re-walking the tree.
+ */
+export interface ExpandedStep {
+    readonly Step: StepRow;
+    readonly GroupPath: ReadonlyArray<string>;
+    readonly CallStackGroupIds: ReadonlyArray<number>;
+    /** Position in the flattened plan, 0-based. */
+    readonly PlanIndex: number;
+}
+
+export interface ExpansionSuccess {
+    readonly Ok: true;
+    readonly Steps: ReadonlyArray<ExpandedStep>;
+    readonly GroupsVisited: number;
+    readonly DisabledSkipped: number;
+}
+
+export interface ExpansionFailure {
+    readonly Ok: false;
+    readonly Reason: Exclude<RunGroupFailureReason, "LeafStepFailed">;
+    readonly ReasonDetail: string;
+    readonly FailedStepId: number | null;
+    readonly FailedGroupId: number | null;
+    readonly CallStack: ReadonlyArray<string>;
+    /** Steps successfully expanded before the failure was hit. */
+    readonly PartialSteps: ReadonlyArray<ExpandedStep>;
+}
+
+export type ExpansionResult = ExpansionSuccess | ExpansionFailure;
+
+export interface ExpandOptions {
+    readonly db: StepLibraryDb;
+    readonly projectId: number;
+    readonly rootGroupId: number;
+    /**
+     * When `true` (default), disabled steps are dropped from the plan.
+     * When `false`, they remain in the plan with their `IsDisabled`
+     * flag intact so a previewer can render them greyed-out.
+     */
+    readonly skipDisabled?: boolean;
+}
+
+/**
+ * Pure resolver: walk a group tree, dereference every RunGroup step,
+ * and return a linear plan. Shares the SAME safety guards as
+ * `runGroup` (cycle, depth, missing target, cross-project) so a
+ * preview cannot show a plan that the runner would refuse to execute.
+ */
+export function expandRunGroups(opts: ExpandOptions): ExpansionResult {
+    const skipDisabled = opts.skipDisabled !== false;
+    const plan: ExpandedStep[] = [];
+    let groupsVisited = 0;
+    let disabledSkipped = 0;
+
+    const root = findGroup(opts.db, opts.rootGroupId);
+    if (root === null) {
+        return {
+            Ok: false,
+            Reason: "MissingRootGroup",
+            ReasonDetail:
+                `expandRunGroups: rootGroupId=${opts.rootGroupId} not found in StepGroup. ` +
+                `Cannot build an execution plan for a group that does not exist.`,
+            FailedStepId: null,
+            FailedGroupId: opts.rootGroupId,
+            CallStack: [],
+            PartialSteps: plan,
+        };
+    }
+    if (root.ProjectId !== opts.projectId) {
+        return {
+            Ok: false,
+            Reason: "TargetNotInProject",
+            ReasonDetail:
+                `expandRunGroups: rootGroupId=${opts.rootGroupId} belongs to ProjectId=${root.ProjectId}, ` +
+                `not the requested ProjectId=${opts.projectId}.`,
+            FailedStepId: null,
+            FailedGroupId: opts.rootGroupId,
+            CallStack: [],
+            PartialSteps: plan,
+        };
+    }
+
+    const failure = walkForExpansion({
+        db: opts.db,
+        projectId: opts.projectId,
+        group: root,
+        callStackIds: [],
+        callStackNames: [],
+        plan,
+        skipDisabled,
+        onGroupEnter: () => { groupsVisited++; },
+        onDisabledSkipped: () => { disabledSkipped++; },
+    });
+
+    if (failure !== null) return failure;
+
+    return { Ok: true, Steps: plan, GroupsVisited: groupsVisited, DisabledSkipped: disabledSkipped };
+}
+
+interface ExpansionFrame {
+    readonly db: StepLibraryDb;
+    readonly projectId: number;
+    readonly group: StepGroupRow;
+    readonly callStackIds: ReadonlyArray<number>;
+    readonly callStackNames: ReadonlyArray<string>;
+    readonly plan: ExpandedStep[];
+    readonly skipDisabled: boolean;
+    readonly onGroupEnter: () => void;
+    readonly onDisabledSkipped: () => void;
+}
+
+function walkForExpansion(frame: ExpansionFrame): ExpansionFailure | null {
+    const newStackIds = [...frame.callStackIds, frame.group.StepGroupId];
+    const newStackNames = [...frame.callStackNames, frame.group.Name];
+    frame.onGroupEnter();
+
+    for (const step of frame.db.listSteps(frame.group.StepGroupId)) {
+        if (step.IsDisabled && frame.skipDisabled) {
+            frame.onDisabledSkipped();
+            continue;
+        }
+
+        if (step.StepKindId !== StepKindId.RunGroup) {
+            frame.plan.push({
+                Step: step,
+                GroupPath: newStackNames,
+                CallStackGroupIds: newStackIds,
+                PlanIndex: frame.plan.length,
+            });
+            continue;
+        }
+
+        const guard = validateRunGroupTarget(frame, step, newStackIds, newStackNames);
+        if (guard !== null) return guard;
+
+        const target = findGroup(frame.db, step.TargetStepGroupId as number);
+        if (target === null) {
+            return {
+                Ok: false,
+                Reason: "MissingTargetGroup",
+                ReasonDetail: `Internal: target vanished between validation and recursion (StepId=${step.StepId})`,
+                FailedStepId: step.StepId,
+                FailedGroupId: frame.group.StepGroupId,
+                CallStack: newStackNames,
+                PartialSteps: frame.plan,
+            };
+        }
+
+        const nested = walkForExpansion({
+            ...frame,
+            group: target,
+            callStackIds: newStackIds,
+            callStackNames: newStackNames,
+        });
+        if (nested !== null) return nested;
+    }
+
+    return null;
+}
+
+function validateRunGroupTarget(
+    frame: ExpansionFrame,
+    step: StepRow,
+    stackIds: ReadonlyArray<number>,
+    stackNames: ReadonlyArray<string>,
+): ExpansionFailure | null {
+    if (step.TargetStepGroupId === null) {
+        return {
+            Ok: false,
+            Reason: "MissingTargetGroup",
+            ReasonDetail:
+                `Step ${step.StepId} (kind=RunGroup) has TargetStepGroupId=NULL. Re-link or remove.`,
+            FailedStepId: step.StepId,
+            FailedGroupId: frame.group.StepGroupId,
+            CallStack: stackNames,
+            PartialSteps: frame.plan,
+        };
+    }
+    const target = findGroup(frame.db, step.TargetStepGroupId);
+    if (target === null) {
+        return {
+            Ok: false,
+            Reason: "MissingTargetGroup",
+            ReasonDetail:
+                `Step ${step.StepId} targets StepGroupId=${step.TargetStepGroupId} but no such group exists.`,
+            FailedStepId: step.StepId,
+            FailedGroupId: frame.group.StepGroupId,
+            CallStack: stackNames,
+            PartialSteps: frame.plan,
+        };
+    }
+    if (target.ProjectId !== frame.projectId) {
+        return {
+            Ok: false,
+            Reason: "TargetNotInProject",
+            ReasonDetail:
+                `Step ${step.StepId} targets group "${target.Name}" in ProjectId=${target.ProjectId}; ` +
+                `expansion is bound to ProjectId=${frame.projectId}.`,
+            FailedStepId: step.StepId,
+            FailedGroupId: frame.group.StepGroupId,
+            CallStack: stackNames,
+            PartialSteps: frame.plan,
+        };
+    }
+    if (stackIds.includes(target.StepGroupId)) {
+        const cycle = [...stackNames, target.Name].join(" → ");
+        return {
+            Ok: false,
+            Reason: "RunGroupCycle",
+            ReasonDetail: `RunGroup cycle detected during expansion: ${cycle}`,
+            FailedStepId: step.StepId,
+            FailedGroupId: frame.group.StepGroupId,
+            CallStack: stackNames,
+            PartialSteps: frame.plan,
+        };
+    }
+    if (stackIds.length + 1 > MAX_RUN_GROUP_CALL_DEPTH) {
+        return {
+            Ok: false,
+            Reason: "RunGroupDepthExceeded",
+            ReasonDetail:
+                `Expansion would reach depth ${stackIds.length + 1}, exceeding ` +
+                `MAX_RUN_GROUP_CALL_DEPTH=${MAX_RUN_GROUP_CALL_DEPTH}.`,
+            FailedStepId: step.StepId,
+            FailedGroupId: frame.group.StepGroupId,
+            CallStack: stackNames,
+            PartialSteps: frame.plan,
+        };
+    }
+    return null;
+}
+
+/* ================================================================== */
+/*  Uniform FailureReport entrypoint                                   */
+/* ================================================================== */
+
+export interface ExecuteRunGroupSuccess {
+    readonly Ok: true;
+    readonly Result: RunGroupSuccess;
+}
+
+export interface ExecuteRunGroupFailure {
+    readonly Ok: false;
+    readonly Result: RunGroupFailure;
+    /** Canonical FailureReport — synthesized for runner-level failures. */
+    readonly FailureReport: FailureReport;
+}
+
+export type ExecuteRunGroupOutcome = ExecuteRunGroupSuccess | ExecuteRunGroupFailure;
+
+/**
+ * Production entrypoint. Wraps `runGroup` and guarantees that every
+ * failure path produces a `FailureReport` with the canonical schema —
+ * runner-level failures (cycle, depth, missing target, missing root,
+ * cross-project) are mapped to synthesized reports tagged with
+ * `Reason: "Unknown"` (the failure-logger enum has no dedicated codes
+ * for graph-level errors) and a `ReasonDetail` that names the
+ * specific runner reason for AI/log consumers.
+ *
+ * Use this from background callers; reach for raw `runGroup` only
+ * when you need the discriminated `RunGroupFailure` for trace UIs.
+ */
+export async function executeRunGroup(opts: RunGroupOptions): Promise<ExecuteRunGroupOutcome> {
+    const result = await runGroup(opts);
+    if (result.Ok) return { Ok: true, Result: result };
+
+    const report: FailureReport =
+        result.FailureReport ?? buildRunnerLevelFailureReport(result, opts);
+
+    return { Ok: false, Result: result, FailureReport: report };
+}
+
+function buildRunnerLevelFailureReport(
+    failure: RunGroupFailure,
+    opts: RunGroupOptions,
+): FailureReport {
+    const now = (opts.now ?? defaultNow)();
+    return {
+        Phase: "Replay",
+        Message: `RunGroup failed: ${failure.Reason}`,
+        Reason: "Unknown",
+        ReasonDetail:
+            `RunnerReason=${failure.Reason}. ${failure.ReasonDetail} ` +
+            `CallStack=[${failure.CallStack.join(" → ")}]`,
+        StackTrace: null,
+        StepId: failure.FailedStepId,
+        Index: null,
+        StepKind: failure.FailedStepId === null ? null : "RunGroup",
+        Selectors: [],
+        Variables: [],
+        DomContext: null,
+        DataRow: null,
+        ResolvedXPath: null,
+        Timestamp: now.toISOString(),
+        SourceFile: "src/background/recorder/step-library/run-group-runner.ts",
+        Verbose: false,
+        CapturedHtml: null,
+        FormSnapshot: null,
+    };
+}

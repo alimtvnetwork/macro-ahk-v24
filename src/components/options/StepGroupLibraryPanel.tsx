@@ -98,6 +98,11 @@ import BundleExchangePanel, {
 } from "./BundleExchangePanel";
 import ImportErrorDialog from "./ImportErrorDialog";
 import ExportPreviewDialog from "./ExportPreviewDialog";
+import ExportErrorDialog from "./ExportErrorDialog";
+import {
+    explainExportFailure,
+    type ExportErrorExplanation,
+} from "@/background/recorder/step-library/export-error-explainer";
 import { GroupInputsDialog } from "./GroupInputsDialog";
 import { CsvInputDialog } from "./CsvInputDialog";
 import WebhookSettingsDialog from "./WebhookSettingsDialog";

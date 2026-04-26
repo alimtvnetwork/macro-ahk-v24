@@ -828,6 +828,8 @@ interface TreeNodeRowProps {
     readonly onExportThis: (id: number) => void;
     readonly onMove: (id: number, direction: "up" | "down") => void;
     readonly onArchiveToggle: (g: StepGroupRow) => void;
+    readonly onApplyInputs: (g: StepGroupRow) => void;
+    readonly hasInputs: (id: number) => boolean;
     readonly onDropReorder: (parentId: number | null, sourceId: number, targetId: number) => void;
 }
 

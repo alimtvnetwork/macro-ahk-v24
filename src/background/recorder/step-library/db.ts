@@ -342,6 +342,45 @@ export class StepLibraryDb {
     }
 
     /**
+     * Edit a single step in place. The (StepKindId, TargetStepGroupId)
+     * invariant from `appendStep` applies here too: RunGroup steps
+     * require a target, every other kind must have target=null.
+     * `OrderIndex` is preserved — use `reorderSteps` to move a step.
+     */
+    updateStep(input: {
+        StepId: number;
+        StepKindId: StepKindId;
+        Label?: string | null;
+        PayloadJson?: string | null;
+        TargetStepGroupId?: number | null;
+    }): void {
+        const isRunGroup = input.StepKindId === StepKindId.RunGroup;
+        if (isRunGroup && (input.TargetStepGroupId === undefined || input.TargetStepGroupId === null)) {
+            throw new Error(
+                "updateStep: StepKind=RunGroup requires TargetStepGroupId.",
+            );
+        }
+        if (!isRunGroup && input.TargetStepGroupId !== undefined && input.TargetStepGroupId !== null) {
+            throw new Error(
+                "updateStep: TargetStepGroupId is only valid when StepKind=RunGroup.",
+            );
+        }
+        this.exec(
+            `UPDATE Step
+             SET StepKindId = ?, Label = ?, PayloadJson = ?, TargetStepGroupId = ?,
+                 UpdatedAt = datetime('now')
+             WHERE StepId = ?;`,
+            [
+                input.StepKindId,
+                input.Label ?? null,
+                input.PayloadJson ?? null,
+                input.TargetStepGroupId ?? null,
+                input.StepId,
+            ],
+        );
+    }
+
+    /**
      * Toggle the `IsDisabled` flag on a single step. The runner's
      * expansion phase (`expandRunGroups`) drops disabled steps from
      * the plan when `skipDisabled` is left at its default `true`, so

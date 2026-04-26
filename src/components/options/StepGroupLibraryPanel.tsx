@@ -30,6 +30,8 @@ import { toast } from "sonner";
 import {
     Archive,
     ArchiveRestore,
+    ArrowDown,
+    ArrowUp,
     ChevronDown,
     ChevronRight,
     ChevronUp,
@@ -107,6 +109,7 @@ import BundleExchangePanel, {
 } from "./BundleExchangePanel";
 import ImportErrorDialog from "./ImportErrorDialog";
 import ExportPreviewDialog from "./ExportPreviewDialog";
+import StepEditorDialog, { type StepEditorMode } from "./StepEditorDialog";
 
 import ExportErrorDialog from "./ExportErrorDialog";
 import StepLibraryErrorState from "./StepLibraryErrorState";
@@ -283,6 +286,17 @@ export default function StepGroupLibraryPanel() {
      */
     const [csvDialog, setCsvDialog] = useState<{ open: boolean; group: StepGroupRow | null }>({
         open: false, group: null,
+    });
+    /**
+     * Step editor dialog state. `Mode` carries either the parent
+     * group id (create) or the existing step row (edit). The dialog
+     * resets its form whenever this changes — see StepEditorDialog.
+     */
+    const [stepEditor, setStepEditor] = useState<{ open: boolean; mode: StepEditorMode | null }>({
+        open: false, mode: null,
+    });
+    const [deleteStepDialog, setDeleteStepDialog] = useState<{ open: boolean; step: StepRow | null }>({
+        open: false, step: null,
     });
 
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -558,6 +572,62 @@ export default function StepGroupLibraryPanel() {
             toast.success(next ? `Archived “${group.Name}”` : `Restored “${group.Name}”`);
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "Archive failed");
+        }
+    };
+
+    /* ------------------------ Step handlers ------------------------ */
+
+    const handleStepEditorSubmit = (input: {
+        StepKindId: StepKindId;
+        Label: string | null;
+        PayloadJson: string | null;
+        TargetStepGroupId: number | null;
+    }): void => {
+        const mode = stepEditor.mode;
+        if (mode === null) return;
+        try {
+            if (mode.Kind === "create") {
+                lib.appendStep({
+                    StepGroupId: mode.StepGroupId,
+                    StepKindId: input.StepKindId,
+                    Label: input.Label,
+                    PayloadJson: input.PayloadJson,
+                    TargetStepGroupId: input.TargetStepGroupId,
+                });
+                toast.success("Step added");
+            } else {
+                lib.updateStep({
+                    StepId: mode.Step.StepId,
+                    StepKindId: input.StepKindId,
+                    Label: input.Label,
+                    PayloadJson: input.PayloadJson,
+                    TargetStepGroupId: input.TargetStepGroupId,
+                });
+                toast.success("Step updated");
+            }
+            setStepEditor({ open: false, mode: null });
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Save failed");
+        }
+    };
+
+    const handleStepMove = (stepId: number, direction: "up" | "down"): void => {
+        try {
+            lib.moveStepWithinGroup(stepId, direction);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Move failed");
+        }
+    };
+
+    const handleStepDeleteConfirm = (): void => {
+        const target = deleteStepDialog.step;
+        if (target === null) return;
+        try {
+            lib.deleteStep(target.StepId);
+            toast.success(`Deleted step “${target.Label ?? target.StepId}”`);
+            setDeleteStepDialog({ open: false, step: null });
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Delete failed");
         }
     };
 
@@ -1002,6 +1072,19 @@ export default function StepGroupLibraryPanel() {
                                 CSV
                             </Button>
                             <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={activeGroup === null}
+                                onClick={() => activeGroup !== null && setStepEditor({
+                                    open: true,
+                                    mode: { Kind: "create", StepGroupId: activeGroup.StepGroupId },
+                                })}
+                                title={activeGroup === null ? "Select a group first" : "Add a new step to this group"}
+                            >
+                                <Plus className="mr-1 h-4 w-4" />
+                                Add step
+                            </Button>
+                            <Button
                                 variant="secondary"
                                 size="sm"
                                 disabled={activeGroup === null || activeSteps.length === 0}
@@ -1077,7 +1160,29 @@ export default function StepGroupLibraryPanel() {
                                                 </pre>
                                             )}
                                         </div>
-                                        <div className="flex shrink-0 items-center gap-2">
+                                        <div className="flex shrink-0 items-center gap-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7"
+                                                disabled={idx === 0}
+                                                onClick={() => handleStepMove(s.StepId, "up")}
+                                                title={idx === 0 ? "Already at the top" : "Move step up"}
+                                                aria-label="Move step up"
+                                            >
+                                                <ArrowUp className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7"
+                                                disabled={idx === activeSteps.length - 1}
+                                                onClick={() => handleStepMove(s.StepId, "down")}
+                                                title={idx === activeSteps.length - 1 ? "Already at the bottom" : "Move step down"}
+                                                aria-label="Move step down"
+                                            >
+                                                <ArrowDown className="h-4 w-4" />
+                                            </Button>
                                             <Switch
                                                 checked={!isDisabled}
                                                 onCheckedChange={(checked) => {
@@ -1099,10 +1204,30 @@ export default function StepGroupLibraryPanel() {
                                                 variant="ghost"
                                                 size="icon"
                                                 className="h-7 w-7"
+                                                onClick={() => setStepEditor({ open: true, mode: { Kind: "edit", Step: s } })}
+                                                title="Edit step"
+                                                aria-label="Edit step"
+                                            >
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7"
                                                 onClick={() => setWaitDialog({ open: true, stepId: s.StepId, stepLabel: s.Label })}
                                                 title={wait === undefined ? "Add wait condition" : "Edit wait condition"}
                                             >
                                                 <Timer className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                                onClick={() => setDeleteStepDialog({ open: true, step: s })}
+                                                title="Delete step"
+                                                aria-label="Delete step"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>
                                     </li>
@@ -1320,6 +1445,43 @@ export default function StepGroupLibraryPanel() {
                 onOpenChange={(o) => setCsvDialog((p) => ({ ...p, open: o }))}
                 onApply={(gid, bag) => lib.setGroupInput(gid, bag)}
             />
+
+            {/* ---------- Step editor (add / edit) ---------- */}
+            <StepEditorDialog
+                open={stepEditor.open}
+                mode={stepEditor.mode}
+                groups={lib.Groups}
+                onCancel={() => setStepEditor({ open: false, mode: null })}
+                onSubmit={handleStepEditorSubmit}
+            />
+
+            {/* ---------- Step delete confirmation ---------- */}
+            <AlertDialog
+                open={deleteStepDialog.open}
+                onOpenChange={(open) => setDeleteStepDialog((p) => ({ ...p, open }))}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete this step?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {deleteStepDialog.step === null
+                                ? "No step selected."
+                                : `“${deleteStepDialog.step.Label ?? `Step #${deleteStepDialog.step.StepId}`}” will be removed from this group. This cannot be undone.`}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setDeleteStepDialog({ open: false, step: null })}>
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleStepDeleteConfirm}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Delete step
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

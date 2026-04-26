@@ -225,6 +225,34 @@ export interface UseStepLibraryApi extends UseStepLibraryState {
      */
     readonly setStepDisabled: (stepId: number, disabled: boolean) => void;
     /**
+     * Append a new step to the end of a StepGroup. Returns the new
+     * StepId. Validation rules from the DB layer apply: RunGroup
+     * steps require a TargetStepGroupId; every other kind forbids it.
+     */
+    readonly appendStep: (input: {
+        StepGroupId: number;
+        StepKindId: StepKindId;
+        Label?: string | null;
+        PayloadJson?: string | null;
+        TargetStepGroupId?: number | null;
+    }) => number;
+    /** Edit a single step in place (preserves OrderIndex). */
+    readonly updateStep: (input: {
+        StepId: number;
+        StepKindId: StepKindId;
+        Label?: string | null;
+        PayloadJson?: string | null;
+        TargetStepGroupId?: number | null;
+    }) => void;
+    /** Delete a single step. */
+    readonly deleteStep: (stepId: number) => void;
+    /**
+     * Move a step up or down among its sibling steps in the same
+     * StepGroup. No-op when already at the edge — safe to call from
+     * an always-rendered button.
+     */
+    readonly moveStepWithinGroup: (stepId: number, direction: "up" | "down") => void;
+    /**
      * Replace the input variable bag for one StepGroup. The bag must
      * be a plain JSON object — see `parseGroupInputJson` in
      * `group-inputs.ts`. Persisted immediately to localStorage.
@@ -439,6 +467,55 @@ export function useStepLibrary(): UseStepLibraryApi {
         });
     }, []);
 
+    const appendStep = useCallback<UseStepLibraryApi["appendStep"]>((input) => {
+        if (lib === null || project === null) {
+            throw new Error("appendStep: library not initialised");
+        }
+        const id = lib.appendStep(input);
+        refreshFromDb(lib, project.ProjectId, setGroups, setStepsByGroup);
+        persist();
+        return id;
+    }, [lib, project, persist]);
+
+    const updateStep = useCallback<UseStepLibraryApi["updateStep"]>((input) => {
+        if (lib === null || project === null) return;
+        lib.updateStep(input);
+        refreshFromDb(lib, project.ProjectId, setGroups, setStepsByGroup);
+        persist();
+    }, [lib, project, persist]);
+
+    const deleteStep = useCallback<UseStepLibraryApi["deleteStep"]>((stepId) => {
+        if (lib === null || project === null) return;
+        lib.deleteStep(stepId);
+        refreshFromDb(lib, project.ProjectId, setGroups, setStepsByGroup);
+        persist();
+    }, [lib, project, persist]);
+
+    const moveStepWithinGroup = useCallback<UseStepLibraryApi["moveStepWithinGroup"]>((stepId, direction) => {
+        if (lib === null || project === null) return;
+        // Locate the step's group from the current snapshot — avoids
+        // a redundant DB scan and keeps the move atomic with what the
+        // user sees on screen.
+        let owningGroupId: number | null = null;
+        for (const [gid, steps] of stepsByGroup) {
+            if (steps.some((s) => s.StepId === stepId)) {
+                owningGroupId = gid;
+                break;
+            }
+        }
+        if (owningGroupId === null) return;
+        const ordered = (stepsByGroup.get(owningGroupId) ?? []).map((s) => s.StepId);
+        const idx = ordered.indexOf(stepId);
+        if (idx === -1) return;
+        const swapWith = direction === "up" ? idx - 1 : idx + 1;
+        if (swapWith < 0 || swapWith >= ordered.length) return; // already at edge
+        const next = ordered.slice();
+        [next[idx], next[swapWith]] = [next[swapWith], next[idx]];
+        lib.reorderSteps(owningGroupId, next);
+        refreshFromDb(lib, project.ProjectId, setGroups, setStepsByGroup);
+        persist();
+    }, [lib, project, stepsByGroup, persist]);
+
     const resetAll = useCallback(() => {
         try {
             localStorage.removeItem(STORAGE_KEY);
@@ -478,11 +555,15 @@ export function useStepLibrary(): UseStepLibraryApi {
         reorderSiblings,
         setGroupArchived,
         setStepDisabled,
+        appendStep,
+        updateStep,
+        deleteStep,
+        moveStepWithinGroup,
         setGroupInput,
         clearGroupInput,
         resetAll,
         retryLoad,
-    }), [loading, error, loadError, sql, lib, project, groups, stepsByGroup, groupInputs, refresh, createGroup, renameGroup, deleteGroup, moveGroupWithinParent, reorderSiblings, setGroupArchived, setStepDisabled, setGroupInput, clearGroupInput, resetAll, retryLoad]);
+    }), [loading, error, loadError, sql, lib, project, groups, stepsByGroup, groupInputs, refresh, createGroup, renameGroup, deleteGroup, moveGroupWithinParent, reorderSiblings, setGroupArchived, setStepDisabled, appendStep, updateStep, deleteStep, moveStepWithinGroup, setGroupInput, clearGroupInput, resetAll, retryLoad]);
 }
 
 /* ------------------------------------------------------------------ */

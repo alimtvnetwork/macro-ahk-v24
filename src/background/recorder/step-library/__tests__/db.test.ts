@@ -258,6 +258,47 @@ describe("Step / StepGroup CRUD", () => {
         expect(() => lib.reorderSteps(g1, [a, b])).toThrow(/does not belong/);
     });
 
+    it("updateStep edits Label, PayloadJson, and Kind in place (preserves OrderIndex)", () => {
+        const { lib, projectId } = freshDb();
+        const g = lib.createGroup({ ProjectId: projectId, ParentStepGroupId: null, Name: "g" });
+        const a = lib.appendStep({ StepGroupId: g, StepKindId: StepKindId.Click, Label: "old" });
+        lib.appendStep({ StepGroupId: g, StepKindId: StepKindId.Type });
+        const beforeOrder = lib.listSteps(g).find((s) => s.StepId === a)?.OrderIndex;
+        lib.updateStep({
+            StepId: a,
+            StepKindId: StepKindId.Type,
+            Label: "new",
+            PayloadJson: '{"Selector":"#x","Value":"y"}',
+        });
+        const row = lib.listSteps(g).find((s) => s.StepId === a)!;
+        expect(row.Label).toBe("new");
+        expect(row.StepKindId).toBe(StepKindId.Type);
+        expect(row.PayloadJson).toBe('{"Selector":"#x","Value":"y"}');
+        expect(row.OrderIndex).toBe(beforeOrder);
+    });
+
+    it("updateStep enforces RunGroup ↔ TargetStepGroupId invariant", () => {
+        const { lib, projectId } = freshDb();
+        const g = lib.createGroup({ ProjectId: projectId, ParentStepGroupId: null, Name: "g" });
+        const target = lib.createGroup({ ProjectId: projectId, ParentStepGroupId: null, Name: "t" });
+        const s = lib.appendStep({ StepGroupId: g, StepKindId: StepKindId.Click });
+        // RunGroup without target => throws
+        expect(() => lib.updateStep({
+            StepId: s, StepKindId: StepKindId.RunGroup, TargetStepGroupId: null,
+        })).toThrow(/RunGroup requires TargetStepGroupId/);
+        // Non-RunGroup with target => throws
+        expect(() => lib.updateStep({
+            StepId: s, StepKindId: StepKindId.Click, TargetStepGroupId: target,
+        })).toThrow(/only valid when StepKind=RunGroup/);
+        // Valid RunGroup edit succeeds
+        lib.updateStep({
+            StepId: s, StepKindId: StepKindId.RunGroup, TargetStepGroupId: target,
+        });
+        const row = lib.listSteps(g).find((r) => r.StepId === s)!;
+        expect(row.StepKindId).toBe(StepKindId.RunGroup);
+        expect(row.TargetStepGroupId).toBe(target);
+    });
+
     it("deleteGroup cascades to children and steps", () => {
         const { lib, projectId } = freshDb();
         const root = lib.createGroup({ ProjectId: projectId, ParentStepGroupId: null, Name: "root" });

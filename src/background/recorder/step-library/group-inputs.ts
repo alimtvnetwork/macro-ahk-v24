@@ -180,7 +180,7 @@ export function writeGroupInput(stepGroupId: number, bag: GroupInputBag): void {
 /** Removes the bag for one group (no-op when absent). */
 export function clearGroupInput(stepGroupId: number): void {
     const store = { ...safeReadStore() };
-    if (Object.hasOwn(store, String(stepGroupId))) {
+    if (Object.prototype.hasOwnProperty.call(store, String(stepGroupId))) {
         delete store[String(stepGroupId)];
         safeWriteStore(store);
     }

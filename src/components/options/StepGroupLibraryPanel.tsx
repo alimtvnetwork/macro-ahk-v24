@@ -104,6 +104,12 @@ import ExportPreviewDialog from "./ExportPreviewDialog";
 
 import ExportErrorDialog from "./ExportErrorDialog";
 import StepLibraryErrorState from "./StepLibraryErrorState";
+import BatchRenameDialog, { type BatchRenameChange } from "./BatchRenameDialog";
+import BatchDeleteDialog from "./BatchDeleteDialog";
+import {
+    buildDeletePreview,
+    useStepGroupBatchActions,
+} from "@/hooks/use-step-group-batch-actions";
 import {
     explainExportFailure,
     type ExportErrorExplanation,

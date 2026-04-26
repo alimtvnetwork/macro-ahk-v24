@@ -287,6 +287,17 @@ export default function StepGroupLibraryPanel() {
     const [csvDialog, setCsvDialog] = useState<{ open: boolean; group: StepGroupRow | null }>({
         open: false, group: null,
     });
+    /**
+     * Step editor dialog state. `Mode` carries either the parent
+     * group id (create) or the existing step row (edit). The dialog
+     * resets its form whenever this changes — see StepEditorDialog.
+     */
+    const [stepEditor, setStepEditor] = useState<{ open: boolean; mode: StepEditorMode | null }>({
+        open: false, mode: null,
+    });
+    const [deleteStepDialog, setDeleteStepDialog] = useState<{ open: boolean; step: StepRow | null }>({
+        open: false, step: null,
+    });
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 

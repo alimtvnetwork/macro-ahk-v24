@@ -679,6 +679,8 @@ export default function StepGroupLibraryPanel() {
 interface TreeNodeRowProps {
     readonly node: TreeNode;
     readonly depth: number;
+    readonly siblingIndex: number;
+    readonly siblingCount: number;
     readonly selected: ReadonlySet<number>;
     readonly expanded: ReadonlySet<number>;
     readonly activeGroupId: number | null;
@@ -690,29 +692,91 @@ interface TreeNodeRowProps {
     readonly onRename: (g: StepGroupRow) => void;
     readonly onDelete: (g: StepGroupRow) => void;
     readonly onExportThis: (id: number) => void;
+    readonly onMove: (id: number, direction: "up" | "down") => void;
+    readonly onArchiveToggle: (g: StepGroupRow) => void;
+    readonly onDropReorder: (parentId: number | null, sourceId: number, targetId: number) => void;
 }
+
+const DRAG_MIME = "application/x-marco-step-group";
 
 function TreeNodeRow(props: TreeNodeRowProps) {
     const {
-        node, depth, selected, expanded, activeGroupId,
+        node, depth, siblingIndex, siblingCount,
+        selected, expanded, activeGroupId,
         onToggleSelect, onToggleSubtree, onToggleExpanded,
         onActivate, onCreateChild, onRename, onDelete, onExportThis,
+        onMove, onArchiveToggle, onDropReorder,
     } = props;
     const id = node.Group.StepGroupId;
+    const parentId = node.Group.ParentStepGroupId ?? null;
     const hasChildren = node.Children.length > 0;
     const isOpen = expanded.has(id);
     const isActive = activeGroupId === id;
     const isChecked = selected.has(id);
+    const isArchived = node.Group.IsArchived;
+    const isFirst = siblingIndex === 0;
+    const isLast  = siblingIndex === siblingCount - 1;
+
+    const [dragOver, setDragOver] = useState(false);
+
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+        // Encode source id + parent so the drop target can validate
+        // sibling-only reorder without poking React state.
+        e.dataTransfer.setData(DRAG_MIME, JSON.stringify({ id, parentId }));
+        e.dataTransfer.effectAllowed = "move";
+    };
+
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        // Only accept drops from siblings of the SAME parent.
+        const types = Array.from(e.dataTransfer.types);
+        if (!types.includes(DRAG_MIME)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        if (!dragOver) setDragOver(true);
+    };
+
+    const handleDragLeave = () => {
+        if (dragOver) setDragOver(false);
+    };
+
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        setDragOver(false);
+        const raw = e.dataTransfer.getData(DRAG_MIME);
+        if (raw === "") return;
+        try {
+            const payload = JSON.parse(raw) as { id: number; parentId: number | null };
+            if (payload.parentId !== parentId) {
+                // Cross-parent drag — ignored intentionally; see handleDropReorder doc.
+                return;
+            }
+            if (payload.id === id) return;
+            onDropReorder(parentId, payload.id, id);
+        } catch {
+            /* malformed payload — ignore */
+        }
+    };
 
     return (
         <li>
             <div
+                draggable
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
                 className={[
-                    "group flex items-center gap-1 rounded px-2 py-1.5 text-sm",
+                    "group flex items-center gap-1 rounded px-2 py-1.5 text-sm transition-colors",
                     isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
+                    isArchived ? "opacity-50" : "",
+                    dragOver ? "ring-2 ring-primary/60" : "",
                 ].join(" ")}
                 style={{ paddingLeft: `${depth * 16 + 8}px` }}
             >
+                <GripVertical
+                    className="h-4 w-4 shrink-0 cursor-grab text-muted-foreground/40 opacity-0 group-hover:opacity-100 active:cursor-grabbing"
+                    aria-hidden="true"
+                />
                 {hasChildren ? (
                     <button
                         type="button"
@@ -727,12 +791,7 @@ function TreeNodeRow(props: TreeNodeRowProps) {
                 )}
                 <Checkbox
                     checked={isChecked}
-                    onCheckedChange={(v) => {
-                        // Shift-click could expand to subtree later — for
-                        // now plain click toggles only this row, while the
-                        // ⋯ menu offers "Select with descendants".
-                        onToggleSelect(id, v === true);
-                    }}
+                    onCheckedChange={(v) => onToggleSelect(id, v === true)}
                     aria-label={`Select ${node.Group.Name}`}
                     className="shrink-0"
                 />
@@ -743,7 +802,37 @@ function TreeNodeRow(props: TreeNodeRowProps) {
                     title={node.Group.Name}
                 >
                     {node.Group.Name}
+                    {isArchived && (
+                        <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Archived
+                        </span>
+                    )}
                 </button>
+
+                {/* Up / Down arrows — visible on hover, disabled at edges. */}
+                <div className="flex items-center opacity-0 group-hover:opacity-100">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        disabled={isFirst}
+                        onClick={() => onMove(id, "up")}
+                        aria-label={`Move ${node.Group.Name} up`}
+                    >
+                        <ChevronUp className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        disabled={isLast}
+                        onClick={() => onMove(id, "down")}
+                        aria-label={`Move ${node.Group.Name} down`}
+                    >
+                        <ChevronDownIcon className="h-3.5 w-3.5" />
+                    </Button>
+                </div>
+
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button
@@ -763,6 +852,13 @@ function TreeNodeRow(props: TreeNodeRowProps) {
                             <Pencil className="mr-2 h-4 w-4" /> Rename
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => onMove(id, "up")} disabled={isFirst}>
+                            <ChevronUp className="mr-2 h-4 w-4" /> Move up
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onMove(id, "down")} disabled={isLast}>
+                            <ChevronDownIcon className="mr-2 h-4 w-4" /> Move down
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem onSelect={() => onToggleSubtree(node, true)}>
                             Select with descendants
                         </DropdownMenuItem>
@@ -773,6 +869,13 @@ function TreeNodeRow(props: TreeNodeRowProps) {
                             <Download className="mr-2 h-4 w-4" /> Export this group
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => onArchiveToggle(node.Group)}>
+                            {isArchived ? (
+                                <><ArchiveRestore className="mr-2 h-4 w-4" /> Restore from archive</>
+                            ) : (
+                                <><Archive className="mr-2 h-4 w-4" /> Archive</>
+                            )}
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                             onSelect={() => onDelete(node.Group)}
                             className="text-destructive focus:text-destructive"
@@ -784,12 +887,14 @@ function TreeNodeRow(props: TreeNodeRowProps) {
             </div>
             {hasChildren && isOpen && (
                 <ul>
-                    {node.Children.map((child) => (
+                    {node.Children.map((child, idx) => (
                         <TreeNodeRow
                             key={child.Group.StepGroupId}
                             {...props}
                             node={child}
                             depth={depth + 1}
+                            siblingIndex={idx}
+                            siblingCount={node.Children.length}
                         />
                     ))}
                 </ul>

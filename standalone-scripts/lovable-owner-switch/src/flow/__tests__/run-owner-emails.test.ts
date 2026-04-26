@@ -3,14 +3,12 @@
  *
  * Verifies the no-rollback contract:
  *   1. Multi-owner row: owner1 promotes OK, owner2 fails →
- *      Outcome = PromoteFailedPartial, PromotedOwners[0].Promoted = true,
+ *      Failure populated, PromotedOwners[0].Promoted = true,
  *      PromotedOwners[1].Promoted = false.
  *   2. A WARN log line is emitted explicitly stating no rollback.
- *   3. Single-owner row: only owner fails → Outcome = PromoteFailed,
+ *   3. Single-owner row: only owner fails → Failure populated,
  *      PromotedOwners[0].Promoted = false (and no rollback warning,
  *      because nothing was already promoted).
- *   4. RowStateStore.update receives the full Outcome + PromotedOwners
- *      payload (the SQLite adapter binds to this exact shape).
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -18,25 +16,29 @@ import { runOwnerEmails } from "../run-owner-emails";
 import { LogPhase, LogSeverity } from "../log-sink";
 import type { LogEntry, LogSink } from "../log-sink";
 import type { RowExecutionContext } from "../row-types";
+import type { OwnerSwitchCsvRow } from "../../csv/csv-types";
 import * as runPromoteModule from "../run-promote";
 
-const buildCtx = (overrides: Partial<RowExecutionContext["Row"]> = {}): RowExecutionContext => ({
+const buildRow = (overrides: Partial<OwnerSwitchCsvRow> = {}): OwnerSwitchCsvRow => ({
+    RowIndex: 1,
+    LoginEmail: "[email protected]",
+    Password: "pw",
+    OwnerEmail1: "[email protected]",
+    OwnerEmail2: "[email protected]",
+    Notes: null,
+    ...overrides,
+});
+
+const buildCtx = (row: OwnerSwitchCsvRow): RowExecutionContext => ({
     Task: {
         TaskId: "task-1", LoginUrl: "https://lovable.dev/login",
         CommonPassword: null, UseIncognito: false,
     },
-    Row: {
-        RowIndex: 1, LoginEmail: "[email protected]", Password: "pw",
-        OwnerEmail1: "[email protected]", OwnerEmail2: "[email protected]",
-        Notes: null,
-    } as RowExecutionContext["Row"] & Partial<typeof overrides>,
+    Row: row,
     Api: {} as RowExecutionContext["Api"],
     Caches: {} as RowExecutionContext["Caches"],
     XPathOverrides: [],
-    ...{ Row: { RowIndex: 1, LoginEmail: "[email protected]", Password: "pw",
-        OwnerEmail1: "[email protected]", OwnerEmail2: "[email protected]",
-        Notes: null, ...overrides } },
-} as RowExecutionContext);
+});
 
 const collectingSink = (): { sink: LogSink; entries: LogEntry[] } => {
     const entries: LogEntry[] = [];
@@ -53,7 +55,7 @@ describe("runOwnerEmails — failure marking, no rollback", () => {
                 Outcomes: [], FailedStep: null, Error: "PUT 500 server error",
             });
 
-        const result = await runOwnerEmails(buildCtx(), sink);
+        const result = await runOwnerEmails(buildCtx(buildRow()), sink);
 
         expect(spy).toHaveBeenCalledTimes(2);
         expect(result.Failure).not.toBeNull();
@@ -76,15 +78,14 @@ describe("runOwnerEmails — failure marking, no rollback", () => {
         spy.mockRestore();
     });
 
-    it("single-owner failure: PromoteFailed, no warn log (nothing was promoted)", async () => {
+    it("single-owner failure: no warn log (nothing was promoted before)", async () => {
         const { sink, entries } = collectingSink();
         const spy = vi.spyOn(runPromoteModule, "runPromote")
             .mockResolvedValueOnce({
                 Outcomes: [], FailedStep: null, Error: "membership not found",
             });
 
-        const ctx = buildCtx({ OwnerEmail2: null });
-        const result = await runOwnerEmails(ctx, sink);
+        const result = await runOwnerEmails(buildCtx(buildRow({ OwnerEmail2: null })), sink);
 
         expect(result.Records).toHaveLength(1);
         expect(result.Records[0].Promoted).toBe(false);
@@ -101,7 +102,7 @@ describe("runOwnerEmails — failure marking, no rollback", () => {
         const spy = vi.spyOn(runPromoteModule, "runPromote")
             .mockResolvedValue({ Outcomes: [], FailedStep: null, Error: null });
 
-        const result = await runOwnerEmails(buildCtx(), sink);
+        const result = await runOwnerEmails(buildCtx(buildRow()), sink);
 
         expect(result.Failure).toBeNull();
         expect(result.Records.every((r) => r.Promoted)).toBe(true);

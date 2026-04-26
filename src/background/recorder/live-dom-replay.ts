@@ -26,6 +26,12 @@ import {
     type PersistedReplayRun,
     type ReplayStepResultDraft,
 } from "./replay-run-persistence";
+import {
+    logFailure,
+    type FailureReport,
+} from "./failure-logger";
+
+const SOURCE_FILE = "src/background/recorder/live-dom-replay.ts";
 
 export interface ReplayStepInput {
     readonly StepId: number;
@@ -69,6 +75,8 @@ export interface ReplayStepResult {
     readonly StartedAt: string;
     readonly FinishedAt: string;
     readonly DurationMs: number;
+    /** Structured failure report — populated only when `Ok === false`. */
+    readonly FailureReport?: FailureReport;
 }
 
 export interface ReplayRunOutcome {

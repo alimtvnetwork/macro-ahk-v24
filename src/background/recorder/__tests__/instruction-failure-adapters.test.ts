@@ -329,8 +329,14 @@ describe("Condition wait → FailureReport (Gate / WaitFor / ConditionStep)", ()
             StepId: 1, Index: 0, StepKind: "Wait",
             Now: FIXED_NOW,
         });
+        assertRequiredFieldsPresent(report);
         assertValidatesAsSingleReport(report);
-        expect(report.SourceFile).toContain("wait-for-element.ts");
+        // Legacy WaitFor → ConditionTimeout still maps to schema Reason=Timeout.
+        expect(report.Phase).toBe("Replay");
+        expect(report.Reason).toBe("Timeout");
+        expect(report.StepKind).toBe("Wait");
+        // Source=Wait → wait-for-element.ts (not condition-evaluator.ts).
+        expect(report.SourceFile).toBe("src/background/recorder/wait-for-element.ts");
     });
 });
 

@@ -236,3 +236,89 @@ describe("buildFailureReport — Reason classification & EvaluatedAttempts", () 
         expect(out).toContain("→ 1 match");
     });
 });
+
+describe("buildFailureReport — Variables (VariableContext)", () => {
+    it("auto-classifies VariableMissing when a variable lacks a column", () => {
+        const r = buildFailureReport({
+            Phase: "Replay", Error: new Error("x"),
+            Variables: [
+                { Name: "Email", Source: "Row", RowIndex: 0, Column: "Email",
+                  ResolvedValue: null, ValueType: "undefined",
+                  FailureReason: "MissingColumn", FailureDetail: "Variable {{Email}} is not a column" },
+            ],
+            SourceFile: "src/x.ts", Now: FIXED_NOW,
+        });
+        expect(r.Reason).toBe("VariableMissing");
+        expect(r.ReasonDetail).toContain("Email");
+    });
+
+    it("auto-classifies VariableNull when a variable is null", () => {
+        const r = buildFailureReport({
+            Phase: "Replay", Error: new Error("x"),
+            Variables: [
+                { Name: "Phone", Source: "Row", RowIndex: 1, Column: "Phone",
+                  ResolvedValue: null, ValueType: "null",
+                  FailureReason: "NullValue", FailureDetail: "Variable {{Phone}} resolved to null" },
+            ],
+            SourceFile: "src/x.ts", Now: FIXED_NOW,
+        });
+        expect(r.Reason).toBe("VariableNull");
+    });
+
+    it("auto-classifies VariableTypeMismatch over selector failures (variables outrank)", () => {
+        const r = buildFailureReport({
+            Phase: "Replay", Error: new Error("x"),
+            Variables: [
+                { Name: "Payload", Source: "Row", RowIndex: 0, Column: "Payload",
+                  ResolvedValue: "{\"a\":1}", ValueType: "object",
+                  FailureReason: "TypeMismatch", FailureDetail: "expected string but got object" },
+            ],
+            EvaluatedAttempts: [
+                { SelectorId: 1, Strategy: "Css", Expression: "#x", ResolvedExpression: "#x",
+                  IsPrimary: true, Matched: false, MatchCount: 0, FailureReason: "ZeroMatches", FailureDetail: "no" },
+            ],
+            SourceFile: "src/x.ts", Now: FIXED_NOW,
+        });
+        expect(r.Reason).toBe("VariableTypeMismatch");
+        expect(r.ReasonDetail).toContain("expected string but got object");
+    });
+
+    it("does NOT misclassify when every variable resolved cleanly", () => {
+        const r = buildFailureReport({
+            Phase: "Replay", Error: new Error("dom miss"),
+            Variables: [
+                { Name: "Email", Source: "Row", RowIndex: 0, Column: "Email",
+                  ResolvedValue: "a@x.io", ValueType: "string",
+                  FailureReason: "Resolved", FailureDetail: null },
+            ],
+            EvaluatedAttempts: [
+                { SelectorId: 1, Strategy: "Css", Expression: "#x", ResolvedExpression: "#x",
+                  IsPrimary: true, Matched: false, MatchCount: 0, FailureReason: "ZeroMatches", FailureDetail: "no" },
+            ],
+            SourceFile: "src/x.ts", Now: FIXED_NOW,
+        });
+        expect(r.Reason).toBe("ZeroMatches");
+    });
+
+    it("formatter renders Variables section with name, value, type, source, and reason", () => {
+        const r = buildFailureReport({
+            Phase: "Replay", Error: new Error("x"),
+            Variables: [
+                { Name: "Email", Source: "DataSource:Customers", RowIndex: 3, Column: "Email",
+                  ResolvedValue: null, ValueType: "undefined",
+                  FailureReason: "MissingColumn", FailureDetail: "no column" },
+                { Name: "Name", Source: "DataSource:Customers", RowIndex: 3, Column: "Name",
+                  ResolvedValue: "Alice", ValueType: "string",
+                  FailureReason: "Resolved", FailureDetail: null },
+            ],
+            SourceFile: "src/x.ts", Now: FIXED_NOW,
+        });
+        const out = formatFailureReport(r);
+        expect(out).toContain("Variables:");
+        expect(out).toContain("✗ {{Email}}");
+        expect(out).toContain("MissingColumn");
+        expect(out).toContain("DataSource:Customers");
+        expect(out).toContain("✓ {{Name}}");
+        expect(out).toContain('"Alice"');
+    });
+});

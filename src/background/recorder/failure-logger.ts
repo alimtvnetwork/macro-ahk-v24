@@ -36,11 +36,13 @@
  */
 
 import type { PersistedSelector } from "./step-persistence";
-import type { FieldRow } from "./field-reference-resolver";
+import type { FieldRow, VariableContext } from "./field-reference-resolver";
 import type {
     EvaluatedAttempt,
     AttemptFailureReason,
 } from "./selector-attempt-evaluator";
+
+export type { VariableContext } from "./field-reference-resolver";
 
 export type FailurePhase = "Record" | "Replay";
 
@@ -49,16 +51,25 @@ export type FailurePhase = "Record" | "Replay";
  * Stable string values — UI / exporters key off these.
  */
 export type FailureReasonCode =
-    | "ZeroMatches"           // No selector (primary or fallback) matched anything.
+    // ---- Variable / data-row failures (highest priority — explain WHY the
+    //      step had bad inputs before any selector was even tried). --------
+    | "VariableMissing"        // {{Token}} references a column not in the row.
+    | "VariableNull"           // Column exists but value is null.
+    | "VariableUndefined"      // Column exists but value is undefined.
+    | "VariableEmpty"          // Column exists but value is "".
+    | "VariableTypeMismatch"   // Column present but wrong type for this step.
+    // ---- Selector failures ------------------------------------------------
+    | "ZeroMatches"            // No selector (primary or fallback) matched anything.
     | "PrimaryMissedFallbackOk" // Primary missed but a fallback matched — drift.
-    | "XPathSyntaxError"      // At least one XPath threw during evaluation.
-    | "CssSyntaxError"        // At least one CSS selector threw.
-    | "UnresolvedAnchor"      // XPathRelative anchor chain broken / cyclic.
-    | "EmptyExpression"       // A stored expression was "".
-    | "NoSelectors"           // Step had zero selectors persisted.
-    | "Timeout"               // Wait/Retry exceeded budget (set by callers).
-    | "JsThrew"               // JsInline step threw inside the sandbox.
-    | "Unknown";              // Caller did not classify — last resort.
+    | "XPathSyntaxError"       // At least one XPath threw during evaluation.
+    | "CssSyntaxError"         // At least one CSS selector threw.
+    | "UnresolvedAnchor"       // XPathRelative anchor chain broken / cyclic.
+    | "EmptyExpression"        // A stored expression was "".
+    | "NoSelectors"            // Step had zero selectors persisted.
+    // ---- Other ------------------------------------------------------------
+    | "Timeout"                // Wait/Retry exceeded budget (set by callers).
+    | "JsThrew"                // JsInline step threw inside the sandbox.
+    | "Unknown";               // Caller did not classify — last resort.
 
 export interface SelectorAttempt {
     readonly SelectorId: number | null;
@@ -93,6 +104,7 @@ export interface FailureReport {
     readonly Index: number | null;
     readonly StepKind: string | null;
     readonly Selectors: ReadonlyArray<SelectorAttempt>;
+    readonly Variables: ReadonlyArray<VariableContext>;
     readonly DomContext: DomContext | null;
     readonly DataRow: FieldRow | null;
     readonly ResolvedXPath: string | null;
@@ -120,9 +132,17 @@ export interface BuildFailureReportInput {
     readonly EvaluatedAttempts?: ReadonlyArray<EvaluatedAttempt>;
     readonly Target?: Element | null;
     readonly DataRow?: FieldRow;
+    /**
+     * Per-variable diagnostics for any `{{Token}}` referenced by the step's
+     * Value template. Caller produces this with
+     * `resolveFieldReferencesDetailed`. Drives the top-level Reason when
+     * any variable failed (variable failures outrank selector failures
+     * because they explain WHY the step had bad inputs to begin with).
+     */
+    readonly Variables?: ReadonlyArray<VariableContext>;
     readonly ResolvedXPath?: string;
     readonly SourceFile: string;        // e.g. "src/background/recorder/live-dom-replay.ts"
-    /** Caller-supplied classification. Auto-derived from attempts when omitted. */
+    /** Caller-supplied classification. Auto-derived from attempts/variables when omitted. */
     readonly Reason?: FailureReasonCode;
     readonly ReasonDetail?: string;
     readonly Now?: () => Date;
@@ -149,7 +169,8 @@ export function buildFailureReport(input: BuildFailureReportInput): FailureRepor
             ? input.EvaluatedAttempts.map(toAttemptFromEvaluated)
             : (input.Selectors ?? []).map(toAttemptFromPersisted);
 
-    const { Reason, ReasonDetail } = classifyReason(input, attempts, message);
+    const variables: ReadonlyArray<VariableContext> = input.Variables ?? [];
+    const { Reason, ReasonDetail } = classifyReason(input, attempts, variables, message);
 
     return {
         Phase: input.Phase,
@@ -161,6 +182,7 @@ export function buildFailureReport(input: BuildFailureReportInput): FailureRepor
         Index: input.Index ?? null,
         StepKind: input.StepKind ?? null,
         Selectors: attempts,
+        Variables: input.Variables ?? [],
         DomContext: input.Target ? readDomContext(input.Target) : null,
         DataRow: input.DataRow ?? null,
         ResolvedXPath: input.ResolvedXPath ?? null,
@@ -170,10 +192,13 @@ export function buildFailureReport(input: BuildFailureReportInput): FailureRepor
 }
 
 /**
- * Auto-classify the failure when the caller did not supply a Reason. The
- * input attempts (one per persisted selector, primary-first) drive the
- * classification:
+ * Auto-classify the failure when the caller did not supply a Reason.
  *
+ * Precedence (highest first):
+ *   - Caller-supplied Reason       → wins
+ *   - Variable failures (any)      → "VariableMissing" / "VariableNull" /
+ *                                    "VariableUndefined" / "VariableEmpty" /
+ *                                    "VariableTypeMismatch"
  *   - No selectors                 → "NoSelectors"
  *   - Any attempt threw XPath      → "XPathSyntaxError"
  *   - Any attempt threw CSS        → "CssSyntaxError"
@@ -186,6 +211,7 @@ export function buildFailureReport(input: BuildFailureReportInput): FailureRepor
 function classifyReason(
     input: BuildFailureReportInput,
     attempts: ReadonlyArray<SelectorAttempt>,
+    variables: ReadonlyArray<VariableContext>,
     message: string,
 ): { Reason: FailureReasonCode; ReasonDetail: string } {
     if (input.Reason !== undefined) {
@@ -193,6 +219,14 @@ function classifyReason(
             Reason: input.Reason,
             ReasonDetail: input.ReasonDetail ?? message,
         };
+    }
+    // Variable failures explain WHY the step's inputs were wrong before we
+    // even tried the DOM — surface them first.
+    const failedVar = variables.find((v) => v.FailureReason !== "Resolved");
+    if (failedVar !== undefined) {
+        const code = variableReasonToCode(failedVar.FailureReason);
+        const detail = failedVar.FailureDetail ?? `Variable {{${failedVar.Name}}} failed.`;
+        return { Reason: code, ReasonDetail: detail };
     }
     if (attempts.length === 0) {
         return { Reason: "NoSelectors", ReasonDetail: "Step has no persisted selectors to try." };
@@ -240,6 +274,15 @@ function firstDetail(attempts: ReadonlyArray<SelectorAttempt>, code: AttemptFail
     return hit?.FailureDetail ?? `Attempt failed with ${code}.`;
 }
 
+function variableReasonToCode(reason: VariableContext["FailureReason"]): FailureReasonCode {
+    if (reason === "MissingColumn")   { return "VariableMissing"; }
+    if (reason === "NullValue")       { return "VariableNull"; }
+    if (reason === "UndefinedValue")  { return "VariableUndefined"; }
+    if (reason === "EmptyString")     { return "VariableEmpty"; }
+    if (reason === "TypeMismatch")    { return "VariableTypeMismatch"; }
+    return "Unknown";
+}
+
 /**
  * Serializes a report to a multi-line block suitable for `console.error` or
  * a clipboard paste into AI chat. Format:
@@ -279,6 +322,19 @@ export function formatFailureReport(report: FailureReport): string {
                 ? `→ ${s.MatchCount} match${s.MatchCount === 1 ? "" : "es"}`
                 : `→ ${s.MatchCount} matches (${s.FailureReason}${s.FailureDetail !== null ? `: ${s.FailureDetail}` : ""})`;
             lines.push(`    ${matchMark} ${primaryMark} ${s.Strategy.padEnd(13)} ${expr} ${tail}`);
+        }
+    }
+
+    if (report.Variables.length > 0) {
+        lines.push("  Variables:");
+        for (const v of report.Variables) {
+            const ok = v.FailureReason === "Resolved";
+            const mark = ok ? "✓" : "✗";
+            const valueLabel = v.ResolvedValue === null ? "<null>" : JSON.stringify(v.ResolvedValue);
+            const tail = ok
+                ? `${valueLabel} [${v.ValueType}] from ${v.Source}`
+                : `${valueLabel} [${v.ValueType}] from ${v.Source} — ${v.FailureReason}${v.FailureDetail !== null ? `: ${v.FailureDetail}` : ""}`;
+            lines.push(`    ${mark} {{${v.Name}}} = ${tail}`);
         }
     }
 

@@ -19,7 +19,12 @@
  */
 
 import { resolveStepSelector, type ResolvedSelector } from "./replay-resolver";
-import { resolveFieldReferences, type FieldRow } from "./field-reference-resolver";
+import {
+    resolveFieldReferences,
+    resolveFieldReferencesDetailed,
+    type FieldRow,
+    type VariableContext,
+} from "./field-reference-resolver";
 import type { PersistedSelector } from "./step-persistence";
 import {
     saveReplayRun,
@@ -132,10 +137,31 @@ async function executeStep(
     const startedAt = now();
     let target: HTMLElement | null = null;
     let resolvedXPath: string | undefined;
+    let variables: ReadonlyArray<VariableContext> = [];
     try {
         if (step.Kind === "Wait") {
             await sleep(step.WaitMs ?? 0);
             return finalize(step, options, startedAt, now(), { Ok: true });
+        }
+
+        // Resolve {{Token}} variables FIRST (per
+        // mem://standards/verbose-logging-and-failure-diagnostics): the
+        // detailed resolver returns one VariableContext per token with
+        // Name + ResolvedValue + ValueType + FailureReason so we can fail
+        // fast with a precise reason BEFORE the DOM lookup ever runs.
+        if ((step.Kind === "Type" || step.Kind === "Select") && step.Value !== undefined && step.Value !== "") {
+            const detailed = resolveFieldReferencesDetailed(step.Value, options.Row ?? {}, {
+                Source: options.Row !== undefined ? "Row" : "NoActiveRow",
+                ExpectedType: "string",
+            });
+            variables = detailed.Variables;
+            if (detailed.FirstFailure !== null) {
+                return finalize(step, options, startedAt, now(), {
+                    Ok: false,
+                    Variables: variables,
+                    Error: new Error(detailed.FirstFailure.FailureDetail ?? `Variable {{${detailed.FirstFailure.Name}}} failed`),
+                });
+            }
         }
 
         const resolved = resolveStepSelector(step.Selectors);
@@ -145,6 +171,7 @@ async function executeStep(
             return finalize(step, options, startedAt, now(), {
                 Ok: false,
                 ResolvedXPath: resolved.Expression,
+                Variables: variables,
                 Error: new Error(`Element not found for selector '${resolved.Expression}'`),
             });
         }
@@ -158,6 +185,7 @@ async function executeStep(
         return finalize(step, options, startedAt, now(), {
             Ok: false,
             ResolvedXPath: resolvedXPath,
+            Variables: variables,
             Error: err,
             Target: target,
         });
@@ -174,6 +202,7 @@ function finalize(
         Error?: unknown;
         ResolvedXPath?: string;
         Target?: HTMLElement | null;
+        Variables?: ReadonlyArray<VariableContext>;
     },
 ): ReplayStepResult {
     if (outcome.Ok) {
@@ -207,6 +236,7 @@ function finalize(
         EvaluatedAttempts: evaluatedAttempts,
         Target: outcome.Target ?? null,
         DataRow: options.Row,
+        Variables: outcome.Variables,
         ResolvedXPath: outcome.ResolvedXPath,
         SourceFile: SOURCE_FILE,
         Now: options.Now,

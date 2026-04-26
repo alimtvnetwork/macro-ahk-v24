@@ -36,6 +36,7 @@ import {
     type FailureReport,
 } from "./failure-logger";
 import { evaluateAllSelectors } from "./selector-attempt-evaluator";
+import { resolveVerboseLogging } from "./verbose-logging";
 
 const SOURCE_FILE = "src/background/recorder/live-dom-replay.ts";
 
@@ -70,6 +71,16 @@ export interface ReplayOptions {
      * DB after `executeReplay` finishes. Tests omit this to stay pure.
      */
     readonly Persist?: ReplayPersistOptions;
+    /**
+     * Verbose-logging override. When `undefined` (default), the replay
+     * resolves the toggle via
+     * `resolveVerboseLogging(Persist?.ProjectSlug)`. When set explicitly,
+     * the value wins — used by tests and by callers who already know the
+     * effective flag (e.g. settings preview). Per
+     * `mem://standards/verbose-logging-and-failure-diagnostics`, default
+     * remains OFF; callers must opt in.
+     */
+    readonly Verbose?: boolean;
 }
 
 export interface ReplayStepResult {

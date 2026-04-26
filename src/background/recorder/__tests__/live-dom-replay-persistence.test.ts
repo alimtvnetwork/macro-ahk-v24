@@ -107,8 +107,11 @@ describe("executeReplay → ReplayRun persistence", () => {
         expect(parsed.Phase).toBe("Replay");
         expect(parsed.StepId).toBe(2);
         expect(parsed.StepKind).toBe("Click");
-        expect(parsed.Selectors[0].Kind).toBe("Css");
+        expect(parsed.Selectors[0].Strategy).toBe("Css");
         expect(parsed.Selectors[0].Expression).toBe("#missing");
+        expect(parsed.Selectors[0].Matched).toBe(false);
+        expect(parsed.Selectors[0].FailureReason).toBe("ZeroMatches");
+        expect(parsed.Reason).toBe("ZeroMatches");
         expect(parsed.SourceFile).toBe("src/background/recorder/live-dom-replay.ts");
 
         // The live result also exposes the report so React layers can toast it.

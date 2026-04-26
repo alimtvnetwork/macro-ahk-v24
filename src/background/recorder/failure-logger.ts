@@ -37,13 +37,39 @@
 
 import type { PersistedSelector } from "./step-persistence";
 import type { FieldRow } from "./field-reference-resolver";
+import type {
+    EvaluatedAttempt,
+    AttemptFailureReason,
+} from "./selector-attempt-evaluator";
 
 export type FailurePhase = "Record" | "Replay";
 
+/**
+ * Top-level short-code classifying the failure for AI grouping.
+ * Stable string values — UI / exporters key off these.
+ */
+export type FailureReasonCode =
+    | "ZeroMatches"           // No selector (primary or fallback) matched anything.
+    | "PrimaryMissedFallbackOk" // Primary missed but a fallback matched — drift.
+    | "XPathSyntaxError"      // At least one XPath threw during evaluation.
+    | "CssSyntaxError"        // At least one CSS selector threw.
+    | "UnresolvedAnchor"      // XPathRelative anchor chain broken / cyclic.
+    | "EmptyExpression"       // A stored expression was "".
+    | "NoSelectors"           // Step had zero selectors persisted.
+    | "Timeout"               // Wait/Retry exceeded budget (set by callers).
+    | "JsThrew"               // JsInline step threw inside the sandbox.
+    | "Unknown";              // Caller did not classify — last resort.
+
 export interface SelectorAttempt {
-    readonly Kind: string;     // "XPathFull" | "XPathRelative" | "Css" | "Aria"
-    readonly Expression: string;
+    readonly SelectorId: number | null;
+    readonly Strategy: string;             // "XPathFull" | "XPathRelative" | "Css" | "Aria" | …
+    readonly Expression: string;           // Stored expression (may be relative).
+    readonly ResolvedExpression: string;   // Anchor-joined expression actually evaluated.
     readonly IsPrimary: boolean;
+    readonly Matched: boolean;
+    readonly MatchCount: number;
+    readonly FailureReason: AttemptFailureReason | "NotEvaluated";
+    readonly FailureDetail: string | null;
 }
 
 export interface DomContext {
@@ -60,6 +86,8 @@ export interface DomContext {
 export interface FailureReport {
     readonly Phase: FailurePhase;
     readonly Message: string;
+    readonly Reason: FailureReasonCode;
+    readonly ReasonDetail: string;
     readonly StackTrace: string | null;
     readonly StepId: number | null;
     readonly Index: number | null;
@@ -78,11 +106,25 @@ export interface BuildFailureReportInput {
     readonly StepId?: number;
     readonly Index?: number;
     readonly StepKind?: string;
+    /**
+     * Persisted selectors as stored in the per-project DB. Used as a
+     * fallback when `EvaluatedAttempts` is not supplied (e.g. Record
+     * phase, where no live DOM evaluation happened).
+     */
     readonly Selectors?: ReadonlyArray<PersistedSelector>;
+    /**
+     * Live-DOM evaluation outcomes, one per selector. When present this
+     * supersedes `Selectors` because it carries Matched/MatchCount/Reason
+     * per attempt — exactly what AI debuggers need.
+     */
+    readonly EvaluatedAttempts?: ReadonlyArray<EvaluatedAttempt>;
     readonly Target?: Element | null;
     readonly DataRow?: FieldRow;
     readonly ResolvedXPath?: string;
     readonly SourceFile: string;        // e.g. "src/background/recorder/live-dom-replay.ts"
+    /** Caller-supplied classification. Auto-derived from attempts when omitted. */
+    readonly Reason?: FailureReasonCode;
+    readonly ReasonDetail?: string;
     readonly Now?: () => Date;
 }
 
@@ -102,14 +144,23 @@ export function buildFailureReport(input: BuildFailureReportInput): FailureRepor
     const message = extractMessage(input.Error);
     const stack = extractStack(input.Error);
 
+    const attempts: ReadonlyArray<SelectorAttempt> =
+        input.EvaluatedAttempts !== undefined
+            ? input.EvaluatedAttempts.map(toAttemptFromEvaluated)
+            : (input.Selectors ?? []).map(toAttemptFromPersisted);
+
+    const { Reason, ReasonDetail } = classifyReason(input, attempts, message);
+
     return {
         Phase: input.Phase,
         Message: message,
+        Reason,
+        ReasonDetail,
         StackTrace: stack,
         StepId: input.StepId ?? null,
         Index: input.Index ?? null,
         StepKind: input.StepKind ?? null,
-        Selectors: (input.Selectors ?? []).map(toSelectorAttempt),
+        Selectors: attempts,
         DomContext: input.Target ? readDomContext(input.Target) : null,
         DataRow: input.DataRow ?? null,
         ResolvedXPath: input.ResolvedXPath ?? null,
@@ -119,15 +170,87 @@ export function buildFailureReport(input: BuildFailureReportInput): FailureRepor
 }
 
 /**
+ * Auto-classify the failure when the caller did not supply a Reason. The
+ * input attempts (one per persisted selector, primary-first) drive the
+ * classification:
+ *
+ *   - No selectors                 → "NoSelectors"
+ *   - Any attempt threw XPath      → "XPathSyntaxError"
+ *   - Any attempt threw CSS        → "CssSyntaxError"
+ *   - Any anchor unresolved        → "UnresolvedAnchor"
+ *   - Any expression empty         → "EmptyExpression"
+ *   - Primary missed, fallback OK  → "PrimaryMissedFallbackOk"
+ *   - All attempts returned 0      → "ZeroMatches"
+ *   - Otherwise                    → "Unknown"
+ */
+function classifyReason(
+    input: BuildFailureReportInput,
+    attempts: ReadonlyArray<SelectorAttempt>,
+    message: string,
+): { Reason: FailureReasonCode; ReasonDetail: string } {
+    if (input.Reason !== undefined) {
+        return {
+            Reason: input.Reason,
+            ReasonDetail: input.ReasonDetail ?? message,
+        };
+    }
+    if (attempts.length === 0) {
+        return { Reason: "NoSelectors", ReasonDetail: "Step has no persisted selectors to try." };
+    }
+    const reasons = new Set(attempts.map((a) => a.FailureReason));
+    if (reasons.has("XPathSyntaxError")) {
+        return { Reason: "XPathSyntaxError", ReasonDetail: firstDetail(attempts, "XPathSyntaxError") };
+    }
+    if (reasons.has("CssSyntaxError")) {
+        return { Reason: "CssSyntaxError", ReasonDetail: firstDetail(attempts, "CssSyntaxError") };
+    }
+    if (reasons.has("UnresolvedAnchor")) {
+        return { Reason: "UnresolvedAnchor", ReasonDetail: firstDetail(attempts, "UnresolvedAnchor") };
+    }
+    if (reasons.has("EmptyExpression")) {
+        return { Reason: "EmptyExpression", ReasonDetail: firstDetail(attempts, "EmptyExpression") };
+    }
+    const primary = attempts.find((a) => a.IsPrimary) ?? null;
+    const anyFallbackMatched = attempts.some((a) => !a.IsPrimary && a.Matched);
+    if (primary !== null && !primary.Matched && anyFallbackMatched) {
+        return {
+            Reason: "PrimaryMissedFallbackOk",
+            ReasonDetail:
+                `Primary selector '${primary.ResolvedExpression}' missed; ` +
+                `${attempts.filter((a) => !a.IsPrimary && a.Matched).length} fallback(s) matched.`,
+        };
+    }
+    // Only claim ZeroMatches when at least one attempt was actually
+    // evaluated against the live DOM — pure persisted selectors have
+    // FailureReason === "NotEvaluated" and must not be misreported.
+    const anyEvaluated = attempts.some((a) => a.FailureReason !== "NotEvaluated");
+    if (anyEvaluated && attempts.every((a) => !a.Matched && a.MatchCount === 0)) {
+        return {
+            Reason: "ZeroMatches",
+            ReasonDetail:
+                `All ${attempts.length} selector(s) returned 0 nodes. ` +
+                `Tried: ${attempts.map((a) => a.ResolvedExpression).join(" | ")}`,
+        };
+    }
+    return { Reason: "Unknown", ReasonDetail: message };
+}
+
+function firstDetail(attempts: ReadonlyArray<SelectorAttempt>, code: AttemptFailureReason | "NotEvaluated"): string {
+    const hit = attempts.find((a) => a.FailureReason === code);
+    return hit?.FailureDetail ?? `Attempt failed with ${code}.`;
+}
+
+/**
  * Serializes a report to a multi-line block suitable for `console.error` or
  * a clipboard paste into AI chat. Format:
  *
  * ```
  * [MarcoReplay] Element not found for selector '#go'
- *   at src/background/recorder/live-dom-replay.ts (StepId=42, Index=3)
+ *   Reason: PrimaryMissedFallbackOk — Primary missed; 1 fallback matched.
+ *   at src/background/recorder/live-dom-replay.ts StepId=42 Index=3
  *   Selectors:
- *     ✓ XPathFull   //button[@id='go']
- *     · Css         #go
+ *     ✗ ✓ XPathFull   //button[@id='go'] → 0 matches (ZeroMatches: …)
+ *     ✓ · Css         #go                → 1 matches
  *   DomContext: <button id="go" class="primary"> "Go"
  *   DataRow: { "Email": "alice@example.com" }
  *   Stack:
@@ -138,6 +261,7 @@ export function formatFailureReport(report: FailureReport): string {
     const tag = `[Marco${report.Phase}]`;
     const lines: string[] = [];
     lines.push(`${tag} ${report.Message}`);
+    lines.push(`  Reason: ${report.Reason} — ${report.ReasonDetail}`);
 
     const where: string[] = [`at ${report.SourceFile}`];
     if (report.StepId !== null) where.push(`StepId=${report.StepId}`);
@@ -148,8 +272,13 @@ export function formatFailureReport(report: FailureReport): string {
     if (report.Selectors.length > 0) {
         lines.push("  Selectors:");
         for (const s of report.Selectors) {
-            const mark = s.IsPrimary ? "✓" : "·";
-            lines.push(`    ${mark} ${s.Kind.padEnd(13)} ${s.Expression}`);
+            const matchMark = s.Matched ? "✓" : "✗";
+            const primaryMark = s.IsPrimary ? "✓" : "·";
+            const expr = s.ResolvedExpression.length > 0 ? s.ResolvedExpression : s.Expression;
+            const tail = s.Matched
+                ? `→ ${s.MatchCount} match${s.MatchCount === 1 ? "" : "es"}`
+                : `→ ${s.MatchCount} matches (${s.FailureReason}${s.FailureDetail !== null ? `: ${s.FailureDetail}` : ""})`;
+            lines.push(`    ${matchMark} ${primaryMark} ${s.Strategy.padEnd(13)} ${expr} ${tail}`);
         }
     }
 
@@ -212,11 +341,34 @@ function extractStack(err: unknown): string | null {
     return null;
 }
 
-function toSelectorAttempt(s: PersistedSelector): SelectorAttempt {
+function toAttemptFromPersisted(s: PersistedSelector): SelectorAttempt {
+    // Record-phase fallback: no live evaluation happened, so Matched /
+    // MatchCount / FailureReason are reported as "NotEvaluated" so the
+    // consumer can tell apart "we tried and it missed" vs "we never tried".
     return {
-        Kind: SELECTOR_KIND_NAMES[s.SelectorKindId] ?? `Kind${s.SelectorKindId}`,
+        SelectorId: s.SelectorId,
+        Strategy: SELECTOR_KIND_NAMES[s.SelectorKindId] ?? `Kind${s.SelectorKindId}`,
         Expression: s.Expression,
+        ResolvedExpression: s.Expression,
         IsPrimary: s.IsPrimary === 1,
+        Matched: false,
+        MatchCount: 0,
+        FailureReason: "NotEvaluated",
+        FailureDetail: null,
+    };
+}
+
+function toAttemptFromEvaluated(a: EvaluatedAttempt): SelectorAttempt {
+    return {
+        SelectorId: a.SelectorId,
+        Strategy: a.Strategy,
+        Expression: a.Expression,
+        ResolvedExpression: a.ResolvedExpression,
+        IsPrimary: a.IsPrimary,
+        Matched: a.Matched,
+        MatchCount: a.MatchCount,
+        FailureReason: a.FailureReason,
+        FailureDetail: a.FailureDetail,
     };
 }
 

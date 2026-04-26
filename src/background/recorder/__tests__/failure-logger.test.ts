@@ -56,14 +56,24 @@ describe("buildFailureReport", () => {
         expect(b.Message).toBe('{"code":42}');
     });
 
-    it("converts persisted selectors into Kind/Expression/IsPrimary attempts", () => {
+    it("converts persisted selectors into Strategy/Expression/IsPrimary attempts", () => {
         const report = buildFailureReport({
             Phase: "Replay", Error: new Error("x"),
             Selectors: SELECTORS, SourceFile: "x", Now: FIXED_NOW,
         });
         expect(report.Selectors).toEqual([
-            { Kind: "XPathFull", Expression: "//button[@id='go']", IsPrimary: true },
-            { Kind: "Css",       Expression: "#go",                IsPrimary: false },
+            {
+                SelectorId: 100, Strategy: "XPathFull",
+                Expression: "//button[@id='go']", ResolvedExpression: "//button[@id='go']",
+                IsPrimary: true, Matched: false, MatchCount: 0,
+                FailureReason: "NotEvaluated", FailureDetail: null,
+            },
+            {
+                SelectorId: 101, Strategy: "Css",
+                Expression: "#go", ResolvedExpression: "#go",
+                IsPrimary: false, Matched: false, MatchCount: 0,
+                FailureReason: "NotEvaluated", FailureDetail: null,
+            },
         ]);
     });
 
@@ -108,9 +118,10 @@ describe("formatFailureReport", () => {
         });
         const out = formatFailureReport(report);
         expect(out).toContain("[MarcoReplay] Element not found");
+        expect(out).toContain("Reason: Unknown");
+        expect(out).toContain("XPathFull");
+        expect(out).toContain("Css");
         expect(out).toContain("at src/x.ts StepId=7 Index=2 Kind=Click");
-        expect(out).toContain("✓ XPathFull");
-        expect(out).toContain("· Css");
         expect(out).toContain("ResolvedXPath: //button[@id='go']");
         expect(out).toContain('DataRow: {"Email":"a@x.com"}');
         expect(out).toContain("Stack:");
@@ -136,5 +147,92 @@ describe("logFailure", () => {
         expect(spy).toHaveBeenCalledTimes(1);
         expect(spy.mock.calls[0]![0]).toContain("[MarcoReplay] boom");
         spy.mockRestore();
+    });
+});
+
+describe("buildFailureReport — Reason classification & EvaluatedAttempts", () => {
+    it("auto-classifies as NoSelectors when no selectors are supplied", () => {
+        const r = buildFailureReport({
+            Phase: "Replay", Error: new Error("x"),
+            SourceFile: "src/x.ts", Now: FIXED_NOW,
+        });
+        expect(r.Reason).toBe("NoSelectors");
+        expect(r.ReasonDetail).toContain("no persisted selectors");
+    });
+
+    it("auto-classifies as ZeroMatches when every attempt missed", () => {
+        const r = buildFailureReport({
+            Phase: "Replay", Error: new Error("x"),
+            EvaluatedAttempts: [
+                { SelectorId: 1, Strategy: "XPathFull", Expression: "//a", ResolvedExpression: "//a",
+                  IsPrimary: true,  Matched: false, MatchCount: 0, FailureReason: "ZeroMatches", FailureDetail: "no nodes" },
+                { SelectorId: 2, Strategy: "Css", Expression: "#x", ResolvedExpression: "#x",
+                  IsPrimary: false, Matched: false, MatchCount: 0, FailureReason: "ZeroMatches", FailureDetail: "no nodes" },
+            ],
+            SourceFile: "src/x.ts", Now: FIXED_NOW,
+        });
+        expect(r.Reason).toBe("ZeroMatches");
+        expect(r.ReasonDetail).toContain("//a");
+        expect(r.ReasonDetail).toContain("#x");
+    });
+
+    it("auto-classifies as PrimaryMissedFallbackOk when fallback rescued a missed primary", () => {
+        const r = buildFailureReport({
+            Phase: "Replay", Error: new Error("x"),
+            EvaluatedAttempts: [
+                { SelectorId: 1, Strategy: "XPathFull", Expression: "//a", ResolvedExpression: "//a",
+                  IsPrimary: true,  Matched: false, MatchCount: 0, FailureReason: "ZeroMatches", FailureDetail: "no nodes" },
+                { SelectorId: 2, Strategy: "Css", Expression: "#x", ResolvedExpression: "#x",
+                  IsPrimary: false, Matched: true,  MatchCount: 1, FailureReason: "Matched",     FailureDetail: null },
+            ],
+            SourceFile: "src/x.ts", Now: FIXED_NOW,
+        });
+        expect(r.Reason).toBe("PrimaryMissedFallbackOk");
+        expect(r.ReasonDetail).toContain("//a");
+        expect(r.ReasonDetail).toContain("1 fallback");
+    });
+
+    it("escalates to XPathSyntaxError when any attempt threw", () => {
+        const r = buildFailureReport({
+            Phase: "Replay", Error: new Error("x"),
+            EvaluatedAttempts: [
+                { SelectorId: 1, Strategy: "XPathFull", Expression: "//[[", ResolvedExpression: "//[[",
+                  IsPrimary: true, Matched: false, MatchCount: 0, FailureReason: "XPathSyntaxError", FailureDetail: "bad token" },
+                { SelectorId: 2, Strategy: "Css", Expression: "#x", ResolvedExpression: "#x",
+                  IsPrimary: false, Matched: false, MatchCount: 0, FailureReason: "ZeroMatches", FailureDetail: "no" },
+            ],
+            SourceFile: "src/x.ts", Now: FIXED_NOW,
+        });
+        expect(r.Reason).toBe("XPathSyntaxError");
+        expect(r.ReasonDetail).toBe("bad token");
+    });
+
+    it("respects an explicit Reason supplied by the caller", () => {
+        const r = buildFailureReport({
+            Phase: "Replay", Error: new Error("timed out"),
+            Reason: "Timeout", ReasonDetail: "Wait exceeded 5000ms",
+            SourceFile: "src/x.ts", Now: FIXED_NOW,
+        });
+        expect(r.Reason).toBe("Timeout");
+        expect(r.ReasonDetail).toBe("Wait exceeded 5000ms");
+    });
+
+    it("formatter prints per-attempt match count and FailureReason", () => {
+        const r = buildFailureReport({
+            Phase: "Replay", Error: new Error("missed"),
+            EvaluatedAttempts: [
+                { SelectorId: 1, Strategy: "XPathFull", Expression: "//a", ResolvedExpression: "//a",
+                  IsPrimary: true,  Matched: false, MatchCount: 0, FailureReason: "ZeroMatches", FailureDetail: "no nodes" },
+                { SelectorId: 2, Strategy: "Css", Expression: "#x", ResolvedExpression: "#x",
+                  IsPrimary: false, Matched: true,  MatchCount: 1, FailureReason: "Matched",     FailureDetail: null },
+            ],
+            SourceFile: "src/x.ts", Now: FIXED_NOW,
+        });
+        const out = formatFailureReport(r);
+        expect(out).toContain("Reason: PrimaryMissedFallbackOk");
+        expect(out).toContain("✗ ✓ XPathFull");          // missed primary
+        expect(out).toContain("→ 0 matches (ZeroMatches");
+        expect(out).toContain("✓ · Css");                 // matched fallback
+        expect(out).toContain("→ 1 match");
     });
 });

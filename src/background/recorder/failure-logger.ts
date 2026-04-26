@@ -220,7 +220,11 @@ function classifyReason(
                 `${attempts.filter((a) => !a.IsPrimary && a.Matched).length} fallback(s) matched.`,
         };
     }
-    if (attempts.every((a) => !a.Matched && a.MatchCount === 0)) {
+    // Only claim ZeroMatches when at least one attempt was actually
+    // evaluated against the live DOM — pure persisted selectors have
+    // FailureReason === "NotEvaluated" and must not be misreported.
+    const anyEvaluated = attempts.some((a) => a.FailureReason !== "NotEvaluated");
+    if (anyEvaluated && attempts.every((a) => !a.Matched && a.MatchCount === 0)) {
         return {
             Reason: "ZeroMatches",
             ReasonDetail:

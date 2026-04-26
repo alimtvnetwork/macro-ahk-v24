@@ -40,3 +40,12 @@ export {
 } from "./ui";
 export type { LogViewerEntry, LogViewerOptions } from "./ui";
 
+export {
+    RunSummaryScriptCode, RunSummaryRowStatus,
+    renderRunSummaryAsJson, renderRunSummaryAsText,
+} from "./report/run-summary-types";
+export type {
+    RunSummary, RunSummaryAction, RunSummaryCounts, RunSummaryRow,
+} from "./report/run-summary-types";
+
+

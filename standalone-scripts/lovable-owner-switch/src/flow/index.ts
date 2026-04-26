@@ -23,3 +23,5 @@ export { LogPhase, LogSeverity, buildEntry } from "./log-sink";
 export type { LogEntry, LogSink } from "./log-sink";
 export type { RowStateStore, RowStateUpdate } from "./row-state-store";
 export { toLogViewerEntries } from "./log-viewer-adapter";
+export { buildOwnerSwitchRunSummary } from "./run-summary-builder";
+export type { OwnerSwitchSummaryInput } from "./run-summary-builder";

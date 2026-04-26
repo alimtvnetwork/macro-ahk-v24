@@ -125,9 +125,18 @@ function collectDescendantIds(node: TreeNode, out: Set<number>): void {
 export default function StepGroupLibraryPanel() {
     const lib = useStepLibrary();
     const [selected, setSelected] = useState<Set<number>>(new Set());
+    /**
+     * Caller-visible insertion order of `selected`. Plain JS Sets do
+     * preserve insertion order, but we keep an explicit array because
+     * `toggleSubtree` adds many ids at once and we want the **first
+     * encountered** ordering (top-of-tree first), which we cannot
+     * recover from a Set after re-toggles.
+     */
+    const [selectionOrder, setSelectionOrder] = useState<ReadonlyArray<number>>([]);
     const [activeGroupId, setActiveGroupId] = useState<number | null>(null);
     const [expanded, setExpanded] = useState<Set<number>>(new Set());
     const [showArchived, setShowArchived] = useState(false);
+    const [batchOpen, setBatchOpen] = useState(false);
 
     // Dialog state
     const [createDialog, setCreateDialog] = useState<{ open: boolean; parent: number | null; name: string }>({

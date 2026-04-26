@@ -272,6 +272,56 @@ export default function StepWaitDialog(props: Props) {
                             Auto-detect picks XPath when the expression starts with <code>/</code>,
                             <code> ./</code>, <code>(/</code>, <code>(./</code>, or contains <code>//</code>.
                         </p>
+
+                        {/* Test selector against the live document */}
+                        <div className="flex items-center gap-2 pt-1">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={handleTest}
+                                disabled={selector.trim().length === 0}
+                            >
+                                <SearchCheck className="mr-1 h-3.5 w-3.5" />
+                                Test selector
+                            </Button>
+                            {testResult !== null && testResult.Error === null && (
+                                <span
+                                    className={
+                                        testResult.TotalCount > 0
+                                            ? "flex items-center gap-1 text-xs text-emerald-500"
+                                            : "flex items-center gap-1 text-xs text-amber-500"
+                                    }
+                                >
+                                    {testResult.TotalCount > 0
+                                        ? <CheckCircle2 className="h-3.5 w-3.5" />
+                                        : <XCircle className="h-3.5 w-3.5" />}
+                                    {testResult.TotalCount} match
+                                    {testResult.TotalCount === 1 ? "" : "es"}
+                                    {testResult.TotalCount > 0 && (
+                                        <span className="text-muted-foreground">
+                                            · {testResult.VisibleCount} visible
+                                        </span>
+                                    )}
+                                    <span className="text-muted-foreground">
+                                        · {testResult.DurationMs} ms
+                                    </span>
+                                </span>
+                            )}
+                            {testResult !== null && testResult.Error !== null && (
+                                <span className="flex items-center gap-1 text-xs text-destructive">
+                                    <XCircle className="h-3.5 w-3.5" />
+                                    {testResult.Error}
+                                </span>
+                            )}
+                        </div>
+                        {testResult !== null && testResult.Error === null && testResult.TotalCount === 0 && (
+                            <p className="text-xs text-muted-foreground">
+                                No elements matched on the current options page. The selector
+                                will still be evaluated against the recorder's target tab at run
+                                time — this preview only catches typos and compile errors.
+                            </p>
+                        )}
                     </div>
 
                     {/* Kind override */}

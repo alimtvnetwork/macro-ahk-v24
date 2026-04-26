@@ -492,7 +492,7 @@ const OptionsPage = () => {
               ) : selection.section === "step-groups" ? (
                 <StepGroupsSection
                   view={stepGroupView}
-                  onViewChange={(v) => {
+                  onViewChange={(v: "tree" | "list") => {
                     setStepGroupView(v);
                     // Keep the URL in sync so refresh / share preserves the sub-view.
                     const nextHash = v === "list" ? "step-groups-list" : "step-groups";
@@ -501,8 +501,6 @@ const OptionsPage = () => {
                     }
                   }}
                 />
-              ) : selection.section === "library" ? (
-                <LibraryView />
               ) : selection.section === "api" ? (
                 <ApiExplorerView />
               ) : selection.section === "settings" ? (

@@ -172,6 +172,73 @@ export class StepLibraryDb {
         this.exec(`DELETE FROM StepGroup WHERE StepGroupId = ?;`, [stepGroupId]);
     }
 
+    /**
+     * Reorder sibling groups under a single parent. Behaves like
+     * `reorderSteps`: validates that every supplied id belongs to the
+     * given (project, parent) bucket and that the count matches the
+     * existing children — partial reorders are rejected to avoid
+     * holes / duplicate OrderIndex values.
+     *
+     * `parentStepGroupId === null` reorders root-level groups.
+     */
+    reorderGroups(
+        projectId: number,
+        parentStepGroupId: number | null,
+        orderedStepGroupIds: readonly number[],
+    ): void {
+        const owned = new Set(
+            this.listGroups(projectId)
+                .filter((g) => (g.ParentStepGroupId ?? null) === parentStepGroupId)
+                .map((g) => g.StepGroupId),
+        );
+        for (const id of orderedStepGroupIds) {
+            if (!owned.has(id)) {
+                throw new Error(
+                    `reorderGroups: StepGroupId ${id} is not a child of parent=${String(parentStepGroupId)} ` +
+                    `in ProjectId=${projectId}. Refusing partial reorder — would corrupt OrderIndex.`,
+                );
+            }
+        }
+        if (orderedStepGroupIds.length !== owned.size) {
+            throw new Error(
+                `reorderGroups: expected ${owned.size} sibling ids, got ${orderedStepGroupIds.length}. ` +
+                `Caller must pass the COMPLETE list of siblings under parent=${String(parentStepGroupId)}.`,
+            );
+        }
+
+        this.db.exec("BEGIN;");
+        try {
+            const stmt = this.db.prepare(
+                `UPDATE StepGroup SET OrderIndex = ?, UpdatedAt = datetime('now')
+                 WHERE StepGroupId = ?;`,
+            );
+            try {
+                for (let i = 0; i < orderedStepGroupIds.length; i++) {
+                    stmt.run([i, orderedStepGroupIds[i]]);
+                }
+            } finally {
+                stmt.free();
+            }
+            this.db.exec("COMMIT;");
+        } catch (e) {
+            this.db.exec("ROLLBACK;");
+            throw e;
+        }
+    }
+
+    /**
+     * Toggle the `IsArchived` flag on a single group. Archiving does
+     * NOT touch nested groups or steps — they remain queryable; the UI
+     * is responsible for hiding archived subtrees behind a toggle.
+     */
+    setGroupArchived(stepGroupId: number, archived: boolean): void {
+        this.exec(
+            `UPDATE StepGroup SET IsArchived = ?, UpdatedAt = datetime('now')
+             WHERE StepGroupId = ?;`,
+            [archived ? 1 : 0, stepGroupId],
+        );
+    }
+
     /* -------------------- Step ------------------------------------ */
 
     listSteps(stepGroupId: number): readonly StepRow[] {

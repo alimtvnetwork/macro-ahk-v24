@@ -368,6 +368,14 @@ export async function handleRefreshToken(
         authToken = await resolveSignedUrlTokenCandidate(tabUrlHint, primaryUrl);
     }
 
+    // Strategy 4: Opaque session-cookie exchange
+    if (!authToken) {
+        authToken = await fetchAuthTokenFromSessionExchange(
+            projectId,
+            sessionId !== null || refreshToken !== null,
+        );
+    }
+
     cachedSessionId = authToken ?? null;
     cachedRefreshToken = refreshToken;
     cachedAt = authToken ? Date.now() : 0;
@@ -456,8 +464,17 @@ export async function fetchAuthToken(
         return signedUrlToken;
     }
 
+    const exchangeToken = await fetchAuthTokenFromSessionExchange(
+        projectId,
+        sessionCookieLookup.value !== null,
+    );
+
+    if (exchangeToken !== null) {
+        return exchangeToken;
+    }
+
     if (sessionCookieLookup.value !== null) {
-        logBgWarnError(BgLogTag.CONFIG_AUTH, "Session cookie exists but auth-token exchange is disabled because the cookie is not a JWT");
+        logBgWarnError(BgLogTag.CONFIG_AUTH, "Session cookie exists but no JWT could be derived from localStorage, URL, or auth-token exchange");
     }
 
     return null;

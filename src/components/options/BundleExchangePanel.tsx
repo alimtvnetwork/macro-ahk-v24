@@ -41,7 +41,13 @@ export interface LastImportSummary {
 
 interface BundleExchangePanelProps {
     readonly selectedCount: number;
-    readonly onExport: () => void | Promise<void>;
+    /**
+     * Trigger an export. The boolean argument is the user's choice from
+     * the "Include descendants" checkbox — when `true`, every transitive
+     * sub-group of each ticked root is packaged; when `false`, only the
+     * exact selection ships and any nested children are skipped.
+     */
+    readonly onExport: (includeDescendants: boolean) => void | Promise<void>;
     readonly onImportFile: (file: File) => void | Promise<void>;
     readonly lastExport: LastExportSummary | null;
     readonly lastImport: LastImportSummary | null;

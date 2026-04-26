@@ -26,6 +26,13 @@ import {
     type StepGroupRow,
     type StepRow,
 } from "@/background/recorder/step-library/db";
+import {
+    clearGroupInput as clearGroupInputStorage,
+    readAllGroupInputs,
+    writeGroupInput,
+    type GroupInputBag,
+    type GroupInputsMap,
+} from "@/background/recorder/step-library/group-inputs";
 import { StepKindId } from "@/background/recorder/step-library/schema";
 
 /* ------------------------------------------------------------------ */

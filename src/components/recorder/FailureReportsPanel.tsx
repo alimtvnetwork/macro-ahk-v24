@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileDown, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
+import { FileDown, AlertTriangle, ChevronDown, ChevronRight, ClipboardCopy } from "lucide-react";
 import { toast } from "sonner";
 import type { FailureReport } from "@/background/recorder/failure-logger";
 import {
@@ -34,6 +34,19 @@ interface FailureReportsPanelProps {
     readonly reports: ReadonlyArray<FailureReport>;
     /** Test seam: override the `download` side effect. */
     readonly onDownload?: (filename: string, contents: string) => void;
+    /**
+     * Test seam: override the clipboard side effect. Defaults to
+     * `navigator.clipboard.writeText`. Returning a rejected promise
+     * triggers the failure toast.
+     */
+    readonly onCopy?: (contents: string) => Promise<void>;
+}
+
+function defaultCopy(contents: string): Promise<void> {
+    if (typeof navigator === "undefined" || !navigator.clipboard) {
+        return Promise.reject(new Error("Clipboard API unavailable in this context"));
+    }
+    return navigator.clipboard.writeText(contents);
 }
 
 function defaultDownload(filename: string, contents: string): void {
@@ -50,7 +63,7 @@ function rowKey(r: FailureReport, idx: number): string {
     return `${r.Timestamp}#${r.StepId ?? "noid"}#${idx}`;
 }
 
-export function FailureReportsPanel({ reports, onDownload }: FailureReportsPanelProps) {
+export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureReportsPanelProps) {
     const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
     const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 
@@ -120,6 +133,34 @@ export function FailureReportsPanel({ reports, onDownload }: FailureReportsPanel
         }
     };
 
+    const handleCopyLast = async () => {
+        const last = pickLastFailureReport(reports);
+        if (last === null) {
+            toast.error("No failures recorded yet");
+            return;
+        }
+        const contents = JSON.stringify(last, null, 2);
+        const stepLabel = last.StepId !== null ? ` (Step #${last.StepId})` : "";
+        try {
+            await (onCopy ?? defaultCopy)(contents);
+        } catch (e) {
+            toast.error("Copy failed — clipboard unavailable", {
+                description: (e as Error).message,
+            });
+            return;
+        }
+        const validation = validateFailureReportPayload(contents);
+        if (!validation.Valid) {
+            toast.warning(`Copied last failure${stepLabel} — schema warning`, {
+                description: validation.Summary,
+            });
+        } else {
+            toast.success(`Copied last failure${stepLabel} to clipboard`, {
+                description: `${contents.length.toLocaleString()} chars — paste into your ticket or chat`,
+            });
+        }
+    };
+
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -136,6 +177,17 @@ export function FailureReportsPanel({ reports, onDownload }: FailureReportsPanel
                         disabled={reports.length === 0}
                     >
                         {allSelected ? "Clear" : "Select all"}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCopyLast}
+                        disabled={reports.length === 0}
+                        aria-label="Copy last failure report JSON to clipboard"
+                        title="Copy the most recent failure report JSON to the clipboard for pasting into a ticket or chat"
+                    >
+                        <ClipboardCopy className="h-3.5 w-3.5 mr-1.5" />
+                        Copy last failure JSON
                     </Button>
                     <Button
                         variant="outline"

@@ -880,6 +880,14 @@ export default function StepGroupLibraryPanel() {
                 onOpenChange={setInputSourceOpen}
             />
 
+            <StepWaitDialog
+                open={waitDialog.open}
+                onOpenChange={(o) => setWaitDialog((p) => ({ ...p, open: o }))}
+                stepId={waitDialog.stepId}
+                stepLabel={waitDialog.stepLabel}
+                onChange={refreshStepWaits}
+            />
+
             <ImportErrorDialog
                 open={importError.open}
                 onOpenChange={(o) => setImportError((p) => ({ ...p, open: o }))}

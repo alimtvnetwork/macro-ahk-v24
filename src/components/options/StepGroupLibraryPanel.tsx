@@ -602,17 +602,39 @@ export default function StepGroupLibraryPanel() {
 
                 {/* ---- Right: step preview ---- */}
                 <Card className="flex min-h-[400px] flex-col overflow-hidden">
-                    <div className="flex items-center justify-between border-b px-4 py-2">
-                        <div className="text-sm font-medium text-muted-foreground">
-                            {activeGroup === null
-                                ? "Select a group to preview its steps"
-                                : `${activeGroup.Name} — ${activeSteps.length} step(s)`}
-                        </div>
-                        {activeGroup?.Description != null && activeGroup.Description !== "" && (
-                            <div className="max-w-[60%] truncate text-xs text-muted-foreground">
-                                {activeGroup.Description}
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                            <div className="truncate text-sm font-medium text-muted-foreground">
+                                {activeGroup === null
+                                    ? "Select a group to preview its steps"
+                                    : `${activeGroup.Name} — ${activeSteps.length} step(s)`}
                             </div>
-                        )}
+                            {activeGroup !== null && lib.GroupInputs.has(activeGroup.StepGroupId) && (
+                                <span
+                                    className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary"
+                                    title={`${Object.keys(lib.GroupInputs.get(activeGroup.StepGroupId) ?? {}).length} input variable(s) bound`}
+                                >
+                                    Inputs bound
+                                </span>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {activeGroup?.Description != null && activeGroup.Description !== "" && (
+                                <div className="hidden max-w-[40ch] truncate text-xs text-muted-foreground sm:block">
+                                    {activeGroup.Description}
+                                </div>
+                            )}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={activeGroup === null}
+                                onClick={() => activeGroup !== null && setInputsDialog({ open: true, group: activeGroup })}
+                                title={activeGroup === null ? "Select a group first" : "Apply input data to this group"}
+                            >
+                                <FileJson className="mr-1 h-4 w-4" />
+                                Apply input data
+                            </Button>
+                        </div>
                     </div>
                     <ScrollArea className="flex-1">
                         {activeGroup === null ? (

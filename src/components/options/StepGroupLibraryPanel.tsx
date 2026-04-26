@@ -473,11 +473,13 @@ export default function StepGroupLibraryPanel() {
                             />
                         ) : (
                             <ul className="py-2">
-                                {tree.map((node) => (
+                                {tree.map((node, idx) => (
                                     <TreeNodeRow
                                         key={node.Group.StepGroupId}
                                         node={node}
                                         depth={0}
+                                        siblingIndex={idx}
+                                        siblingCount={tree.length}
                                         selected={selected}
                                         expanded={expanded}
                                         activeGroupId={activeGroupId}
@@ -495,6 +497,9 @@ export default function StepGroupLibraryPanel() {
                                             setDeleteDialog({ open: true, group: g })
                                         }
                                         onExportThis={(id) => handleExport([id])}
+                                        onMove={handleMove}
+                                        onArchiveToggle={handleArchiveToggle}
+                                        onDropReorder={handleDropReorder}
                                     />
                                 ))}
                             </ul>

@@ -1,7 +1,9 @@
+import StepGroupLibraryPanel from "@/components/options/StepGroupLibraryPanel";
+
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <h1 className="text-4xl font-bold">Hello World</h1>
+    <div className="min-h-screen w-full bg-background">
+      <StepGroupLibraryPanel />
     </div>
   );
 };

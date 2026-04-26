@@ -133,6 +133,34 @@ export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureRepo
         }
     };
 
+    const handleCopyLast = async () => {
+        const last = pickLastFailureReport(reports);
+        if (last === null) {
+            toast.error("No failures recorded yet");
+            return;
+        }
+        const contents = JSON.stringify(last, null, 2);
+        const stepLabel = last.StepId !== null ? ` (Step #${last.StepId})` : "";
+        try {
+            await (onCopy ?? defaultCopy)(contents);
+        } catch (e) {
+            toast.error("Copy failed — clipboard unavailable", {
+                description: (e as Error).message,
+            });
+            return;
+        }
+        const validation = validateFailureReportPayload(contents);
+        if (!validation.Valid) {
+            toast.warning(`Copied last failure${stepLabel} — schema warning`, {
+                description: validation.Summary,
+            });
+        } else {
+            toast.success(`Copied last failure${stepLabel} to clipboard`, {
+                description: `${contents.length.toLocaleString()} chars — paste into your ticket or chat`,
+            });
+        }
+    };
+
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -149,6 +177,17 @@ export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureRepo
                         disabled={reports.length === 0}
                     >
                         {allSelected ? "Clear" : "Select all"}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCopyLast}
+                        disabled={reports.length === 0}
+                        aria-label="Copy last failure report JSON to clipboard"
+                        title="Copy the most recent failure report JSON to the clipboard for pasting into a ticket or chat"
+                    >
+                        <ClipboardCopy className="h-3.5 w-3.5 mr-1.5" />
+                        Copy last failure JSON
                     </Button>
                     <Button
                         variant="outline"

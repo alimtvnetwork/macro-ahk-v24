@@ -87,6 +87,10 @@ import { StepKindId } from "@/background/recorder/step-library/schema";
 import { runStepGroupExport } from "@/background/recorder/step-library/export-bundle";
 import { runStepGroupImport } from "@/background/recorder/step-library/import-bundle";
 import BatchRunDialog from "./BatchRunDialog";
+import BundleExchangePanel, {
+    type LastExportSummary,
+    type LastImportSummary,
+} from "./BundleExchangePanel";
 
 /* ------------------------------------------------------------------ */
 /*  Tree shape                                                         */

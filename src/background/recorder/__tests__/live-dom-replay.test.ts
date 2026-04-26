@@ -211,7 +211,7 @@ describe("executeReplay — persisted per-step wait bridge", () => {
         expect(outcome.Results[0]!.Ok).toBe(true);
     });
 
-    it("fails the step when the persisted wait selector never appears", async () => {
+    it("fails the step with a structured Timeout report when the persisted wait selector never appears", async () => {
         document.body.innerHTML = `<button id="go">Go</button>`;
         writeStepWait(92, {
             Selector: "#never",
@@ -227,7 +227,39 @@ describe("executeReplay — persisted per-step wait bridge", () => {
         const outcome = await executeReplay(steps, { Doc: document });
         const r = outcome.Results[0]!;
         expect(r.Ok).toBe(false);
-        expect(r.Error).toMatch(/WaitFor '#never' did not appear/);
+        // Plain-text message carries selector + kind + configured timeout
+        // + actual elapsed ms — the four fields the user asked us to
+        // expose in the failure UI.
+        expect(r.Error).toMatch(/WaitFor selector '#never' \(Kind=Css\)/);
+        // Storage clamps TimeoutMs to ≥250 ms (see step-wait.ts), so
+        // the surfaced number reflects the clamped value, not the raw
+        // input — that's the value the runner actually waited on.
+        expect(r.Error).toMatch(/did not appear within 250 ms/);
+        expect(r.Error).toMatch(/elapsed \d+ ms/);
+        // Structured FailureReport drives the FailureDetailsPanel banner.
+        const report = r.FailureReport!;
+        expect(report.Reason).toBe("Timeout");
+        expect(report.ReasonDetail).toMatch(/'#never'.*Kind=Css.*250 ms/s);
+        expect(report.ReasonDetail).toMatch(/elapsed \d+ ms/);
+    });
+
+    it("classifies an invalid wait selector as a syntax error in the report", async () => {
+        document.body.innerHTML = `<button id="go">Go</button>`;
+        writeStepWait(95, {
+            Selector: ">>>broken<<<",
+            Kind: "Css",
+            Condition: "Appears",
+            TimeoutMs: 50,
+        });
+        const steps: ReplayStepInput[] = [{
+            StepId: 95, Index: 1, Kind: "Click",
+            Selectors: cssSelector(95, "#go"),
+        }];
+        const outcome = await executeReplay(steps, { Doc: document });
+        const r = outcome.Results[0]!;
+        expect(r.Ok).toBe(false);
+        expect(r.FailureReport!.Reason).toBe("CssSyntaxError");
+        expect(r.FailureReport!.ReasonDetail).toMatch(/is invalid:/);
     });
 
     it("inline step.WaitFor wins over the persisted config", async () => {

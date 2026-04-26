@@ -33,6 +33,7 @@ import {
 } from "./replay-run-persistence";
 import {
     logFailure,
+    type FailureReasonCode,
     type FailureReport,
 } from "./failure-logger";
 import { evaluateAllSelectors } from "./selector-attempt-evaluator";
@@ -216,14 +217,37 @@ async function executeStep(
                 Now: () => now().getTime(),
             });
             if (!waitOutcome.Ok) {
+                // Build a structured failure so the FailureDetailsPanel /
+                // failure-toast UI surfaces the selector, kind, configured
+                // timeout, and the actual elapsed time. The classification
+                // is "Timeout" for the polling-budget exhaustion case and
+                // "XPathSyntaxError" / "CssSyntaxError" for compile errors
+                // — chosen so the existing ReasonBanner colours apply.
+                const declaredKind = effectiveWait.Kind ?? "Auto";
+                const resolvedKind: "XPath" | "Css" =
+                    declaredKind === "XPath" ? "XPath"
+                        : declaredKind === "Css" ? "Css"
+                            : effectiveWait.Expression.trim().startsWith("/")
+                                ? "XPath" : "Css";
+                const reasonCode =
+                    waitOutcome.Reason === "InvalidSelector"
+                        ? (resolvedKind === "XPath" ? "XPathSyntaxError" : "CssSyntaxError")
+                        : "Timeout";
+                const reasonDetail =
+                    waitOutcome.Reason === "Timeout"
+                        ? `WaitFor selector '${effectiveWait.Expression}' (Kind=${resolvedKind}) ` +
+                          `did not appear within ${effectiveWait.TimeoutMs} ms ` +
+                          `(elapsed ${waitOutcome.DurationMs} ms).`
+                        : `WaitFor selector '${effectiveWait.Expression}' (Kind=${resolvedKind}) ` +
+                          `is invalid: ${waitOutcome.Detail}`;
                 return finalize(step, options, startedAt, now(), {
                     Ok: false,
                     ResolvedXPath: resolved.Expression,
                     Variables: variables,
                     Target: target,
-                    Error: new Error(
-                        `WaitFor '${effectiveWait.Expression}' did not appear within ${effectiveWait.TimeoutMs}ms (${waitOutcome.Reason}: ${waitOutcome.Detail})`,
-                    ),
+                    Reason: reasonCode,
+                    ReasonDetail: reasonDetail,
+                    Error: new Error(reasonDetail),
                 });
             }
         }
@@ -251,6 +275,9 @@ function finalize(
         ResolvedXPath?: string;
         Target?: HTMLElement | null;
         Variables?: ReadonlyArray<VariableContext>;
+        /** Caller-supplied classification — overrides auto-derivation in `logFailure`. */
+        Reason?: FailureReasonCode;
+        ReasonDetail?: string;
     },
 ): ReplayStepResult {
     if (outcome.Ok) {
@@ -291,6 +318,8 @@ function finalize(
         Variables: outcome.Variables,
         ResolvedXPath: outcome.ResolvedXPath,
         SourceFile: SOURCE_FILE,
+        Reason: outcome.Reason,
+        ReasonDetail: outcome.ReasonDetail,
         Verbose: verbose,
         Now: options.Now,
     });

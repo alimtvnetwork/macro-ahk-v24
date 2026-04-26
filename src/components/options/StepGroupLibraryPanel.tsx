@@ -802,6 +802,18 @@ export default function StepGroupLibraryPanel() {
                 explanation={importError.explanation}
                 fileName={importError.fileName}
             />
+
+            <GroupInputsDialog
+                open={inputsDialog.open}
+                groupName={inputsDialog.group?.Name ?? null}
+                groupId={inputsDialog.group?.StepGroupId ?? null}
+                currentBag={inputsDialog.group === null
+                    ? null
+                    : (lib.GroupInputs.get(inputsDialog.group.StepGroupId) ?? null)}
+                onOpenChange={(o) => setInputsDialog((p) => ({ ...p, open: o }))}
+                onApply={(gid, bag) => lib.setGroupInput(gid, bag)}
+                onClear={(gid) => lib.clearGroupInput(gid)}
+            />
         </div>
     );
 }

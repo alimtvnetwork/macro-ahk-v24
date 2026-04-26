@@ -47,6 +47,7 @@ import {
 import type { PersistedSelector } from "../step-persistence";
 import { logFailure, type FailureReport } from "../failure-logger";
 import type { FieldRow } from "../field-reference-resolver";
+import { SelectorKindId } from "../../recorder-db-schema";
 import type { StepRow } from "./db";
 import type { LeafStepExecutor, LeafStepContext } from "./run-group-runner";
 import { StepKindId } from "./schema";

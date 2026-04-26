@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, XCircle, AlertTriangle, Crosshair, FileDown, History } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, Crosshair, FileDown, History, Star } from "lucide-react";
 import { toast } from "sonner";
 import type { SelectorComparison, SelectorAttemptComparison } from "@/background/recorder/selector-comparison";
 import type { DomContext } from "@/background/recorder/failure-logger";
@@ -29,6 +29,12 @@ import {
     buildSelectorComparisonFilename,
     serializeSelectorComparisonBundle,
 } from "./selector-comparison-export";
+
+/**
+ * Promote-to-primary callback. Host owns persistence (DB write). Returning
+ * a rejected promise (or throwing) surfaces an error toast in the panel.
+ */
+export type PromoteToPrimaryHandler = (selectorId: number) => void | Promise<void>;
 
 interface SelectorComparisonPanelProps {
     readonly comparison: SelectorComparison;

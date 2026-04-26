@@ -26,6 +26,7 @@ import {
   RefreshCw,
   ShieldAlert,
   Library,
+  FolderTree,
 } from "lucide-react";
 import {
   DropdownMenu,

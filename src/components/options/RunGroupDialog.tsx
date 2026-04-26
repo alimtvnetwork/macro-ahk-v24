@@ -80,6 +80,17 @@ export default function RunGroupDialog(props: RunGroupDialogProps) {
     const [running, setRunning] = useState(false);
     const [result, setResult] = useState<RunGroupResult | null>(null);
     const [durationMs, setDurationMs] = useState<number>(0);
+    /**
+     * Live mode swaps the always-success `previewExecutor` for the
+     * `createLiveReplayExecutor` bridge so each leaf step actually
+     * dispatches `click` / `input` / `change` events into the Options
+     * page document via `executeReplay()`. This is the entry point
+     * that lets imported groups exercise the real replay pipeline
+     * (selectors, variable substitution, structured FailureReports)
+     * end-to-end. Defaults to OFF so opening the dialog never
+     * mutates the page accidentally.
+     */
+    const [liveMode, setLiveMode] = useState(false);
 
     // Reset whenever the dialog re-opens or the target group changes
     // so a stale prior run can't bleed into a new invocation.
@@ -88,6 +99,7 @@ export default function RunGroupDialog(props: RunGroupDialogProps) {
             setRunning(false);
             setResult(null);
             setDurationMs(0);
+            setLiveMode(false);
         }
     }, [open, group?.StepGroupId]);
 
@@ -97,12 +109,15 @@ export default function RunGroupDialog(props: RunGroupDialogProps) {
             return;
         }
         setRunning(true);
+        const executor: LeafStepExecutor = liveMode
+            ? createLiveReplayExecutor({ Doc: document })
+            : previewExecutor;
         const startedAt = performance.now();
         const r = await runGroup({
             db,
             projectId,
             rootGroupId: group.StepGroupId,
-            executeLeafStep: previewExecutor,
+            executeLeafStep: executor,
         });
         const elapsed = Math.max(0, Math.round(performance.now() - startedAt));
         setResult(r);

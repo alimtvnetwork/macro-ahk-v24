@@ -224,6 +224,9 @@ describe("waitForSelector", () => {
         TimeoutMs: 1_000,
     };
 
+    /** Stub document that satisfies validateSelector's live check. */
+    const stubDoc = { querySelector: () => null } as unknown as Document;
+
     function makeRoot(matchesAtTick: number, ticker: () => number): ParentNode {
         return {
             querySelectorAll: () => {
@@ -238,7 +241,7 @@ describe("waitForSelector", () => {
     it("succeeds immediately when the condition is already true", async () => {
         let now = 1000;
         const r = await waitForSelector(cfg, {
-            doc: {} as Document,
+            doc: stubDoc,
             root: makeRoot(0, () => now),
             now: () => now,
             sleep: async (ms) => { now += ms; },
@@ -250,7 +253,7 @@ describe("waitForSelector", () => {
     it("succeeds after polling until the element appears", async () => {
         let now = 1000;
         const r = await waitForSelector(cfg, {
-            doc: {} as Document,
+            doc: stubDoc,
             root: makeRoot(1300, () => now),
             now: () => now,
             sleep: async (ms) => { now += ms; },
@@ -263,7 +266,7 @@ describe("waitForSelector", () => {
     it("times out when the condition never holds", async () => {
         let now = 1000;
         const r = await waitForSelector(cfg, {
-            doc: {} as Document,
+            doc: stubDoc,
             root: makeRoot(Infinity, () => now),
             now: () => now,
             sleep: async (ms) => { now += ms; },
@@ -279,7 +282,7 @@ describe("waitForSelector", () => {
     it("returns InvalidSelector for empty selector without polling", async () => {
         const r = await waitForSelector(
             { ...cfg, Selector: "" },
-            { doc: {} as Document, root: {} as ParentNode },
+            { doc: stubDoc, root: {} as ParentNode },
         );
         expect(r.Ok).toBe(false);
         if (!r.Ok) expect(r.Reason).toBe("InvalidSelector");

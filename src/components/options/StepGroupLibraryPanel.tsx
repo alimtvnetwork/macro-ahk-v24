@@ -91,6 +91,11 @@ import BundleExchangePanel, {
     type LastExportSummary,
     type LastImportSummary,
 } from "./BundleExchangePanel";
+import ImportErrorDialog from "./ImportErrorDialog";
+import {
+    explainImportFailure,
+    type ImportErrorExplanation,
+} from "@/background/recorder/step-library/import-error-explainer";
 
 /* ------------------------------------------------------------------ */
 /*  Tree shape                                                         */

@@ -123,15 +123,19 @@ interface AttemptRowProps {
     readonly attempt: SelectorAttemptComparison;
     readonly history: SelectorHistoryBucket | null;
     readonly showHistory: boolean;
+    readonly onPromote: ((selectorId: number) => void) | null;
+    readonly isPromoting: boolean;
 }
 
-function AttemptRow({ attempt, history, showHistory }: AttemptRowProps) {
+function AttemptRow({ attempt, history, showHistory, onPromote, isPromoting }: AttemptRowProps) {
     const matched = attempt.Matched;
     const Icon = matched ? CheckCircle2 : XCircle;
     const tone = matched ? "text-emerald-500" : "text-destructive";
     const border = attempt.IsPrimary
         ? matched ? "border-emerald-500/40" : "border-destructive/40"
         : "border-border";
+
+    const canPromote = onPromote !== null && matched && !attempt.IsPrimary;
 
     return (
         <li className={`rounded-md border ${border} bg-card p-2.5 text-xs space-y-1`}>
@@ -147,6 +151,20 @@ function AttemptRow({ attempt, history, showHistory }: AttemptRowProps) {
                 <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
                     {attempt.MatchCount} match{attempt.MatchCount === 1 ? "" : "es"}
                 </Badge>
+                {canPromote && (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 px-2 text-[10px]"
+                        onClick={() => onPromote!(attempt.SelectorId)}
+                        disabled={isPromoting}
+                        aria-label={`Promote selector ${attempt.SelectorId} to primary`}
+                        title="Promote this fallback to primary for this step"
+                    >
+                        <Star className="h-3 w-3 mr-1" />
+                        {isPromoting ? "Promoting…" : "Promote to primary"}
+                    </Button>
+                )}
             </div>
 
             {attempt.ResolvedExpression !== attempt.Expression && (

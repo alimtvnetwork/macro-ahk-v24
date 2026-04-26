@@ -69,6 +69,7 @@ const primaryItems: Array<{ id: SidebarSection; label: string; icon: typeof Fold
   { id: "automation", label: "Automation", icon: Zap },
   { id: "updaters", label: "Updaters", icon: RefreshCw },
   { id: "library", label: "Library", icon: Library },
+  { id: "step-groups", label: "Step Groups", icon: FolderTree },
   { id: "storage", label: "Storage", icon: Database },
   { id: "api", label: "API Explorer", icon: Zap },
   { id: "settings", label: "Settings", icon: Settings },

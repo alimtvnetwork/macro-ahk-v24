@@ -237,6 +237,10 @@ function finalize(
         ? undefined
         : evaluateAllSelectors(step.Selectors, options.Doc);
 
+    const verbose = options.Verbose !== undefined
+        ? options.Verbose
+        : resolveVerboseLogging(options.Persist?.ProjectSlug);
+
     const report = logFailure({
         Phase: "Replay",
         Error: outcome.Error,
@@ -250,6 +254,7 @@ function finalize(
         Variables: outcome.Variables,
         ResolvedXPath: outcome.ResolvedXPath,
         SourceFile: SOURCE_FILE,
+        Verbose: verbose,
         Now: options.Now,
     });
 

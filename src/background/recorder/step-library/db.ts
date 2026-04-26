@@ -341,6 +341,21 @@ export class StepLibraryDb {
         this.exec(`DELETE FROM Step WHERE StepId = ?;`, [stepId]);
     }
 
+    /**
+     * Toggle the `IsDisabled` flag on a single step. The runner's
+     * expansion phase (`expandRunGroups`) drops disabled steps from
+     * the plan when `skipDisabled` is left at its default `true`, so
+     * flipping this flag is the canonical way to test that a step is
+     * skipped at runtime without having to delete + re-create it.
+     */
+    setStepDisabled(stepId: number, disabled: boolean): void {
+        this.exec(
+            `UPDATE Step SET IsDisabled = ?, UpdatedAt = datetime('now')
+             WHERE StepId = ?;`,
+            [disabled ? 1 : 0, stepId],
+        );
+    }
+
     /* -------------------- Snapshot -------------------------------- */
 
     /** Serialize the entire DB to bytes (for export). */

@@ -47,8 +47,8 @@ describe("executeReplay", () => {
             Selectors: fullXPathSelector(1, '//button[@id="go"]'),
         }];
 
-        const results = await executeReplay(steps, { Doc: document });
-        expect(results[0]!.Ok).toBe(true);
+        const outcome = await executeReplay(steps, { Doc: document });
+        expect(outcome.Results[0]!.Ok).toBe(true);
         expect(onClick).toHaveBeenCalledTimes(1);
     });
 
@@ -64,12 +64,12 @@ describe("executeReplay", () => {
             Value: "{{Email}}",
         }];
 
-        const results = await executeReplay(steps, {
+        const outcome = await executeReplay(steps, {
             Doc: document,
             Row: { Email: "alice@example.com" },
         });
 
-        expect(results[0]!.Ok).toBe(true);
+        expect(outcome.Results[0]!.Ok).toBe(true);
         expect(input.value).toBe("alice@example.com");
         expect(onInput).toHaveBeenCalledTimes(1);
     });
@@ -86,8 +86,8 @@ describe("executeReplay", () => {
             Value: "B",
         }];
 
-        const results = await executeReplay(steps, { Doc: document });
-        expect(results[0]!.Ok).toBe(true);
+        const outcome = await executeReplay(steps, { Doc: document });
+        expect(outcome.Results[0]!.Ok).toBe(true);
         expect(sel.value).toBe("B");
         expect(onChange).toHaveBeenCalledTimes(1);
     });
@@ -99,9 +99,9 @@ describe("executeReplay", () => {
             Selectors: cssSelector(4, "#nope"),
         }];
 
-        const results = await executeReplay(steps, { Doc: document });
-        expect(results[0]!.Ok).toBe(false);
-        expect(results[0]!.Error).toMatch(/Element not found/);
+        const outcome = await executeReplay(steps, { Doc: document });
+        expect(outcome.Results[0]!.Ok).toBe(false);
+        expect(outcome.Results[0]!.Error).toMatch(/Element not found/);
     });
 
     it("Wait step uses the injected sleep and resolves Ok", async () => {
@@ -109,9 +109,9 @@ describe("executeReplay", () => {
         const steps: ReplayStepInput[] = [{
             StepId: 5, Index: 1, Kind: "Wait", Selectors: [], WaitMs: 250,
         }];
-        const results = await executeReplay(steps, { Doc: document, Sleep: sleep });
+        const outcome = await executeReplay(steps, { Doc: document, Sleep: sleep });
         expect(sleep).toHaveBeenCalledWith(250);
-        expect(results[0]!.Ok).toBe(true);
+        expect(outcome.Results[0]!.Ok).toBe(true);
     });
 
     it("executes steps in order and collects per-step results", async () => {
@@ -125,9 +125,9 @@ describe("executeReplay", () => {
             { StepId: 10, Index: 1, Kind: "Type",  Selectors: cssSelector(10, "#a"), Value: "hi" },
             { StepId: 11, Index: 2, Kind: "Click", Selectors: cssSelector(11, "#b") },
         ];
-        const results = await executeReplay(steps, { Doc: document });
-        expect(results.map((r) => r.Index)).toEqual([1, 2]);
-        expect(results.every((r) => r.Ok)).toBe(true);
+        const outcome = await executeReplay(steps, { Doc: document });
+        expect(outcome.Results.map((r) => r.Index)).toEqual([1, 2]);
+        expect(outcome.Results.every((r) => r.Ok)).toBe(true);
         expect(a.value).toBe("hi");
         expect(clicked).toHaveBeenCalledTimes(1);
     });

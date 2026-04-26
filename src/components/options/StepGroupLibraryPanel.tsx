@@ -784,6 +784,8 @@ interface TreeNodeRowProps {
     readonly selected: ReadonlySet<number>;
     readonly expanded: ReadonlySet<number>;
     readonly activeGroupId: number | null;
+    readonly hoveredId: number | null;
+    readonly onHover: (id: number | null) => void;
     readonly onToggleSelect: (id: number, on: boolean) => void;
     readonly onToggleSubtree: (node: TreeNode, on: boolean) => void;
     readonly onToggleExpanded: (id: number) => void;

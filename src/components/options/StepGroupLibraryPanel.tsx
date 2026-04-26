@@ -30,6 +30,8 @@ import { toast } from "sonner";
 import {
     Archive,
     ArchiveRestore,
+    ArrowDown,
+    ArrowUp,
     ChevronDown,
     ChevronRight,
     ChevronUp,

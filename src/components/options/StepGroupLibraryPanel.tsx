@@ -591,7 +591,7 @@ export default function StepGroupLibraryPanel() {
 
             <BundleExchangePanel
                 selectedCount={selectedCount}
-                onExport={() => handleExport()}
+                onExport={(includeDescendants) => handleExport(undefined, includeDescendants)}
                 onImportFile={handleImportFile}
                 lastExport={lastExport}
                 lastImport={lastImport}

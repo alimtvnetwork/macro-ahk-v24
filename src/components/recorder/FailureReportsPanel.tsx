@@ -100,7 +100,9 @@ export function FailureReportsPanel({ reports, onDownload }: FailureReportsPanel
         const contents = JSON.stringify(last, null, 2);
         (onDownload ?? defaultDownload)(filename, contents);
         const stepLabel = last.StepId !== null ? ` (Step #${last.StepId})` : "";
-        toast.success(`Exported last failure${stepLabel}`);
+        toast.success(`Downloaded ${filename}`, {
+            description: `Last failure${stepLabel} saved as JSON`,
+        });
     };
 
     return (

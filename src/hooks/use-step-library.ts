@@ -436,9 +436,20 @@ export function useStepLibrary(): UseStepLibraryApi {
         window.location.reload();
     }, []);
 
+    /**
+     * Re-run the bootstrap effect without a full page reload. Used by
+     * the load-error UI's Retry button. Resets the cached sql.js
+     * promise so the next attempt actually re-fetches the WASM.
+     */
+    const retryLoad = useCallback(() => {
+        sqlPromise = null;
+        setBootstrapNonce((n) => n + 1);
+    }, []);
+
     return useMemo<UseStepLibraryApi>(() => ({
         Loading: loading,
         Error: error,
+        LoadError: loadError,
         SqlJs: sql,
         Lib: lib,
         Project: project,
@@ -455,7 +466,8 @@ export function useStepLibrary(): UseStepLibraryApi {
         setGroupInput,
         clearGroupInput,
         resetAll,
-    }), [loading, error, sql, lib, project, groups, stepsByGroup, groupInputs, refresh, createGroup, renameGroup, deleteGroup, moveGroupWithinParent, reorderSiblings, setGroupArchived, setGroupInput, clearGroupInput, resetAll]);
+        retryLoad,
+    }), [loading, error, loadError, sql, lib, project, groups, stepsByGroup, groupInputs, refresh, createGroup, renameGroup, deleteGroup, moveGroupWithinParent, reorderSiblings, setGroupArchived, setGroupInput, clearGroupInput, resetAll, retryLoad]);
 }
 
 /* ------------------------------------------------------------------ */

@@ -643,7 +643,17 @@ export default function StepGroupLibraryPanel() {
                                 title={activeGroup === null ? "Select a group first" : "Apply input data to this group"}
                             >
                                 <FileJson className="mr-1 h-4 w-4" />
-                                Apply input data
+                                JSON
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={activeGroup === null}
+                                onClick={() => activeGroup !== null && setCsvDialog({ open: true, group: activeGroup })}
+                                title={activeGroup === null ? "Select a group first" : "Import CSV input for this group"}
+                            >
+                                <FileSpreadsheet className="mr-1 h-4 w-4" />
+                                CSV
                             </Button>
                         </div>
                     </div>

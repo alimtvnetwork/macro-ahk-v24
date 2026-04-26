@@ -139,9 +139,12 @@ export function validateFailureReportPayload(
         }], [], 0);
     }
 
-    // Step 3: detect bundle vs single report by checking for `Reports`.
+    // Step 3: detect bundle vs single report. If `Reports` key is
+    //         present (even with the wrong type), treat as a bundle so
+    //         we surface the wrapper-shape error rather than 14 false
+    //         "missing field" errors against a non-report object.
     const obj = payload as Record<string, unknown>;
-    if (Array.isArray(obj.Reports)) {
+    if ("Reports" in obj || "Generator" in obj || "ExportedAt" in obj) {
         return validateBundle(obj);
     }
     // Single report path.

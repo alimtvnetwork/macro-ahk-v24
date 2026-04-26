@@ -12,6 +12,7 @@ import { loadOrCreateFromOpfs, saveToOpfs, loadFromStorage } from "./db-persiste
 import { ensureMetaTables, META_TABLES_SCHEMA } from "./schema-meta-engine";
 import { DEFAULT_PROJECT_DATABASES, type DefaultDatabaseDef } from "../types/default-databases";
 import { wrapDatabaseWithBindSafety } from "./sqlite-bind-safety";
+import { RECORDER_DB_SCHEMA } from "./recorder-db-schema";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */

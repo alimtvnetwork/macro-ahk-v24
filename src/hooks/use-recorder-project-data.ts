@@ -120,20 +120,9 @@ export function useRecorderProjectData(projectSlug: string): HookResult {
 
     const loadSelectors = useCallback(
         async (stepId: number): Promise<ReadonlyArray<SelectorRow>> => {
-            const res = await sendMessage<{ resolved: { Expression: string; Kind: string } }>({
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                type: "RECORDER_STEP_RESOLVE" as any,
-                projectSlug,
-                stepId,
-            }).catch(() => null);
-            // The selector rows themselves come back via a dedicated resolver
-            // call's side path: we only need the rows for display, so we ask
-            // the resolver indirectly via STEP_LIST is not enough — list-only
-            // call is exposed below.
-            void res;
             const list = await sendMessage<{ selectors: ReadonlyArray<SelectorRow> }>({
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                type: "RECORDER_STEP_LIST_SELECTORS" as any,
+                type: "RECORDER_STEP_SELECTORS_LIST" as any,
                 projectSlug,
                 stepId,
             }).catch(() => ({ selectors: [] as ReadonlyArray<SelectorRow> }));

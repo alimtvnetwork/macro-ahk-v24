@@ -114,10 +114,7 @@ import {
     readAllStepWaits,
     type WaitConfig,
 } from "@/background/recorder/step-library/step-wait";
-import {
-    explainImportFailure,
-    type ImportErrorExplanation,
-} from "@/background/recorder/step-library/import-error-explainer";
+
 
 /* ------------------------------------------------------------------ */
 /*  Tree shape                                                         */

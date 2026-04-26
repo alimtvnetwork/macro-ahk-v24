@@ -440,13 +440,13 @@ export default function StepGroupListPanel() {
                         <Plus className="mr-1 h-4 w-4" />
                         New group
                     </Button>
-                    <Link
-                        to="/step-groups"
+                    <a
+                        href="#step-groups"
                         className="text-sm text-primary underline-offset-2 hover:underline"
                         title="Switch to the hierarchical tree browser"
                     >
                         Open tree view
-                    </Link>
+                    </a>
                 </div>
             </header>
 

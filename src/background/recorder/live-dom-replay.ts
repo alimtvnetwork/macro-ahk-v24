@@ -21,6 +21,11 @@
 import { resolveStepSelector, type ResolvedSelector } from "./replay-resolver";
 import { resolveFieldReferences, type FieldRow } from "./field-reference-resolver";
 import type { PersistedSelector } from "./step-persistence";
+import {
+    saveReplayRun,
+    type PersistedReplayRun,
+    type ReplayStepResultDraft,
+} from "./replay-run-persistence";
 
 export interface ReplayStepInput {
     readonly StepId: number;
@@ -33,12 +38,26 @@ export interface ReplayStepInput {
     readonly WaitMs?: number;
 }
 
+export interface ReplayPersistOptions {
+    /** Project slug whose per-project DB receives the run row. */
+    readonly ProjectSlug: string;
+    /** Optional free-text notes attached to the persisted ReplayRun. */
+    readonly Notes?: string;
+}
+
 export interface ReplayOptions {
     readonly Doc: Document;
     /** Active data-source row used to resolve `{{Column}}` templates in Value. */
     readonly Row?: FieldRow;
     /** Sleep implementation — injected so tests can fast-forward. */
     readonly Sleep?: (ms: number) => Promise<void>;
+    /** Wall-clock provider — injected so tests get deterministic timestamps. */
+    readonly Now?: () => Date;
+    /**
+     * When provided, the run + per-step results are persisted to the project
+     * DB after `executeReplay` finishes. Tests omit this to stay pure.
+     */
+    readonly Persist?: ReplayPersistOptions;
 }
 
 export interface ReplayStepResult {
@@ -47,48 +66,127 @@ export interface ReplayStepResult {
     readonly Ok: boolean;
     readonly Error?: string;
     readonly ResolvedXPath?: string;
+    readonly StartedAt: string;
+    readonly FinishedAt: string;
+    readonly DurationMs: number;
+}
+
+export interface ReplayRunOutcome {
+    readonly Results: ReadonlyArray<ReplayStepResult>;
+    readonly StartedAt: string;
+    readonly FinishedAt: string;
+    /** Populated only when `options.Persist` was supplied and the save succeeded. */
+    readonly PersistedRun: PersistedReplayRun | null;
 }
 
 export async function executeReplay(
     steps: ReadonlyArray<ReplayStepInput>,
     options: ReplayOptions,
-): Promise<ReplayStepResult[]> {
+): Promise<ReplayRunOutcome> {
     const sleep = options.Sleep ?? defaultSleep;
+    const now = options.Now ?? defaultNow;
+    const runStarted = now();
+
     const results: ReplayStepResult[] = [];
     for (const step of steps) {
-        results.push(await executeStep(step, options, sleep));
+        results.push(await executeStep(step, options, sleep, now));
     }
-    return results;
+
+    const runFinished = now();
+    const startedAt = toIso(runStarted);
+    const finishedAt = toIso(runFinished);
+
+    let persistedRun: PersistedReplayRun | null = null;
+    if (options.Persist !== undefined) {
+        persistedRun = await saveReplayRun(options.Persist.ProjectSlug, {
+            StartedAt: startedAt,
+            FinishedAt: finishedAt,
+            Notes: options.Persist.Notes ?? "",
+            StepResults: results.map(toStepResultDraft),
+        });
+    }
+
+    return {
+        Results: results,
+        StartedAt: startedAt,
+        FinishedAt: finishedAt,
+        PersistedRun: persistedRun,
+    };
 }
 
 async function executeStep(
     step: ReplayStepInput,
     options: ReplayOptions,
     sleep: (ms: number) => Promise<void>,
+    now: () => Date,
 ): Promise<ReplayStepResult> {
+    const startedAt = now();
     try {
         if (step.Kind === "Wait") {
             await sleep(step.WaitMs ?? 0);
-            return { StepId: step.StepId, Index: step.Index, Ok: true };
+            return finalize(step, startedAt, now(), { Ok: true });
         }
 
         const resolved = resolveStepSelector(step.Selectors);
         const target = locateElement(resolved, options.Doc);
         if (target === null) {
-            return { StepId: step.StepId, Index: step.Index, Ok: false,
+            return finalize(step, startedAt, now(), {
+                Ok: false,
                 ResolvedXPath: resolved.Expression,
-                Error: `Element not found for selector '${resolved.Expression}'` };
+                Error: `Element not found for selector '${resolved.Expression}'`,
+            });
         }
 
         if (step.Kind === "Click")  { dispatchClick(target); }
         if (step.Kind === "Type")   { dispatchType(target,   resolveValue(step.Value, options.Row)); }
         if (step.Kind === "Select") { dispatchSelect(target, resolveValue(step.Value, options.Row)); }
 
-        return { StepId: step.StepId, Index: step.Index, Ok: true, ResolvedXPath: resolved.Expression };
+        return finalize(step, startedAt, now(), { Ok: true, ResolvedXPath: resolved.Expression });
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        return { StepId: step.StepId, Index: step.Index, Ok: false, Error: message };
+        return finalize(step, startedAt, now(), { Ok: false, Error: message });
     }
+}
+
+function finalize(
+    step: ReplayStepInput,
+    started: Date,
+    finished: Date,
+    outcome: { Ok: boolean; Error?: string; ResolvedXPath?: string },
+): ReplayStepResult {
+    return {
+        StepId: step.StepId,
+        Index: step.Index,
+        Ok: outcome.Ok,
+        Error: outcome.Error,
+        ResolvedXPath: outcome.ResolvedXPath,
+        StartedAt: toIso(started),
+        FinishedAt: toIso(finished),
+        DurationMs: Math.max(0, finished.getTime() - started.getTime()),
+    };
+}
+
+function toStepResultDraft(r: ReplayStepResult): ReplayStepResultDraft {
+    return {
+        StepId: r.StepId,
+        OrderIndex: r.Index,
+        IsOk: r.Ok,
+        ErrorMessage: r.Error ?? null,
+        ResolvedXPath: r.ResolvedXPath ?? null,
+        StartedAt: r.StartedAt,
+        FinishedAt: r.FinishedAt,
+        DurationMs: r.DurationMs,
+    };
+}
+
+function toIso(d: Date): string {
+    // SQLite stores `datetime('now')` in 'YYYY-MM-DD HH:MM:SS'; ISO is fine here
+    // because the column is TEXT and we read it back verbatim.
+    return d.toISOString();
+}
+
+function defaultNow(): Date {
+    return new Date();
 }
 
 function resolveValue(raw: string | undefined, row: FieldRow | undefined): string {

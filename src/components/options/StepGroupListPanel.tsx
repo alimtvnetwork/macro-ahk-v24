@@ -150,7 +150,11 @@ function formatDate(iso: string): string {
 
 export default function StepGroupListPanel() {
     const lib = useStepLibrary();
-    const navigate = useNavigate();
+    const exportApi = useStepGroupExport({
+        Lib: lib.Lib,
+        Project: lib.Project,
+        SqlJs: lib.SqlJs,
+    });
     const [query, setQuery] = useState("");
     const [activeGroupId, setActiveGroupId] = useState<number | null>(null);
 

@@ -951,10 +951,16 @@ export default function StepGroupLibraryPanel() {
             />
 
             <ImportErrorDialog
-                open={importError.open}
-                onOpenChange={(o) => setImportError((p) => ({ ...p, open: o }))}
-                explanation={importError.explanation}
-                fileName={importError.fileName}
+                open={importApi.errorState.Open}
+                onOpenChange={importApi.setErrorOpen}
+                explanation={importApi.errorState.Explanation}
+                fileName={importApi.errorState.FileName}
+            />
+            <ImportSummaryDialog
+                open={importApi.summaryState.Open}
+                onOpenChange={importApi.setSummaryOpen}
+                summary={importApi.summaryState.Summary}
+                fileName={importApi.summaryState.FileName}
             />
 
             <ExportPreviewDialog

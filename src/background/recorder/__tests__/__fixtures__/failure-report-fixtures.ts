@@ -235,14 +235,13 @@ export function fixtureRecordNoTarget(): FixtureBundle {
  * complies with the same required-field schema as DOM-target failures.
  */
 export function fixtureReplayJsInlineThrew(): FixtureBundle {
-    const err = new (require("../../js-step-sandbox").JsExecError)(
+    const err = new JsExecError(
         "InlineJs execution failed: TypeError: cannot read 'Email'",
     );
     const ctx = {
         Vars: { TenantId: "acme", AuthToken: "secret-abc" },
         Row: { Email: "alice@example.com" },
     };
-    const { buildJsStepFailureReport } = require("../../js-step-diagnostics") as typeof import("../../js-step-diagnostics");
     const base = {
         Body: "return Ctx.Row.Email.toUpperCase();",
         Error: err,

@@ -243,14 +243,10 @@ function firstDetail(attempts: ReadonlyArray<SelectorAttempt>, code: AttemptFail
  * ```
  * [MarcoReplay] Element not found for selector '#go'
  *   Reason: PrimaryMissedFallbackOk — Primary missed; 1 fallback matched.
- *   at src/background/recorder/live-dom-replay.ts (StepId=42, Index=3)
+ *   at src/background/recorder/live-dom-replay.ts StepId=42 Index=3
  *   Selectors:
  *     ✗ ✓ XPathFull   //button[@id='go'] → 0 matches (ZeroMatches: …)
  *     ✓ · Css         #go                → 1 matches
- *   at src/background/recorder/live-dom-replay.ts (StepId=42, Index=3)
- *   Selectors:
- *     ✓ XPathFull   //button[@id='go']
- *     · Css         #go
  *   DomContext: <button id="go" class="primary"> "Go"
  *   DataRow: { "Email": "alice@example.com" }
  *   Stack:
@@ -261,6 +257,7 @@ export function formatFailureReport(report: FailureReport): string {
     const tag = `[Marco${report.Phase}]`;
     const lines: string[] = [];
     lines.push(`${tag} ${report.Message}`);
+    lines.push(`  Reason: ${report.Reason} — ${report.ReasonDetail}`);
 
     const where: string[] = [`at ${report.SourceFile}`];
     if (report.StepId !== null) where.push(`StepId=${report.StepId}`);
@@ -271,8 +268,13 @@ export function formatFailureReport(report: FailureReport): string {
     if (report.Selectors.length > 0) {
         lines.push("  Selectors:");
         for (const s of report.Selectors) {
-            const mark = s.IsPrimary ? "✓" : "·";
-            lines.push(`    ${mark} ${s.Kind.padEnd(13)} ${s.Expression}`);
+            const matchMark = s.Matched ? "✓" : "✗";
+            const primaryMark = s.IsPrimary ? "✓" : "·";
+            const expr = s.ResolvedExpression.length > 0 ? s.ResolvedExpression : s.Expression;
+            const tail = s.Matched
+                ? `→ ${s.MatchCount} match${s.MatchCount === 1 ? "" : "es"}`
+                : `→ ${s.MatchCount} matches (${s.FailureReason}${s.FailureDetail !== null ? `: ${s.FailureDetail}` : ""})`;
+            lines.push(`    ${matchMark} ${primaryMark} ${s.Strategy.padEnd(13)} ${expr} ${tail}`);
         }
     }
 

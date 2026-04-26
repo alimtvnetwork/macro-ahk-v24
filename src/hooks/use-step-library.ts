@@ -93,6 +93,18 @@ export interface UseStepLibraryApi extends UseStepLibraryState {
     readonly createGroup: (input: { Name: string; ParentStepGroupId: number | null; Description?: string | null }) => number;
     readonly renameGroup: (stepGroupId: number, newName: string) => void;
     readonly deleteGroup: (stepGroupId: number) => void;
+    /**
+     * Move a group up or down among its current siblings (same parent).
+     * No-op when the move would push past either edge — the panel can
+     * still call it on every arrow-button click without checking.
+     */
+    readonly moveGroupWithinParent: (stepGroupId: number, direction: "up" | "down") => void;
+    /**
+     * Reorder all sibling groups under a parent in one shot. Used by
+     * the drag-and-drop handler — caller passes the COMPLETE new order.
+     */
+    readonly reorderSiblings: (parentStepGroupId: number | null, orderedIds: readonly number[]) => void;
+    readonly setGroupArchived: (stepGroupId: number, archived: boolean) => void;
     readonly resetAll: () => void;
 }
 

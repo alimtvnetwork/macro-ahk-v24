@@ -7,8 +7,11 @@ import {
     buildFailureBundle,
     serializeFailureBundle,
     buildFailureBundleFilename,
+    pickLastFailureReport,
+    buildLastFailureFilename,
 } from "../failure-export";
 import { buildFailureReport, type FailureReport } from "@/background/recorder/failure-logger";
+import type { EvaluatedAttempt } from "@/background/recorder/selector-attempt-evaluator";
 
 const FIXED_NOW = (): Date => new Date("2026-04-26T10:30:00.000Z");
 
@@ -63,5 +66,86 @@ describe("buildFailureBundleFilename", () => {
     it("formats as marco-failure-reports-YYYY-MM-DD-HHmm.json", () => {
         const name = buildFailureBundleFilename(new Date("2026-04-26T10:30:00.000Z"));
         expect(name).toBe("marco-failure-reports-2026-04-26-1030.json");
+    });
+});
+
+describe("pickLastFailureReport", () => {
+    it("returns null on empty input", () => {
+        expect(pickLastFailureReport([])).toBeNull();
+    });
+
+    it("returns the report with the latest Timestamp regardless of array order", () => {
+        const oldReport: FailureReport = {
+            ...sampleReport("old", 1),
+            Timestamp: "2026-04-26T09:00:00.000Z",
+        };
+        const newReport: FailureReport = {
+            ...sampleReport("new", 2),
+            Timestamp: "2026-04-26T11:00:00.000Z",
+        };
+        expect(pickLastFailureReport([oldReport, newReport])).toBe(newReport);
+        expect(pickLastFailureReport([newReport, oldReport])).toBe(newReport);
+    });
+
+    it("breaks ties by taking the last one in array order", () => {
+        const t = "2026-04-26T10:00:00.000Z";
+        const a: FailureReport = { ...sampleReport("a", 1), Timestamp: t };
+        const b: FailureReport = { ...sampleReport("b", 2), Timestamp: t };
+        expect(pickLastFailureReport([a, b])).toBe(b);
+    });
+});
+
+describe("buildLastFailureFilename", () => {
+    it("includes the StepId tag when present", () => {
+        const r = sampleReport("x", 7);
+        const name = buildLastFailureFilename(r, new Date("2026-04-26T10:30:00.000Z"));
+        expect(name).toBe("marco-last-failure-step7-2026-04-26-1030.json");
+    });
+
+    it("omits the StepId tag when absent", () => {
+        const r: FailureReport = { ...sampleReport("x", 1), StepId: null };
+        const name = buildLastFailureFilename(r, new Date("2026-04-26T10:30:00.000Z"));
+        expect(name).toBe("marco-last-failure-2026-04-26-1030.json");
+    });
+});
+
+describe("last-failure export — round-trip preserves EvaluatedAttempts", () => {
+    it("single-report JSON includes every Selector entry with Strategy/Matched/MatchCount/FailureReason", () => {
+        const evaluated: ReadonlyArray<EvaluatedAttempt> = [
+            {
+                SelectorId: 1, Strategy: "XPathFull",
+                Expression: "//button[@id='go']", ResolvedExpression: "//button[@id='go']",
+                IsPrimary: true, Matched: false, MatchCount: 0,
+                FailureReason: "ZeroMatches", FailureDetail: "Returned 0 nodes",
+            },
+            {
+                SelectorId: 2, Strategy: "Css",
+                Expression: "#go", ResolvedExpression: "#go",
+                IsPrimary: false, Matched: true, MatchCount: 1,
+                FailureReason: "Matched", FailureDetail: null,
+            },
+        ];
+        const report = buildFailureReport({
+            Phase: "Replay",
+            Error: new Error("Element not found"),
+            StepId: 7, Index: 2, StepKind: "Click",
+            SourceFile: "src/test.ts",
+            Now: FIXED_NOW,
+            EvaluatedAttempts: evaluated,
+        });
+
+        const text = JSON.stringify(report, null, 2);
+        const parsed = JSON.parse(text) as FailureReport;
+
+        expect(parsed.Selectors).toHaveLength(2);
+        expect(parsed.Selectors[0].Strategy).toBe("XPathFull");
+        expect(parsed.Selectors[0].IsPrimary).toBe(true);
+        expect(parsed.Selectors[0].Matched).toBe(false);
+        expect(parsed.Selectors[0].MatchCount).toBe(0);
+        expect(parsed.Selectors[0].FailureReason).toBe("ZeroMatches");
+        expect(parsed.Selectors[0].FailureDetail).toBe("Returned 0 nodes");
+        expect(parsed.Selectors[1].Strategy).toBe("Css");
+        expect(parsed.Selectors[1].Matched).toBe(true);
+        expect(parsed.Selectors[1].MatchCount).toBe(1);
     });
 });

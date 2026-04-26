@@ -97,6 +97,13 @@ import {
 } from "./handlers/recorder-field-binding-handler";
 
 import {
+    handleRecorderStepInsert,
+    handleRecorderStepList,
+    handleRecorderStepDelete,
+    handleRecorderStepResolve,
+} from "./handlers/recorder-step-handler";
+
+import {
     handleGetActiveErrors,
     handleUserScriptError,
     handleClearErrors,
@@ -382,6 +389,10 @@ export const HANDLER_REGISTRY = new Map<MessageType, MessageHandler>([
     [MessageType.RECORDER_FIELD_BINDING_UPSERT, async (msg) => handleRecorderFieldBindingUpsert(msg)],
     [MessageType.RECORDER_FIELD_BINDING_LIST, async (msg) => handleRecorderFieldBindingList(msg)],
     [MessageType.RECORDER_FIELD_BINDING_DELETE, async (msg) => handleRecorderFieldBindingDelete(msg)],
+    [MessageType.RECORDER_STEP_INSERT, async (msg) => handleRecorderStepInsert(msg)],
+    [MessageType.RECORDER_STEP_LIST, async (msg) => handleRecorderStepList(msg)],
+    [MessageType.RECORDER_STEP_DELETE, async (msg) => handleRecorderStepDelete(msg)],
+    [MessageType.RECORDER_STEP_RESOLVE, async (msg) => handleRecorderStepResolve(msg)],
     [MessageType.USER_SCRIPT_ERROR, async (msg) => handleUserScriptError(msg)],
     [MessageType.USER_SCRIPT_LOG, async (msg) => handleUserScriptLog(msg)],
     [MessageType.USER_SCRIPT_DATA_SET, async (msg) => handleDataSet(msg)],

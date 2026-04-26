@@ -87,6 +87,12 @@ export enum MessageType {
     RECORDER_FIELD_BINDING_LIST = "RECORDER_FIELD_BINDING_LIST",
     RECORDER_FIELD_BINDING_DELETE = "RECORDER_FIELD_BINDING_DELETE",
 
+    // ─── Macro Recorder Steps + Replay (from Spec 31, Phase 09) ───
+    RECORDER_STEP_INSERT = "RECORDER_STEP_INSERT",
+    RECORDER_STEP_LIST = "RECORDER_STEP_LIST",
+    RECORDER_STEP_DELETE = "RECORDER_STEP_DELETE",
+    RECORDER_STEP_RESOLVE = "RECORDER_STEP_RESOLVE",
+
     // ─── Config Notifications (from Spec 10) ───
     CONFIG_UPDATED = "CONFIG_UPDATED",
 
@@ -448,6 +454,10 @@ export type MessageRequest =
     | { type: MessageType.RECORDER_FIELD_BINDING_UPSERT; projectSlug: string; stepId: number; dataSourceId: number; columnName: string }
     | { type: MessageType.RECORDER_FIELD_BINDING_LIST; projectSlug: string }
     | { type: MessageType.RECORDER_FIELD_BINDING_DELETE; projectSlug: string; stepId: number }
+    | { type: MessageType.RECORDER_STEP_INSERT; projectSlug: string; draft: Record<string, JsonValue> }
+    | { type: MessageType.RECORDER_STEP_LIST; projectSlug: string }
+    | { type: MessageType.RECORDER_STEP_DELETE; projectSlug: string; stepId: number }
+    | { type: MessageType.RECORDER_STEP_RESOLVE; projectSlug: string; stepId: number }
     | { type: MessageType.USER_SCRIPT_ERROR; scriptId: string; message: string; stack: string; scriptCode?: string; projectId?: string }
     | { type: MessageType.GET_NETWORK_REQUESTS }
     | { type: MessageType.GET_NETWORK_STATS }

@@ -132,9 +132,17 @@ export interface BuildFailureReportInput {
     readonly EvaluatedAttempts?: ReadonlyArray<EvaluatedAttempt>;
     readonly Target?: Element | null;
     readonly DataRow?: FieldRow;
+    /**
+     * Per-variable diagnostics for any `{{Token}}` referenced by the step's
+     * Value template. Caller produces this with
+     * `resolveFieldReferencesDetailed`. Drives the top-level Reason when
+     * any variable failed (variable failures outrank selector failures
+     * because they explain WHY the step had bad inputs to begin with).
+     */
+    readonly Variables?: ReadonlyArray<VariableContext>;
     readonly ResolvedXPath?: string;
     readonly SourceFile: string;        // e.g. "src/background/recorder/live-dom-replay.ts"
-    /** Caller-supplied classification. Auto-derived from attempts when omitted. */
+    /** Caller-supplied classification. Auto-derived from attempts/variables when omitted. */
     readonly Reason?: FailureReasonCode;
     readonly ReasonDetail?: string;
     readonly Now?: () => Date;
@@ -173,6 +181,7 @@ export function buildFailureReport(input: BuildFailureReportInput): FailureRepor
         Index: input.Index ?? null,
         StepKind: input.StepKind ?? null,
         Selectors: attempts,
+        Variables: input.Variables ?? [],
         DomContext: input.Target ? readDomContext(input.Target) : null,
         DataRow: input.DataRow ?? null,
         ResolvedXPath: input.ResolvedXPath ?? null,

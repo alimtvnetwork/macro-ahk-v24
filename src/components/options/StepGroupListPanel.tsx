@@ -114,18 +114,6 @@ function validateName(raw: string, siblingNames: ReadonlyArray<string>): string 
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-/**
- * Session-scoped handoff key. When the user clicks "Export selected"
- * here, we stash the chosen StepGroupIds and navigate to the tree
- * view, which owns the full export pipeline (preview + error dialog
- * + last-export summary). The tree panel reads + clears this key on
- * mount and pre-populates its selection set.
- *
- * Using sessionStorage (not a route-state object) keeps the handoff
- * resilient to manual reloads / direct URL navigation between the
- * two panels.
- */
-export const STEP_GROUP_PRESELECT_KEY = "stepGroupListPreselect";
 
 function matchesQuery(group: StepGroupRow, query: string): boolean {
     if (query === "") return true;

@@ -430,7 +430,9 @@ export default function StepGroupLibraryPanel() {
             JsZip: JSZip,
         });
         if (result.Reason !== "Ok") {
-            toast.error(`Export failed: ${result.Reason}`, { description: result.Detail });
+            const explanation = explainExportFailure(result);
+            setExportError({ Open: true, Explanation: explanation });
+            toast.error(explanation.Title, { description: "See dialog for details" });
             return;
         }
         // Trigger browser download via blob URL.
@@ -480,7 +482,9 @@ export default function StepGroupLibraryPanel() {
             IncludeDescendants: includeDescendants,
         });
         if (preview.Reason !== "Ok") {
-            toast.error(`Cannot export: ${preview.Reason}`, { description: preview.Detail });
+            const explanation = explainExportFailure(preview);
+            setExportError({ Open: true, Explanation: explanation });
+            toast.error(explanation.Title, { description: "See dialog for details" });
             return;
         }
         setExportPreview({

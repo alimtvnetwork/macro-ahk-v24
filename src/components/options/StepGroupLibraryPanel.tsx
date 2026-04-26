@@ -24,7 +24,7 @@
  * @see src/background/recorder/step-library/import-bundle.ts
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import JSZip from "jszip";
 import { toast } from "sonner";
 import {

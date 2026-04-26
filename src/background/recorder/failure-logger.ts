@@ -474,15 +474,18 @@ function toAttemptFromEvaluated(a: EvaluatedAttempt): SelectorAttempt {
     };
 }
 
-function readDomContext(el: Element): DomContext {
+function readDomContext(el: Element, verbose: boolean): DomContext {
     const id = el.getAttribute("id");
     const cls = el.getAttribute("class");
     const aria = el.getAttribute("aria-label");
     const name = el.getAttribute("name");
     const type = el.getAttribute("type");
-    const text = (el.textContent ?? "").trim().slice(0, 120);
-    const outer = el.outerHTML?.slice(0, 240) ?? "";
-    return {
+    const fullText = (el.textContent ?? "").trim();
+    const fullOuter = el.outerHTML ?? "";
+    const text = fullText.slice(0, 120);
+    const outer = fullOuter.slice(0, 240);
+    const xpath = xpathOfElement(el);
+    const base: DomContext = {
         TagName: el.tagName.toLowerCase(),
         Id: id !== null && id.length > 0 ? id : null,
         ClassName: cls !== null && cls.length > 0 ? cls : null,
@@ -491,7 +494,12 @@ function readDomContext(el: Element): DomContext {
         Type: type !== null && type.length > 0 ? type : null,
         TextSnippet: text,
         OuterHtmlSnippet: outer,
+        XPath: xpath,
     };
+    if (verbose) {
+        return { ...base, OuterHtml: fullOuter, Text: fullText };
+    }
+    return base;
 }
 
 function defaultNow(): Date {

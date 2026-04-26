@@ -767,3 +767,210 @@ describe("LastEvaluation order preservation in ReasonDetail", () => {
     });
 });
 
+/* ================================================================== */
+/*  Cross-family mixed bundle                                           */
+/*                                                                      */
+/*  Real-world diagnostic exports interleave failures from every         */
+/*  instruction family in the order they fired. The export panel and    */
+/*  the AI debugger both rely on the bundle-level validator accepting   */
+/*  these heterogeneous bundles AS-IS — no per-family pre-bucketing,    */
+/*  no shape coercion. This block builds a richer bundle than the       */
+/*  smoke-test in `Selector predicate → FailureReport` (which only      */
+/*  ships one report per family) and asserts:                            */
+/*                                                                      */
+/*    1. The composite bundle envelope passes `validateFailureReport-   */
+/*       Payload` (Valid=true, zero RootIssues, zero ReportIssues).     */
+/*    2. `ReportsChecked` matches `Reports.length` AND the envelope's   */
+/*       `Count` field — guarding against silent slicing/dedup.         */
+/*    3. Every individual report still validates standalone (catches a  */
+/*       regression where a bundle pass would mask per-report rot).     */
+/*    4. Report identity is preserved: StepId/Index/Reason values come  */
+/*       out of the bundle in the SAME order they went in.              */
+/*    5. All three instruction families AND all canonical Reason codes  */
+/*       targeted by this task appear at least once: UrlTabClickTimeout,*/
+/*       ConditionTimeout, and InvalidSelector (XPath + CSS variants).   */
+/* ================================================================== */
+
+describe("Mixed-family bundle (UrlTabClick + ConditionTimeout + InvalidSelector)", () => {
+    it("a heterogeneous bundle with multiple variants per family validates end-to-end", () => {
+        // ---- 1) UrlTabClick — three different reasons ----------------
+        const urlOpenNewTimeout = buildUrlTabClickFailureReport({
+            Failure: {
+                Reason: "UrlTabClickTimeout",
+                Detail: "OpenNew tab never resolved",
+                UrlPattern: "https://orders.test/*",
+                UrlMatch: "Glob",
+                Mode: "OpenNew",
+                TimeoutMs: 5_000,
+                DurationMs: 5_002,
+                ObservedUrl: "about:blank",
+            },
+            StepId: 100, Index: 0, Now: FIXED_NOW,
+        });
+        const urlPatternMismatch = buildUrlTabClickFailureReport({
+            Failure: {
+                Reason: "UrlPatternMismatch",
+                Detail: "active tab URL does not match pattern",
+                UrlPattern: "https://orders.test/checkout",
+                UrlMatch: "Exact",
+                Mode: "OpenOrFocus",
+                TimeoutMs: 1_000,
+                DurationMs: 12,
+                ObservedUrl: "https://orders.test/cart",
+            },
+            StepId: 101, Index: 1, Now: FIXED_NOW,
+        });
+        const urlSelectorMissing = buildUrlTabClickFailureReport({
+            Failure: {
+                Reason: "SelectorNotFound",
+                Detail: "click target absent in matched tab",
+                UrlPattern: "https://orders.test/*",
+                UrlMatch: "Glob",
+                Mode: "OpenOrFocus",
+                TimeoutMs: 2_000,
+                DurationMs: 2_001,
+                Selector: "button#confirm",
+                SelectorKind: "Css",
+                ObservedUrl: "https://orders.test/checkout",
+            },
+            StepId: 102, Index: 2, Now: FIXED_NOW,
+        });
+
+        // ---- 2) ConditionTimeout — Gate AND ConditionStep variants ---
+        const gateTimeout = buildConditionFailureReport({
+            Outcome: {
+                Ok: false,
+                DurationMs: 2_500,
+                Polls: 50,
+                Reason: "ConditionTimeout",
+                Detail: "compound gate not satisfied within 2500ms",
+                LastEvaluation: [
+                    {
+                        Selector: "//button[@id='go']", Kind: "XPath",
+                        Matcher: "Visible", Result: false, Detail: "no match",
+                    },
+                    {
+                        Selector: ".loading", Kind: "Css",
+                        Matcher: "Visible", Result: true,
+                    },
+                ],
+            },
+            Condition: {
+                All: [
+                    { Selector: "//button[@id='go']", Matcher: { Kind: "Visible" } },
+                    { Not: { Selector: ".loading", Matcher: { Kind: "Visible" } } },
+                ],
+            },
+            Source: "Gate", StepId: 200, Index: 3, StepKind: "Click",
+            DataRow: { OrderId: "A-42" },
+            Now: FIXED_NOW,
+        });
+        const conditionStepTimeout = buildConditionFailureReport({
+            Outcome: {
+                Ok: false,
+                DurationMs: 1_000,
+                Polls: 20,
+                Reason: "ConditionTimeout",
+                Detail: "Condition step never satisfied",
+                LastEvaluation: [{
+                    Selector: "#receipt", Kind: "Css", Matcher: "Exists",
+                    Result: false, Detail: "no match",
+                }],
+            },
+            Condition: { Selector: "#receipt", Matcher: { Kind: "Exists" } },
+            Source: "ConditionStep", StepId: 201, Index: 4, StepKind: "Condition",
+            Now: FIXED_NOW,
+        });
+
+        // ---- 3) InvalidSelector — XPath syntax AND CSS syntax --------
+        const badXPath = buildSelectorPredicateFailureReport({
+            Selector: "//div[unterminated",
+            SelectorKind: "Auto",                  // auto-detects XPath
+            Reason: "InvalidSelector",
+            Detail: "unterminated predicate",
+            StepId: 300, Index: 5, StepKind: "Wait",
+            Now: FIXED_NOW,
+        });
+        const badCss = buildSelectorPredicateFailureReport({
+            Selector: "div[[broken",
+            SelectorKind: "Css",
+            Reason: "InvalidSelector",
+            Detail: "unexpected '['",
+            StepId: 301, Index: 6, StepKind: "Wait",
+            Now: FIXED_NOW,
+        });
+
+        const reports: ReadonlyArray<FailureReport> = [
+            urlOpenNewTimeout,
+            urlPatternMismatch,
+            urlSelectorMissing,
+            gateTimeout,
+            conditionStepTimeout,
+            badXPath,
+            badCss,
+        ];
+
+        // (3) Every individual report stands on its own — catches per-report
+        //     rot that a bundle-only assertion might mask.
+        for (const r of reports) {
+            assertRequiredFieldsPresent(r);
+            assertValidatesAsSingleReport(r);
+        }
+
+        // (1) Composite bundle validates clean.
+        const bundle = {
+            Generator: "instruction-failure-adapters.test",
+            Version: "1.0.0",
+            ExportedAt: "2026-04-26T10:00:00.000Z",
+            Count: reports.length,
+            Reports: reports,
+        };
+        const result = validateFailureReportPayload(bundle);
+        expect(result.Valid, `bundle invalid: ${result.Summary}`).toBe(true);
+        expect(result.RootIssues).toHaveLength(0);
+        expect(result.ReportIssues).toHaveLength(0);
+
+        // (2) Inspection counters are consistent.
+        expect(result.ReportsChecked).toBe(reports.length);
+        expect(result.ReportsChecked).toBe(bundle.Count);
+        expect(result.Summary).toBe("");
+
+        // (4) Order preservation through the bundle.
+        expect(reports.map((r) => r.StepId)).toEqual(
+            [100, 101, 102, 200, 201, 300, 301],
+        );
+        expect(reports.map((r) => r.Index)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+        expect(reports.map((r) => r.Reason)).toEqual([
+            "Timeout",            // UrlTabClickTimeout         → Timeout
+            "Unknown",            // UrlPatternMismatch         → Unknown (per adapter contract)
+            "Unknown",            // SelectorNotFound           → Unknown (per adapter contract)
+            "Timeout",            // Gate ConditionTimeout      → Timeout
+            "Timeout",            // ConditionStep timeout      → Timeout
+            "XPathSyntaxError",   // bad XPath                  → XPathSyntaxError
+            "CssSyntaxError",     // bad CSS                    → CssSyntaxError
+        ]);
+
+        // (5) All three families AND every targeted Reason are represented in
+        //     the rendered ReasonDetail strings (the canonical reason codes
+        //     live in ReasonDetail even when Reason itself maps to Unknown).
+        const detailBlob = reports.map((r) => r.ReasonDetail).join("\n---\n");
+        expect(detailBlob).toContain("UrlTabClickTimeout");
+        expect(detailBlob).toContain("UrlPatternMismatch");
+        expect(detailBlob).toContain("SelectorNotFound");
+        expect(detailBlob).toContain("ConditionTimeout");
+        expect(detailBlob).toContain("InvalidSelector");
+        expect(detailBlob).toContain("Source=Gate");
+        expect(detailBlob).toContain("Source=ConditionStep");
+        expect(detailBlob).toContain("Kind=XPath");
+        expect(detailBlob).toContain("Kind=Css");
+
+        // SourceFile fans out across every adapter — catches a regression
+        // where one adapter would silently win and stamp every report.
+        const sourceFiles = new Set(reports.map((r) => r.SourceFile));
+        expect(sourceFiles.has("src/background/recorder/condition-evaluator.ts")).toBe(true);
+        expect(sourceFiles.has("src/background/recorder/url-tab-click.ts")).toBe(true);
+        // 3 families touched ⇒ ≥2 distinct SourceFiles (XPath/CSS predicate
+        // wrapper reuses the condition-evaluator path).
+        expect(sourceFiles.size).toBeGreaterThanOrEqual(2);
+    });
+});

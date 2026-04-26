@@ -671,6 +671,48 @@ async function resolveSignedUrlTokenCandidate(
     return extractSignedUrlTokenFromUrl(activeTabUrl);
 }
 
+async function fetchAuthTokenFromSessionExchange(
+    projectId: string | null | undefined,
+    hasSessionCookie: boolean,
+): Promise<string | null> {
+    if (!hasSessionCookie || !projectId) return null;
+
+    try {
+        const response = await fetch(`${AUTH_API_BASE}/projects/${projectId}/auth-token`, {
+            method: "GET",
+            credentials: "include",
+        });
+        if (!response.ok) return null;
+
+        const payload = await response.json() as unknown;
+        return extractJwtFromAuthTokenPayload(payload);
+    } catch (exchangeError) {
+        logBgWarnError(BgLogTag.CONFIG_AUTH, "Auth-token exchange failed", exchangeError instanceof Error ? exchangeError : undefined);
+        return null;
+    }
+}
+
+function extractJwtFromAuthTokenPayload(payload: unknown, depth = 0): string | null {
+    if (depth > 4 || payload === null || payload === undefined) return null;
+    if (typeof payload === "string") return isLikelyJwt(payload) ? payload : null;
+    if (typeof payload !== "object") return null;
+
+    const obj = payload as Record<string, unknown>;
+    const directCandidates = [obj.token, obj.authToken, obj.access_token, obj.jwt, obj.sessionId];
+    for (const candidate of directCandidates) {
+        const token = extractJwtFromAuthTokenPayload(candidate, depth + 1);
+        if (token !== null) return token;
+    }
+
+    const wrappers = [obj.payload, obj.result, obj.data, obj.response];
+    for (const wrapper of wrappers) {
+        const token = extractJwtFromAuthTokenPayload(wrapper, depth + 1);
+        if (token !== null) return token;
+    }
+
+    return null;
+}
+
 /** Extracts project ID from a URL string. */
 function extractProjectIdFromUrl(url: string): string | null {
     // Pattern 1: /projects/{id} (editor URL)

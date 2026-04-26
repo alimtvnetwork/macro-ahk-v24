@@ -751,6 +751,7 @@ export default function StepGroupLibraryPanel() {
                         {tree.length === 0 ? (
                             <EmptyTreeState
                                 onCreate={() => setCreateDialog({ open: true, parent: null, name: "" })}
+                                onImport={handleImportClick}
                             />
                         ) : filteredTree.length === 0 ? (
                             <div className="flex h-full flex-col items-center justify-center gap-2 px-4 py-12 text-center text-sm text-muted-foreground">

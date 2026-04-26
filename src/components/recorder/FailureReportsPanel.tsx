@@ -27,6 +27,7 @@ import {
     buildLastFailureFilename,
 } from "./failure-export";
 import { FailureDetailsPanel } from "./FailureDetailsPanel";
+import { SelectorReplayTracePanel } from "./SelectorReplayTracePanel";
 
 interface FailureReportsPanelProps {
     readonly reports: ReadonlyArray<FailureReport>;
@@ -206,7 +207,10 @@ export function FailureReportsPanel({ reports, onDownload }: FailureReportsPanel
                                             </Button>
                                         </div>
                                         {isExpanded && (
-                                            <FailureDetailsPanel report={r} embedded />
+                                            <div className="space-y-2">
+                                                <FailureDetailsPanel report={r} embedded />
+                                                <SelectorReplayTracePanel report={r} embedded />
+                                            </div>
                                         )}
                                     </li>
                                 );

@@ -100,6 +100,7 @@ import { runStepGroupExport, previewStepGroupExport, type StepGroupExportPreview
 import { useStepGroupImport } from "@/hooks/use-step-group-import";
 import ImportSummaryDialog from "./ImportSummaryDialog";
 import BatchRunDialog from "./BatchRunDialog";
+import RunGroupDialog from "./RunGroupDialog";
 import BundleExchangePanel, {
     type LastExportSummary,
     type LastImportSummary,
@@ -196,6 +197,15 @@ export default function StepGroupLibraryPanel() {
     );
     const [showArchived, setShowArchived] = useState(false);
     const [batchOpen, setBatchOpen] = useState(false);
+    /**
+     * Single-group run surface. We keep the targeted group on the
+     * dialog state itself (not a stale `activeGroupId` snapshot) so
+     * the dialog renders the right name even if the user clicks a
+     * different tree row while the run is in flight.
+     */
+    const [runGroupDialog, setRunGroupDialog] = useState<{ open: boolean; group: StepGroupRow | null }>({
+        open: false, group: null,
+    });
     const [batchRenameOpen, setBatchRenameOpen] = useState(false);
     const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
     const [webhookOpen, setWebhookOpen] = useState(false);
@@ -991,6 +1001,22 @@ export default function StepGroupLibraryPanel() {
                                 <FileSpreadsheet className="mr-1 h-4 w-4" />
                                 CSV
                             </Button>
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                disabled={activeGroup === null || activeSteps.length === 0}
+                                onClick={() => activeGroup !== null && setRunGroupDialog({ open: true, group: activeGroup })}
+                                title={
+                                    activeGroup === null
+                                        ? "Select a group first"
+                                        : activeSteps.length === 0
+                                            ? "Group has no steps to run"
+                                            : "Execute this group and view its trace + failure reason"
+                                }
+                            >
+                                <Play className="mr-1 h-4 w-4" />
+                                Run group
+                            </Button>
                         </div>
                     </div>
                     <ScrollArea className="flex-1">
@@ -1215,6 +1241,15 @@ export default function StepGroupLibraryPanel() {
                 groupsById={groupsById}
                 groupInputs={lib.GroupInputs}
                 onApplyMergedInput={(gid, bag) => lib.setGroupInput(gid, bag)}
+            />
+
+            <RunGroupDialog
+                open={runGroupDialog.open}
+                onOpenChange={(o) => setRunGroupDialog((p) => ({ ...p, open: o }))}
+                db={lib.Lib}
+                projectId={lib.Project?.ProjectId ?? null}
+                group={runGroupDialog.group}
+                groupName={(id) => groupsById.get(id)?.Name ?? `Group #${id}`}
             />
 
             <WebhookSettingsDialog

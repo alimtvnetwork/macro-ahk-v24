@@ -190,8 +190,11 @@ test("fails when BuildFailureReportInput.SourceFile is optional", () => {
     const root = makeTempRoot();
     try {
         setupValidTree(root);
+        // VALID_LOGGER has TWO `readonly SourceFile: string;` lines (one per
+        // interface). Replace ALL occurrences with the optional form so
+        // the input-interface check fires.
         writeFile(root, LOGGER_REL,
-            VALID_LOGGER.replace(
+            VALID_LOGGER.replaceAll(
                 "readonly SourceFile: string;",
                 "readonly SourceFile?: string;",
             ),

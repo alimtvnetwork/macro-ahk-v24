@@ -142,3 +142,135 @@ function collectJsonColumns(rows: ReadonlyArray<unknown>): string[] {
 
     return ordered;
 }
+
+/* ------------------------------------------------------------------ */
+/*  JavaScript data source (spec 17 §2.5)                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Evaluates a user-supplied JS function body that must `return` an array
+ * of plain objects. Runs synchronously in a `new Function()` sandbox —
+ * NO closure access to the caller scope. Throws on any failure with
+ * `Reason = "JsDataSourceThrew"` semantics.
+ */
+export function evaluateJsDataSource(body: string): ParsedDataSource {
+    let result: unknown;
+    try {
+        const fn = new Function(`"use strict"; ${body}`);
+        result = fn();
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new Error(`JsDataSourceThrew: ${msg}`);
+    }
+
+    const isArray = Array.isArray(result);
+    if (isArray === false) {
+        throw new Error("JsDataSourceThrew: function must return an array of objects");
+    }
+
+    const rows = result as ReadonlyArray<unknown>;
+    if (rows.length === 0) {
+        throw new Error("JsDataSourceThrew: returned array is empty");
+    }
+
+    const columns = collectJsonColumns(rows);
+    const normalized = rows.map((r) => normalizeRow(r as Record<string, unknown>));
+
+    return {
+        DataSourceKindId: ExtendedDataSourceKindId.Js,
+        Columns: columns,
+        RowCount: rows.length,
+        Rows: normalized,
+    };
+}
+
+function normalizeRow(row: Record<string, unknown>): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const key of Object.keys(row)) {
+        const v = row[key];
+        out[key] = v === null || v === undefined ? "" : String(v);
+    }
+    return out;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Endpoint data source (spec 17 §2.5)                                */
+/* ------------------------------------------------------------------ */
+
+export interface EndpointFetchInit {
+    readonly Url: string;
+    readonly Method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+    readonly Headers?: Record<string, string>;
+    readonly Body?: string;
+    readonly TimeoutMs?: number;
+    /** Injected for tests — defaults to global `fetch`. */
+    readonly FetchImpl?: typeof fetch;
+}
+
+export async function fetchEndpointDataSource(
+    init: EndpointFetchInit,
+): Promise<ParsedDataSource> {
+    const fetchImpl = init.FetchImpl ?? fetch;
+    const timeoutMs = init.TimeoutMs ?? 15_000;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    let response: Response;
+    try {
+        response = await fetchImpl(init.Url, {
+            method: init.Method ?? "GET",
+            headers: { Accept: "application/json", ...(init.Headers ?? {}) },
+            body: init.Body,
+            signal: controller.signal,
+        });
+    } catch (err) {
+        clearTimeout(timer);
+        const msg = err instanceof Error ? err.message : String(err);
+        const isAbort = controller.signal.aborted;
+        const reason = isAbort ? "EndpointTimeout" : "EndpointHttpError";
+        throw new Error(`${reason}: ${msg}`);
+    }
+    clearTimeout(timer);
+
+    if (response.ok === false) {
+        const snippet = await safeReadSnippet(response);
+        throw new Error(
+            `EndpointHttpError: ${response.status} ${response.statusText} — ${snippet}`,
+        );
+    }
+
+    let payload: unknown;
+    try {
+        payload = await response.json();
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new Error(`EndpointParseError: ${msg}`);
+    }
+
+    if (Array.isArray(payload) === false) {
+        throw new Error("EndpointParseError: response must be a JSON array of objects");
+    }
+    const rows = payload as ReadonlyArray<unknown>;
+    if (rows.length === 0) {
+        throw new Error("EndpointParseError: response array is empty");
+    }
+
+    const columns = collectJsonColumns(rows);
+    const normalized = rows.map((r) => normalizeRow(r as Record<string, unknown>));
+
+    return {
+        DataSourceKindId: ExtendedDataSourceKindId.Endpoint,
+        Columns: columns,
+        RowCount: rows.length,
+        Rows: normalized,
+    };
+}
+
+async function safeReadSnippet(response: Response): Promise<string> {
+    try {
+        const text = await response.text();
+        return text.slice(0, 2048);
+    } catch {
+        return "<no body>";
+    }
+}

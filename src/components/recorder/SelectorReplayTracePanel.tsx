@@ -34,6 +34,7 @@ import {
     type TraceStep,
     type TraceStepStatus,
 } from "./selector-replay-trace";
+import { FormSnapshotBadge } from "./FormSnapshotTable";
 
 interface SelectorReplayTracePanelProps {
     readonly report: FailureReport;
@@ -83,6 +84,7 @@ export function SelectorReplayTracePanel({ report, embedded }: SelectorReplayTra
                 skipped={trace.Summary.Skipped}
                 stoppedAt={trace.Summary.StoppedAt}
                 outcome={trace.Summary.Outcome}
+                snapshot={report.FormSnapshot}
             />
             {trace.Steps.length === 0 ? (
                 <p
@@ -142,12 +144,14 @@ function SummaryBar({
     skipped,
     stoppedAt,
     outcome,
+    snapshot,
 }: {
     readonly total: number;
     readonly evaluated: number;
     readonly skipped: number;
     readonly stoppedAt: number | null;
     readonly outcome: "matched" | "exhausted" | "empty";
+    readonly snapshot: FailureReport["FormSnapshot"];
 }) {
     const tone =
         outcome === "matched"
@@ -180,6 +184,7 @@ function SummaryBar({
                         {skipped} skipped
                     </Badge>
                 )}
+                {snapshot !== null && <FormSnapshotBadge snapshot={snapshot} />}
             </div>
         </div>
     );

@@ -851,6 +851,21 @@ export default function StepGroupListPanel() {
                 fileName={importApi.errorState.FileName}
             />
 
+            {/* ---------- Batch action dialogs ---------- */}
+            <BatchRenameDialog
+                open={batchRenameOpen}
+                onOpenChange={setBatchRenameOpen}
+                targets={selectedGroups}
+                allGroups={lib.Groups}
+                onApply={handleBatchRenameApply}
+            />
+            <BatchDeleteDialog
+                open={batchDeleteOpen}
+                onOpenChange={setBatchDeleteOpen}
+                rows={deletePreview}
+                onConfirm={handleBatchDeleteConfirm}
+            />
+
             {/* ---------- Create dialog ---------- */}
             <Dialog
                 open={createDialog.open}

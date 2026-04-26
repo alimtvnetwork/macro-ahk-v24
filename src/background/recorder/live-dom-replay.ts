@@ -276,7 +276,7 @@ function finalize(
         Target?: HTMLElement | null;
         Variables?: ReadonlyArray<VariableContext>;
         /** Caller-supplied classification — overrides auto-derivation in `logFailure`. */
-        Reason?: import("./failure-logger").FailureReasonCode;
+        Reason?: FailureReasonCode;
         ReasonDetail?: string;
     },
 ): ReplayStepResult {

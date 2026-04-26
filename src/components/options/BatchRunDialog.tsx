@@ -39,6 +39,7 @@ import {
 } from "@/background/recorder/step-library/run-batch";
 import type { StepGroupRow, StepLibraryDb } from "@/background/recorder/step-library/db";
 import type { LeafStepExecutor, RunStepTraceEntry } from "@/background/recorder/step-library/run-group-runner";
+import { createLiveReplayExecutor } from "@/background/recorder/step-library/replay-bridge";
 import {
     buildBatchCompletePayload,
     buildGroupRunPayload,
@@ -96,6 +97,14 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
     const [running, setRunning] = useState(false);
     const [continueOnFailure, setContinueOnFailure] = useState(false);
     /**
+     * Live mode swaps the always-success `previewExecutor` for the
+     * `createLiveReplayExecutor` bridge so each leaf step actually
+     * dispatches DOM events into the Options-page document via
+     * `executeReplay()`. Defaults OFF — opening the dialog must
+     * never mutate the page accidentally.
+     */
+    const [liveMode, setLiveMode] = useState(false);
+    /**
      * Total wall-clock duration of the just-completed run. `null` until
      * the first run finishes; cleared back to `null` whenever the user
      * re-opens the dialog so a stale duration can't bleed into the
@@ -117,6 +126,7 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
             setRunning(false);
             setLastRunDurationMs(null);
             setTraceOpen(false);
+            setLiveMode(false);
         }
     }, [open, initialOrder]);
 
@@ -155,11 +165,14 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
 
         setReports(order.map((id) => emptyReport(id)));
         const live: BatchGroupReport[] = order.map((id) => emptyReport(id));
+        const executor: LeafStepExecutor = liveMode
+            ? createLiveReplayExecutor({ Doc: document })
+            : previewExecutor;
         const result = await runBatch({
             db,
             projectId,
             orderedGroupIds: order,
-            executeLeafStep: previewExecutor,
+            executeLeafStep: executor,
             failurePolicy: policy,
             onGroupStatus: (report, idx) => {
                 live[idx] = report;
@@ -253,15 +266,26 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
                             </span>
                         )}
                     </div>
-                    <label className="flex cursor-pointer items-center gap-2">
-                        <Switch
-                            checked={continueOnFailure}
-                            onCheckedChange={setContinueOnFailure}
-                            disabled={running}
-                            aria-label="Continue on failure"
-                        />
-                        <span>Continue on failure</span>
-                    </label>
+                    <div className="flex items-center gap-4">
+                        <label className="flex cursor-pointer items-center gap-2">
+                            <Switch
+                                checked={liveMode}
+                                onCheckedChange={setLiveMode}
+                                disabled={running}
+                                aria-label="Live execution"
+                            />
+                            <span title="When on, each leaf step dispatches real DOM events into this page via the replay bridge.">Live execution</span>
+                        </label>
+                        <label className="flex cursor-pointer items-center gap-2">
+                            <Switch
+                                checked={continueOnFailure}
+                                onCheckedChange={setContinueOnFailure}
+                                disabled={running}
+                                aria-label="Continue on failure"
+                            />
+                            <span>Continue on failure</span>
+                        </label>
+                    </div>
                 </div>
 
                 {lastRunDurationMs !== null && !running && (

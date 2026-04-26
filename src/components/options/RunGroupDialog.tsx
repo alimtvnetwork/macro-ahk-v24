@@ -39,6 +39,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 
 import {
     runGroup,
@@ -47,6 +48,7 @@ import {
 } from "@/background/recorder/step-library/run-group-runner";
 import type { StepGroupRow, StepLibraryDb } from "@/background/recorder/step-library/db";
 import type { BatchGroupReport } from "@/background/recorder/step-library/run-batch";
+import { createLiveReplayExecutor } from "@/background/recorder/step-library/replay-bridge";
 
 import RunResultsSummaryPanel from "./RunResultsSummaryPanel";
 import RunTraceViewer from "./RunTraceViewer";
@@ -61,10 +63,10 @@ interface RunGroupDialogProps {
 }
 
 /**
- * Preview-mode leaf executor — mirrors the one in `BatchRunDialog`.
- * Lives here too rather than being shared so the failure case is
- * easy to swap in during local debugging without affecting the batch
- * surface.
+ * Preview-mode leaf executor — every leaf reports success so the user
+ * can dry-run the descent / RunGroup expansion / cycle-detection
+ * pipeline without touching the DOM. Switch to live mode via the
+ * dialog toggle to drive `executeReplay()` end-to-end.
  */
 const previewExecutor: LeafStepExecutor = () => null;
 
@@ -78,6 +80,17 @@ export default function RunGroupDialog(props: RunGroupDialogProps) {
     const [running, setRunning] = useState(false);
     const [result, setResult] = useState<RunGroupResult | null>(null);
     const [durationMs, setDurationMs] = useState<number>(0);
+    /**
+     * Live mode swaps the always-success `previewExecutor` for the
+     * `createLiveReplayExecutor` bridge so each leaf step actually
+     * dispatches `click` / `input` / `change` events into the Options
+     * page document via `executeReplay()`. This is the entry point
+     * that lets imported groups exercise the real replay pipeline
+     * (selectors, variable substitution, structured FailureReports)
+     * end-to-end. Defaults to OFF so opening the dialog never
+     * mutates the page accidentally.
+     */
+    const [liveMode, setLiveMode] = useState(false);
 
     // Reset whenever the dialog re-opens or the target group changes
     // so a stale prior run can't bleed into a new invocation.
@@ -86,6 +99,7 @@ export default function RunGroupDialog(props: RunGroupDialogProps) {
             setRunning(false);
             setResult(null);
             setDurationMs(0);
+            setLiveMode(false);
         }
     }, [open, group?.StepGroupId]);
 
@@ -95,12 +109,15 @@ export default function RunGroupDialog(props: RunGroupDialogProps) {
             return;
         }
         setRunning(true);
+        const executor: LeafStepExecutor = liveMode
+            ? createLiveReplayExecutor({ Doc: document })
+            : previewExecutor;
         const startedAt = performance.now();
         const r = await runGroup({
             db,
             projectId,
             rootGroupId: group.StepGroupId,
-            executeLeafStep: previewExecutor,
+            executeLeafStep: executor,
         });
         const elapsed = Math.max(0, Math.round(performance.now() - startedAt));
         setResult(r);
@@ -138,9 +155,26 @@ export default function RunGroupDialog(props: RunGroupDialogProps) {
                         Run group{group !== null ? ` — ${group.Name}` : ""}
                     </DialogTitle>
                     <DialogDescription>
-                        Executes this group with the preview leaf executor. Disabled steps are skipped; nested RunGroup steps are expanded recursively up to the runner's depth limit.
+                        Executes this group. Disabled steps are skipped; nested RunGroup steps are expanded recursively up to the runner's depth limit.
                     </DialogDescription>
                 </DialogHeader>
+
+                <div className="flex items-center justify-between gap-4 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                    <div className="min-w-0">
+                        <div className="font-medium text-foreground">Live execution</div>
+                        <div className="text-xs text-muted-foreground">
+                            {liveMode
+                                ? "Each leaf step dispatches real DOM events into this page via the replay bridge."
+                                : "Preview mode — every leaf reports success without touching the DOM."}
+                        </div>
+                    </div>
+                    <Switch
+                        checked={liveMode}
+                        onCheckedChange={setLiveMode}
+                        disabled={running}
+                        aria-label="Toggle live execution"
+                    />
+                </div>
 
                 {result === null && !running && (
                     <div className="rounded-md border bg-muted/30 px-3 py-4 text-sm text-muted-foreground">

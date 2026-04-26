@@ -288,6 +288,9 @@ export function SelectorComparisonPanel({ comparison, stepId, url, history, onPr
                         </span>
                     </div>
                 )}
+                {failureReport !== undefined && (
+                    <FailureDetailsPanel report={failureReport} embedded />
+                )}
                 {Attempts.length === 0 ? (
                     <p className="text-xs text-muted-foreground italic py-2 text-center">
                         No selectors recorded for this step.

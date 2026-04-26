@@ -19,3 +19,4 @@ file so the user can review and override later.
 <!-- Append one bullet per file, newest at the bottom. -->
 
 - [01 — Import/Export "screen": dedicated route vs promoted section](./01-import-export-screen-shape.md) — chose Option B (promoted card in existing page).
+- [02 — Hover highlighter shape](./02-hover-highlighter-shape.md) — chose Option 2 (accent left-bar + ring on the exact innermost row).

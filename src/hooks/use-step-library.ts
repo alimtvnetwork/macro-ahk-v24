@@ -255,13 +255,38 @@ export function useStepLibrary(): UseStepLibraryApi {
         setError(null);
         setLoadError(null);
         (async () => {
+            // ---- 1. Load sql.js (network / WASM) -----------------
+            let sqljs: SqlJsStatic;
             try {
-                const sqljs = await loadSql();
+                sqljs = await loadSql();
+            } catch (err) {
                 if (cancelled) return;
-                const persisted = readBytesFromStorage();
-                const db: Database = persisted === null
+                // Reset the cached promise so the next retry actually
+                // re-fetches instead of resolving the stale rejection.
+                sqlPromise = null;
+                const classified = classifyLoadError(err, "sqljs");
+                setLoadError(classified);
+                setError(classified.Message);
+                setLoading(false);
+                return;
+            }
+            if (cancelled) return;
+
+            // ---- 2. Read persisted DB bytes (localStorage) -------
+            const readResult = readBytesFromStorage();
+            if (readResult.Kind === "Error") {
+                const classified = classifyLoadError(readResult.Error, "storage-read");
+                setLoadError(classified);
+                setError(classified.Message);
+                setLoading(false);
+                return;
+            }
+
+            // ---- 3. Open the database & seed if empty ------------
+            try {
+                const db: Database = readResult.Kind === "Empty"
                     ? new sqljs.Database()
-                    : new sqljs.Database(persisted);
+                    : new sqljs.Database(readResult.Bytes);
                 const wrapper = new StepLibraryDb(db);
                 let projectId: number;
                 const existing = wrapper.listProjects();
@@ -271,7 +296,19 @@ export function useStepLibrary(): UseStepLibraryApi {
                         Name: DEFAULT_PROJECT_NAME,
                     });
                     seedExampleData(wrapper, projectId);
-                    writeBytesToStorage(wrapper.exportDbBytes());
+                    const writeResult = writeBytesToStorage(wrapper.exportDbBytes());
+                    if (!writeResult.Ok) {
+                        // Hard-fail on the FIRST write only — the user
+                        // hasn't done any work yet, so surfacing this
+                        // up front is friendlier than silently losing
+                        // data later. Subsequent mutation writes only
+                        // warn (see `persist`).
+                        const classified = classifyLoadError(writeResult.Error, "storage-write");
+                        setLoadError(classified);
+                        setError(classified.Message);
+                        setLoading(false);
+                        return;
+                    }
                 } else {
                     projectId = existing[0].ProjectId;
                 }
@@ -284,12 +321,14 @@ export function useStepLibrary(): UseStepLibraryApi {
                 setLoading(false);
             } catch (err) {
                 if (cancelled) return;
-                setError(err instanceof Error ? err.message : "step library failed to load");
+                const classified = classifyLoadError(err, "other");
+                setLoadError(classified);
+                setError(classified.Message);
                 setLoading(false);
             }
         })();
         return () => { cancelled = true; };
-    }, []);
+    }, [bootstrapNonce]);
 
     const persist = useCallback(() => {
         if (lib === null) return;

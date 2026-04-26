@@ -266,15 +266,26 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
                             </span>
                         )}
                     </div>
-                    <label className="flex cursor-pointer items-center gap-2">
-                        <Switch
-                            checked={continueOnFailure}
-                            onCheckedChange={setContinueOnFailure}
-                            disabled={running}
-                            aria-label="Continue on failure"
-                        />
-                        <span>Continue on failure</span>
-                    </label>
+                    <div className="flex items-center gap-4">
+                        <label className="flex cursor-pointer items-center gap-2">
+                            <Switch
+                                checked={liveMode}
+                                onCheckedChange={setLiveMode}
+                                disabled={running}
+                                aria-label="Live execution"
+                            />
+                            <span title="When on, each leaf step dispatches real DOM events into this page via the replay bridge.">Live execution</span>
+                        </label>
+                        <label className="flex cursor-pointer items-center gap-2">
+                            <Switch
+                                checked={continueOnFailure}
+                                onCheckedChange={setContinueOnFailure}
+                                disabled={running}
+                                aria-label="Continue on failure"
+                            />
+                            <span>Continue on failure</span>
+                        </label>
+                    </div>
                 </div>
 
                 {lastRunDurationMs !== null && !running && (

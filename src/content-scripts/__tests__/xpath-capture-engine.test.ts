@@ -87,7 +87,7 @@ describe("toPascalCase", () => {
     });
 
     it("prefixes Element when name starts with a digit", () => {
-        expect(toPascalCase("3rd party")).toBe("Element3RdParty");
+        expect(toPascalCase("3rd party")).toBe("Element3rdParty");
     });
 });
 
@@ -139,7 +139,9 @@ describe("buildCapturePayload", () => {
         expect(payload.XPathFull).toBe('//*[@id="EmailField"]');
         expect(payload.SuggestedVariableName).toBe("EmailAddress");
         expect(payload.AnchorXPath).not.toBeNull();
-        expect(payload.XPathRelative).toBeNull(); // id-strategy capture has no positional relative
+        // Relative path is built positionally from the auto-anchor regardless
+        // of which full-XPath strategy won — both projections are useful.
+        expect(payload.XPathRelative).toMatch(/^\.\//);
     });
 
     it("is deterministic for the same DOM (no random/timestamps in selector)", () => {

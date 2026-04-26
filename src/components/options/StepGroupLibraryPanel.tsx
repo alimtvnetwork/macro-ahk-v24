@@ -89,7 +89,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { stepKindLabel, useStepLibrary } from "@/hooks/use-step-library";
 import type { StepGroupRow, StepRow } from "@/background/recorder/step-library/db";
 import { StepKindId } from "@/background/recorder/step-library/schema";
-import { runStepGroupExport } from "@/background/recorder/step-library/export-bundle";
+import { runStepGroupExport, previewStepGroupExport, type StepGroupExportPreview } from "@/background/recorder/step-library/export-bundle";
 import { runStepGroupImport } from "@/background/recorder/step-library/import-bundle";
 import BatchRunDialog from "./BatchRunDialog";
 import BundleExchangePanel, {
@@ -97,6 +97,7 @@ import BundleExchangePanel, {
     type LastImportSummary,
 } from "./BundleExchangePanel";
 import ImportErrorDialog from "./ImportErrorDialog";
+import ExportPreviewDialog from "./ExportPreviewDialog";
 import { GroupInputsDialog } from "./GroupInputsDialog";
 import { CsvInputDialog } from "./CsvInputDialog";
 import WebhookSettingsDialog from "./WebhookSettingsDialog";
@@ -174,6 +175,20 @@ export default function StepGroupLibraryPanel() {
         explanation: ImportErrorExplanation | null;
         fileName: string | null;
     }>({ open: false, explanation: null, fileName: null });
+    /**
+     * Pre-download preview state. `Pending` holds the resolved selection
+     * + descendants flag captured at the moment the user clicked Export
+     * so the eventual confirmation downloads exactly what was previewed,
+     * even if the underlying selection changes while the dialog is open.
+     */
+    const [exportPreview, setExportPreview] = useState<{
+        readonly Open: boolean;
+        readonly Preview: StepGroupExportPreview | null;
+        readonly Pending: {
+            readonly Ids: ReadonlyArray<number>;
+            readonly IncludeDescendants: boolean;
+        } | null;
+    }>({ Open: false, Preview: null, Pending: null });
 
     /**
      * Tracks the *exact* (innermost) StepGroup row currently under the
@@ -378,17 +393,17 @@ export default function StepGroupLibraryPanel() {
 
     /* ------------------------ Export / Import --------------------- */
 
-    const handleExport = async (
-        idsOverride?: ReadonlyArray<number>,
-        includeDescendants: boolean = true,
+    /**
+     * Actually package + download the bundle. Called only after the
+     * preview dialog is confirmed (or for code paths that intentionally
+     * skip the preview, like programmatic exports).
+     */
+    const performExport = async (
+        ids: ReadonlyArray<number>,
+        includeDescendants: boolean,
     ) => {
         if (lib.Lib === null || lib.Project === null || lib.SqlJs === null) {
             toast.error("Library not ready");
-            return;
-        }
-        const ids = idsOverride ?? Array.from(selected);
-        if (ids.length === 0) {
-            toast.error("Select at least one group to export");
             return;
         }
         const result = await runStepGroupExport({
@@ -425,6 +440,49 @@ export default function StepGroupLibraryPanel() {
             { description: `${result.Manifest.Counts.Steps} steps · ${result.ZipFileName}` },
         );
     };
+
+    /**
+     * User-facing entrypoint: validate the selection, compute a dry-run
+     * preview (counts + RunGroup-ref warnings), and open the preview
+     * dialog. The actual download is gated on the dialog's confirm.
+     */
+    const handleExport = (
+        idsOverride?: ReadonlyArray<number>,
+        includeDescendants: boolean = true,
+    ) => {
+        if (lib.Lib === null || lib.Project === null || lib.SqlJs === null) {
+            toast.error("Library not ready");
+            return;
+        }
+        const ids = idsOverride ?? Array.from(selected);
+        if (ids.length === 0) {
+            toast.error("Select at least one group to export");
+            return;
+        }
+        const preview = previewStepGroupExport({
+            Source: lib.Lib,
+            ProjectId: lib.Project.ProjectId,
+            SelectedStepGroupIds: ids,
+            IncludeDescendants: includeDescendants,
+        });
+        if (preview.Reason !== "Ok") {
+            toast.error(`Cannot export: ${preview.Reason}`, { description: preview.Detail });
+            return;
+        }
+        setExportPreview({
+            Open: true,
+            Preview: preview,
+            Pending: { Ids: ids, IncludeDescendants: includeDescendants },
+        });
+    };
+
+    const confirmExport = async () => {
+        const pending = exportPreview.Pending;
+        setExportPreview({ Open: false, Preview: null, Pending: null });
+        if (pending === null) return;
+        await performExport(pending.Ids, pending.IncludeDescendants);
+    };
+
 
     const handleImportClick = () => fileInputRef.current?.click();
 
@@ -896,6 +954,16 @@ export default function StepGroupLibraryPanel() {
                 onOpenChange={(o) => setImportError((p) => ({ ...p, open: o }))}
                 explanation={importError.explanation}
                 fileName={importError.fileName}
+            />
+
+            <ExportPreviewDialog
+                open={exportPreview.Open}
+                onOpenChange={(o) =>
+                    setExportPreview((p) => (o ? { ...p, Open: true } : { Open: false, Preview: null, Pending: null }))
+                }
+                preview={exportPreview.Preview}
+                includeDescendants={exportPreview.Pending?.IncludeDescendants ?? true}
+                onConfirm={() => void confirmExport()}
             />
 
             <GroupInputsDialog

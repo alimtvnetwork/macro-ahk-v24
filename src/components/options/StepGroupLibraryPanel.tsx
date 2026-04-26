@@ -301,6 +301,28 @@ export default function StepGroupLibraryPanel() {
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    /**
+     * ────── Optimistic reorder overrides ──────
+     *
+     * Drag-and-drop applies the new order to the screen *before* the
+     * persistence call so the row jumps to its new slot under the
+     * cursor without waiting for a refresh round-trip. The overrides
+     * are cleared on the next snapshot that already reflects the
+     * change (the success path) or rolled back to `null` if the
+     * underlying mutation throws (the failure path).
+     *
+     *   `pendingGroupOrder`  — keyed by parent id ("root" for
+     *                          top-level), value = full sibling order.
+     *   `pendingStepOrder`   — keyed by StepGroupId, value = full
+     *                          step order in that group.
+     */
+    const [pendingGroupOrder, setPendingGroupOrder] = useState<ReadonlyMap<number | "root", ReadonlyArray<number>>>(
+        () => new Map(),
+    );
+    const [pendingStepOrder, setPendingStepOrder] = useState<ReadonlyMap<number, ReadonlyArray<number>>>(
+        () => new Map(),
+    );
+
     // Filter archived groups out of the tree by default. When the user
     // flips the toggle they remain visible but render greyed-out (the
     // TreeNodeRow handles the visual state via `node.Group.IsArchived`).
@@ -308,7 +330,58 @@ export default function StepGroupLibraryPanel() {
         () => (showArchived ? lib.Groups : lib.Groups.filter((g) => !g.IsArchived)),
         [lib.Groups, showArchived],
     );
-    const tree = useMemo(() => buildTree(visibleGroups), [visibleGroups]);
+
+    /**
+     * Apply pending sibling overrides on top of the loaded data so the
+     * tree renders the optimistic order. The override is a *complete*
+     * sibling list per parent, so we just look it up and use it as the
+     * sort key. Any group missing from the override falls through to
+     * its DB OrderIndex.
+     */
+    const orderedGroups = useMemo(() => {
+        if (pendingGroupOrder.size === 0) return visibleGroups;
+        const positionByParent = new Map<number | "root", Map<number, number>>();
+        for (const [parentKey, ids] of pendingGroupOrder) {
+            const m = new Map<number, number>();
+            ids.forEach((id, i) => m.set(id, i));
+            positionByParent.set(parentKey, m);
+        }
+        return [...visibleGroups].sort((a, b) => {
+            const aKey = (a.ParentStepGroupId ?? "root") as number | "root";
+            const bKey = (b.ParentStepGroupId ?? "root") as number | "root";
+            if (aKey !== bKey) return 0; // different parents — keep relative order
+            const positions = positionByParent.get(aKey);
+            if (positions === undefined) return 0;
+            const ai = positions.get(a.StepGroupId);
+            const bi = positions.get(b.StepGroupId);
+            if (ai === undefined || bi === undefined) return 0;
+            return ai - bi;
+        });
+    }, [visibleGroups, pendingGroupOrder]);
+
+    const tree = useMemo(() => buildTree(orderedGroups), [orderedGroups]);
+
+    /**
+     * Drop the optimistic group override once the loaded snapshot
+     * already matches it — that's our success signal in lieu of an
+     * async confirmation. Same idea for steps below.
+     */
+    useEffect(() => {
+        if (pendingGroupOrder.size === 0) return;
+        let allSettled = true;
+        for (const [parentKey, ids] of pendingGroupOrder) {
+            const parentId = parentKey === "root" ? null : parentKey;
+            const actual = lib.Groups
+                .filter((g) => (g.ParentStepGroupId ?? null) === parentId)
+                .sort((a, b) => a.OrderIndex - b.OrderIndex || a.Name.localeCompare(b.Name))
+                .map((g) => g.StepGroupId);
+            if (actual.length !== ids.length || actual.some((id, i) => id !== ids[i])) {
+                allSettled = false;
+                break;
+            }
+        }
+        if (allSettled) setPendingGroupOrder(new Map());
+    }, [lib.Groups, pendingGroupOrder]);
 
     /**
      * Free-text search over group names. Empty string disables filtering.

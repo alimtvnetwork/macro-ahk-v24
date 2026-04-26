@@ -838,11 +838,18 @@ export default function StepGroupLibraryPanel() {
                 projectId={lib.Project?.ProjectId ?? null}
                 initialOrder={selectionOrder}
                 groupsById={groupsById}
+                groupInputs={lib.GroupInputs}
+                onApplyMergedInput={(gid, bag) => lib.setGroupInput(gid, bag)}
             />
 
             <WebhookSettingsDialog
                 open={webhookOpen}
                 onOpenChange={setWebhookOpen}
+            />
+
+            <InputSourceDialog
+                open={inputSourceOpen}
+                onOpenChange={setInputSourceOpen}
             />
 
             <ImportErrorDialog

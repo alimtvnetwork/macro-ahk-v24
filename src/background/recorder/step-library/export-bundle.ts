@@ -220,6 +220,112 @@ function dedupeSorted(ids: ReadonlyArray<number>): ReadonlyArray<number> {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Preview (dry-run)                                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A single RunGroup invocation whose target StepGroup is **not** part
+ * of the effective export selection. Surfaced as a warning in the
+ * pre-download preview dialog so the user can either widen their
+ * selection (or tick "Include descendants") before they ship a bundle
+ * that would fail import-time integrity checks.
+ */
+export interface DanglingRunGroupRef {
+    readonly StepId: number;
+    readonly StepLabel: string;
+    readonly OwnerStepGroupId: number;
+    readonly OwnerStepGroupName: string;
+    readonly TargetStepGroupId: number | null;
+}
+
+export interface StepGroupExportPreview {
+    readonly Reason: "Ok";
+    /** Effective set after descendant resolution — what will ship. */
+    readonly EffectiveStepGroupIds: ReadonlyArray<number>;
+    readonly Counts: {
+        readonly StepGroups: number;
+        readonly Steps: number;
+        readonly RunGroupRefs: number;
+    };
+    /**
+     * RunGroup steps whose target lives outside the effective selection.
+     * Non-empty means a real export would fail with `RunGroupTargetMissing`
+     * — the UI uses this list to warn the user before they click download.
+     */
+    readonly DanglingRunGroupRefs: ReadonlyArray<DanglingRunGroupRef>;
+}
+
+export type StepGroupExportPreviewResult = StepGroupExportPreview | ExportFailure;
+
+export interface PreviewStepGroupExportInput {
+    readonly Source: StepLibraryDb;
+    readonly ProjectId: number;
+    readonly SelectedStepGroupIds: ReadonlyArray<number>;
+    readonly IncludeDescendants?: boolean;
+}
+
+/**
+ * Compute the same selection / counts / RunGroup-ref analysis the real
+ * export would, **without** building a sql.js snapshot or hashing.
+ *
+ * This is the data source for the pre-download preview dialog: it
+ * always succeeds with counts when the selection itself is valid, and
+ * returns dangling RunGroup refs as soft warnings (not failures) so
+ * the user can decide whether to widen the selection or proceed.
+ *
+ * Pure — no DOM, no I/O, safe to call on every selection change.
+ */
+export function previewStepGroupExport(
+    init: PreviewStepGroupExportInput,
+): StepGroupExportPreviewResult {
+    const resolved = resolveSelection(
+        init.Source,
+        init.ProjectId,
+        init.SelectedStepGroupIds,
+        init.IncludeDescendants ?? false,
+    );
+    if ("Reason" in resolved) return resolved;
+
+    const includedSet = new Set(resolved.Ids);
+    const groupNameById = new Map<number, string>();
+    for (const g of init.Source.listGroups(init.ProjectId)) {
+        groupNameById.set(g.StepGroupId, g.Name);
+    }
+
+    let stepCount = 0;
+    let runGroupRefs = 0;
+    const dangling: DanglingRunGroupRef[] = [];
+    for (const id of resolved.Ids) {
+        for (const s of init.Source.listSteps(id)) {
+            stepCount += 1;
+            if (s.StepKindId === StepKindId.RunGroup) {
+                runGroupRefs += 1;
+                if (s.TargetStepGroupId === null || !includedSet.has(s.TargetStepGroupId)) {
+                    dangling.push({
+                        StepId: s.StepId,
+                        StepLabel: s.Label,
+                        OwnerStepGroupId: id,
+                        OwnerStepGroupName: groupNameById.get(id) ?? `#${id}`,
+                        TargetStepGroupId: s.TargetStepGroupId,
+                    });
+                }
+            }
+        }
+    }
+
+    return {
+        Reason: "Ok",
+        EffectiveStepGroupIds: resolved.Ids,
+        Counts: {
+            StepGroups: resolved.Ids.length,
+            Steps: stepCount,
+            RunGroupRefs: runGroupRefs,
+        },
+        DanglingRunGroupRefs: dangling,
+    };
+}
+
+/* ------------------------------------------------------------------ */
 /*  Filtered snapshot                                                  */
 /* ------------------------------------------------------------------ */
 

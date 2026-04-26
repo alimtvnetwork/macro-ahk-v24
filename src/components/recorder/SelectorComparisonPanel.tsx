@@ -12,12 +12,35 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, AlertTriangle, Crosshair } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CheckCircle2, XCircle, AlertTriangle, Crosshair, FileDown } from "lucide-react";
+import { toast } from "sonner";
 import type { SelectorComparison, SelectorAttemptComparison } from "@/background/recorder/selector-comparison";
 import type { DomContext } from "@/background/recorder/failure-logger";
+import {
+    buildSelectorComparisonBundle,
+    buildSelectorComparisonFilename,
+    serializeSelectorComparisonBundle,
+} from "./selector-comparison-export";
 
 interface SelectorComparisonPanelProps {
     readonly comparison: SelectorComparison;
+    /** Optional StepId stamped into the export filename + bundle metadata. */
+    readonly stepId?: number;
+    /** Optional page URL stamped into the export bundle metadata. */
+    readonly url?: string;
+    /** Test seam: override the default download side effect. */
+    readonly onDownload?: (filename: string, contents: string) => void;
+}
+
+function defaultDownload(filename: string, contents: string): void {
+    const blob = new Blob([contents], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
 }
 
 function elementSummary(el: DomContext | null): string {
@@ -74,12 +97,20 @@ function AttemptRow({ attempt }: { attempt: SelectorAttemptComparison }) {
     );
 }
 
-export function SelectorComparisonPanel({ comparison }: SelectorComparisonPanelProps) {
+export function SelectorComparisonPanel({ comparison, stepId, url, onDownload }: SelectorComparisonPanelProps) {
     const { Attempts, PrimaryMatched, AnyFallbackMatched, DriftDetected } = comparison;
+
+    const handleExport = () => {
+        const bundle = buildSelectorComparisonBundle(comparison, { StepId: stepId, Url: url });
+        const filename = buildSelectorComparisonFilename(stepId ?? null);
+        const contents = serializeSelectorComparisonBundle(bundle);
+        (onDownload ?? defaultDownload)(filename, contents);
+        toast.success(`Exported selector comparison (${Attempts.length} attempt${Attempts.length === 1 ? "" : "s"})`);
+    };
 
     return (
         <Card>
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
                     <Crosshair className="h-4 w-4 text-primary" />
                     Selector Comparison
@@ -93,6 +124,16 @@ export function SelectorComparisonPanel({ comparison }: SelectorComparisonPanelP
                         <Badge variant="outline" className="text-[10px]">Fallback found</Badge>
                     )}
                 </CardTitle>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExport}
+                    disabled={Attempts.length === 0}
+                    aria-label="Export selector comparison as JSON"
+                >
+                    <FileDown className="h-3.5 w-3.5 mr-1.5" />
+                    Export selector comparison
+                </Button>
             </CardHeader>
             <CardContent className="space-y-3">
                 {DriftDetected && (

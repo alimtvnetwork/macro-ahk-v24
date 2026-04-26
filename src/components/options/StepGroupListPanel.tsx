@@ -363,11 +363,13 @@ export default function StepGroupListPanel() {
             </div>
         );
     }
-    if (lib.Error !== null) {
+    if (lib.LoadError !== null) {
         return (
-            <div className="p-6 text-destructive">
-                Failed to open step library: {lib.Error}
-            </div>
+            <StepLibraryErrorState
+                error={lib.LoadError}
+                onRetry={lib.retryLoad}
+                onReset={lib.resetAll}
+            />
         );
     }
 

@@ -10,13 +10,20 @@
  * the result.
  */
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle, AlertTriangle, Crosshair, FileDown } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { CheckCircle2, XCircle, AlertTriangle, Crosshair, FileDown, History } from "lucide-react";
 import { toast } from "sonner";
 import type { SelectorComparison, SelectorAttemptComparison } from "@/background/recorder/selector-comparison";
 import type { DomContext } from "@/background/recorder/failure-logger";
+import {
+    findHistoryForSelector,
+    type SelectorHistoryBucket,
+} from "@/background/recorder/selector-history";
 import {
     buildSelectorComparisonBundle,
     buildSelectorComparisonFilename,
@@ -29,6 +36,8 @@ interface SelectorComparisonPanelProps {
     readonly stepId?: number;
     /** Optional page URL stamped into the export bundle metadata. */
     readonly url?: string;
+    /** Per-selector replay history. When supplied the toggle is enabled. */
+    readonly history?: ReadonlyArray<SelectorHistoryBucket>;
     /** Test seam: override the default download side effect. */
     readonly onDownload?: (filename: string, contents: string) => void;
 }

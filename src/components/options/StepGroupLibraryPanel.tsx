@@ -92,6 +92,7 @@ import BundleExchangePanel, {
     type LastImportSummary,
 } from "./BundleExchangePanel";
 import ImportErrorDialog from "./ImportErrorDialog";
+import { GroupInputsDialog } from "./GroupInputsDialog";
 import {
     explainImportFailure,
     type ImportErrorExplanation,

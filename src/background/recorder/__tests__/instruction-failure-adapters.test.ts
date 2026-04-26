@@ -405,3 +405,169 @@ describe("Selector predicate → FailureReport", () => {
         assertValidatesAsBundle(reports);
     });
 });
+
+/* ================================================================== */
+/*  UrlTabClick — optional-field matrix                                 */
+/*                                                                      */
+/*  Every optional field on `UrlTabClickFailure` (`ObservedUrl`,        */
+/*  `Selector`, `SelectorKind`) must be safely omittable. The adapter   */
+/*  must:                                                               */
+/*    1. Never produce a report whose `ReasonDetail` carries the literal*/
+/*       string "undefined" (would happen if the serializer interpolated*/
+/*       missing fields without a guard).                               */
+/*    2. Always emit a `ReasonDetail` that satisfies the canonical      */
+/*       schema (string-typed, non-empty).                              */
+/*    3. Always omit-not-stub the optional `*=` segments so downstream  */
+/*       parsers can rely on `Selector=` only appearing when one was    */
+/*       actually supplied.                                             */
+/* ================================================================== */
+
+/**
+ * Cartesian matrix of "is this optional field present?" — eight rows.
+ * Keeps inputs explicit so a regression in the omission logic surfaces
+ * with a clear test name rather than a single combined assertion.
+ */
+interface OptionalCase {
+    readonly Label: string;
+    readonly ObservedUrl?: string;
+    readonly Selector?: string;
+    readonly SelectorKind?: "Auto" | "XPath" | "Css";
+}
+
+const OPTIONAL_CASES: ReadonlyArray<OptionalCase> = [
+    { Label: "all optionals omitted" },
+    { Label: "ObservedUrl only", ObservedUrl: "https://x.test/now" },
+    { Label: "Selector only", Selector: "button.go" },
+    { Label: "SelectorKind only (no Selector)", SelectorKind: "XPath" },
+    { Label: "Selector + SelectorKind", Selector: "//button", SelectorKind: "XPath" },
+    { Label: "ObservedUrl + Selector", ObservedUrl: "https://x.test/now", Selector: "button.go" },
+    { Label: "ObservedUrl + SelectorKind", ObservedUrl: "https://x.test/now", SelectorKind: "Css" },
+    {
+        Label: "all three present",
+        ObservedUrl: "https://x.test/now",
+        Selector: "button.go",
+        SelectorKind: "Css",
+    },
+];
+
+describe("UrlTabClick optional fields — schema conformance", () => {
+    it.each(OPTIONAL_CASES)(
+        "$Label: produces a schema-valid report with a clean ReasonDetail",
+        (kase) => {
+            const report = buildUrlTabClickFailureReport({
+                Failure: {
+                    Reason: "TabNotFound",
+                    Detail: "no matching tab",
+                    UrlPattern: "https://x.test/*",
+                    UrlMatch: "Glob",
+                    Mode: "OpenOrFocus",
+                    TimeoutMs: 1_000,
+                    DurationMs: 1_000,
+                    ObservedUrl: kase.ObservedUrl,
+                    Selector: kase.Selector,
+                    SelectorKind: kase.SelectorKind,
+                },
+                StepId: 1, Index: 0, Now: FIXED_NOW,
+            });
+
+            // 1. Required-field shape (mirrors the build-time schema check).
+            assertRequiredFieldsPresent(report);
+            assertValidatesAsSingleReport(report);
+
+            // 2. ReasonDetail is a non-empty string and never leaks the literal
+            //    word "undefined" — proves the serializer guarded each optional.
+            expect(typeof report.ReasonDetail).toBe("string");
+            expect(report.ReasonDetail.length).toBeGreaterThan(0);
+            expect(report.ReasonDetail).not.toMatch(/\bundefined\b/);
+            expect(report.ReasonDetail).not.toMatch(/=undefined/);
+            expect(report.ReasonDetail).not.toMatch(/=null/);
+
+            // 3. Required (always-present) segments.
+            expect(report.ReasonDetail).toContain("Reason=TabNotFound");
+            expect(report.ReasonDetail).toContain("Mode=OpenOrFocus");
+            expect(report.ReasonDetail).toContain("UrlMatch=Glob");
+            expect(report.ReasonDetail).toContain("Pattern=https://x.test/*");
+            expect(report.ReasonDetail).toContain("TimeoutMs=1000");
+            expect(report.ReasonDetail).toContain("DurationMs=1000");
+            expect(report.ReasonDetail).toContain("Detail=no matching tab");
+
+            // 4. Optional segments appear iff the input field was supplied.
+            //    (`includes` substring is fine — the keys are unique.)
+            expect(report.ReasonDetail.includes("ObservedUrl="))
+                .toBe(kase.ObservedUrl !== undefined);
+            expect(report.ReasonDetail.includes("Selector="))
+                .toBe(kase.Selector !== undefined);
+            expect(report.ReasonDetail.includes("SelectorKind="))
+                .toBe(kase.SelectorKind !== undefined);
+        },
+    );
+
+    it("an empty-string ObservedUrl is preserved verbatim (caller's choice)", () => {
+        // Edge case: the caller may legitimately observe an empty URL on a
+        // freshly-opened blank tab. We MUST keep the segment so debuggers
+        // can distinguish "not supplied" from "supplied as empty".
+        const report = buildUrlTabClickFailureReport({
+            Failure: {
+                Reason: "UrlPatternMismatch",
+                Detail: "blank tab opened",
+                UrlPattern: "https://x.test/*",
+                UrlMatch: "Glob",
+                Mode: "OpenNew",
+                TimeoutMs: 1_000,
+                DurationMs: 5,
+                ObservedUrl: "",
+            },
+            StepId: 1, Index: 0, Now: FIXED_NOW,
+        });
+        assertValidatesAsSingleReport(report);
+        expect(report.ReasonDetail).toContain("ObservedUrl=");
+        expect(report.ReasonDetail).not.toContain("ObservedUrl=undefined");
+    });
+
+    it("a bundle of every optional-field combination validates as a bundle", () => {
+        const reports = OPTIONAL_CASES.map((kase, i) =>
+            buildUrlTabClickFailureReport({
+                Failure: {
+                    Reason: "TabNotFound",
+                    Detail: kase.Label,
+                    UrlPattern: "https://x.test/*",
+                    UrlMatch: "Glob",
+                    Mode: "OpenOrFocus",
+                    TimeoutMs: 1_000,
+                    DurationMs: 1_000,
+                    ObservedUrl: kase.ObservedUrl,
+                    Selector: kase.Selector,
+                    SelectorKind: kase.SelectorKind,
+                },
+                StepId: 2_000 + i, Index: i, Now: FIXED_NOW,
+            }),
+        );
+        assertValidatesAsBundle(reports);
+    });
+
+    it("DataRow is preserved when supplied alongside missing optionals", () => {
+        // Regression guard: combining present-DataRow + absent-Selector must
+        // not corrupt either the DataRow round-trip or the omission logic.
+        const report = buildUrlTabClickFailureReport({
+            Failure: {
+                Reason: "TabNotFound",
+                Detail: "row context test",
+                UrlPattern: "https://x.test/*",
+                UrlMatch: "Glob",
+                Mode: "OpenOrFocus",
+                TimeoutMs: 1_000,
+                DurationMs: 1_000,
+                // No Selector / SelectorKind / ObservedUrl.
+            },
+            StepId: 1, Index: 0,
+            DataRow: { OrderId: "42", Status: "pending" },
+            Now: FIXED_NOW,
+        });
+        assertValidatesAsSingleReport(report);
+        expect(report.DataRow).toEqual({ OrderId: "42", Status: "pending" });
+        expect(report.ReasonDetail).not.toContain("Selector=");
+        expect(report.ReasonDetail).not.toContain("ObservedUrl=");
+        expect(report.ReasonDetail).not.toContain("SelectorKind=");
+    });
+});
+

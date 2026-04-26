@@ -297,10 +297,16 @@ describe("Condition wait → FailureReport (Gate / WaitFor / ConditionStep)", ()
 
         assertRequiredFieldsPresent(report);
         assertValidatesAsSingleReport(report);
+        // Phase always Replay; non-timeout condition reasons degrade to Unknown.
+        expect(report.Phase).toBe("Replay");
         expect(report.Reason).toBe("Unknown");
+        // StepKind echoes the caller's "Condition" step kind verbatim.
+        expect(report.StepKind).toBe("Condition");
         expect(report.ReasonDetail).toContain("Reason=InvalidSelector");
         expect(report.ReasonDetail).toContain("Source=ConditionStep");
-        expect(report.SourceFile).toContain("condition-step.ts");
+        // ConditionStep failures stamp the dedicated step module — not the
+        // shared evaluator — so a future bug that mis-routes them is caught.
+        expect(report.SourceFile).toBe("src/background/recorder/condition-step.ts");
         // Empty trace renders as "(empty)" so AI debuggers see something.
         expect(report.ReasonDetail).toContain("(empty)");
     });

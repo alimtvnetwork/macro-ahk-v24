@@ -20,8 +20,8 @@
  * @see spec/31-macro-recorder/09-step-persistence-and-replay.md
  */
 
-import { SelectorKindId, type PersistedSelector } from "../recorder-db-schema";
-import type { PersistedSelector as PersistedSelectorRow } from "./step-persistence";
+import { SelectorKindId } from "../recorder-db-schema";
+import type { PersistedSelector } from "./step-persistence";
 
 export interface ResolvedSelector {
     readonly Kind: "XPath" | "Css" | "Aria";
@@ -32,7 +32,7 @@ export interface ResolvedSelector {
 const MAX_ANCHOR_DEPTH = 16;
 
 export function resolveStepSelector(
-    selectors: ReadonlyArray<PersistedSelectorRow>,
+    selectors: ReadonlyArray<PersistedSelector>,
 ): ResolvedSelector {
     const primary = selectors.find((s) => s.IsPrimary === 1);
     if (primary === undefined) {
@@ -50,8 +50,8 @@ export function resolveStepSelector(
 }
 
 function resolveOne(
-    selector: PersistedSelectorRow,
-    byId: Map<number, PersistedSelectorRow>,
+    selector: PersistedSelector,
+    byId: Map<number, PersistedSelector>,
     chain: number[],
     depth: number,
 ): string {
@@ -104,5 +104,4 @@ function kindOf(selectorKindId: number): ResolvedSelector["Kind"] {
     return "XPath";
 }
 
-// Re-export to silence unused-import lint when consumers want the raw enum.
 export type { PersistedSelector };

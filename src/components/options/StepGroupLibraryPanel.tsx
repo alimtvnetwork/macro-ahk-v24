@@ -707,25 +707,67 @@ export default function StepGroupLibraryPanel() {
             <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(320px,420px)_1fr]">
                 {/* ---- Left: tree ---- */}
                 <Card className="flex min-h-[400px] flex-col overflow-hidden">
-                    <div className="border-b px-4 py-2 text-sm font-medium text-muted-foreground">
-                        Groups
+                    <div className="flex items-center justify-between gap-2 border-b px-4 py-2 text-sm font-medium text-muted-foreground">
+                        <span>Groups</span>
+                        {trimmedQuery !== "" && (
+                            <span className="text-xs font-normal">
+                                {filteredTree.length === 0
+                                    ? "No matches"
+                                    : `Filtered by “${query.trim()}”`}
+                            </span>
+                        )}
+                    </div>
+                    {/* Search field — filters by name (descendants included so
+                        a deeply-nested match still surfaces its parents). */}
+                    <div className="border-b px-3 py-2">
+                        <div className="relative">
+                            <Search
+                                className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+                                aria-hidden="true"
+                            />
+                            <Input
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                placeholder="Search groups by name…"
+                                aria-label="Search step groups"
+                                className="h-8 pl-7 pr-7 text-sm"
+                            />
+                            {query !== "" && (
+                                <button
+                                    type="button"
+                                    onClick={() => setQuery("")}
+                                    aria-label="Clear search"
+                                    className="absolute right-1.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                                >
+                                    <X className="h-3.5 w-3.5" />
+                                </button>
+                            )}
+                        </div>
                     </div>
                     <ScrollArea className="flex-1">
                         {tree.length === 0 ? (
                             <EmptyTreeState
                                 onCreate={() => setCreateDialog({ open: true, parent: null, name: "" })}
                             />
+                        ) : filteredTree.length === 0 ? (
+                            <div className="flex h-full flex-col items-center justify-center gap-2 px-4 py-12 text-center text-sm text-muted-foreground">
+                                <Search className="h-8 w-8 text-muted-foreground/40" />
+                                <p>No groups match “{query.trim()}”.</p>
+                                <Button variant="ghost" size="sm" onClick={() => setQuery("")}>
+                                    Clear search
+                                </Button>
+                            </div>
                         ) : (
                             <ul className="py-2">
-                                {tree.map((node, idx) => (
+                                {filteredTree.map((node, idx) => (
                                     <TreeNodeRow
                                         key={node.Group.StepGroupId}
                                         node={node}
                                         depth={0}
                                         siblingIndex={idx}
-                                        siblingCount={tree.length}
+                                        siblingCount={filteredTree.length}
                                         selected={selected}
-                                        expanded={expanded}
+                                        expanded={effectiveExpanded}
                                         activeGroupId={activeGroupId}
                                         hoveredId={hoveredId}
                                         onHover={setHoveredId}

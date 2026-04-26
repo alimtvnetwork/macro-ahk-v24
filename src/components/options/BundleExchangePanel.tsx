@@ -73,6 +73,13 @@ export default function BundleExchangePanel(props: BundleExchangePanelProps) {
     const { selectedCount, onExport, onImportFile, lastExport, lastImport, disabled } = props;
     const inputRef = useRef<HTMLInputElement>(null);
     const [dragOver, setDragOver] = useState(false);
+    /**
+     * Default ON to preserve the long-standing behaviour ("Includes every
+     * nested sub-group and step"). Users can untick it for a strict,
+     * roots-only export — useful when migrating just the top-level
+     * shells across projects without their inner step trees.
+     */
+    const [includeDescendants, setIncludeDescendants] = useState(true);
 
     const handleDrop = (ev: React.DragEvent<HTMLDivElement>) => {
         ev.preventDefault();

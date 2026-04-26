@@ -175,8 +175,25 @@ export default function StepGroupLibraryPanel() {
      * recover from a Set after re-toggles.
      */
     const [selectionOrder, setSelectionOrder] = useState<ReadonlyArray<number>>([]);
-    const [activeGroupId, setActiveGroupId] = useState<number | null>(null);
-    const [expanded, setExpanded] = useState<Set<number>>(new Set());
+    /**
+     * Active selection + expanded folders are persisted per-project so
+     * the two-pane layout restores exactly where the user left off
+     * across full page refreshes. Keys are namespaced by project id;
+     * the no-project case uses a `__noproject__` slot. A post-load
+     * effect prunes stale ids that no longer exist (e.g. groups
+     * deleted in another tab).
+     */
+    const projectKey = lib.Project?.ProjectId ?? "__noproject__";
+    const [activeGroupId, setActiveGroupId] = usePersistedState<number | null>(
+        `marco.library.activeGroup.${projectKey}`,
+        null,
+        decodeNullableNumber,
+    );
+    const [expanded, setExpanded] = usePersistedState<Set<number>>(
+        `marco.library.expanded.${projectKey}`,
+        new Set(),
+        decodeNumberSet,
+    );
     const [showArchived, setShowArchived] = useState(false);
     const [batchOpen, setBatchOpen] = useState(false);
     const [batchRenameOpen, setBatchRenameOpen] = useState(false);

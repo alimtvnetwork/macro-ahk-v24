@@ -236,5 +236,3 @@ describe("buildFailureReport — Reason classification & EvaluatedAttempts", () 
         expect(out).toContain("→ 1 match");
     });
 });
-    });
-});

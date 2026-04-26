@@ -12,7 +12,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, AlertTriangle, CheckCircle2, GitCompare } from "lucide-react";
+import { ArrowRight, AlertTriangle, CheckCircle2, GitCompare, Clock } from "lucide-react";
 import type { DomContext } from "@/background/recorder/failure-logger";
 import {
     diffDriftElements,
@@ -21,6 +21,12 @@ import {
     type DriftFieldDiff,
     type DriftVerdict,
 } from "@/background/recorder/drift-element-diff";
+import type { SelectorHistoryBucket } from "@/background/recorder/selector-history";
+import {
+    buildDriftTimeline,
+    formatDuration,
+    type DriftTimeline,
+} from "@/background/recorder/drift-timeline";
 
 interface DriftElementDiffViewProps {
     /** Recorded / expected element snapshot (or null when never captured). */
@@ -29,6 +35,13 @@ interface DriftElementDiffViewProps {
     readonly fallback: DomContext | null;
     /** Optional precomputed diff — if omitted the component computes it. */
     readonly diff?: DriftElementDiff;
+    /**
+     * Per-selector replay history bucket for the *primary* selector. When
+     * supplied a compact "last ok ↔ first drift" timeline is rendered.
+     */
+    readonly history?: SelectorHistoryBucket | null;
+    /** Test seam: override "now" for relative-time formatting. */
+    readonly now?: Date;
 }
 
 const VERDICT_META: Readonly<Record<DriftVerdict, { label: string; tone: "warn" | "info" | "ok" | "error" }>> = {

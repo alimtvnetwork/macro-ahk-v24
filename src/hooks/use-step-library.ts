@@ -226,6 +226,12 @@ export interface UseStepLibraryApi extends UseStepLibraryState {
     /** Remove the input bag for one StepGroup. No-op when absent. */
     readonly clearGroupInput: (stepGroupId: number) => void;
     readonly resetAll: () => void;
+    /**
+     * Retry the bootstrap after a load failure. Resets the load
+     * promise so a previously-failed sql.js fetch is attempted again
+     * (the cached rejection would otherwise resolve instantly).
+     */
+    readonly retryLoad: () => void;
 }
 
 export function useStepLibrary(): UseStepLibraryApi {

@@ -86,6 +86,11 @@ import {
 import { handleValidateAllXPaths } from "./handlers/xpath-validation-handler";
 
 import {
+    handleRecorderDataSourceAdd,
+    handleRecorderDataSourceList,
+} from "./handlers/recorder-data-source-handler";
+
+import {
     handleGetActiveErrors,
     handleUserScriptError,
     handleClearErrors,
@@ -366,6 +371,8 @@ export const HANDLER_REGISTRY = new Map<MessageType, MessageHandler>([
     [MessageType.CLEAR_RECORDED_XPATHS, async (msg, sender) => handleClearRecordedXPaths(msg, sender)],
     [MessageType.TEST_XPATH, async (msg) => handleTestXPath(msg)],
     [MessageType.VALIDATE_ALL_XPATHS, async (msg) => handleValidateAllXPaths(msg)],
+    [MessageType.RECORDER_DATA_SOURCE_ADD, async (msg) => handleRecorderDataSourceAdd(msg)],
+    [MessageType.RECORDER_DATA_SOURCE_LIST, async (msg) => handleRecorderDataSourceList(msg)],
     [MessageType.USER_SCRIPT_ERROR, async (msg) => handleUserScriptError(msg)],
     [MessageType.USER_SCRIPT_LOG, async (msg) => handleUserScriptLog(msg)],
     [MessageType.USER_SCRIPT_DATA_SET, async (msg) => handleDataSet(msg)],

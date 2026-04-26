@@ -232,7 +232,7 @@ function dedupeSorted(ids: ReadonlyArray<number>): ReadonlyArray<number> {
  */
 export interface DanglingRunGroupRef {
     readonly StepId: number;
-    readonly StepLabel: string;
+    readonly StepLabel: string | null;
     readonly OwnerStepGroupId: number;
     readonly OwnerStepGroupName: string;
     readonly TargetStepGroupId: number | null;

@@ -393,17 +393,17 @@ export default function StepGroupLibraryPanel() {
 
     /* ------------------------ Export / Import --------------------- */
 
-    const handleExport = async (
-        idsOverride?: ReadonlyArray<number>,
-        includeDescendants: boolean = true,
+    /**
+     * Actually package + download the bundle. Called only after the
+     * preview dialog is confirmed (or for code paths that intentionally
+     * skip the preview, like programmatic exports).
+     */
+    const performExport = async (
+        ids: ReadonlyArray<number>,
+        includeDescendants: boolean,
     ) => {
         if (lib.Lib === null || lib.Project === null || lib.SqlJs === null) {
             toast.error("Library not ready");
-            return;
-        }
-        const ids = idsOverride ?? Array.from(selected);
-        if (ids.length === 0) {
-            toast.error("Select at least one group to export");
             return;
         }
         const result = await runStepGroupExport({
@@ -440,6 +440,49 @@ export default function StepGroupLibraryPanel() {
             { description: `${result.Manifest.Counts.Steps} steps · ${result.ZipFileName}` },
         );
     };
+
+    /**
+     * User-facing entrypoint: validate the selection, compute a dry-run
+     * preview (counts + RunGroup-ref warnings), and open the preview
+     * dialog. The actual download is gated on the dialog's confirm.
+     */
+    const handleExport = (
+        idsOverride?: ReadonlyArray<number>,
+        includeDescendants: boolean = true,
+    ) => {
+        if (lib.Lib === null || lib.Project === null || lib.SqlJs === null) {
+            toast.error("Library not ready");
+            return;
+        }
+        const ids = idsOverride ?? Array.from(selected);
+        if (ids.length === 0) {
+            toast.error("Select at least one group to export");
+            return;
+        }
+        const preview = previewStepGroupExport({
+            Source: lib.Lib,
+            ProjectId: lib.Project.ProjectId,
+            SelectedStepGroupIds: ids,
+            IncludeDescendants: includeDescendants,
+        });
+        if (preview.Reason !== "Ok") {
+            toast.error(`Cannot export: ${preview.Reason}`, { description: preview.Detail });
+            return;
+        }
+        setExportPreview({
+            Open: true,
+            Preview: preview,
+            Pending: { Ids: ids, IncludeDescendants: includeDescendants },
+        });
+    };
+
+    const confirmExport = async () => {
+        const pending = exportPreview.Pending;
+        setExportPreview({ Open: false, Preview: null, Pending: null });
+        if (pending === null) return;
+        await performExport(pending.Ids, pending.IncludeDescendants);
+    };
+
 
     const handleImportClick = () => fileInputRef.current?.click();
 

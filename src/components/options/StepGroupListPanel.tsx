@@ -203,6 +203,73 @@ export default function StepGroupListPanel() {
     const activeSteps: ReadonlyArray<StepRow> =
         activeGroupId === null ? [] : (lib.StepsByGroup.get(activeGroupId) ?? []);
 
+    /* ------------------------ Selection helpers ------------------- */
+
+    /**
+     * `true` when every currently-visible (filtered) row is in the
+     * selection set. Drives the header checkbox's checked / indeterminate
+     * tri-state.
+     */
+    const visibleIds = useMemo(() => filtered.map((g) => g.StepGroupId), [filtered]);
+    const allVisibleSelected =
+        visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
+    const someVisibleSelected =
+        !allVisibleSelected && visibleIds.some((id) => selected.has(id));
+
+    const toggleOne = (id: number, on: boolean) => {
+        setSelected((prev) => {
+            const next = new Set(prev);
+            if (on) next.add(id);
+            else next.delete(id);
+            return next;
+        });
+    };
+
+    /**
+     * Header checkbox handler. Selecting flips on every visible row;
+     * de-selecting (from full or indeterminate) removes only the
+     * visible rows — selections in groups currently filtered out of
+     * view are intentionally preserved so a search refinement can't
+     * silently drop the user's earlier picks.
+     */
+    const toggleAllVisible = (on: boolean) => {
+        setSelected((prev) => {
+            const next = new Set(prev);
+            if (on) for (const id of visibleIds) next.add(id);
+            else for (const id of visibleIds) next.delete(id);
+            return next;
+        });
+    };
+
+    const clearSelection = () => setSelected(new Set());
+
+    /**
+     * Hand the selection over to the tree-view panel, which owns the
+     * full export pipeline (preview dialog, structured error dialog,
+     * last-export summary). Stash via sessionStorage so this works
+     * even if the user reloads or shares the URL.
+     */
+    const exportSelected = () => {
+        if (selected.size === 0) {
+            toast.error("Select at least one group to export");
+            return;
+        }
+        try {
+            sessionStorage.setItem(
+                STEP_GROUP_PRESELECT_KEY,
+                JSON.stringify({
+                    Ids: Array.from(selected),
+                    Action: "export",
+                    At: Date.now(),
+                }),
+            );
+        } catch {
+            // sessionStorage can throw in private-mode / quota scenarios;
+            // fall through and still navigate so the user isn't stranded.
+        }
+        navigate("/step-groups");
+    };
+
     /* ------------------------ Sibling lookups --------------------- */
 
     /**

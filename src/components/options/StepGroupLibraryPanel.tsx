@@ -710,11 +710,7 @@ export default function StepGroupLibraryPanel() {
                 db={lib.Lib}
                 projectId={lib.Project?.ProjectId ?? null}
                 initialOrder={selectionOrder}
-                groupsById={useMemo(() => {
-                    const m = new Map<number, StepGroupRow>();
-                    for (const g of lib.Groups) m.set(g.StepGroupId, g);
-                    return m;
-                }, [lib.Groups])}
+                groupsById={groupsById}
             />
         </div>
     );

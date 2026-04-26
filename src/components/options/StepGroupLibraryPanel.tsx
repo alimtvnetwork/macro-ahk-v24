@@ -575,6 +575,62 @@ export default function StepGroupLibraryPanel() {
         }
     };
 
+    /* ------------------------ Step handlers ------------------------ */
+
+    const handleStepEditorSubmit = (input: {
+        StepKindId: StepKindId;
+        Label: string | null;
+        PayloadJson: string | null;
+        TargetStepGroupId: number | null;
+    }): void => {
+        const mode = stepEditor.mode;
+        if (mode === null) return;
+        try {
+            if (mode.Kind === "create") {
+                lib.appendStep({
+                    StepGroupId: mode.StepGroupId,
+                    StepKindId: input.StepKindId,
+                    Label: input.Label,
+                    PayloadJson: input.PayloadJson,
+                    TargetStepGroupId: input.TargetStepGroupId,
+                });
+                toast.success("Step added");
+            } else {
+                lib.updateStep({
+                    StepId: mode.Step.StepId,
+                    StepKindId: input.StepKindId,
+                    Label: input.Label,
+                    PayloadJson: input.PayloadJson,
+                    TargetStepGroupId: input.TargetStepGroupId,
+                });
+                toast.success("Step updated");
+            }
+            setStepEditor({ open: false, mode: null });
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Save failed");
+        }
+    };
+
+    const handleStepMove = (stepId: number, direction: "up" | "down"): void => {
+        try {
+            lib.moveStepWithinGroup(stepId, direction);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Move failed");
+        }
+    };
+
+    const handleStepDeleteConfirm = (): void => {
+        const target = deleteStepDialog.step;
+        if (target === null) return;
+        try {
+            lib.deleteStep(target.StepId);
+            toast.success(`Deleted step “${target.Label ?? target.StepId}”`);
+            setDeleteStepDialog({ open: false, step: null });
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Delete failed");
+        }
+    };
+
     /**
      * Drag-and-drop within siblings ONLY. Cross-parent drag is
      * intentionally out of scope here — moving across parents has

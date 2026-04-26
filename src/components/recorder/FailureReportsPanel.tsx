@@ -25,8 +25,17 @@ import {
     buildFailureBundleFilename,
     pickLastFailureReport,
     buildLastFailureFilename,
+    listStepFailureOptions,
+    pickFailureReportByStepId,
 } from "./failure-export";
 import { validateFailureReportPayload } from "./failure-report-validator";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { FailureDetailsPanel } from "./FailureDetailsPanel";
 import { SelectorReplayTracePanel } from "./SelectorReplayTracePanel";
 
@@ -63,9 +72,23 @@ function rowKey(r: FailureReport, idx: number): string {
     return `${r.Timestamp}#${r.StepId ?? "noid"}#${idx}`;
 }
 
+const STEP_OPTION_NULL = "__null_step__";
+
 export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureReportsPanelProps) {
     const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
     const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+    const [pickedStep, setPickedStep] = useState<string | null>(null);
+
+    const stepOptions = useMemo(() => listStepFailureOptions(reports), [reports]);
+
+    // Reset / auto-clear the picker when the option list shrinks below the current pick.
+    const validPickedStep = useMemo(() => {
+        if (pickedStep === null) return null;
+        const exists = stepOptions.some(
+            (o) => (o.StepId === null ? STEP_OPTION_NULL : String(o.StepId)) === pickedStep,
+        );
+        return exists ? pickedStep : null;
+    }, [pickedStep, stepOptions]);
 
     const allKeys = useMemo(() => reports.map((r, i) => rowKey(r, i)), [reports]);
     const allSelected = selected.size > 0 && selected.size === reports.length;
@@ -161,15 +184,46 @@ export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureRepo
         }
     };
 
+    const handleExportByStep = () => {
+        if (validPickedStep === null) {
+            toast.error("Pick a Step first");
+            return;
+        }
+        const stepId = validPickedStep === STEP_OPTION_NULL ? null : Number(validPickedStep);
+        const report = pickFailureReportByStepId(reports, stepId);
+        if (report === null) {
+            toast.error(
+                stepId === null
+                    ? "No failures without a Step ID"
+                    : `No failures recorded for Step #${stepId}`,
+            );
+            return;
+        }
+        const filename = buildLastFailureFilename(report);
+        const contents = JSON.stringify(report, null, 2);
+        (onDownload ?? defaultDownload)(filename, contents);
+        const stepLabel = stepId === null ? " (no Step ID)" : ` (Step #${stepId})`;
+        const validation = validateFailureReportPayload(contents);
+        if (!validation.Valid) {
+            toast.warning(`Downloaded ${filename} — schema warning`, {
+                description: validation.Summary,
+            });
+        } else {
+            toast.success(`Downloaded ${filename}`, {
+                description: `Latest failure for${stepLabel} saved as JSON`,
+            });
+        }
+    };
+
     return (
         <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardHeader className="flex flex-col gap-2 pb-2 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4 text-destructive" />
                     Failure Reports
                     <Badge variant="secondary" className="ml-1">{reports.length}</Badge>
                 </CardTitle>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <Button
                         variant="ghost"
                         size="sm"
@@ -200,6 +254,46 @@ export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureRepo
                         <FileDown className="h-3.5 w-3.5 mr-1.5" />
                         Export last failure
                     </Button>
+                    <div className="flex items-center gap-1.5">
+                        <Select
+                            value={validPickedStep ?? ""}
+                            onValueChange={(v) => setPickedStep(v === "" ? null : v)}
+                            disabled={stepOptions.length === 0}
+                        >
+                            <SelectTrigger
+                                className="h-8 w-[180px] text-xs"
+                                aria-label="Choose a Step ID to export its latest failure"
+                            >
+                                <SelectValue placeholder="Pick step…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {stepOptions.map((o) => {
+                                    const value = o.StepId === null ? STEP_OPTION_NULL : String(o.StepId);
+                                    const label = o.StepId === null
+                                        ? "(no Step ID)"
+                                        : `Step #${o.StepId}`;
+                                    const kind = o.StepKind ? ` · ${o.StepKind}` : "";
+                                    const count = o.Count > 1 ? ` ×${o.Count}` : "";
+                                    return (
+                                        <SelectItem key={value} value={value}>
+                                            {label}{kind}{count}
+                                        </SelectItem>
+                                    );
+                                })}
+                            </SelectContent>
+                        </Select>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleExportByStep}
+                            disabled={validPickedStep === null}
+                            aria-label="Export the latest failure report for the picked Step ID"
+                            title="Download the most recent failure report for the picked Step ID as JSON"
+                        >
+                            <FileDown className="h-3.5 w-3.5 mr-1.5" />
+                            Export step
+                        </Button>
+                    </div>
                     <Button
                         variant="default"
                         size="sm"

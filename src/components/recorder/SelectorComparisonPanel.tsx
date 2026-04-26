@@ -291,6 +291,8 @@ export function SelectorComparisonPanel({ comparison, stepId, url, history, onPr
                                 attempt={a}
                                 history={hasHistory ? findHistoryForSelector(history, a.ResolvedExpression) : null}
                                 showHistory={showHistory && hasHistory}
+                                onPromote={handlePromote}
+                                isPromoting={promotingId === a.SelectorId}
                             />
                         ))}
                     </ul>

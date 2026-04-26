@@ -459,6 +459,7 @@ export type MessageRequest =
     | { type: MessageType.RECORDER_STEP_LIST; projectSlug: string }
     | { type: MessageType.RECORDER_STEP_DELETE; projectSlug: string; stepId: number }
     | { type: MessageType.RECORDER_STEP_RESOLVE; projectSlug: string; stepId: number }
+    | { type: MessageType.RECORDER_STEP_RENAME; projectSlug: string; stepId: number; newVariableName: string }
     | { type: MessageType.USER_SCRIPT_ERROR; scriptId: string; message: string; stack: string; scriptCode?: string; projectId?: string }
     | { type: MessageType.GET_NETWORK_REQUESTS }
     | { type: MessageType.GET_NETWORK_STATS }

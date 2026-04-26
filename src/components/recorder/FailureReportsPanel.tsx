@@ -23,6 +23,8 @@ import {
     buildFailureBundle,
     serializeFailureBundle,
     buildFailureBundleFilename,
+    pickLastFailureReport,
+    buildLastFailureFilename,
 } from "./failure-export";
 import { FailureDetailsPanel } from "./FailureDetailsPanel";
 
@@ -87,6 +89,19 @@ export function FailureReportsPanel({ reports, onDownload }: FailureReportsPanel
         toast.success(`Exported ${picked.length} failure report${picked.length === 1 ? "" : "s"}`);
     };
 
+    const handleExportLast = () => {
+        const last = pickLastFailureReport(reports);
+        if (last === null) {
+            toast.error("No failures recorded yet");
+            return;
+        }
+        const filename = buildLastFailureFilename(last);
+        const contents = JSON.stringify(last, null, 2);
+        (onDownload ?? defaultDownload)(filename, contents);
+        const stepLabel = last.StepId !== null ? ` (Step #${last.StepId})` : "";
+        toast.success(`Exported last failure${stepLabel}`);
+    };
+
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -103,6 +118,17 @@ export function FailureReportsPanel({ reports, onDownload }: FailureReportsPanel
                         disabled={reports.length === 0}
                     >
                         {allSelected ? "Clear" : "Select all"}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExportLast}
+                        disabled={reports.length === 0}
+                        aria-label="Export last failure report as JSON"
+                        title="Download the most recent failure report (selectors, EvaluatedAttempts, variables) as JSON"
+                    >
+                        <FileDown className="h-3.5 w-3.5 mr-1.5" />
+                        Export last failure
                     </Button>
                     <Button
                         variant="default"

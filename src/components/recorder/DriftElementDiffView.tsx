@@ -1,0 +1,232 @@
+/**
+ * Marco Extension — Drift Element Diff View
+ *
+ * Side-by-side comparison of the **primary** (recorded / expected) element
+ * versus the **fallback** element that actually matched during replay, with
+ * per-attribute changes highlighted. Rendered when
+ * `SelectorComparison.DriftDetected === true` so the user can immediately
+ * see *how* the page diverged from the recording.
+ *
+ * Pure presentation — diff data is computed by `diffDriftElements`.
+ */
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ArrowRight, AlertTriangle, CheckCircle2, GitCompare } from "lucide-react";
+import type { DomContext } from "@/background/recorder/failure-logger";
+import {
+    diffDriftElements,
+    type DriftChangeKind,
+    type DriftElementDiff,
+    type DriftFieldDiff,
+    type DriftVerdict,
+} from "@/background/recorder/drift-element-diff";
+
+interface DriftElementDiffViewProps {
+    /** Recorded / expected element snapshot (or null when never captured). */
+    readonly primary: DomContext | null;
+    /** Element the fallback selector actually matched (or null when none). */
+    readonly fallback: DomContext | null;
+    /** Optional precomputed diff — if omitted the component computes it. */
+    readonly diff?: DriftElementDiff;
+}
+
+const VERDICT_META: Readonly<Record<DriftVerdict, { label: string; tone: "warn" | "info" | "ok" | "error" }>> = {
+    Identical: { label: "Identical", tone: "ok" },
+    AttributeDrift: { label: "Attribute drift", tone: "warn" },
+    RenamedIdentity: { label: "Renamed identity", tone: "warn" },
+    DifferentElement: { label: "Different element", tone: "error" },
+    PrimaryMissing: { label: "No recorded snapshot", tone: "info" },
+    FallbackMissing: { label: "No fallback matched", tone: "error" },
+};
+
+const FIELD_LABELS: Readonly<Record<string, string>> = {
+    TagName: "Tag",
+    Id: "id",
+    ClassName: "class",
+    AriaLabel: "aria-label",
+    Name: "name",
+    Type: "type",
+    TextSnippet: "Text",
+    OuterHtmlSnippet: "Outer HTML",
+};
+
+export function DriftElementDiffView({ primary, fallback, diff }: DriftElementDiffViewProps) {
+    const computed = diff ?? diffDriftElements(primary, fallback);
+    const verdict = VERDICT_META[computed.Verdict];
+
+    return (
+        <Card>
+            <CardHeader className="pb-3">
+                <CardTitle className="flex items-center justify-between gap-2 text-sm">
+                    <span className="flex items-center gap-2">
+                        <GitCompare className="h-4 w-4" />
+                        Drift element diff
+                    </span>
+                    <VerdictBadge verdict={computed.Verdict} label={verdict.label} />
+                </CardTitle>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+                {!computed.HasChanges && computed.Verdict === "Identical" ? (
+                    <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        Primary and fallback elements are identical — no drift to highlight.
+                    </p>
+                ) : (
+                    <>
+                        <ColumnHeader />
+                        <div className="divide-y rounded-md border">
+                            {computed.Fields.map((field) => (
+                                <FieldRow key={field.Field} field={field} />
+                            ))}
+                        </div>
+
+                        {(computed.ClassList.Added.length > 0 || computed.ClassList.Removed.length > 0) && (
+                            <ClassListDiff
+                                added={computed.ClassList.Added}
+                                removed={computed.ClassList.Removed}
+                                shared={computed.ClassList.Shared}
+                            />
+                        )}
+                    </>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function VerdictBadge({ verdict, label }: { verdict: DriftVerdict; label: string }) {
+    const tone = VERDICT_META[verdict].tone;
+    if (tone === "ok") {
+        return (
+            <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="mr-1 h-3 w-3" />
+                {label}
+            </Badge>
+        );
+    }
+    if (tone === "error") {
+        return (
+            <Badge variant="destructive">
+                <AlertTriangle className="mr-1 h-3 w-3" />
+                {label}
+            </Badge>
+        );
+    }
+    if (tone === "warn") {
+        return (
+            <Badge variant="outline" className="border-amber-500/40 text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="mr-1 h-3 w-3" />
+                {label}
+            </Badge>
+        );
+    }
+    return <Badge variant="secondary">{label}</Badge>;
+}
+
+function ColumnHeader() {
+    return (
+        <div className="grid grid-cols-[110px_1fr_24px_1fr] items-center gap-2 px-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <span>Field</span>
+            <span>Primary (recorded)</span>
+            <span aria-hidden />
+            <span>Fallback (matched)</span>
+        </div>
+    );
+}
+
+function FieldRow({ field }: { field: DriftFieldDiff }) {
+    const label = FIELD_LABELS[field.Field] ?? field.Field;
+    return (
+        <div className="grid grid-cols-[110px_1fr_24px_1fr] items-start gap-2 px-2 py-2 text-sm">
+            <span className="pt-0.5 font-mono text-xs text-muted-foreground">{label}</span>
+            <ValueCell value={field.Primary} change={field.Change} side="primary" />
+            <ArrowRight className="mt-1 h-4 w-4 text-muted-foreground" aria-hidden />
+            <ValueCell value={field.Fallback} change={field.Change} side="fallback" />
+        </div>
+    );
+}
+
+function ValueCell({
+    value,
+    change,
+    side,
+}: {
+    readonly value: string | null;
+    readonly change: DriftChangeKind;
+    readonly side: "primary" | "fallback";
+}) {
+    const empty = value === null || value === "";
+    const highlight = changeClass(change, side);
+    return (
+        <code
+            className={`block whitespace-pre-wrap break-words rounded px-1.5 py-1 font-mono text-xs ${highlight}`}
+            data-change={change}
+            data-side={side}
+        >
+            {empty ? <span className="italic text-muted-foreground">∅</span> : value}
+        </code>
+    );
+}
+
+function changeClass(change: DriftChangeKind, side: "primary" | "fallback"): string {
+    if (change === "Unchanged") return "bg-muted/40 text-foreground";
+    if (change === "Modified") {
+        return side === "primary"
+            ? "bg-rose-500/10 text-rose-700 dark:text-rose-300"
+            : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+    }
+    if (change === "Added") {
+        return side === "fallback"
+            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+            : "bg-muted/40 text-muted-foreground";
+    }
+    // Removed
+    return side === "primary"
+        ? "bg-rose-500/10 text-rose-700 dark:text-rose-300 line-through"
+        : "bg-muted/40 text-muted-foreground";
+}
+
+function ClassListDiff({
+    added,
+    removed,
+    shared,
+}: {
+    readonly added: ReadonlyArray<string>;
+    readonly removed: ReadonlyArray<string>;
+    readonly shared: ReadonlyArray<string>;
+}) {
+    return (
+        <div className="space-y-2 rounded-md border bg-muted/30 p-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                class list changes
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+                {removed.map((c) => (
+                    <Badge
+                        key={`r-${c}`}
+                        variant="outline"
+                        className="border-rose-500/40 font-mono text-xs text-rose-600 line-through dark:text-rose-400"
+                    >
+                        −{c}
+                    </Badge>
+                ))}
+                {added.map((c) => (
+                    <Badge
+                        key={`a-${c}`}
+                        variant="outline"
+                        className="border-emerald-500/40 font-mono text-xs text-emerald-600 dark:text-emerald-400"
+                    >
+                        +{c}
+                    </Badge>
+                ))}
+                {shared.map((c) => (
+                    <Badge key={`s-${c}`} variant="secondary" className="font-mono text-xs">
+                        {c}
+                    </Badge>
+                ))}
+            </div>
+        </div>
+    );
+}

@@ -28,11 +28,16 @@ import { useMemo, useRef, useState } from "react";
 import JSZip from "jszip";
 import { toast } from "sonner";
 import {
+    Archive,
+    ArchiveRestore,
     ChevronDown,
     ChevronRight,
+    ChevronUp,
+    ChevronDown as ChevronDownIcon,
     Download,
     FilePlus2,
     FolderTree,
+    GripVertical,
     MoreHorizontal,
     Pencil,
     Plus,

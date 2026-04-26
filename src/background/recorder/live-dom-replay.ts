@@ -236,6 +236,7 @@ function finalize(
         EvaluatedAttempts: evaluatedAttempts,
         Target: outcome.Target ?? null,
         DataRow: options.Row,
+        Variables: outcome.Variables,
         ResolvedXPath: outcome.ResolvedXPath,
         SourceFile: SOURCE_FILE,
         Now: options.Now,

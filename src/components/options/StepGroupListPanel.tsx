@@ -29,9 +29,10 @@
  */
 
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
     Archive,
+    Download,
     FilePlus2,
     FolderTree,
     ListOrdered,
@@ -44,6 +45,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -109,6 +111,19 @@ function validateName(raw: string, siblingNames: ReadonlyArray<string>): string 
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Session-scoped handoff key. When the user clicks "Export selected"
+ * here, we stash the chosen StepGroupIds and navigate to the tree
+ * view, which owns the full export pipeline (preview + error dialog
+ * + last-export summary). The tree panel reads + clears this key on
+ * mount and pre-populates its selection set.
+ *
+ * Using sessionStorage (not a route-state object) keeps the handoff
+ * resilient to manual reloads / direct URL navigation between the
+ * two panels.
+ */
+export const STEP_GROUP_PRESELECT_KEY = "stepGroupListPreselect";
+
 function matchesQuery(group: StepGroupRow, query: string): boolean {
     if (query === "") return true;
     const q = query.toLowerCase();
@@ -132,8 +147,17 @@ function formatDate(iso: string): string {
 
 export default function StepGroupListPanel() {
     const lib = useStepLibrary();
+    const navigate = useNavigate();
     const [query, setQuery] = useState("");
     const [activeGroupId, setActiveGroupId] = useState<number | null>(null);
+
+    /**
+     * Multi-select state. A `Set` gives us O(1) membership checks for
+     * every row's checkbox during render. Order doesn't matter here —
+     * the export pipeline (in the tree view) computes its own canonical
+     * ordering when the bundle is packaged.
+     */
+    const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
 
     /**
      * Dialog state. We keep `name` on the dialog itself so the input
@@ -178,6 +202,73 @@ export default function StepGroupListPanel() {
     );
     const activeSteps: ReadonlyArray<StepRow> =
         activeGroupId === null ? [] : (lib.StepsByGroup.get(activeGroupId) ?? []);
+
+    /* ------------------------ Selection helpers ------------------- */
+
+    /**
+     * `true` when every currently-visible (filtered) row is in the
+     * selection set. Drives the header checkbox's checked / indeterminate
+     * tri-state.
+     */
+    const visibleIds = useMemo(() => filtered.map((g) => g.StepGroupId), [filtered]);
+    const allVisibleSelected =
+        visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
+    const someVisibleSelected =
+        !allVisibleSelected && visibleIds.some((id) => selected.has(id));
+
+    const toggleOne = (id: number, on: boolean) => {
+        setSelected((prev) => {
+            const next = new Set(prev);
+            if (on) next.add(id);
+            else next.delete(id);
+            return next;
+        });
+    };
+
+    /**
+     * Header checkbox handler. Selecting flips on every visible row;
+     * de-selecting (from full or indeterminate) removes only the
+     * visible rows — selections in groups currently filtered out of
+     * view are intentionally preserved so a search refinement can't
+     * silently drop the user's earlier picks.
+     */
+    const toggleAllVisible = (on: boolean) => {
+        setSelected((prev) => {
+            const next = new Set(prev);
+            if (on) for (const id of visibleIds) next.add(id);
+            else for (const id of visibleIds) next.delete(id);
+            return next;
+        });
+    };
+
+    const clearSelection = () => setSelected(new Set());
+
+    /**
+     * Hand the selection over to the tree-view panel, which owns the
+     * full export pipeline (preview dialog, structured error dialog,
+     * last-export summary). Stash via sessionStorage so this works
+     * even if the user reloads or shares the URL.
+     */
+    const exportSelected = () => {
+        if (selected.size === 0) {
+            toast.error("Select at least one group to export");
+            return;
+        }
+        try {
+            sessionStorage.setItem(
+                STEP_GROUP_PRESELECT_KEY,
+                JSON.stringify({
+                    Ids: Array.from(selected),
+                    Action: "export",
+                    At: Date.now(),
+                }),
+            );
+        } catch {
+            // sessionStorage can throw in private-mode / quota scenarios;
+            // fall through and still navigate so the user isn't stranded.
+        }
+        navigate("/step-groups");
+    };
 
     /* ------------------------ Sibling lookups --------------------- */
 
@@ -311,6 +402,27 @@ export default function StepGroupListPanel() {
                     <span className="text-sm text-muted-foreground">
                         {filtered.length} of {lib.Groups.length} group(s)
                     </span>
+                    {selected.size > 0 && (
+                        <>
+                            <Separator orientation="vertical" className="h-6" />
+                            <span className="text-sm text-muted-foreground">
+                                {selected.size} selected
+                            </span>
+                            <Button variant="ghost" size="sm" onClick={clearSelection}>
+                                Clear
+                            </Button>
+                        </>
+                    )}
+                    <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={selected.size === 0}
+                        onClick={exportSelected}
+                        title="Export the marked groups as a ZIP bundle"
+                    >
+                        <Download className="mr-1 h-4 w-4" />
+                        Export selected
+                    </Button>
                     <Button size="sm" onClick={openCreate}>
                         <Plus className="mr-1 h-4 w-4" />
                         New group
@@ -343,8 +455,30 @@ export default function StepGroupListPanel() {
             <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(280px,380px)_1fr]">
                 {/* ---- Left: list ---- */}
                 <Card className="flex min-h-[400px] flex-col overflow-hidden">
-                    <div className="border-b px-4 py-2 text-sm font-medium text-muted-foreground">
-                        Groups
+                    <div className="flex items-center gap-3 border-b px-4 py-2 text-sm font-medium text-muted-foreground">
+                        <Checkbox
+                            id="list-select-all-visible"
+                            checked={
+                                allVisibleSelected
+                                    ? true
+                                    : someVisibleSelected
+                                        ? "indeterminate"
+                                        : false
+                            }
+                            onCheckedChange={(state) => toggleAllVisible(state === true)}
+                            disabled={visibleIds.length === 0}
+                            aria-label={
+                                allVisibleSelected
+                                    ? "Deselect all visible groups"
+                                    : "Select all visible groups"
+                            }
+                        />
+                        <Label
+                            htmlFor="list-select-all-visible"
+                            className="cursor-pointer text-sm font-medium text-muted-foreground"
+                        >
+                            Groups
+                        </Label>
                     </div>
                     <ScrollArea className="flex-1">
                         {filtered.length === 0 ? (
@@ -365,23 +499,43 @@ export default function StepGroupListPanel() {
                             <ul className="divide-y">
                                 {filtered.map((g) => {
                                     const isActive = g.StepGroupId === activeGroupId;
+                                    const isChecked = selected.has(g.StepGroupId);
                                     const stepCount =
                                         lib.StepsByGroup.get(g.StepGroupId)?.length ?? 0;
                                     const parent =
                                         g.ParentStepGroupId === null
                                             ? null
                                             : (groupsById.get(g.ParentStepGroupId) ?? null);
+                                    const checkboxId = `list-select-${g.StepGroupId}`;
                                     return (
-                                        <li key={g.StepGroupId}>
+                                        <li
+                                            key={g.StepGroupId}
+                                            className={[
+                                                "flex items-stretch transition",
+                                                isActive
+                                                    ? "bg-primary/10"
+                                                    : isChecked
+                                                        ? "bg-primary/5"
+                                                        : "hover:bg-muted/40",
+                                            ].join(" ")}
+                                        >
+                                            {/* Checkbox lives outside the activate-row button so
+                                                clicking it never changes which group is showing in the
+                                                details pane. */}
+                                            <div className="flex shrink-0 items-center pl-4 pr-1">
+                                                <Checkbox
+                                                    id={checkboxId}
+                                                    checked={isChecked}
+                                                    onCheckedChange={(state) =>
+                                                        toggleOne(g.StepGroupId, state === true)
+                                                    }
+                                                    aria-label={`Select ${g.Name}`}
+                                                />
+                                            </div>
                                             <button
                                                 type="button"
                                                 onClick={() => setActiveGroupId(g.StepGroupId)}
-                                                className={[
-                                                    "flex w-full flex-col items-start gap-0.5 px-4 py-2 text-left transition",
-                                                    isActive
-                                                        ? "bg-primary/10 text-foreground"
-                                                        : "hover:bg-muted/40",
-                                                ].join(" ")}
+                                                className="flex flex-1 flex-col items-start gap-0.5 py-2 pl-2 pr-4 text-left text-foreground"
                                                 aria-pressed={isActive}
                                             >
                                                 <div className="flex w-full items-center gap-2">

@@ -24,7 +24,7 @@
  * @see src/background/recorder/step-library/import-bundle.ts
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import JSZip from "jszip";
 import { toast } from "sonner";
 import {
@@ -98,6 +98,7 @@ import BundleExchangePanel, {
 } from "./BundleExchangePanel";
 import ImportErrorDialog from "./ImportErrorDialog";
 import ExportPreviewDialog from "./ExportPreviewDialog";
+import { STEP_GROUP_PRESELECT_KEY } from "./StepGroupListPanel";
 import ExportErrorDialog from "./ExportErrorDialog";
 import {
     explainExportFailure,
@@ -162,6 +163,64 @@ export default function StepGroupLibraryPanel() {
      * recover from a Set after re-toggles.
      */
     const [selectionOrder, setSelectionOrder] = useState<ReadonlyArray<number>>([]);
+
+    /**
+     * Consume any preselection handed off by the flat List view's
+     * "Export selected" button. Runs exactly once on mount: read the
+     * sessionStorage payload, validate it shallowly, seed `selected` +
+     * `selectionOrder`, then clear the key so a manual reload doesn't
+     * silently re-apply the old selection. We also auto-expand the
+     * tree to ancestors of the seeded ids so the user can see them.
+     *
+     * NOTE: we wait until `lib.Loading === false` before honoring the
+     * handoff so the seeded ids actually correspond to known groups.
+     */
+    useEffect(() => {
+        if (lib.Loading) return;
+        let raw: string | null = null;
+        try {
+            raw = sessionStorage.getItem(STEP_GROUP_PRESELECT_KEY);
+        } catch {
+            return;
+        }
+        if (raw === null) return;
+        try {
+            sessionStorage.removeItem(STEP_GROUP_PRESELECT_KEY);
+        } catch {
+            // best-effort cleanup; safe to ignore
+        }
+        try {
+            const parsed = JSON.parse(raw) as { Ids?: ReadonlyArray<number> };
+            const ids = Array.isArray(parsed.Ids) ? parsed.Ids.filter((n) => typeof n === "number") : [];
+            if (ids.length === 0) return;
+            const known = new Set(lib.Groups.map((g) => g.StepGroupId));
+            const valid = ids.filter((id) => known.has(id));
+            if (valid.length === 0) return;
+            setSelected(new Set(valid));
+            setSelectionOrder(valid);
+            // Expand each ancestor chain so the seeded rows are visible.
+            const byId = new Map(lib.Groups.map((g) => [g.StepGroupId, g]));
+            const toExpand = new Set<number>();
+            for (const id of valid) {
+                let cur = byId.get(id)?.ParentStepGroupId ?? null;
+                while (cur !== null) {
+                    toExpand.add(cur);
+                    cur = byId.get(cur)?.ParentStepGroupId ?? null;
+                }
+            }
+            if (toExpand.size > 0) {
+                setExpanded((prev) => {
+                    const next = new Set(prev);
+                    for (const id of toExpand) next.add(id);
+                    return next;
+                });
+            }
+        } catch {
+            // malformed payload — ignore silently; UI still functions.
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [lib.Loading]);
+
     const [activeGroupId, setActiveGroupId] = useState<number | null>(null);
     const [expanded, setExpanded] = useState<Set<number>>(new Set());
     const [showArchived, setShowArchived] = useState(false);

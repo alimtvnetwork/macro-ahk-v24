@@ -2,7 +2,7 @@
 
 **Version:** 1.0.0
 **Updated:** 2026-04-26
-**Total Phases:** 12
+**Total Phases:** 13
 
 ---
 
@@ -32,6 +32,7 @@
 | 10 | Project Visualisation | ✅ | `hooks/use-recorder-project-data.ts` + `components/options/recorder/{RecorderStepGraph,RecorderStepDetail,RecorderVisualisationPanel}.tsx` lazy-mounted into a new `"recorder"` overflow tab in `ProjectDetailView`. Backend: 2 new messages (`RECORDER_STEP_RENAME`, `RECORDER_STEP_SELECTORS_LIST`) + `updateStepVariableName(Row)` w/ uniqueness + empty-name guards. 3 new unit tests (18/18 total in `step-persistence-and-replay.test.ts`). Spec at `10-project-visualisation.md` |
 | 11 | Inline JavaScript Step | ✅ | `recorder/js-step-sandbox.ts` (frozen `Ctx`, `"use strict"`, 11-token denylist, 4000-char cap, async-aware) + `recorder/js-snippet-persistence.ts` (CRUD via UNIQUE `Name` upsert) + `JsSnippet` table added to `recorder-db-schema.ts` + `handlers/recorder-js-handler.ts` + 4 new `RECORDER_JS_*` MessageType entries wired in `message-registry.ts`. 21 unit tests passing in `js-step-sandbox.test.ts` (83/83 across recorder suite). Editor UI deferred per `mem://preferences/deferred-workstreams.md`. Spec at `11-inline-javascript-step.md` |
 | 12 | LLM Guide + Hardening | ✅ | `LlmGuide.md` (10-section AI-facing canonical guide w/ file map, conventions, message catalogue, common pitfalls) + `12-record-replay-e2e-contract.md` (full record→bind→persist→visualise→replay coverage matrix backed by 83 unit tests) + `spec/32-app-performance/03-final-perf-pass.md` (PERF-R1..R7 audit: 2 Resolved, 3 Mitigated, 3 Deferred per `mem://preferences/deferred-workstreams.md`). All 12 phases ✅. |
+| 13 | Capture-to-Step Bridge | ✅ | `recorder/capture-to-step-bridge.ts` (pure XPATH_CAPTURED → StepDraft + `findAnchorSelectorId` lookup) + `handlers/recorder-capture-handler.ts` + new `RECORDER_CAPTURE_PERSIST` MessageType wired in `message-registry.ts`. 13 unit tests (102/102 across recorder suite). Spec at `13-capture-to-step-bridge.md`. Content-script producer rename deferred with Shadow-Root toolbar. |
 
 ---
 

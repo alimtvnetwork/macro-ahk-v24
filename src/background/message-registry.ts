@@ -105,6 +105,8 @@ import {
     handleRecorderStepSelectorsList,
 } from "./handlers/recorder-step-handler";
 
+import { handleRecorderCapturePersist } from "./handlers/recorder-capture-handler";
+
 import {
     handleRecorderJsSnippetUpsert,
     handleRecorderJsSnippetList,
@@ -398,6 +400,7 @@ export const HANDLER_REGISTRY = new Map<MessageType, MessageHandler>([
     [MessageType.RECORDER_FIELD_BINDING_UPSERT, async (msg) => handleRecorderFieldBindingUpsert(msg)],
     [MessageType.RECORDER_FIELD_BINDING_LIST, async (msg) => handleRecorderFieldBindingList(msg)],
     [MessageType.RECORDER_FIELD_BINDING_DELETE, async (msg) => handleRecorderFieldBindingDelete(msg)],
+    [MessageType.RECORDER_CAPTURE_PERSIST, async (msg) => handleRecorderCapturePersist(msg)],
     [MessageType.RECORDER_STEP_INSERT, async (msg) => handleRecorderStepInsert(msg)],
     [MessageType.RECORDER_STEP_LIST, async (msg) => handleRecorderStepList(msg)],
     [MessageType.RECORDER_STEP_DELETE, async (msg) => handleRecorderStepDelete(msg)],

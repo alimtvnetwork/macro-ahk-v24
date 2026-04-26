@@ -396,7 +396,9 @@ export default function StepGroupLibraryPanel() {
             JsZip: JSZip,
         });
         if (result.Reason !== "Ok") {
-            toast.error(`Import failed: ${result.Reason}`, { description: result.Detail });
+            const explanation = explainImportFailure(result);
+            setImportError({ open: true, explanation, fileName: file.name });
+            toast.error(explanation.Title, { description: "See dialog for details" });
             return;
         }
         lib.refresh();

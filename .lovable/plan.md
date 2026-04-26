@@ -166,3 +166,20 @@ Grouped 85+ constants into 8 string enums in `types/`: `DomId`, `DataAttr`, `Sty
 | 4 | Persistence integration in `bulk-rename.ts` | ✅ |
 | 5 | Barrel exports updated | ✅ `workspace-rename.ts` |
 | 6 | Version bump | ✅ Subsumed by ongoing version policy |
+
+---
+
+### Macro Recorder — Spec 19: URL tabs, appearance waits, condition rules
+
+**Spec**: `spec/31-macro-recorder/19-url-tabs-appearance-waits-conditions.md`
+
+Documents three behaviours with full acceptance criteria (AC-19.1.x / AC-19.2.x / AC-19.3.x) ready to drive implementation + e2e tests.
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 19.1 | `UrlTabClick` (StepKindId=9) capture + replay (Open/Focus/OpenOrFocus, pattern dialects Exact/Prefix/Glob/Regex) | 📋 Spec'd |
+| 19.2 | Unify all element-appearance waits behind `waitForCondition` (legacy `WaitFor` synthesised as `Exists` Gate) | 📋 Spec'd |
+| 19.3 | `validateCondition` save-time rules + structured `ConditionFailureRecord` shape (AC-19.3.1–10) | 📋 Spec'd |
+| 19.4 | Migration `005` — seed `StepKind (9, 'UrlTabClick')` | 📋 Spec'd |
+| 19.5 | Step inspector UI for `UrlTabClick` editor | 📋 Spec'd |
+| 19.6 | Append AC-19.* into `97-acceptance-criteria.md` + LlmGuide cookbook | 📋 Spec'd |

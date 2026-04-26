@@ -43,7 +43,7 @@ describe("isValidEmail (owner-switch)", () => {
 
         it("rejects emails > 254 chars", () => {
             const local = "a".repeat(64);
-            const domain = `${"d".repeat(180)}.com`;
+            const domain = `${"d".repeat(250)}.com`;
             const tooLong = `${local}@${domain}`;
             expect(tooLong.length).toBeGreaterThan(254);
             expect(isValidEmail(tooLong)).toBe(false);

@@ -29,7 +29,8 @@ describe("isValidEmail (user-add)", () => {
     });
 
     it("rejects emails > 254 chars", () => {
-        const tooLong = `${"a".repeat(64)}@${"d".repeat(180)}.com`;
+        const tooLong = `${"a".repeat(64)}@${"d".repeat(250)}.com`;
+        expect(tooLong.length).toBeGreaterThan(254);
         expect(isValidEmail(tooLong)).toBe(false);
     });
 });

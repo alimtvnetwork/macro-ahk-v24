@@ -173,12 +173,17 @@ export default function StepGroupLibraryPanel() {
     const [stepWaits, setStepWaits] = useState<ReadonlyMap<number, WaitConfig>>(() => readAllStepWaits());
     const refreshStepWaits = () => setStepWaits(readAllStepWaits());
     const [lastExport, setLastExport] = useState<LastExportSummary | null>(null);
-    const [lastImport, setLastImport] = useState<LastImportSummary | null>(null);
-    const [importError, setImportError] = useState<{
-        open: boolean;
-        explanation: ImportErrorExplanation | null;
-        fileName: string | null;
-    }>({ open: false, explanation: null, fileName: null });
+    /**
+     * Import pipeline lives in `useStepGroupImport`. The hook owns the
+     * file → ZIP → merge dance plus both dialog states (success summary
+     * + structured error). The list panel uses the same hook, so the
+     * UX stays identical across both browsers.
+     */
+    const importApi = useStepGroupImport({
+        lib: { Lib: lib.Lib, Project: lib.Project, SqlJs: lib.SqlJs },
+        onAfterImport: lib.refresh,
+    });
+    const lastImport: LastImportSummary | null = importApi.lastImport;
     /**
      * Pre-download preview state. `Pending` holds the resolved selection
      * + descendants flag captured at the moment the user clicked Export

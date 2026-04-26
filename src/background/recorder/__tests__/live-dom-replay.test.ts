@@ -176,3 +176,85 @@ describe("executeReplay", () => {
         expect(r.FailureReport!.Variables[0].Name).toBe("Phone");
     });
 });
+
+describe("executeReplay — persisted per-step wait bridge", () => {
+    afterEach(() => {
+        clearAllStepWaits();
+        document.body.innerHTML = "";
+    });
+
+    it("pauses after the click until a persisted wait selector appears in the DOM", async () => {
+        document.body.innerHTML = `<button id="go">Go</button>`;
+        const btn = document.getElementById("go")!;
+        writeStepWait(91, {
+            Selector: "#after",
+            Kind: "Css",
+            Condition: "Appears",
+            TimeoutMs: 1_000,
+        });
+
+        // Inject the awaited element only AFTER the click handler fires —
+        // proves that the executor actually polled, not just lucked out.
+        btn.addEventListener("click", () => {
+            queueMicrotask(() => {
+                const el = document.createElement("div");
+                el.id = "after";
+                document.body.appendChild(el);
+            });
+        });
+
+        const steps: ReplayStepInput[] = [{
+            StepId: 91, Index: 1, Kind: "Click",
+            Selectors: cssSelector(91, "#go"),
+        }];
+        const outcome = await executeReplay(steps, { Doc: document });
+        expect(outcome.Results[0]!.Ok).toBe(true);
+    });
+
+    it("fails the step when the persisted wait selector never appears", async () => {
+        document.body.innerHTML = `<button id="go">Go</button>`;
+        writeStepWait(92, {
+            Selector: "#never",
+            Kind: "Css",
+            Condition: "Appears",
+            TimeoutMs: 30,
+        });
+
+        const steps: ReplayStepInput[] = [{
+            StepId: 92, Index: 1, Kind: "Click",
+            Selectors: cssSelector(92, "#go"),
+        }];
+        const outcome = await executeReplay(steps, { Doc: document });
+        const r = outcome.Results[0]!;
+        expect(r.Ok).toBe(false);
+        expect(r.Error).toMatch(/WaitFor '#never' did not appear/);
+    });
+
+    it("inline step.WaitFor wins over the persisted config", async () => {
+        document.body.innerHTML = `<button id="go">Go</button><div id="inline"></div>`;
+        writeStepWait(93, {
+            Selector: "#nope",
+            Kind: "Css",
+            Condition: "Appears",
+            TimeoutMs: 30,
+        });
+
+        const steps: ReplayStepInput[] = [{
+            StepId: 93, Index: 1, Kind: "Click",
+            Selectors: cssSelector(93, "#go"),
+            WaitFor: { Expression: "#inline", Kind: "Css", TimeoutMs: 200 },
+        }];
+        const outcome = await executeReplay(steps, { Doc: document });
+        expect(outcome.Results[0]!.Ok).toBe(true);
+    });
+
+    it("does nothing when there is no persisted config and no inline WaitFor", async () => {
+        document.body.innerHTML = `<button id="go">Go</button>`;
+        const steps: ReplayStepInput[] = [{
+            StepId: 94, Index: 1, Kind: "Click",
+            Selectors: cssSelector(94, "#go"),
+        }];
+        const outcome = await executeReplay(steps, { Doc: document });
+        expect(outcome.Results[0]!.Ok).toBe(true);
+    });
+});

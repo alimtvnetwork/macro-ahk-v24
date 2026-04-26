@@ -87,7 +87,7 @@ describe("validateFailureReportPayload — root-level malformations", () => {
 describe("validateFailureReportPayload — per-report malformations", () => {
     it("flags missing required field on a single report", () => {
         const r = goodReport();
-        const broken = { ...r } as Record<string, unknown>;
+        const broken = { ...r } as unknown as Record<string, unknown>;
         delete broken.Verbose;
         const result = validateFailureReportPayload(broken);
         expect(result.Valid).toBe(false);
@@ -117,7 +117,7 @@ describe("validateFailureReportPayload — per-report malformations", () => {
 
     it("scopes paths inside a bundle (Reports[1].SourceFile)", () => {
         const good = goodReport();
-        const broken = { ...good } as Record<string, unknown>;
+        const broken = { ...good } as unknown as Record<string, unknown>;
         delete broken.SourceFile;
         const bundle = buildFailureBundle([good, broken as never], { Now: FIXED_NOW });
         const result = validateFailureReportPayload(bundle);
@@ -144,7 +144,7 @@ describe("validateFailureReportPayload — schema parity with build-time guard",
             "ResolvedXPath", "Timestamp", "SourceFile", "Verbose",
         ];
         for (const field of requiredFields) {
-            const r = goodReport() as Record<string, unknown>;
+            const r = goodReport() as unknown as Record<string, unknown>;
             const broken = { ...r };
             delete broken[field];
             const result = validateFailureReportPayload(broken);

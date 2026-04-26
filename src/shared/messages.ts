@@ -87,11 +87,12 @@ export enum MessageType {
     RECORDER_FIELD_BINDING_LIST = "RECORDER_FIELD_BINDING_LIST",
     RECORDER_FIELD_BINDING_DELETE = "RECORDER_FIELD_BINDING_DELETE",
 
-    // ─── Macro Recorder Steps + Replay (from Spec 31, Phase 09) ───
+    // ─── Macro Recorder Steps + Replay (from Spec 31, Phase 09 + 10) ───
     RECORDER_STEP_INSERT = "RECORDER_STEP_INSERT",
     RECORDER_STEP_LIST = "RECORDER_STEP_LIST",
     RECORDER_STEP_DELETE = "RECORDER_STEP_DELETE",
     RECORDER_STEP_RESOLVE = "RECORDER_STEP_RESOLVE",
+    RECORDER_STEP_RENAME = "RECORDER_STEP_RENAME",
 
     // ─── Config Notifications (from Spec 10) ───
     CONFIG_UPDATED = "CONFIG_UPDATED",

@@ -50,3 +50,25 @@ wrong axis, accidental `//` prefix on a CSS expression). Promoting the
 probe to the recorder's active tab would require a background message
 round-trip and is left for a follow-up task.
 
+
+## Addendum — Runner bridge (2026-04-26)
+
+Bridged the persisted `WaitConfig` (storage layer + dialog UI) into the
+existing `live-dom-replay.executeStep` path. After Click/Type/Select
+dispatches, the executor now resolves the effective wait gate as:
+
+1. Inline `step.WaitFor` (programmatic / advanced callers) — wins.
+2. `readStepWait(step.StepId)` → `persistedWaitToSpec(...)` — UI path.
+3. Otherwise no wait.
+
+Both routes feed the same `waitForElement` helper, so failure messaging
+is consistent (`WaitFor '<expr>' did not appear within <ms>ms ...`).
+
+`waitForElement` only implements the `Appears` predicate today;
+`Disappears` and `Visible` configs from the dialog fall back to
+`Appears` with a `console.warn` so the discrepancy is traceable until
+that helper is extended.
+
+Coverage: 4 new tests in `live-dom-replay.test.ts` — pause-then-pass,
+pause-then-timeout, inline-WaitFor wins, no-config no-op. Suite total
+201/201.

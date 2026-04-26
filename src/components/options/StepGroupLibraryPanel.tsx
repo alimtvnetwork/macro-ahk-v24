@@ -967,6 +967,14 @@ function TreeNodeRow(props: TreeNodeRowProps) {
                     title={node.Group.Name}
                 >
                     {node.Group.Name}
+                    {hasInputs(id) && (
+                        <span
+                            className="ml-2 inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary"
+                            title="This group has input data bound"
+                        >
+                            <FileJson className="h-2.5 w-2.5" /> Inputs
+                        </span>
+                    )}
                     {isArchived && (
                         <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                             Archived

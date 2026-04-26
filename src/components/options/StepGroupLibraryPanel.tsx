@@ -705,7 +705,9 @@ export default function StepGroupLibraryPanel() {
                             </div>
                         ) : (
                             <ol className="divide-y">
-                                {activeSteps.map((s, idx) => (
+                                {activeSteps.map((s, idx) => {
+                                    const wait = stepWaits.get(s.StepId);
+                                    return (
                                     <li key={s.StepId} className="flex items-start gap-3 px-4 py-3">
                                         <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
                                             {idx + 1}
@@ -718,6 +720,11 @@ export default function StepGroupLibraryPanel() {
                                                 <span className="truncate text-sm font-medium">
                                                     {s.Label ?? "(no label)"}
                                                 </span>
+                                                {wait !== undefined && (
+                                                    <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400" title={`Wait for ${wait.Kind} "${wait.Selector}" to ${wait.Condition} (${wait.TimeoutMs} ms)`}>
+                                                        Wait · {wait.Condition}
+                                                    </span>
+                                                )}
                                             </div>
                                             {s.StepKindId === StepKindId.RunGroup && s.TargetStepGroupId !== null && (
                                                 <p className="mt-1 text-xs text-muted-foreground">
@@ -730,8 +737,18 @@ export default function StepGroupLibraryPanel() {
                                                 </pre>
                                             )}
                                         </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 shrink-0"
+                                            onClick={() => setWaitDialog({ open: true, stepId: s.StepId, stepLabel: s.Label })}
+                                            title={wait === undefined ? "Add wait condition" : "Edit wait condition"}
+                                        >
+                                            <Timer className="h-4 w-4" />
+                                        </Button>
                                     </li>
-                                ))}
+                                    );
+                                })}
                             </ol>
                         )}
                     </ScrollArea>

@@ -156,3 +156,68 @@ function sendInternalMessage<T>(message: Record<string, unknown>): Promise<T> {
         });
     });
 }
+
+/* ------------------------------------------------------------------ */
+/*  Toggle Recording                                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Advances the recorder state machine via the toolbar's primary control:
+ *   Idle      → Start recording
+ *   Recording → Pause
+ *   Paused    → Resume
+ *
+ * Loaded lazily so the recorder modules (which import sql.js indirectly)
+ * do not bloat service-worker cold start. See Phase 05 spec
+ * `spec/26-chrome-extension-generic/06-ui-and-design-system/10-toolbar-recording-ux.md`.
+ */
+async function toggleRecordingFromShortcut(): Promise<void> {
+    try {
+        const [{ loadSession, persistSession }, { recorderReducer, IDLE_SESSION }] = await Promise.all([
+            import("./recorder/recorder-session-storage"),
+            import("./recorder/recorder-store"),
+        ]);
+
+        const current = (await loadSession()) ?? IDLE_SESSION;
+        const projectSlug = await getActiveProjectSlug();
+        if (current.Phase === "Idle" && projectSlug === null) {
+            logBgWarnError(BgLogTag.SHORTCUT, "Toggle-recording: no active project — aborting Start");
+            return;
+        }
+
+        const action = chooseToggleAction(current.Phase, projectSlug ?? current.ProjectSlug);
+        const next = recorderReducer(current, action);
+        await persistSession(next);
+        console.log("[Marco] Recorder phase: %s → %s (session=%s)", current.Phase, next.Phase, next.SessionId || "(cleared)");
+    } catch (err) {
+        logCaughtError(BgLogTag.SHORTCUT, "Toggle-recording shortcut failed", err);
+    }
+}
+
+/** Returns the recorder action that the primary toolbar button maps to. */
+function chooseToggleAction(
+    phase: "Idle" | "Recording" | "Paused",
+    projectSlug: string,
+): import("./recorder/recorder-store").RecorderAction {
+    if (phase === "Idle") {
+        return { Kind: "Start", ProjectSlug: projectSlug, SessionId: generateSessionId(), StartedAt: new Date().toISOString() };
+    }
+    if (phase === "Recording") { return { Kind: "Pause" }; }
+    return { Kind: "Resume" };
+}
+
+function generateSessionId(): string {
+    // ULID-ish: timestamp + 8 random hex chars. Sortable + collision-safe enough
+    // for one-session-at-a-time recorder use.
+    const ts = Date.now().toString(36);
+    const rand = Math.random().toString(16).slice(2, 10).padStart(8, "0");
+    return `${ts}-${rand}`;
+}
+
+async function getActiveProjectSlug(): Promise<string | null> {
+    const response = await sendInternalMessage<ActiveProjectResponse>({
+        type: MessageType.GET_ACTIVE_PROJECT,
+    });
+    const slug = response?.activeProject?.slug;
+    return typeof slug === "string" && slug.length > 0 ? slug : null;
+}

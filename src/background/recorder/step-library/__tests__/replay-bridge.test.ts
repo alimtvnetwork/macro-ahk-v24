@@ -61,7 +61,7 @@ describe("stepRowToReplayInput", () => {
         expect(input.Kind).toBe("Click");
         expect(input.Selectors).toHaveLength(1);
         expect(input.Selectors[0].Expression).toBe("#submit");
-        expect(input.Selectors[0].SelectorKindId).toBe(1); // Css
+        expect(input.Selectors[0].SelectorKindId).toBe(3); // Css
         expect(input.Selectors[0].IsPrimary).toBe(1);
     });
 
@@ -70,7 +70,7 @@ describe("stepRowToReplayInput", () => {
             StepKindId: StepKindId.Click,
             PayloadJson: JSON.stringify({ Selector: "//button[@id='go']" }),
         }));
-        expect(input.Selectors[0].SelectorKindId).toBe(2); // XPath
+        expect(input.Selectors[0].SelectorKindId).toBe(1); // XPathFull
         expect(input.Selectors[0].Expression).toBe("//button[@id='go']");
     });
 

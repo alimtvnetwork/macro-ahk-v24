@@ -1086,6 +1086,10 @@ function TreeNodeRow(props: TreeNodeRowProps) {
                             <FileJson className="mr-2 h-4 w-4" />
                             {hasInputs(id) ? "Edit input data…" : "Apply input data…"}
                         </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onImportCsvInputs(node.Group)}>
+                            <FileSpreadsheet className="mr-2 h-4 w-4" />
+                            Import from CSV…
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onSelect={() => onArchiveToggle(node.Group)}>
                             {isArchived ? (

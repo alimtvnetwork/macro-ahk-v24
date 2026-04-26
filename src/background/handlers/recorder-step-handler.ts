@@ -25,6 +25,7 @@ import {
     listSteps,
     listSelectors,
     deleteStep,
+    updateStepVariableName,
     type PersistedStep,
     type PersistedSelector,
     type StepDraft,

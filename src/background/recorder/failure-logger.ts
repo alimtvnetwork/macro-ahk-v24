@@ -274,6 +274,15 @@ function firstDetail(attempts: ReadonlyArray<SelectorAttempt>, code: AttemptFail
     return hit?.FailureDetail ?? `Attempt failed with ${code}.`;
 }
 
+function variableReasonToCode(reason: VariableContext["FailureReason"]): FailureReasonCode {
+    if (reason === "MissingColumn")   { return "VariableMissing"; }
+    if (reason === "NullValue")       { return "VariableNull"; }
+    if (reason === "UndefinedValue")  { return "VariableUndefined"; }
+    if (reason === "EmptyString")     { return "VariableEmpty"; }
+    if (reason === "TypeMismatch")    { return "VariableTypeMismatch"; }
+    return "Unknown";
+}
+
 /**
  * Serializes a report to a multi-line block suitable for `console.error` or
  * a clipboard paste into AI chat. Format:
@@ -313,6 +322,19 @@ export function formatFailureReport(report: FailureReport): string {
                 ? `→ ${s.MatchCount} match${s.MatchCount === 1 ? "" : "es"}`
                 : `→ ${s.MatchCount} matches (${s.FailureReason}${s.FailureDetail !== null ? `: ${s.FailureDetail}` : ""})`;
             lines.push(`    ${matchMark} ${primaryMark} ${s.Strategy.padEnd(13)} ${expr} ${tail}`);
+        }
+    }
+
+    if (report.Variables.length > 0) {
+        lines.push("  Variables:");
+        for (const v of report.Variables) {
+            const ok = v.FailureReason === "Resolved";
+            const mark = ok ? "✓" : "✗";
+            const valueLabel = v.ResolvedValue === null ? "<null>" : JSON.stringify(v.ResolvedValue);
+            const tail = ok
+                ? `${valueLabel} [${v.ValueType}] from ${v.Source}`
+                : `${valueLabel} [${v.ValueType}] from ${v.Source} — ${v.FailureReason}${v.FailureDetail !== null ? `: ${v.FailureDetail}` : ""}`;
+            lines.push(`    ${mark} {{${v.Name}}} = ${tail}`);
         }
     }
 

@@ -184,6 +184,37 @@ export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureRepo
         }
     };
 
+    const handleExportByStep = () => {
+        if (validPickedStep === null) {
+            toast.error("Pick a Step first");
+            return;
+        }
+        const stepId = validPickedStep === STEP_OPTION_NULL ? null : Number(validPickedStep);
+        const report = pickFailureReportByStepId(reports, stepId);
+        if (report === null) {
+            toast.error(
+                stepId === null
+                    ? "No failures without a Step ID"
+                    : `No failures recorded for Step #${stepId}`,
+            );
+            return;
+        }
+        const filename = buildLastFailureFilename(report);
+        const contents = JSON.stringify(report, null, 2);
+        (onDownload ?? defaultDownload)(filename, contents);
+        const stepLabel = stepId === null ? " (no Step ID)" : ` (Step #${stepId})`;
+        const validation = validateFailureReportPayload(contents);
+        if (!validation.Valid) {
+            toast.warning(`Downloaded ${filename} — schema warning`, {
+                description: validation.Summary,
+            });
+        } else {
+            toast.success(`Downloaded ${filename}`, {
+                description: `Latest failure for${stepLabel} saved as JSON`,
+            });
+        }
+    };
+
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">

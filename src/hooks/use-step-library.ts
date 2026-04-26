@@ -118,6 +118,14 @@ export interface UseStepLibraryApi extends UseStepLibraryState {
      */
     readonly reorderSiblings: (parentStepGroupId: number | null, orderedIds: readonly number[]) => void;
     readonly setGroupArchived: (stepGroupId: number, archived: boolean) => void;
+    /**
+     * Replace the input variable bag for one StepGroup. The bag must
+     * be a plain JSON object — see `parseGroupInputJson` in
+     * `group-inputs.ts`. Persisted immediately to localStorage.
+     */
+    readonly setGroupInput: (stepGroupId: number, bag: GroupInputBag) => void;
+    /** Remove the input bag for one StepGroup. No-op when absent. */
+    readonly clearGroupInput: (stepGroupId: number) => void;
     readonly resetAll: () => void;
 }
 

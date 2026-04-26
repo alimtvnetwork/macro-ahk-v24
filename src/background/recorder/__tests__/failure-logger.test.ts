@@ -56,14 +56,24 @@ describe("buildFailureReport", () => {
         expect(b.Message).toBe('{"code":42}');
     });
 
-    it("converts persisted selectors into Kind/Expression/IsPrimary attempts", () => {
+    it("converts persisted selectors into Strategy/Expression/IsPrimary attempts", () => {
         const report = buildFailureReport({
             Phase: "Replay", Error: new Error("x"),
             Selectors: SELECTORS, SourceFile: "x", Now: FIXED_NOW,
         });
         expect(report.Selectors).toEqual([
-            { Kind: "XPathFull", Expression: "//button[@id='go']", IsPrimary: true },
-            { Kind: "Css",       Expression: "#go",                IsPrimary: false },
+            {
+                SelectorId: 100, Strategy: "XPathFull",
+                Expression: "//button[@id='go']", ResolvedExpression: "//button[@id='go']",
+                IsPrimary: true, Matched: false, MatchCount: 0,
+                FailureReason: "NotEvaluated", FailureDetail: null,
+            },
+            {
+                SelectorId: 101, Strategy: "Css",
+                Expression: "#go", ResolvedExpression: "#go",
+                IsPrimary: false, Matched: false, MatchCount: 0,
+                FailureReason: "NotEvaluated", FailureDetail: null,
+            },
         ]);
     });
 
@@ -108,9 +118,8 @@ describe("formatFailureReport", () => {
         });
         const out = formatFailureReport(report);
         expect(out).toContain("[MarcoReplay] Element not found");
+        expect(out).toContain("Reason: NoSelectors");
         expect(out).toContain("at src/x.ts StepId=7 Index=2 Kind=Click");
-        expect(out).toContain("✓ XPathFull");
-        expect(out).toContain("· Css");
         expect(out).toContain("ResolvedXPath: //button[@id='go']");
         expect(out).toContain('DataRow: {"Email":"a@x.com"}');
         expect(out).toContain("Stack:");

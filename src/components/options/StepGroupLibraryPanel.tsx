@@ -984,6 +984,14 @@ export default function StepGroupLibraryPanel() {
                 onConfirm={() => void confirmExport()}
             />
 
+            <ExportErrorDialog
+                open={exportError.Open}
+                onOpenChange={(o) =>
+                    setExportError((p) => (o ? { ...p, Open: true } : { Open: false, Explanation: null }))
+                }
+                explanation={exportError.Explanation}
+            />
+
             <GroupInputsDialog
                 open={inputsDialog.open}
                 groupName={inputsDialog.group?.Name ?? null}

@@ -20,6 +20,7 @@ import {
     listSelectorsForStep,
     deleteStepRow,
     nextOrderIndex,
+    updateStepVariableNameRow,
     type StepDraft,
 } from "../step-persistence";
 import { resolveStepSelector } from "../replay-resolver";

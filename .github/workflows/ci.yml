@@ -105,6 +105,39 @@ jobs:
         run: node scripts/check-contract-checkers-wired.mjs
 
   # ════════════════════════════════════════════════════════════
+  # Job 0a2b: CI/CD index ↔ cicd-issues drift guard
+  #
+  # Cross-checks `.lovable/cicd-index.md` against the per-issue files
+  # in `.lovable/cicd-issues/*.md` and fails CI on any of:
+  #   - issue file on disk not listed in the index
+  #   - index row pointing to a missing file
+  #   - index column says Active but file's `## Status` is Resolved
+  #     (or vice-versa) — the exact desync that hid issue #01 for
+  #     two days after it was fixed.
+  #
+  # Pure Node + repo files. No install needed, returns in <1s.
+  # Listed in build-extension's `needs:` (below) so a documentation
+  # drift cannot reach main even if downstream builds re-pass.
+  # ════════════════════════════════════════════════════════════
+  cicd-index-sync:
+    name: Preflight · CI/CD Index Sync
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Assert .lovable/cicd-index.md matches cicd-issues/*.md statuses
+        run: node scripts/check-cicd-index-sync.mjs
+
+  # ════════════════════════════════════════════════════════════
   # Job 0a3: PascalCase instruction migration — fast-fail guard
   #
   # Phase 2 of the instruction-manifest migration split the canonical
@@ -1479,7 +1512,7 @@ jobs:
   # ════════════════════════════════════════════════════════════
   build-extension:
     name: Build · Chrome Extension
-    needs: [spec-links, contract-checkers-wired, pascalcase-instruction-migration, report-standalone-registry, readme-conventions, typecheck-standalone, lint-standalone, build-sdk, build-xpath, build-payment-banner-hider, build-macro-controller, build-prompts, casing-instruction-json]
+    needs: [spec-links, contract-checkers-wired, cicd-index-sync, pascalcase-instruction-migration, report-standalone-registry, readme-conventions, typecheck-standalone, lint-standalone, build-sdk, build-xpath, build-payment-banner-hider, build-macro-controller, build-prompts, casing-instruction-json]
     runs-on: ubuntu-latest
 
     steps:

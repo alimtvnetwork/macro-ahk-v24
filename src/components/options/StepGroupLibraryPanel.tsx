@@ -36,6 +36,7 @@ import {
     ChevronDown as ChevronDownIcon,
     Download,
     FileJson,
+    FileSpreadsheet,
     FilePlus2,
     FolderTree,
     GripVertical,

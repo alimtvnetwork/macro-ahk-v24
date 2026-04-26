@@ -33,7 +33,7 @@ describe("xpathOfElement", () => {
         const second = document.querySelectorAll("#dup")[1] as Element;
         const path = xpathOfElement(second);
         // Positional fallback — exact tag chain, second span position
-        expect(path).toMatch(/\/html\[\d+\]\/body\[\d+\]\/div\[\d+\]\/span\[2\]$/);
+        expect(path).toMatch(/\/html\/body\[\d+\]\/div\[\d+\]\/span\[2\]$/);
     });
 
     it("emits 1-based position among same-tag siblings", () => {
@@ -62,6 +62,6 @@ describe("xpathOfElement", () => {
         document.body.innerHTML = `<section><p><a>x</a></p></section>`;
         const a = document.querySelector("a")!;
         const path = xpathOfElement(a);
-        expect(path).toMatch(/^\/html\[\d+\]\/body\[\d+\]\/section\[1\]\/p\[1\]\/a\[1\]$/);
+        expect(path).toMatch(/^\/html\/body\[\d+\]\/section\[1\]\/p\[1\]\/a\[1\]$/);
     });
 });

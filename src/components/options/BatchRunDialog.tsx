@@ -218,6 +218,22 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
         return counts;
     }, [reports]);
 
+    /**
+     * Flatten every report's `Result.Trace` into a single ordered
+     * stream for the trace viewer. Reports run sequentially in
+     * `runBatch`, so concatenating in batch order preserves real
+     * wall-clock order. Reports without a Result (Pending / Skipped
+     * batch entries) contribute nothing.
+     */
+    const flatTrace = useMemo<ReadonlyArray<RunStepTraceEntry>>(() => {
+        const out: RunStepTraceEntry[] = [];
+        for (const r of reports) {
+            const trace = r.Result?.Trace;
+            if (trace !== undefined) out.push(...trace);
+        }
+        return out;
+    }, [reports]);
+
     return (
         <Dialog open={open} onOpenChange={(o) => { if (!running) onOpenChange(o); }}>
             <DialogContent className="max-w-2xl">

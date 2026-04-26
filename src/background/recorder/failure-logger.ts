@@ -94,11 +94,13 @@ export interface DomContext {
     readonly TextSnippet: string;       // Always truncated to 120 chars (legacy contract).
     readonly OuterHtmlSnippet: string;  // Always truncated to 240 chars (legacy contract).
     /**
-     * Absolute XPath of the captured element. Always populated when a
-     * target Element is supplied — cheap (single tree walk), and required
-     * by the verbose-logging standard for failure log AI-consumability.
+     * Absolute XPath of the captured element. Populated by `readDomContext`
+     * when a target Element is supplied. Optional so external producers
+     * (selector-comparison, selector-tester, fixtures) can omit it without
+     * a forced migration; the verbose-logging spec requires it whenever a
+     * fresh DOM read happens via `readDomContext`.
      */
-    readonly XPath: string;
+    readonly XPath?: string;
     /**
      * Full untruncated outerHTML of the captured element. Populated ONLY
      * when the failure report is built with `Verbose: true`. Omitted on

@@ -254,6 +254,75 @@ export default function StepGroupListPanel() {
 
     const clearSelection = () => setSelected(new Set());
 
+    /* ------------------------ Batch actions ----------------------- */
+
+    const batchActions = useStepGroupBatchActions(lib);
+    const [batchRenameOpen, setBatchRenameOpen] = useState(false);
+    const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
+
+    const selectedGroups = useMemo(
+        () => lib.Groups.filter((g) => selected.has(g.StepGroupId)),
+        [lib.Groups, selected],
+    );
+    const deletePreview = useMemo(
+        () => buildDeletePreview(Array.from(selected), lib.Groups, lib.StepsByGroup),
+        [selected, lib.Groups, lib.StepsByGroup],
+    );
+
+    const handleBatchRenameApply = (changes: ReadonlyArray<BatchRenameChange>) => {
+        const outcome = batchActions.applyBatchRename(changes);
+        if (outcome.Error !== null && outcome.Applied === 0) {
+            toast.error("Batch rename failed", { description: outcome.Error });
+            return;
+        }
+        const verb = outcome.Error === null ? "Renamed" : "Partially renamed";
+        toast.success(`${verb} ${outcome.Applied} group${outcome.Applied === 1 ? "" : "s"}`, {
+            description: outcome.Error ?? "Click Undo to revert.",
+            action: {
+                label: "Undo",
+                onClick: () => {
+                    const undone = outcome.undo();
+                    if (undone.Error !== null && undone.Applied === 0) {
+                        toast.error("Undo failed", { description: undone.Error });
+                    } else {
+                        toast.success(`Reverted ${undone.Applied} rename${undone.Applied === 1 ? "" : "s"}`);
+                    }
+                },
+            },
+            duration: 8000,
+        });
+    };
+
+    const handleBatchDeleteConfirm = (ids: ReadonlyArray<number>) => {
+        let deleted = 0;
+        let firstError: string | null = null;
+        for (const id of ids) {
+            try {
+                lib.deleteGroup(id);
+                deleted += 1;
+            } catch (err) {
+                firstError = err instanceof Error ? err.message : String(err);
+                break;
+            }
+        }
+        // Drop any deleted ids from selection + active state.
+        setSelected((prev) => {
+            const next = new Set(prev);
+            for (const id of ids) next.delete(id);
+            return next;
+        });
+        if (activeGroupId !== null && ids.includes(activeGroupId)) {
+            setActiveGroupId(null);
+        }
+        if (firstError !== null && deleted === 0) {
+            toast.error("Batch delete failed", { description: firstError });
+        } else {
+            toast.success(`Deleted ${deleted} group${deleted === 1 ? "" : "s"}`, {
+                description: firstError ?? "This action cannot be undone.",
+            });
+        }
+    };
+
     /**
      * Trigger an inline export of the currently-checked groups. Hands
      * off to the shared `useStepGroupExport` hook, which runs the

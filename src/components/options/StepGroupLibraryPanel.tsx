@@ -100,6 +100,11 @@ import { GroupInputsDialog } from "./GroupInputsDialog";
 import { CsvInputDialog } from "./CsvInputDialog";
 import WebhookSettingsDialog from "./WebhookSettingsDialog";
 import InputSourceDialog from "./InputSourceDialog";
+import StepWaitDialog from "./StepWaitDialog";
+import {
+    readAllStepWaits,
+    type WaitConfig,
+} from "@/background/recorder/step-library/step-wait";
 import {
     explainImportFailure,
     type ImportErrorExplanation,

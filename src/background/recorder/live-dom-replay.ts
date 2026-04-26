@@ -38,6 +38,7 @@ import {
 import { evaluateAllSelectors } from "./selector-attempt-evaluator";
 import { resolveVerboseLogging } from "./verbose-logging";
 import { waitForElement, type WaitForSpec } from "./wait-for-element";
+import { readStepWait, type WaitConfig } from "./step-library/step-wait";
 
 const SOURCE_FILE = "src/background/recorder/live-dom-replay.ts";
 
@@ -200,8 +201,16 @@ async function executeStep(
         if (step.Kind === "Type")   { dispatchType(target,   resolveValue(step.Value, options.Row)); }
         if (step.Kind === "Select") { dispatchSelect(target, resolveValue(step.Value, options.Row)); }
 
-        if (step.WaitFor !== undefined) {
-            const waitOutcome = await waitForElement(step.WaitFor, {
+        // Resolve the wait gate. Inline `step.WaitFor` (set programmatically
+        // by tests / advanced callers) wins; otherwise fall back to the
+        // per-step config persisted via the StepWaitDialog UI. Both feed
+        // the same `waitForElement` helper.
+        const effectiveWait: WaitForSpec | null =
+            step.WaitFor !== undefined
+                ? step.WaitFor
+                : persistedWaitToSpec(readStepWait(step.StepId));
+        if (effectiveWait !== null) {
+            const waitOutcome = await waitForElement(effectiveWait, {
                 Doc: options.Doc,
                 Sleep: sleep,
                 Now: () => now().getTime(),
@@ -213,7 +222,7 @@ async function executeStep(
                     Variables: variables,
                     Target: target,
                     Error: new Error(
-                        `WaitFor '${step.WaitFor.Expression}' did not appear within ${step.WaitFor.TimeoutMs}ms (${waitOutcome.Reason}: ${waitOutcome.Detail})`,
+                        `WaitFor '${effectiveWait.Expression}' did not appear within ${effectiveWait.TimeoutMs}ms (${waitOutcome.Reason}: ${waitOutcome.Detail})`,
                     ),
                 });
             }

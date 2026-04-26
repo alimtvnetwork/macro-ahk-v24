@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Loader2, Play, X } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp, Loader2, Play, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,7 @@ import {
     type BatchGroupStatus,
 } from "@/background/recorder/step-library/run-batch";
 import type { StepGroupRow, StepLibraryDb } from "@/background/recorder/step-library/db";
-import type { LeafStepExecutor } from "@/background/recorder/step-library/run-group-runner";
+import type { LeafStepExecutor, RunStepTraceEntry } from "@/background/recorder/step-library/run-group-runner";
 import {
     buildBatchCompletePayload,
     buildGroupRunPayload,
@@ -51,6 +51,7 @@ import {
 import type { GroupInputBag } from "@/background/recorder/step-library/group-inputs";
 
 import RunResultsSummaryPanel from "./RunResultsSummaryPanel";
+import RunTraceViewer from "./RunTraceViewer";
 
 interface BatchRunDialogProps {
     readonly open: boolean;
@@ -101,6 +102,12 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
      * next batch's summary panel.
      */
     const [lastRunDurationMs, setLastRunDurationMs] = useState<number | null>(null);
+    /**
+     * Trace viewer is collapsed by default — long batches can produce
+     * hundreds of trace entries and we don't want to bloat the dialog
+     * height before the user opts in.
+     */
+    const [traceOpen, setTraceOpen] = useState(false);
 
     // Reset per-open: seed order, clear prior status rows + summary.
     useEffect(() => {
@@ -109,6 +116,7 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
             setReports(initialOrder.map((id) => emptyReport(id)));
             setRunning(false);
             setLastRunDurationMs(null);
+            setTraceOpen(false);
         }
     }, [open, initialOrder]);
 
@@ -210,6 +218,22 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
         return counts;
     }, [reports]);
 
+    /**
+     * Flatten every report's `Result.Trace` into a single ordered
+     * stream for the trace viewer. Reports run sequentially in
+     * `runBatch`, so concatenating in batch order preserves real
+     * wall-clock order. Reports without a Result (Pending / Skipped
+     * batch entries) contribute nothing.
+     */
+    const flatTrace = useMemo<ReadonlyArray<RunStepTraceEntry>>(() => {
+        const out: RunStepTraceEntry[] = [];
+        for (const r of reports) {
+            const trace = r.Result?.Trace;
+            if (trace !== undefined) out.push(...trace);
+        }
+        return out;
+    }, [reports]);
+
     return (
         <Dialog open={open} onOpenChange={(o) => { if (!running) onOpenChange(o); }}>
             <DialogContent className="max-w-2xl">
@@ -246,6 +270,26 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
                         totalDurationMs={lastRunDurationMs}
                         groupName={(id) => groupsById.get(id)?.Name ?? `Group #${id}`}
                     />
+                )}
+
+                {lastRunDurationMs !== null && !running && flatTrace.length > 0 && (
+                    <div className="space-y-2">
+                        <button
+                            type="button"
+                            onClick={() => setTraceOpen((v) => !v)}
+                            className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+                            aria-expanded={traceOpen}
+                            aria-controls="run-trace-viewer"
+                        >
+                            {traceOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                            {traceOpen ? "Hide" : "Show"} execution trace ({flatTrace.length} entries)
+                        </button>
+                        {traceOpen && (
+                            <div id="run-trace-viewer">
+                                <RunTraceViewer trace={flatTrace} />
+                            </div>
+                        )}
+                    </div>
                 )}
 
                 <ScrollArea className="max-h-[55vh] rounded-md border">

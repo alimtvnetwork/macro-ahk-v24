@@ -7,9 +7,16 @@
  * parent's `useRecorderProjectData` hook.
  */
 
+import { useMemo } from "react";
 import type { StepRow } from "@/hooks/use-recorder-project-data";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, Trash2 } from "lucide-react";
+import {
+    buildExecutionNextPreview,
+    type ProjectSummary,
+    type StepLinks,
+} from "@/background/recorder/execution-next-preview";
+import { ExecutionNextBadge } from "@/components/recorder/ExecutionNextBadge";
 
 const STEP_KIND_LABEL: Record<number, string> = {
     1: "Click",
@@ -24,9 +31,27 @@ interface Props {
     selectedStepId: number | null;
     onSelect: (stepId: number) => void;
     onDelete: (stepId: number) => void;
+    /** Optional cross-project links per StepId (Phase 14). */
+    links?: ReadonlyMap<number, StepLinks>;
+    /** Optional project lookup so links render the friendly name. */
+    projects?: ReadonlyMap<string, ProjectSummary>;
 }
 
-export function RecorderStepGraph({ steps, selectedStepId, onSelect, onDelete }: Props) {
+export function RecorderStepGraph({ steps, selectedStepId, onSelect, onDelete, links, projects }: Props) {
+    const previewByStepId = useMemo(() => {
+        const list = buildExecutionNextPreview({
+            steps: steps.map((s) => ({
+                StepId: s.StepId,
+                OrderIndex: s.OrderIndex,
+                VariableName: s.VariableName,
+                Label: s.Label,
+            })),
+            links,
+            projects,
+        });
+        return new Map(list.map((p) => [p.StepId, p]));
+    }, [steps, links, projects]);
+
     if (steps.length === 0) {
         return (
             <div className="text-xs text-muted-foreground p-4 border border-dashed border-border rounded-md">
@@ -41,6 +66,7 @@ export function RecorderStepGraph({ steps, selectedStepId, onSelect, onDelete }:
         <ol className="space-y-1">
             {steps.map((step) => {
                 const isSelected = step.StepId === selectedStepId;
+                const preview = previewByStepId.get(step.StepId);
                 return (
                     <li key={step.StepId}>
                         <div
@@ -75,6 +101,7 @@ export function RecorderStepGraph({ steps, selectedStepId, onSelect, onDelete }:
                                 <Trash2 className="h-3 w-3 text-destructive" />
                             </Button>
                         </div>
+                        {preview !== undefined && <ExecutionNextBadge preview={preview} />}
                     </li>
                 );
             })}

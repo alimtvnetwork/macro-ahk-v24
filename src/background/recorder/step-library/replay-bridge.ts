@@ -276,9 +276,9 @@ function requireSelector(step: StepRow, payload: StepPayload): PersistedSelector
     const trimmed = expr.trim();
     // Mirror the kind-detection in replay-resolver.ts so the same
     // expression resolves the same way in both code paths.
-    const kind: number = trimmed.startsWith("/") || trimmed.startsWith("(")
-        ? /* XPath */ 2
-        : /* Css   */ 1;
+    const selectorKindId = trimmed.startsWith("/") || trimmed.startsWith("(")
+        ? SelectorKindId.XPathFull
+        : SelectorKindId.Css;
     return {
         // Synthetic IDs: the step-library schema doesn't persist
         // Selector rows. Negative numbers stay clearly distinct from
@@ -286,7 +286,7 @@ function requireSelector(step: StepRow, payload: StepPayload): PersistedSelector
         // so log diffs / persistence layers can tell them apart.
         SelectorId: -step.StepId,
         StepId: step.StepId,
-        SelectorKindId: kind,
+        SelectorKindId: selectorKindId,
         Expression: trimmed,
         AnchorSelectorId: null,
         IsPrimary: 1,

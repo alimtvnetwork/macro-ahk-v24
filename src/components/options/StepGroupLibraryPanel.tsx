@@ -378,7 +378,10 @@ export default function StepGroupLibraryPanel() {
 
     /* ------------------------ Export / Import --------------------- */
 
-    const handleExport = async (idsOverride?: ReadonlyArray<number>) => {
+    const handleExport = async (
+        idsOverride?: ReadonlyArray<number>,
+        includeDescendants: boolean = true,
+    ) => {
         if (lib.Lib === null || lib.Project === null || lib.SqlJs === null) {
             toast.error("Library not ready");
             return;
@@ -392,7 +395,7 @@ export default function StepGroupLibraryPanel() {
             Source: lib.Lib,
             ProjectId: lib.Project.ProjectId,
             SelectedStepGroupIds: ids,
-            IncludeDescendants: true,
+            IncludeDescendants: includeDescendants,
             BundleName: `${lib.Project.Name} — ${ids.length} group(s)`,
             SqlJs: lib.SqlJs,
             JsZip: JSZip,

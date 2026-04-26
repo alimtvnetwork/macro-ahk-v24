@@ -125,6 +125,7 @@ export default function StepGroupLibraryPanel() {
     const [selected, setSelected] = useState<Set<number>>(new Set());
     const [activeGroupId, setActiveGroupId] = useState<number | null>(null);
     const [expanded, setExpanded] = useState<Set<number>>(new Set());
+    const [showArchived, setShowArchived] = useState(false);
 
     // Dialog state
     const [createDialog, setCreateDialog] = useState<{ open: boolean; parent: number | null; name: string }>({
@@ -139,7 +140,14 @@ export default function StepGroupLibraryPanel() {
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const tree = useMemo(() => buildTree(lib.Groups), [lib.Groups]);
+    // Filter archived groups out of the tree by default. When the user
+    // flips the toggle they remain visible but render greyed-out (the
+    // TreeNodeRow handles the visual state via `node.Group.IsArchived`).
+    const visibleGroups = useMemo(
+        () => (showArchived ? lib.Groups : lib.Groups.filter((g) => !g.IsArchived)),
+        [lib.Groups, showArchived],
+    );
+    const tree = useMemo(() => buildTree(visibleGroups), [visibleGroups]);
     const activeGroup = useMemo(
         () => lib.Groups.find((g) => g.StepGroupId === activeGroupId) ?? null,
         [lib.Groups, activeGroupId],

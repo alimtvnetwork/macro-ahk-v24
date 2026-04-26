@@ -445,6 +445,9 @@ export type MessageRequest =
     | { type: MessageType.VALIDATE_ALL_XPATHS; xpaths: Record<string, { xpath: string; selector?: string }> }
     | { type: MessageType.RECORDER_DATA_SOURCE_ADD; projectSlug: string; filePath: string; mimeKind: "csv" | "json"; rawText: string }
     | { type: MessageType.RECORDER_DATA_SOURCE_LIST; projectSlug: string }
+    | { type: MessageType.RECORDER_FIELD_BINDING_UPSERT; projectSlug: string; stepId: number; dataSourceId: number; columnName: string }
+    | { type: MessageType.RECORDER_FIELD_BINDING_LIST; projectSlug: string }
+    | { type: MessageType.RECORDER_FIELD_BINDING_DELETE; projectSlug: string; stepId: number }
     | { type: MessageType.USER_SCRIPT_ERROR; scriptId: string; message: string; stack: string; scriptCode?: string; projectId?: string }
     | { type: MessageType.GET_NETWORK_REQUESTS }
     | { type: MessageType.GET_NETWORK_STATS }

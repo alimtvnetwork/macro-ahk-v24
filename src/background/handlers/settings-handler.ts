@@ -42,6 +42,16 @@ export interface ExtensionSettings {
     injectionBudgetMs: number;
     /** Whether to show a toast in the target tab after injection. */
     showInjectionToast: boolean;
+    /**
+     * Global runtime verbose logging toggle. When `true`, failure logs persist
+     * the full untruncated outerHTML/textContent of the captured target element
+     * and a top-level `CapturedHtml` payload. Mirrored into the in-memory
+     * `verbose-logging` store on every load/save so the recorder picks it up
+     * without a roundtrip to chrome.storage on the hot path.
+     *
+     * Conformance: `mem://standards/verbose-logging-and-failure-diagnostics`.
+     */
+    verboseLogging: boolean;
 }
 
 const DEFAULT_SETTINGS: ExtensionSettings = {
@@ -58,6 +68,7 @@ const DEFAULT_SETTINGS: ExtensionSettings = {
     logRetentionDays: 30,
     injectionBudgetMs: 500,
     showInjectionToast: true,
+    verboseLogging: false,
 };
 
 /* ------------------------------------------------------------------ */

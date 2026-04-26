@@ -45,10 +45,12 @@ import {
     Pencil,
     Play,
     Plus,
+    Search,
     Trash2,
     Upload,
     Webhook,
     Timer,
+    X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";

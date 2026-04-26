@@ -749,7 +749,11 @@ export default function StepGroupLibraryPanel() {
         targetId: number,
     ) => {
         if (sourceId === targetId) return;
-        const siblings = visibleGroups
+        // Source-of-truth siblings come from `lib.Groups` (not the
+        // optimistic `orderedGroups` projection) so a chain of rapid
+        // drops always recomputes against the persisted state.
+        const siblings = lib.Groups
+            .filter((g) => !g.IsArchived || showArchived)
             .filter((g) => (g.ParentStepGroupId ?? null) === parentId)
             .sort((a, b) => a.OrderIndex - b.OrderIndex || a.Name.localeCompare(b.Name))
             .map((g) => g.StepGroupId);
@@ -759,9 +763,57 @@ export default function StepGroupLibraryPanel() {
         const next = siblings.slice();
         next.splice(fromIdx, 1);
         next.splice(toIdx, 0, sourceId);
+        // 1. Optimistic — paint the new order immediately.
+        const parentKey = (parentId ?? "root") as number | "root";
+        setPendingGroupOrder((prev) => {
+            const m = new Map(prev);
+            m.set(parentKey, next);
+            return m;
+        });
+        // 2. Persist — on failure, roll back the override.
         try {
             lib.reorderSiblings(parentId, next);
         } catch (err) {
+            setPendingGroupOrder((prev) => {
+                const m = new Map(prev);
+                m.delete(parentKey);
+                return m;
+            });
+            toast.error(err instanceof Error ? err.message : "Reorder failed");
+        }
+    };
+
+    /**
+     * Same shape as `handleDropReorder`, but for steps inside the
+     * active StepGroup. Sibling-only — cross-group step move would
+     * require renumbering both groups and isn't supported yet.
+     */
+    const handleStepDropReorder = (
+        stepGroupId: number,
+        sourceStepId: number,
+        targetStepId: number,
+    ): void => {
+        if (sourceStepId === targetStepId) return;
+        const ordered = (lib.StepsByGroup.get(stepGroupId) ?? []).map((s) => s.StepId);
+        const fromIdx = ordered.indexOf(sourceStepId);
+        const toIdx = ordered.indexOf(targetStepId);
+        if (fromIdx === -1 || toIdx === -1) return;
+        const next = ordered.slice();
+        next.splice(fromIdx, 1);
+        next.splice(toIdx, 0, sourceStepId);
+        setPendingStepOrder((prev) => {
+            const m = new Map(prev);
+            m.set(stepGroupId, next);
+            return m;
+        });
+        try {
+            lib.reorderSteps(stepGroupId, next);
+        } catch (err) {
+            setPendingStepOrder((prev) => {
+                const m = new Map(prev);
+                m.delete(stepGroupId);
+                return m;
+            });
             toast.error(err instanceof Error ? err.message : "Reorder failed");
         }
     };

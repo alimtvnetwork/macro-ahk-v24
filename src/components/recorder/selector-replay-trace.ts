@@ -54,7 +54,7 @@ const ERRORED_REASONS: ReadonlySet<SelectorAttempt["FailureReason"]> = new Set([
     "CssSyntaxError",
     "UnresolvedAnchor",
     "EmptyExpression",
-    "JsThrew",
+    "EvaluationThrew",
 ]);
 
 function classify(attempt: SelectorAttempt, stopped: boolean): TraceStepStatus {

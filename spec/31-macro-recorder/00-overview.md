@@ -51,6 +51,8 @@ recorder.
 | 00 | [00-overview.md](./00-overview.md) | This index |
 | 01 | [01-glossary.md](./01-glossary.md) | Canonical terms used across the recorder |
 | 02 | [02-phases.md](./02-phases.md) | 12-phase implementation plan + status |
+| 16 | [16-step-group-library.md](./16-step-group-library.md) | Step Group Library — nested groups, RunGroup step, batch run, ZIP import/export via SQLite |
+| 16 | [16-step-group-library-erd.md](./16-step-group-library-erd.md) | ERD + invariants for the Step Group Library |
 | 99 | [99-consistency-report.md](./99-consistency-report.md) | Module health snapshot |
 
 Future files (added per phase):

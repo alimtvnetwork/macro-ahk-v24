@@ -555,11 +555,15 @@ export function useStepLibrary(): UseStepLibraryApi {
         reorderSiblings,
         setGroupArchived,
         setStepDisabled,
+        appendStep,
+        updateStep,
+        deleteStep,
+        moveStepWithinGroup,
         setGroupInput,
         clearGroupInput,
         resetAll,
         retryLoad,
-    }), [loading, error, loadError, sql, lib, project, groups, stepsByGroup, groupInputs, refresh, createGroup, renameGroup, deleteGroup, moveGroupWithinParent, reorderSiblings, setGroupArchived, setStepDisabled, setGroupInput, clearGroupInput, resetAll, retryLoad]);
+    }), [loading, error, loadError, sql, lib, project, groups, stepsByGroup, groupInputs, refresh, createGroup, renameGroup, deleteGroup, moveGroupWithinParent, reorderSiblings, setGroupArchived, setStepDisabled, appendStep, updateStep, deleteStep, moveStepWithinGroup, setGroupInput, clearGroupInput, resetAll, retryLoad]);
 }
 
 /* ------------------------------------------------------------------ */

@@ -37,6 +37,7 @@ import {
 } from "./failure-logger";
 import { evaluateAllSelectors } from "./selector-attempt-evaluator";
 import { resolveVerboseLogging } from "./verbose-logging";
+import { waitForElement, type WaitForSpec } from "./wait-for-element";
 
 const SOURCE_FILE = "src/background/recorder/live-dom-replay.ts";
 
@@ -49,6 +50,14 @@ export interface ReplayStepInput {
     readonly Value?: string;
     /** For Wait — milliseconds. */
     readonly WaitMs?: number;
+    /**
+     * Optional backend-controlled gate: after the action dispatches the
+     * executor polls the live DOM until this selector resolves to an
+     * `HTMLElement`, or fails the step on timeout. Applies to Click /
+     * Type / Select only — Wait steps ignore it. See
+     * {@link WaitForSpec} for the selector grammar.
+     */
+    readonly WaitFor?: WaitForSpec;
 }
 
 export interface ReplayPersistOptions {
@@ -190,6 +199,25 @@ async function executeStep(
         if (step.Kind === "Click")  { dispatchClick(target); }
         if (step.Kind === "Type")   { dispatchType(target,   resolveValue(step.Value, options.Row)); }
         if (step.Kind === "Select") { dispatchSelect(target, resolveValue(step.Value, options.Row)); }
+
+        if (step.WaitFor !== undefined) {
+            const waitOutcome = await waitForElement(step.WaitFor, {
+                Doc: options.Doc,
+                Sleep: sleep,
+                Now: () => now().getTime(),
+            });
+            if (!waitOutcome.Ok) {
+                return finalize(step, options, startedAt, now(), {
+                    Ok: false,
+                    ResolvedXPath: resolved.Expression,
+                    Variables: variables,
+                    Target: target,
+                    Error: new Error(
+                        `WaitFor '${step.WaitFor.Expression}' did not appear within ${step.WaitFor.TimeoutMs}ms (${waitOutcome.Reason}: ${waitOutcome.Detail})`,
+                    ),
+                });
+            }
+        }
 
         return finalize(step, options, startedAt, now(), { Ok: true, ResolvedXPath: resolved.Expression });
     } catch (err) {

@@ -412,6 +412,30 @@ export default function StepGroupListPanel() {
                         <Download className="mr-1 h-4 w-4" />
                         Export selected
                     </Button>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        title="Upload a ZIP bundle and merge it into this project"
+                    >
+                        <Upload className="mr-1 h-4 w-4" />
+                        Import ZIP
+                    </Button>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".zip,application/zip"
+                        className="hidden"
+                        onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file !== undefined) {
+                                void importApi.importFile(file);
+                                // Reset so re-uploading the same filename re-fires the
+                                // change event (browsers suppress it otherwise).
+                                e.target.value = "";
+                            }
+                        }}
+                    />
                     <Button size="sm" onClick={openCreate}>
                         <Plus className="mr-1 h-4 w-4" />
                         New group

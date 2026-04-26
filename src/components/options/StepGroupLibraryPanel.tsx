@@ -98,6 +98,11 @@ import BundleExchangePanel, {
 } from "./BundleExchangePanel";
 import ImportErrorDialog from "./ImportErrorDialog";
 import ExportPreviewDialog from "./ExportPreviewDialog";
+import ExportErrorDialog from "./ExportErrorDialog";
+import {
+    explainExportFailure,
+    type ExportErrorExplanation,
+} from "@/background/recorder/step-library/export-error-explainer";
 import { GroupInputsDialog } from "./GroupInputsDialog";
 import { CsvInputDialog } from "./CsvInputDialog";
 import WebhookSettingsDialog from "./WebhookSettingsDialog";
@@ -189,6 +194,15 @@ export default function StepGroupLibraryPanel() {
             readonly IncludeDescendants: boolean;
         } | null;
     }>({ Open: false, Preview: null, Pending: null });
+    /**
+     * Structured export-failure dialog state. Mirrors `importError` so
+     * both sides of the bundle UI surface failures in a dialog the user
+     * can read, copy from, and act on — not a fleeting toast.
+     */
+    const [exportError, setExportError] = useState<{
+        readonly Open: boolean;
+        readonly Explanation: ExportErrorExplanation | null;
+    }>({ Open: false, Explanation: null });
 
     /**
      * Tracks the *exact* (innermost) StepGroup row currently under the
@@ -416,7 +430,9 @@ export default function StepGroupLibraryPanel() {
             JsZip: JSZip,
         });
         if (result.Reason !== "Ok") {
-            toast.error(`Export failed: ${result.Reason}`, { description: result.Detail });
+            const explanation = explainExportFailure(result);
+            setExportError({ Open: true, Explanation: explanation });
+            toast.error(explanation.Title, { description: "See dialog for details" });
             return;
         }
         // Trigger browser download via blob URL.
@@ -466,7 +482,9 @@ export default function StepGroupLibraryPanel() {
             IncludeDescendants: includeDescendants,
         });
         if (preview.Reason !== "Ok") {
-            toast.error(`Cannot export: ${preview.Reason}`, { description: preview.Detail });
+            const explanation = explainExportFailure(preview);
+            setExportError({ Open: true, Explanation: explanation });
+            toast.error(explanation.Title, { description: "See dialog for details" });
             return;
         }
         setExportPreview({
@@ -964,6 +982,14 @@ export default function StepGroupLibraryPanel() {
                 preview={exportPreview.Preview}
                 includeDescendants={exportPreview.Pending?.IncludeDescendants ?? true}
                 onConfirm={() => void confirmExport()}
+            />
+
+            <ExportErrorDialog
+                open={exportError.Open}
+                onOpenChange={(o) =>
+                    setExportError((p) => (o ? { ...p, Open: true } : { Open: false, Explanation: null }))
+                }
+                explanation={exportError.Explanation}
             />
 
             <GroupInputsDialog

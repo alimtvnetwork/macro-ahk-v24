@@ -94,13 +94,14 @@ All 4 are wired in `src/background/message-registry.ts`.
 
 ## 6. Tests
 
-`src/background/recorder/__tests__/step-persistence-and-replay.test.ts` —
-**15 tests, all passing**, covering:
+### 6.1 Persistence + Resolver Contract (18 tests)
+
+`src/background/recorder/__tests__/step-persistence-and-replay.test.ts` — all passing, covering:
 
 - Step insert + Selector child write
 - Monotonic `OrderIndex`
 - Empty / zero-primary / multi-primary rejection
-- `VariableName` uniqueness
+- `VariableName` uniqueness + rename + collision + empty-string guard
 - Anchor-on-non-relative rejection
 - Cascade delete (Step → Selector + FieldBinding)
 - `listStepRows` ordering
@@ -110,6 +111,28 @@ All 4 are wired in `src/background/message-registry.ts`.
 - Cycle detection
 - CSS expression pass-through
 - Missing-primary error
+
+### 6.2 Determinism Verification (6 tests, jsdom-driven)
+
+`src/background/recorder/__tests__/replay-determinism.test.ts` — proves
+the `Expression` returned by `resolveStepSelector`, when evaluated through
+the real `document.evaluate` API, lands on the **same DOM node** under:
+
+1. **Same DOM, repeated evaluation** — XPathFull, XPathRelative-anchored,
+   and CSS-kind selectors each resolve to the identical Element on two
+   back-to-back evaluations.
+2. **DOM rebuilt from the same source** — tearing down `document.body`
+   and re-rendering yields the same logical hit (id-stable).
+3. **Selector-array order independence** — `[anchor, primary]` produces
+   the identical `Expression` as `[primary, anchor]`.
+4. **Multi-hop anchor chain** — a 3-deep `Relative → Relative → Relative
+   → Full` chain resolves to the same `<input>` and `AnchorChain`
+   reflects the walk order (`[4, 3, 2, 1]`).
+
+Together these validate the **deterministic-replay contract**: given the
+same persisted `Selector` rows and the same DOM, replay always targets
+the same node — regardless of evaluation count, document reconstruction,
+or input array ordering.
 
 ---
 

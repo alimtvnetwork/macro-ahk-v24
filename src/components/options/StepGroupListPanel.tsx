@@ -29,7 +29,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
     Archive,
     Download,
@@ -71,7 +71,10 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { stepKindLabel, useStepLibrary } from "@/hooks/use-step-library";
+import { useStepGroupExport } from "@/hooks/use-step-group-export";
 import type { StepGroupRow, StepRow } from "@/background/recorder/step-library/db";
+import ExportPreviewDialog from "./ExportPreviewDialog";
+import ExportErrorDialog from "./ExportErrorDialog";
 
 /* ------------------------------------------------------------------ */
 /*  Validation                                                         */
@@ -111,18 +114,6 @@ function validateName(raw: string, siblingNames: ReadonlyArray<string>): string 
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-/**
- * Session-scoped handoff key. When the user clicks "Export selected"
- * here, we stash the chosen StepGroupIds and navigate to the tree
- * view, which owns the full export pipeline (preview + error dialog
- * + last-export summary). The tree panel reads + clears this key on
- * mount and pre-populates its selection set.
- *
- * Using sessionStorage (not a route-state object) keeps the handoff
- * resilient to manual reloads / direct URL navigation between the
- * two panels.
- */
-export const STEP_GROUP_PRESELECT_KEY = "stepGroupListPreselect";
 
 function matchesQuery(group: StepGroupRow, query: string): boolean {
     if (query === "") return true;
@@ -147,7 +138,11 @@ function formatDate(iso: string): string {
 
 export default function StepGroupListPanel() {
     const lib = useStepLibrary();
-    const navigate = useNavigate();
+    const exportApi = useStepGroupExport({
+        Lib: lib.Lib,
+        Project: lib.Project,
+        SqlJs: lib.SqlJs,
+    });
     const [query, setQuery] = useState("");
     const [activeGroupId, setActiveGroupId] = useState<number | null>(null);
 
@@ -244,30 +239,15 @@ export default function StepGroupListPanel() {
     const clearSelection = () => setSelected(new Set());
 
     /**
-     * Hand the selection over to the tree-view panel, which owns the
-     * full export pipeline (preview dialog, structured error dialog,
-     * last-export summary). Stash via sessionStorage so this works
-     * even if the user reloads or shares the URL.
+     * Trigger an inline export of the currently-checked groups. Hands
+     * off to the shared `useStepGroupExport` hook, which runs the
+     * preview synchronously, opens `ExportPreviewDialog` for confirm,
+     * then packages + downloads the ZIP and surfaces any failure via
+     * the structured `ExportErrorDialog`. Descendants are included by
+     * default — matching the tree view's "Export selected" behaviour.
      */
     const exportSelected = () => {
-        if (selected.size === 0) {
-            toast.error("Select at least one group to export");
-            return;
-        }
-        try {
-            sessionStorage.setItem(
-                STEP_GROUP_PRESELECT_KEY,
-                JSON.stringify({
-                    Ids: Array.from(selected),
-                    Action: "export",
-                    At: Date.now(),
-                }),
-            );
-        } catch {
-            // sessionStorage can throw in private-mode / quota scenarios;
-            // fall through and still navigate so the user isn't stranded.
-        }
-        navigate("/step-groups");
+        exportApi.requestExport(Array.from(selected), true);
     };
 
     /* ------------------------ Sibling lookups --------------------- */
@@ -681,6 +661,20 @@ export default function StepGroupListPanel() {
                     )}
                 </Card>
             </div>
+
+            {/* ---------- Export dialogs (preview + structured error) ---------- */}
+            <ExportPreviewDialog
+                open={exportApi.previewState.Open}
+                onOpenChange={exportApi.setPreviewOpen}
+                preview={exportApi.previewState.Preview}
+                includeDescendants={exportApi.previewState.Pending?.IncludeDescendants ?? true}
+                onConfirm={() => { void exportApi.confirmExport(); }}
+            />
+            <ExportErrorDialog
+                open={exportApi.errorState.Open}
+                onOpenChange={exportApi.setErrorOpen}
+                explanation={exportApi.errorState.Explanation}
+            />
 
             {/* ---------- Create dialog ---------- */}
             <Dialog

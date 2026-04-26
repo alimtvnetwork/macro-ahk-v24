@@ -251,30 +251,15 @@ export default function StepGroupListPanel() {
     const clearSelection = () => setSelected(new Set());
 
     /**
-     * Hand the selection over to the tree-view panel, which owns the
-     * full export pipeline (preview dialog, structured error dialog,
-     * last-export summary). Stash via sessionStorage so this works
-     * even if the user reloads or shares the URL.
+     * Trigger an inline export of the currently-checked groups. Hands
+     * off to the shared `useStepGroupExport` hook, which runs the
+     * preview synchronously, opens `ExportPreviewDialog` for confirm,
+     * then packages + downloads the ZIP and surfaces any failure via
+     * the structured `ExportErrorDialog`. Descendants are included by
+     * default — matching the tree view's "Export selected" behaviour.
      */
     const exportSelected = () => {
-        if (selected.size === 0) {
-            toast.error("Select at least one group to export");
-            return;
-        }
-        try {
-            sessionStorage.setItem(
-                STEP_GROUP_PRESELECT_KEY,
-                JSON.stringify({
-                    Ids: Array.from(selected),
-                    Action: "export",
-                    At: Date.now(),
-                }),
-            );
-        } catch {
-            // sessionStorage can throw in private-mode / quota scenarios;
-            // fall through and still navigate so the user isn't stranded.
-        }
-        navigate("/step-groups");
+        exportApi.requestExport(Array.from(selected), true);
     };
 
     /* ------------------------ Sibling lookups --------------------- */

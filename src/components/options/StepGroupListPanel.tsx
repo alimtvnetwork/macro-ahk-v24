@@ -161,7 +161,18 @@ export default function StepGroupListPanel() {
     });
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [query, setQuery] = useState("");
-    const [activeGroupId, setActiveGroupId] = useState<number | null>(null);
+    /**
+     * Active selection is persisted per-project so the details pane
+     * restores the previously-viewed group on refresh. The pruning
+     * effect below clears the id when it no longer points at a real
+     * group (e.g. deleted in another tab).
+     */
+    const projectKey = lib.Project?.ProjectId ?? "__noproject__";
+    const [activeGroupId, setActiveGroupId] = usePersistedState<number | null>(
+        `marco.list.activeGroup.${projectKey}`,
+        null,
+        decodeNullableNumber,
+    );
 
     /**
      * Multi-select state. A `Set` gives us O(1) membership checks for

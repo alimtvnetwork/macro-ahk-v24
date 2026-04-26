@@ -136,6 +136,7 @@ export function useStepLibrary(): UseStepLibraryApi {
     const [groups, setGroups] = useState<ReadonlyArray<StepGroupRow>>([]);
     const [stepsByGroup, setStepsByGroup] = useState<ReadonlyMap<number, ReadonlyArray<StepRow>>>(new Map());
     const [error, setError] = useState<string | null>(null);
+    const [groupInputs, setGroupInputs] = useState<GroupInputsMap>(() => new Map());
     const [loading, setLoading] = useState(true);
 
     /* ------------------------ bootstrap --------------------------- */

@@ -40,6 +40,7 @@ import {
     GripVertical,
     MoreHorizontal,
     Pencil,
+    Play,
     Plus,
     Trash2,
     Upload,
@@ -85,6 +86,7 @@ import type { StepGroupRow, StepRow } from "@/background/recorder/step-library/d
 import { StepKindId } from "@/background/recorder/step-library/schema";
 import { runStepGroupExport } from "@/background/recorder/step-library/export-bundle";
 import { runStepGroupImport } from "@/background/recorder/step-library/import-bundle";
+import BatchRunDialog from "./BatchRunDialog";
 
 /* ------------------------------------------------------------------ */
 /*  Tree shape                                                         */

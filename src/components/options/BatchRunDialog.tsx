@@ -111,6 +111,30 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
         }
         if (order.length === 0) return;
         setRunning(true);
+
+        // Resolve the run-time input source ONCE per batch and merge
+        // it into each selected group's persisted bag before any group
+        // executes. Honour the abort/continue policy stored on the
+        // input-source config.
+        const snapshot = await resolveBatchInputSnapshot();
+        if (!snapshot.Result.Ok) {
+            const continueAnyway = snapshot.Result.Continue;
+            if (!continueAnyway) {
+                setRunning(false);
+                toast.error(`Input source failed: ${snapshot.Result.Error}. Run aborted.`);
+                return;
+            }
+            toast.warning(`Input source failed: ${snapshot.Result.Error}. Continuing with local inputs.`);
+        } else if (!snapshot.Result.Skipped && snapshot.Bag !== null) {
+            const incoming = snapshot.Bag;
+            for (const id of order) {
+                const merged = mergeInputBags(groupInputs.get(id) ?? null, incoming);
+                onApplyMergedInput(id, merged);
+            }
+            const keyCount = Object.keys(incoming).length;
+            toast.success(`Input source: merged ${keyCount} key(s) into ${order.length} group(s)`);
+        }
+
         setReports(order.map((id) => emptyReport(id)));
         const live: BatchGroupReport[] = order.map((id) => emptyReport(id));
         const result = await runBatch({

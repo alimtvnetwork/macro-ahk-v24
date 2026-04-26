@@ -36,11 +36,13 @@
  */
 
 import type { PersistedSelector } from "./step-persistence";
-import type { FieldRow } from "./field-reference-resolver";
+import type { FieldRow, VariableContext } from "./field-reference-resolver";
 import type {
     EvaluatedAttempt,
     AttemptFailureReason,
 } from "./selector-attempt-evaluator";
+
+export type { VariableContext } from "./field-reference-resolver";
 
 export type FailurePhase = "Record" | "Replay";
 
@@ -49,16 +51,25 @@ export type FailurePhase = "Record" | "Replay";
  * Stable string values — UI / exporters key off these.
  */
 export type FailureReasonCode =
-    | "ZeroMatches"           // No selector (primary or fallback) matched anything.
+    // ---- Variable / data-row failures (highest priority — explain WHY the
+    //      step had bad inputs before any selector was even tried). --------
+    | "VariableMissing"        // {{Token}} references a column not in the row.
+    | "VariableNull"           // Column exists but value is null.
+    | "VariableUndefined"      // Column exists but value is undefined.
+    | "VariableEmpty"          // Column exists but value is "".
+    | "VariableTypeMismatch"   // Column present but wrong type for this step.
+    // ---- Selector failures ------------------------------------------------
+    | "ZeroMatches"            // No selector (primary or fallback) matched anything.
     | "PrimaryMissedFallbackOk" // Primary missed but a fallback matched — drift.
-    | "XPathSyntaxError"      // At least one XPath threw during evaluation.
-    | "CssSyntaxError"        // At least one CSS selector threw.
-    | "UnresolvedAnchor"      // XPathRelative anchor chain broken / cyclic.
-    | "EmptyExpression"       // A stored expression was "".
-    | "NoSelectors"           // Step had zero selectors persisted.
-    | "Timeout"               // Wait/Retry exceeded budget (set by callers).
-    | "JsThrew"               // JsInline step threw inside the sandbox.
-    | "Unknown";              // Caller did not classify — last resort.
+    | "XPathSyntaxError"       // At least one XPath threw during evaluation.
+    | "CssSyntaxError"         // At least one CSS selector threw.
+    | "UnresolvedAnchor"       // XPathRelative anchor chain broken / cyclic.
+    | "EmptyExpression"        // A stored expression was "".
+    | "NoSelectors"            // Step had zero selectors persisted.
+    // ---- Other ------------------------------------------------------------
+    | "Timeout"                // Wait/Retry exceeded budget (set by callers).
+    | "JsThrew"                // JsInline step threw inside the sandbox.
+    | "Unknown";               // Caller did not classify — last resort.
 
 export interface SelectorAttempt {
     readonly SelectorId: number | null;
@@ -93,6 +104,7 @@ export interface FailureReport {
     readonly Index: number | null;
     readonly StepKind: string | null;
     readonly Selectors: ReadonlyArray<SelectorAttempt>;
+    readonly Variables: ReadonlyArray<VariableContext>;
     readonly DomContext: DomContext | null;
     readonly DataRow: FieldRow | null;
     readonly ResolvedXPath: string | null;

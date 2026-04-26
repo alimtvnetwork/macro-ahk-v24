@@ -672,6 +672,26 @@ export default function StepGroupLibraryPanel() {
                         Run selected
                     </Button>
                     <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={selectedCount === 0}
+                        onClick={() => setBatchRenameOpen(true)}
+                        title="Rename every selected group with a shared transform"
+                    >
+                        <Pencil className="mr-1 h-4 w-4" />
+                        Rename selected
+                    </Button>
+                    <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={selectedCount === 0}
+                        onClick={() => setBatchDeleteOpen(true)}
+                        title="Delete every selected group (cascades to children + steps)"
+                    >
+                        <Trash2 className="mr-1 h-4 w-4" />
+                        Delete selected
+                    </Button>
+                    <Button
                         size="sm"
                         disabled={selectedCount === 0}
                         onClick={() => handleExport()}

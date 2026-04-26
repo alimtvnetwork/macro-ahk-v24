@@ -150,6 +150,13 @@ describe("runStepGroupImport — roundtrip", () => {
         const src = makeSource();
         const bundle = await makeBundle(src, [src.Root]);
         const dst = makeDest();
+        // Pre-create a few groups in the destination so the imported
+        // groups are guaranteed to receive different AUTOINCREMENT IDs
+        // than they had in the source — proves the remap actually
+        // rewrote the RunGroup target.
+        dst.Lib.createGroup({ ProjectId: dst.ProjectId, ParentStepGroupId: null, Name: "Pad-1" });
+        dst.Lib.createGroup({ ProjectId: dst.ProjectId, ParentStepGroupId: null, Name: "Pad-2" });
+        dst.Lib.createGroup({ ProjectId: dst.ProjectId, ParentStepGroupId: null, Name: "Pad-3" });
 
         const summary = expectOk(await runStepGroupImport({
             ZipBytes: bundle.ZipBytes,
@@ -164,7 +171,9 @@ describe("runStepGroupImport — roundtrip", () => {
         expect(summary.RenamedRoots).toEqual([]);
 
         const groups = dst.Lib.listGroups(dst.ProjectId);
-        expect(groups.map((g) => g.Name).sort()).toEqual(["Login", "Onboarding"]);
+        expect(groups.map((g) => g.Name).sort()).toEqual([
+            "Login", "Onboarding", "Pad-1", "Pad-2", "Pad-3",
+        ]);
 
         const newRoot = groups.find((g) => g.Name === "Onboarding")!;
         const newChild = groups.find((g) => g.Name === "Login")!;
@@ -176,6 +185,7 @@ describe("runStepGroupImport — roundtrip", () => {
         // RunGroup target must point at the newly-minted child id, not the source id.
         expect(runGroupStep.TargetStepGroupId).toBe(newChild.StepGroupId);
         expect(runGroupStep.TargetStepGroupId).not.toBe(src.Child);
+        expect(newRoot.StepGroupId).not.toBe(src.Root);
 
         const childSteps = dst.Lib.listSteps(newChild.StepGroupId);
         expect(childSteps.map((s) => s.Label)).toEqual(["Type email"]);

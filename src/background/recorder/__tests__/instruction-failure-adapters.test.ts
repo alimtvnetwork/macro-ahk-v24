@@ -109,9 +109,26 @@ const URL_TAB_CLICK_REASONS: ReadonlyArray<UrlTabClickReason> = [
     "UrlPatternMismatch",
 ];
 
+/**
+ * Canonical (UrlTabClickReason → FailureReport.Reason) mapping enforced by
+ * `buildUrlTabClickFailureReport`. The adapter ONLY promotes the dedicated
+ * timeout to the schema's `Timeout` reason; everything else degrades to
+ * `Unknown` so the rich reason code is preserved verbatim in `ReasonDetail`
+ * (where the validator panel renders it).
+ */
+const URL_TAB_CLICK_REASON_MAPPING: Readonly<Record<UrlTabClickReason, string>> = {
+    UrlTabClickTimeout: "Timeout",
+    TabNotFound:        "Unknown",
+    InvalidUrlPattern:  "Unknown",
+    SelectorNotFound:   "Unknown",
+    UrlPatternMismatch: "Unknown",
+};
+
+const URL_TAB_CLICK_SOURCE_FILE = "src/background/recorder/url-tab-click.ts";
+
 describe("UrlTabClick → FailureReport", () => {
     it.each(URL_TAB_CLICK_REASONS)(
-        "%s emits a schema-conformant report",
+        "%s sets Phase=Replay, StepKind=UrlTabClick, SourceFile=url-tab-click.ts and the canonical Reason mapping",
         (reason) => {
             const report = buildUrlTabClickFailureReport({
                 Failure: {

@@ -22,11 +22,14 @@ import type { FailureReport } from "@/background/recorder/failure-logger";
 import {
     buildFailureBundle,
     serializeFailureBundle,
+    serializeJson,
     buildFailureBundleFilename,
     pickLastFailureReport,
     buildLastFailureFilename,
     listStepFailureOptions,
     pickFailureReportByStepId,
+    DEFAULT_EXPORT_FORMAT,
+    type ExportFormat,
 } from "./failure-export";
 import { validateFailureReportPayload } from "./failure-report-validator";
 import {

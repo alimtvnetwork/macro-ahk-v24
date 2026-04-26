@@ -10,6 +10,8 @@
  * the `Step` / `Selector` tables defined in `recorder-db-schema.ts`.
  */
 
+import type { FormSnapshot } from "./form-snapshot";
+
 export type RecordingPhase = "Idle" | "Recording" | "Paused";
 
 export type RecordedStepKind = "Click" | "Type" | "Select" | "Submit" | "Wait" | "JsInline";

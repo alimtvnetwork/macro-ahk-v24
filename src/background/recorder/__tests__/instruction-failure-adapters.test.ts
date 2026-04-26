@@ -253,9 +253,14 @@ describe("Condition wait → FailureReport (Gate / WaitFor / ConditionStep)", ()
         assertRequiredFieldsPresent(report);
         assertValidatesAsSingleReport(report);
 
+        // Phase pinned to Replay; Reason promoted from ConditionTimeout.
+        expect(report.Phase).toBe("Replay");
         expect(report.Reason).toBe("Timeout");
+        // StepKind ECHOES the host action (Click here) — the adapter never
+        // overrides the caller's StepKind on a Gate failure.
         expect(report.StepKind).toBe("Click");
-        expect(report.SourceFile).toContain("condition-evaluator.ts");
+        // Gate failures stamp the evaluator file as the canonical source.
+        expect(report.SourceFile).toBe("src/background/recorder/condition-evaluator.ts");
         // Serialized condition + last evaluation trace MUST be in the detail.
         expect(report.ReasonDetail).toContain("Reason=ConditionTimeout");
         expect(report.ReasonDetail).toContain("Source=Gate");

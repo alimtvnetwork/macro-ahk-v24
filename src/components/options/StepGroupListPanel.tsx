@@ -709,6 +709,20 @@ export default function StepGroupListPanel() {
                 explanation={exportApi.errorState.Explanation}
             />
 
+            {/* ---------- Import dialogs (success summary + structured error) ---------- */}
+            <ImportSummaryDialog
+                open={importApi.summaryState.Open}
+                onOpenChange={importApi.setSummaryOpen}
+                summary={importApi.summaryState.Summary}
+                fileName={importApi.summaryState.FileName}
+            />
+            <ImportErrorDialog
+                open={importApi.errorState.Open}
+                onOpenChange={importApi.setErrorOpen}
+                explanation={importApi.errorState.Explanation}
+                fileName={importApi.errorState.FileName}
+            />
+
             {/* ---------- Create dialog ---------- */}
             <Dialog
                 open={createDialog.open}

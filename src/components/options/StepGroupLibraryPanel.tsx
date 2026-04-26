@@ -45,10 +45,12 @@ import {
     Pencil,
     Play,
     Plus,
+    Search,
     Trash2,
     Upload,
     Webhook,
     Timer,
+    X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -252,6 +254,50 @@ export default function StepGroupLibraryPanel() {
         [lib.Groups, showArchived],
     );
     const tree = useMemo(() => buildTree(visibleGroups), [visibleGroups]);
+
+    /**
+     * Free-text search over group names. Empty string disables filtering.
+     * The filter keeps any node whose name matches AND every ancestor
+     * along the path so the tree shape stays readable. When a query is
+     * active we also auto-expand all matching paths so results aren't
+     * hidden behind collapsed parents.
+     */
+    const [query, setQuery] = useState("");
+    const trimmedQuery = query.trim().toLowerCase();
+    const { filteredTree, autoExpand } = useMemo(() => {
+        if (trimmedQuery === "") {
+            return { filteredTree: tree, autoExpand: null as Set<number> | null };
+        }
+        const expandIds = new Set<number>();
+        const filterNodes = (nodes: ReadonlyArray<TreeNode>): TreeNode[] => {
+            const out: TreeNode[] = [];
+            for (const n of nodes) {
+                const selfMatch = n.Group.Name.toLowerCase().includes(trimmedQuery);
+                const kids = filterNodes(n.Children);
+                if (selfMatch || kids.length > 0) {
+                    if (kids.length > 0) expandIds.add(n.Group.StepGroupId);
+                    out.push({ Group: n.Group, Children: kids });
+                }
+            }
+            return out;
+        };
+        const filtered = filterNodes(tree);
+        return { filteredTree: filtered, autoExpand: expandIds };
+    }, [tree, trimmedQuery]);
+
+    /**
+     * Effective expanded set used by the renderer. When a search is
+     * active, we union the user's manual expansion with the auto-expand
+     * set so matched ancestors open without mutating the user's saved
+     * expansion state (clearing the query restores their original view).
+     */
+    const effectiveExpanded = useMemo(() => {
+        if (autoExpand === null) return expanded;
+        const merged = new Set(expanded);
+        for (const id of autoExpand) merged.add(id);
+        return merged;
+    }, [expanded, autoExpand]);
+
     const activeGroup = useMemo(
         () => lib.Groups.find((g) => g.StepGroupId === activeGroupId) ?? null,
         [lib.Groups, activeGroupId],
@@ -661,25 +707,67 @@ export default function StepGroupLibraryPanel() {
             <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(320px,420px)_1fr]">
                 {/* ---- Left: tree ---- */}
                 <Card className="flex min-h-[400px] flex-col overflow-hidden">
-                    <div className="border-b px-4 py-2 text-sm font-medium text-muted-foreground">
-                        Groups
+                    <div className="flex items-center justify-between gap-2 border-b px-4 py-2 text-sm font-medium text-muted-foreground">
+                        <span>Groups</span>
+                        {trimmedQuery !== "" && (
+                            <span className="text-xs font-normal">
+                                {filteredTree.length === 0
+                                    ? "No matches"
+                                    : `Filtered by “${query.trim()}”`}
+                            </span>
+                        )}
+                    </div>
+                    {/* Search field — filters by name (descendants included so
+                        a deeply-nested match still surfaces its parents). */}
+                    <div className="border-b px-3 py-2">
+                        <div className="relative">
+                            <Search
+                                className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+                                aria-hidden="true"
+                            />
+                            <Input
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                placeholder="Search groups by name…"
+                                aria-label="Search step groups"
+                                className="h-8 pl-7 pr-7 text-sm"
+                            />
+                            {query !== "" && (
+                                <button
+                                    type="button"
+                                    onClick={() => setQuery("")}
+                                    aria-label="Clear search"
+                                    className="absolute right-1.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                                >
+                                    <X className="h-3.5 w-3.5" />
+                                </button>
+                            )}
+                        </div>
                     </div>
                     <ScrollArea className="flex-1">
                         {tree.length === 0 ? (
                             <EmptyTreeState
                                 onCreate={() => setCreateDialog({ open: true, parent: null, name: "" })}
                             />
+                        ) : filteredTree.length === 0 ? (
+                            <div className="flex h-full flex-col items-center justify-center gap-2 px-4 py-12 text-center text-sm text-muted-foreground">
+                                <Search className="h-8 w-8 text-muted-foreground/40" />
+                                <p>No groups match “{query.trim()}”.</p>
+                                <Button variant="ghost" size="sm" onClick={() => setQuery("")}>
+                                    Clear search
+                                </Button>
+                            </div>
                         ) : (
                             <ul className="py-2">
-                                {tree.map((node, idx) => (
+                                {filteredTree.map((node, idx) => (
                                     <TreeNodeRow
                                         key={node.Group.StepGroupId}
                                         node={node}
                                         depth={0}
                                         siblingIndex={idx}
-                                        siblingCount={tree.length}
+                                        siblingCount={filteredTree.length}
                                         selected={selected}
-                                        expanded={expanded}
+                                        expanded={effectiveExpanded}
                                         activeGroupId={activeGroupId}
                                         hoveredId={hoveredId}
                                         onHover={setHoveredId}

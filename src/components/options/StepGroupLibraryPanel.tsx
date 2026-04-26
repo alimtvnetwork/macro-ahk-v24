@@ -841,7 +841,7 @@ function TreeNodeRow(props: TreeNodeRowProps) {
         selected, expanded, activeGroupId, hoveredId, onHover,
         onToggleSelect, onToggleSubtree, onToggleExpanded,
         onActivate, onCreateChild, onRename, onDelete, onExportThis,
-        onMove, onArchiveToggle, onDropReorder,
+        onMove, onArchiveToggle, onApplyInputs, hasInputs, onDropReorder,
     } = props;
     const id = node.Group.StepGroupId;
     const parentId = node.Group.ParentStepGroupId ?? null;

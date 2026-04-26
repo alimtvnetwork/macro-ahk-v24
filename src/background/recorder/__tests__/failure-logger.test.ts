@@ -1,0 +1,140 @@
+// @vitest-environment jsdom
+
+/**
+ * Phase 09 — Failure Logger unit tests.
+ *
+ * Covers the structured FailureReport produced for both Record and Replay
+ * pipelines: stack trace extraction, selector listing, DOM context capture,
+ * data-row inclusion, and human-readable formatting suitable for AI paste.
+ */
+
+import { describe, it, expect, vi } from "vitest";
+import {
+    buildFailureReport,
+    formatFailureReport,
+    logFailure,
+} from "../failure-logger";
+import { SelectorKindId } from "../../recorder-db-schema";
+import type { PersistedSelector } from "../step-persistence";
+
+const FIXED_NOW = (): Date => new Date("2026-04-26T10:00:00.000Z");
+
+const SELECTORS: PersistedSelector[] = [
+    {
+        SelectorId: 100, StepId: 7,
+        SelectorKindId: SelectorKindId.XPathFull,
+        Expression: "//button[@id='go']",
+        AnchorSelectorId: null, IsPrimary: 1,
+    },
+    {
+        SelectorId: 101, StepId: 7,
+        SelectorKindId: SelectorKindId.Css,
+        Expression: "#go",
+        AnchorSelectorId: null, IsPrimary: 0,
+    },
+];
+
+describe("buildFailureReport", () => {
+    it("captures phase, message, stack, and source file", () => {
+        const err = new Error("boom");
+        const report = buildFailureReport({
+            Phase: "Replay", Error: err, SourceFile: "src/x.ts", Now: FIXED_NOW,
+        });
+        expect(report.Phase).toBe("Replay");
+        expect(report.Message).toBe("boom");
+        expect(report.StackTrace).toContain("Error: boom");
+        expect(report.SourceFile).toBe("src/x.ts");
+        expect(report.Timestamp).toBe("2026-04-26T10:00:00.000Z");
+    });
+
+    it("normalizes non-Error throws (string + object)", () => {
+        const a = buildFailureReport({ Phase: "Record", Error: "plain", SourceFile: "x", Now: FIXED_NOW });
+        expect(a.Message).toBe("plain");
+        expect(a.StackTrace).toBeNull();
+
+        const b = buildFailureReport({ Phase: "Record", Error: { code: 42 }, SourceFile: "x", Now: FIXED_NOW });
+        expect(b.Message).toBe('{"code":42}');
+    });
+
+    it("converts persisted selectors into Kind/Expression/IsPrimary attempts", () => {
+        const report = buildFailureReport({
+            Phase: "Replay", Error: new Error("x"),
+            Selectors: SELECTORS, SourceFile: "x", Now: FIXED_NOW,
+        });
+        expect(report.Selectors).toEqual([
+            { Kind: "XPathFull", Expression: "//button[@id='go']", IsPrimary: true },
+            { Kind: "Css",       Expression: "#go",                IsPrimary: false },
+        ]);
+    });
+
+    it("captures DOM context attributes from the target element", () => {
+        document.body.innerHTML = `
+            <button id="go" class="primary lg" name="submit" type="button" aria-label="Send">Go!</button>
+        `;
+        const btn = document.getElementById("go")!;
+        const report = buildFailureReport({
+            Phase: "Replay", Error: new Error("x"),
+            Target: btn, SourceFile: "x", Now: FIXED_NOW,
+        });
+        expect(report.DomContext).not.toBeNull();
+        expect(report.DomContext!.TagName).toBe("button");
+        expect(report.DomContext!.Id).toBe("go");
+        expect(report.DomContext!.ClassName).toBe("primary lg");
+        expect(report.DomContext!.AriaLabel).toBe("Send");
+        expect(report.DomContext!.Name).toBe("submit");
+        expect(report.DomContext!.Type).toBe("button");
+        expect(report.DomContext!.TextSnippet).toBe("Go!");
+    });
+
+    it("records data row when supplied", () => {
+        const report = buildFailureReport({
+            Phase: "Replay", Error: new Error("x"),
+            DataRow: { Email: "a@x.com" },
+            SourceFile: "x", Now: FIXED_NOW,
+        });
+        expect(report.DataRow).toEqual({ Email: "a@x.com" });
+    });
+});
+
+describe("formatFailureReport", () => {
+    it("produces a multi-line block with [MarcoReplay] tag and selector list", () => {
+        const report = buildFailureReport({
+            Phase: "Replay", Error: new Error("Element not found"),
+            StepId: 7, Index: 2, StepKind: "Click",
+            Selectors: SELECTORS,
+            ResolvedXPath: "//button[@id='go']",
+            DataRow: { Email: "a@x.com" },
+            SourceFile: "src/x.ts", Now: FIXED_NOW,
+        });
+        const out = formatFailureReport(report);
+        expect(out).toContain("[MarcoReplay] Element not found");
+        expect(out).toContain("at src/x.ts StepId=7 Index=2 Kind=Click");
+        expect(out).toContain("✓ XPathFull");
+        expect(out).toContain("· Css");
+        expect(out).toContain("ResolvedXPath: //button[@id='go']");
+        expect(out).toContain('DataRow: {"Email":"a@x.com"}');
+        expect(out).toContain("Stack:");
+    });
+
+    it("uses [MarcoRecord] tag for the recording phase", () => {
+        const report = buildFailureReport({
+            Phase: "Record", Error: new Error("anchor missing"),
+            SourceFile: "src/x.ts", Now: FIXED_NOW,
+        });
+        expect(formatFailureReport(report)).toMatch(/^\[MarcoRecord\] anchor missing/);
+    });
+});
+
+describe("logFailure", () => {
+    it("returns the report and writes the formatted output to console.error", () => {
+        const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+        const report = logFailure({
+            Phase: "Replay", Error: new Error("boom"),
+            SourceFile: "src/x.ts", Now: FIXED_NOW,
+        });
+        expect(report.Message).toBe("boom");
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy.mock.calls[0]![0]).toContain("[MarcoReplay] boom");
+        spy.mockRestore();
+    });
+});

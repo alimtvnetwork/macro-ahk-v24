@@ -870,14 +870,38 @@ function TreeNodeRow(props: TreeNodeRowProps) {
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
+                onMouseEnter={(e) => {
+                    // stopPropagation keeps ancestor rows from re-claiming
+                    // hover when the cursor moves inside one of their
+                    // descendant rows — guarantees "exact" highlight.
+                    e.stopPropagation();
+                    onHover(id);
+                }}
+                onMouseLeave={(e) => {
+                    e.stopPropagation();
+                    // Only clear if we are still the active hover target.
+                    // A racing enter on a sibling may have already moved
+                    // the highlight elsewhere — don't clobber it.
+                    if (hoveredId === id) onHover(null);
+                }}
+                data-hovered={isHovered ? "true" : undefined}
                 className={[
-                    "group flex items-center gap-1 rounded px-2 py-1.5 text-sm transition-colors",
-                    isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
+                    "group relative flex items-center gap-1 rounded px-2 py-1.5 text-sm transition-colors",
+                    isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/40",
+                    isHovered && !isActive ? "bg-accent/60 ring-1 ring-primary/50 shadow-sm" : "",
+                    isHovered && isActive ? "ring-1 ring-primary/70 shadow-sm" : "",
                     isArchived ? "opacity-50" : "",
                     dragOver ? "ring-2 ring-primary/60" : "",
                 ].join(" ")}
                 style={{ paddingLeft: `${depth * 16 + 8}px` }}
             >
+                {/* Left accent bar — appears only on the exact hovered row. */}
+                {isHovered && (
+                    <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-y-1 left-0 w-1 rounded-r bg-primary"
+                    />
+                )}
                 <GripVertical
                     className="h-4 w-4 shrink-0 cursor-grab text-muted-foreground/40 opacity-0 group-hover:opacity-100 active:cursor-grabbing"
                     aria-hidden="true"

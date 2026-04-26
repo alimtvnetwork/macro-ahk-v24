@@ -272,6 +272,26 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
                     />
                 )}
 
+                {lastRunDurationMs !== null && !running && flatTrace.length > 0 && (
+                    <div className="space-y-2">
+                        <button
+                            type="button"
+                            onClick={() => setTraceOpen((v) => !v)}
+                            className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+                            aria-expanded={traceOpen}
+                            aria-controls="run-trace-viewer"
+                        >
+                            {traceOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                            {traceOpen ? "Hide" : "Show"} execution trace ({flatTrace.length} entries)
+                        </button>
+                        {traceOpen && (
+                            <div id="run-trace-viewer">
+                                <RunTraceViewer trace={flatTrace} />
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <ScrollArea className="max-h-[55vh] rounded-md border">
                     <ol className="divide-y">
                         {order.map((gid, idx) => {

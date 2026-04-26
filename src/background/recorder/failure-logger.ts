@@ -41,6 +41,7 @@ import type {
     EvaluatedAttempt,
     AttemptFailureReason,
 } from "./selector-attempt-evaluator";
+import { xpathOfElement } from "./xpath-of-element";
 
 export type { VariableContext } from "./field-reference-resolver";
 

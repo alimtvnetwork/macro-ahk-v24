@@ -37,7 +37,11 @@ import {
     buildUrlTabClickFailureReport,
     type UrlTabClickReason,
 } from "../instruction-failure-adapters";
-import type { Condition } from "../condition-evaluator";
+import {
+    evaluateCondition,
+    type Condition,
+    type PredicateEvaluation,
+} from "../condition-evaluator";
 
 /** Stable clock so timestamps are deterministic across runs. */
 const FIXED_NOW = (): Date => new Date("2026-04-26T10:00:00.000Z");

@@ -183,6 +183,7 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
             },
         });
         setRunning(false);
+        setLastRunDurationMs(result.DurationMs);
         // Always emit a final BatchComplete event.
         void dispatchWebhook(
             "BatchComplete",

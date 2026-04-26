@@ -26,6 +26,13 @@ import {
     type StepGroupRow,
     type StepRow,
 } from "@/background/recorder/step-library/db";
+import {
+    clearGroupInput as clearGroupInputStorage,
+    readAllGroupInputs,
+    writeGroupInput,
+    type GroupInputBag,
+    type GroupInputsMap,
+} from "@/background/recorder/step-library/group-inputs";
 import { StepKindId } from "@/background/recorder/step-library/schema";
 
 /* ------------------------------------------------------------------ */
@@ -85,6 +92,12 @@ export interface UseStepLibraryState {
     readonly Project: ProjectRow | null;
     readonly Groups: ReadonlyArray<StepGroupRow>;
     readonly StepsByGroup: ReadonlyMap<number, ReadonlyArray<StepRow>>;
+    /**
+     * Per-StepGroup input variable bags. Empty Map until a user
+     * applies one via the GroupInputsDialog. Persisted to a sibling
+     * `localStorage` key — see `group-inputs.ts`.
+     */
+    readonly GroupInputs: GroupInputsMap;
 }
 
 export interface UseStepLibraryApi extends UseStepLibraryState {
@@ -105,6 +118,14 @@ export interface UseStepLibraryApi extends UseStepLibraryState {
      */
     readonly reorderSiblings: (parentStepGroupId: number | null, orderedIds: readonly number[]) => void;
     readonly setGroupArchived: (stepGroupId: number, archived: boolean) => void;
+    /**
+     * Replace the input variable bag for one StepGroup. The bag must
+     * be a plain JSON object — see `parseGroupInputJson` in
+     * `group-inputs.ts`. Persisted immediately to localStorage.
+     */
+    readonly setGroupInput: (stepGroupId: number, bag: GroupInputBag) => void;
+    /** Remove the input bag for one StepGroup. No-op when absent. */
+    readonly clearGroupInput: (stepGroupId: number) => void;
     readonly resetAll: () => void;
 }
 
@@ -115,6 +136,7 @@ export function useStepLibrary(): UseStepLibraryApi {
     const [groups, setGroups] = useState<ReadonlyArray<StepGroupRow>>([]);
     const [stepsByGroup, setStepsByGroup] = useState<ReadonlyMap<number, ReadonlyArray<StepRow>>>(new Map());
     const [error, setError] = useState<string | null>(null);
+    const [groupInputs, setGroupInputs] = useState<GroupInputsMap>(() => new Map());
     const [loading, setLoading] = useState(true);
 
     /* ------------------------ bootstrap --------------------------- */
@@ -147,6 +169,7 @@ export function useStepLibrary(): UseStepLibraryApi {
                 setLib(wrapper);
                 setProject(wrapper.listProjects().find((p) => p.ProjectId === projectId) ?? null);
                 refreshFromDb(wrapper, projectId, setGroups, setStepsByGroup);
+                setGroupInputs(readAllGroupInputs());
                 setLoading(false);
             } catch (err) {
                 if (cancelled) return;
@@ -231,6 +254,27 @@ export function useStepLibrary(): UseStepLibraryApi {
         persist();
     }, [lib, project, persist]);
 
+    const setGroupInput = useCallback<UseStepLibraryApi["setGroupInput"]>((id, bag) => {
+        writeGroupInput(id, bag);
+        // Snapshot the bag with a defensive copy so a consumer who
+        // mutates the value after the call cannot rewrite our state.
+        setGroupInputs((prev) => {
+            const next = new Map(prev);
+            next.set(id, bag);
+            return next;
+        });
+    }, []);
+
+    const clearGroupInput = useCallback<UseStepLibraryApi["clearGroupInput"]>((id) => {
+        clearGroupInputStorage(id);
+        setGroupInputs((prev) => {
+            if (!prev.has(id)) return prev;
+            const next = new Map(prev);
+            next.delete(id);
+            return next;
+        });
+    }, []);
+
     const resetAll = useCallback(() => {
         try {
             localStorage.removeItem(STORAGE_KEY);
@@ -250,6 +294,7 @@ export function useStepLibrary(): UseStepLibraryApi {
         Project: project,
         Groups: groups,
         StepsByGroup: stepsByGroup,
+        GroupInputs: groupInputs,
         refresh,
         createGroup,
         renameGroup,
@@ -257,8 +302,10 @@ export function useStepLibrary(): UseStepLibraryApi {
         moveGroupWithinParent,
         reorderSiblings,
         setGroupArchived,
+        setGroupInput,
+        clearGroupInput,
         resetAll,
-    }), [loading, error, sql, lib, project, groups, stepsByGroup, refresh, createGroup, renameGroup, deleteGroup, moveGroupWithinParent, reorderSiblings, setGroupArchived, resetAll]);
+    }), [loading, error, sql, lib, project, groups, stepsByGroup, groupInputs, refresh, createGroup, renameGroup, deleteGroup, moveGroupWithinParent, reorderSiblings, setGroupArchived, setGroupInput, clearGroupInput, resetAll]);
 }
 
 /* ------------------------------------------------------------------ */

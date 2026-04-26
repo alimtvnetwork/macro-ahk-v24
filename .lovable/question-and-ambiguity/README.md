@@ -20,3 +20,4 @@ file so the user can review and override later.
 
 - [01 — Import/Export "screen": dedicated route vs promoted section](./01-import-export-screen-shape.md) — chose Option B (promoted card in existing page).
 - [02 — Hover highlighter shape](./02-hover-highlighter-shape.md) — chose Option 2 (accent left-bar + ring on the exact innermost row).
+- [03 — Per-group JSON input data: scope, persistence, semantics](./03-group-input-data-flow.md) — chose per-group scope, sibling localStorage bag, paste/upload + load-current dialog.

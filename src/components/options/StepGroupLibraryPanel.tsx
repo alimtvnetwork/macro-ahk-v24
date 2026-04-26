@@ -35,6 +35,7 @@ import {
     ChevronUp,
     ChevronDown as ChevronDownIcon,
     Download,
+    FileJson,
     FilePlus2,
     FolderTree,
     GripVertical,
@@ -92,6 +93,7 @@ import BundleExchangePanel, {
     type LastImportSummary,
 } from "./BundleExchangePanel";
 import ImportErrorDialog from "./ImportErrorDialog";
+import { GroupInputsDialog } from "./GroupInputsDialog";
 import {
     explainImportFailure,
     type ImportErrorExplanation,
@@ -170,6 +172,14 @@ export default function StepGroupLibraryPanel() {
         open: false, group: null, name: "",
     });
     const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; group: StepGroupRow | null }>({
+        open: false, group: null,
+    });
+    /**
+     * Per-group input-data dialog. We track the *target* group on the
+     * dialog itself rather than relying on `activeGroupId` so opening
+     * from a row dropdown menu doesn't have to first activate the row.
+     */
+    const [inputsDialog, setInputsDialog] = useState<{ open: boolean; group: StepGroupRow | null }>({
         open: false, group: null,
     });
 
@@ -583,6 +593,8 @@ export default function StepGroupLibraryPanel() {
                                         onExportThis={(id) => handleExport([id])}
                                         onMove={handleMove}
                                         onArchiveToggle={handleArchiveToggle}
+                                        onApplyInputs={(g) => setInputsDialog({ open: true, group: g })}
+                                        hasInputs={(gid) => lib.GroupInputs.has(gid)}
                                         onDropReorder={handleDropReorder}
                                     />
                                 ))}
@@ -593,17 +605,39 @@ export default function StepGroupLibraryPanel() {
 
                 {/* ---- Right: step preview ---- */}
                 <Card className="flex min-h-[400px] flex-col overflow-hidden">
-                    <div className="flex items-center justify-between border-b px-4 py-2">
-                        <div className="text-sm font-medium text-muted-foreground">
-                            {activeGroup === null
-                                ? "Select a group to preview its steps"
-                                : `${activeGroup.Name} — ${activeSteps.length} step(s)`}
-                        </div>
-                        {activeGroup?.Description != null && activeGroup.Description !== "" && (
-                            <div className="max-w-[60%] truncate text-xs text-muted-foreground">
-                                {activeGroup.Description}
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                            <div className="truncate text-sm font-medium text-muted-foreground">
+                                {activeGroup === null
+                                    ? "Select a group to preview its steps"
+                                    : `${activeGroup.Name} — ${activeSteps.length} step(s)`}
                             </div>
-                        )}
+                            {activeGroup !== null && lib.GroupInputs.has(activeGroup.StepGroupId) && (
+                                <span
+                                    className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary"
+                                    title={`${Object.keys(lib.GroupInputs.get(activeGroup.StepGroupId) ?? {}).length} input variable(s) bound`}
+                                >
+                                    Inputs bound
+                                </span>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {activeGroup?.Description != null && activeGroup.Description !== "" && (
+                                <div className="hidden max-w-[40ch] truncate text-xs text-muted-foreground sm:block">
+                                    {activeGroup.Description}
+                                </div>
+                            )}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={activeGroup === null}
+                                onClick={() => activeGroup !== null && setInputsDialog({ open: true, group: activeGroup })}
+                                title={activeGroup === null ? "Select a group first" : "Apply input data to this group"}
+                            >
+                                <FileJson className="mr-1 h-4 w-4" />
+                                Apply input data
+                            </Button>
+                        </div>
                     </div>
                     <ScrollArea className="flex-1">
                         {activeGroup === null ? (
@@ -768,6 +802,18 @@ export default function StepGroupLibraryPanel() {
                 explanation={importError.explanation}
                 fileName={importError.fileName}
             />
+
+            <GroupInputsDialog
+                open={inputsDialog.open}
+                groupName={inputsDialog.group?.Name ?? null}
+                groupId={inputsDialog.group?.StepGroupId ?? null}
+                currentBag={inputsDialog.group === null
+                    ? null
+                    : (lib.GroupInputs.get(inputsDialog.group.StepGroupId) ?? null)}
+                onOpenChange={(o) => setInputsDialog((p) => ({ ...p, open: o }))}
+                onApply={(gid, bag) => lib.setGroupInput(gid, bag)}
+                onClear={(gid) => lib.clearGroupInput(gid)}
+            />
         </div>
     );
 }
@@ -796,6 +842,8 @@ interface TreeNodeRowProps {
     readonly onExportThis: (id: number) => void;
     readonly onMove: (id: number, direction: "up" | "down") => void;
     readonly onArchiveToggle: (g: StepGroupRow) => void;
+    readonly onApplyInputs: (g: StepGroupRow) => void;
+    readonly hasInputs: (id: number) => boolean;
     readonly onDropReorder: (parentId: number | null, sourceId: number, targetId: number) => void;
 }
 
@@ -807,7 +855,7 @@ function TreeNodeRow(props: TreeNodeRowProps) {
         selected, expanded, activeGroupId, hoveredId, onHover,
         onToggleSelect, onToggleSubtree, onToggleExpanded,
         onActivate, onCreateChild, onRename, onDelete, onExportThis,
-        onMove, onArchiveToggle, onDropReorder,
+        onMove, onArchiveToggle, onApplyInputs, hasInputs, onDropReorder,
     } = props;
     const id = node.Group.StepGroupId;
     const parentId = node.Group.ParentStepGroupId ?? null;
@@ -931,6 +979,14 @@ function TreeNodeRow(props: TreeNodeRowProps) {
                     title={node.Group.Name}
                 >
                     {node.Group.Name}
+                    {hasInputs(id) && (
+                        <span
+                            className="ml-2 inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary"
+                            title="This group has input data bound"
+                        >
+                            <FileJson className="h-2.5 w-2.5" /> Inputs
+                        </span>
+                    )}
                     {isArchived && (
                         <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                             Archived
@@ -996,6 +1052,10 @@ function TreeNodeRow(props: TreeNodeRowProps) {
                         </DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => onExportThis(id)}>
                             <Download className="mr-2 h-4 w-4" /> Export this group
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onApplyInputs(node.Group)}>
+                            <FileJson className="mr-2 h-4 w-4" />
+                            {hasInputs(id) ? "Edit input data…" : "Apply input data…"}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onSelect={() => onArchiveToggle(node.Group)}>

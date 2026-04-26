@@ -188,6 +188,15 @@ function finalize(
         };
     }
 
+    // Evaluate every persisted selector against the live DOM so the
+    // failure log carries the full XPath/CSS expression that was tried,
+    // its Matched outcome, MatchCount, and per-attempt FailureReason
+    // (per mem://standards/verbose-logging-and-failure-diagnostics).
+    // Wait steps have no selectors — skip evaluation.
+    const evaluatedAttempts = step.Kind === "Wait"
+        ? undefined
+        : evaluateAllSelectors(step.Selectors, options.Doc);
+
     const report = logFailure({
         Phase: "Replay",
         Error: outcome.Error,
@@ -195,6 +204,7 @@ function finalize(
         Index: step.Index,
         StepKind: step.Kind,
         Selectors: step.Selectors,
+        EvaluatedAttempts: evaluatedAttempts,
         Target: outcome.Target ?? null,
         DataRow: options.Row,
         ResolvedXPath: outcome.ResolvedXPath,

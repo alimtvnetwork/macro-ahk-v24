@@ -44,6 +44,12 @@ interface SelectorComparisonPanelProps {
     readonly url?: string;
     /** Per-selector replay history. When supplied the toggle is enabled. */
     readonly history?: ReadonlyArray<SelectorHistoryBucket>;
+    /**
+     * When supplied, each matching non-primary attempt renders a
+     * "Promote to primary" action. The handler is responsible for
+     * persisting the change (DB UPDATE) and refreshing the parent state.
+     */
+    readonly onPromoteToPrimary?: PromoteToPrimaryHandler;
     /** Test seam: override the default download side effect. */
     readonly onDownload?: (filename: string, contents: string) => void;
 }

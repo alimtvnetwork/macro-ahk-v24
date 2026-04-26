@@ -37,6 +37,7 @@ import {
 } from "./failure-logger";
 import { evaluateAllSelectors } from "./selector-attempt-evaluator";
 import { resolveVerboseLogging } from "./verbose-logging";
+import { waitForElement, type WaitForSpec } from "./wait-for-element";
 
 const SOURCE_FILE = "src/background/recorder/live-dom-replay.ts";
 

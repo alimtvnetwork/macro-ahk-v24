@@ -164,8 +164,10 @@ function AttemptRow({ attempt, history, showHistory }: AttemptRowProps) {
     );
 }
 
-export function SelectorComparisonPanel({ comparison, stepId, url, onDownload }: SelectorComparisonPanelProps) {
+export function SelectorComparisonPanel({ comparison, stepId, url, history, onDownload }: SelectorComparisonPanelProps) {
     const { Attempts, PrimaryMatched, AnyFallbackMatched, DriftDetected } = comparison;
+    const hasHistory = history !== undefined;
+    const [showHistory, setShowHistory] = useState(false);
 
     const handleExport = () => {
         const bundle = buildSelectorComparisonBundle(comparison, { StepId: stepId, Url: url });
@@ -191,16 +193,34 @@ export function SelectorComparisonPanel({ comparison, stepId, url, onDownload }:
                         <Badge variant="outline" className="text-[10px]">Fallback found</Badge>
                     )}
                 </CardTitle>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleExport}
-                    disabled={Attempts.length === 0}
-                    aria-label="Export selector comparison as JSON"
-                >
-                    <FileDown className="h-3.5 w-3.5 mr-1.5" />
-                    Export selector comparison
-                </Button>
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5">
+                        <Switch
+                            id="show-history"
+                            checked={showHistory && hasHistory}
+                            onCheckedChange={(v) => setShowHistory(Boolean(v))}
+                            disabled={!hasHistory}
+                            aria-label="Show prior replay outcomes per selector"
+                        />
+                        <Label
+                            htmlFor="show-history"
+                            className={`text-[11px] flex items-center gap-1 ${hasHistory ? "" : "text-muted-foreground"}`}
+                        >
+                            <History className="h-3 w-3" aria-hidden />
+                            History
+                        </Label>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExport}
+                        disabled={Attempts.length === 0}
+                        aria-label="Export selector comparison as JSON"
+                    >
+                        <FileDown className="h-3.5 w-3.5 mr-1.5" />
+                        Export selector comparison
+                    </Button>
+                </div>
             </CardHeader>
             <CardContent className="space-y-3">
                 {DriftDetected && (
@@ -218,7 +238,14 @@ export function SelectorComparisonPanel({ comparison, stepId, url, onDownload }:
                     </p>
                 ) : (
                     <ul className="space-y-2">
-                        {Attempts.map((a) => <AttemptRow key={a.SelectorId} attempt={a} />)}
+                        {Attempts.map((a) => (
+                            <AttemptRow
+                                key={a.SelectorId}
+                                attempt={a}
+                                history={hasHistory ? findHistoryForSelector(history, a.ResolvedExpression) : null}
+                                showHistory={showHistory && hasHistory}
+                            />
+                        ))}
                     </ul>
                 )}
             </CardContent>

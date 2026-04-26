@@ -25,8 +25,17 @@ import {
     buildFailureBundleFilename,
     pickLastFailureReport,
     buildLastFailureFilename,
+    listStepFailureOptions,
+    pickFailureReportByStepId,
 } from "./failure-export";
 import { validateFailureReportPayload } from "./failure-report-validator";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { FailureDetailsPanel } from "./FailureDetailsPanel";
 import { SelectorReplayTracePanel } from "./SelectorReplayTracePanel";
 

@@ -194,6 +194,15 @@ export default function StepGroupLibraryPanel() {
             readonly IncludeDescendants: boolean;
         } | null;
     }>({ Open: false, Preview: null, Pending: null });
+    /**
+     * Structured export-failure dialog state. Mirrors `importError` so
+     * both sides of the bundle UI surface failures in a dialog the user
+     * can read, copy from, and act on — not a fleeting toast.
+     */
+    const [exportError, setExportError] = useState<{
+        readonly Open: boolean;
+        readonly Explanation: ExportErrorExplanation | null;
+    }>({ Open: false, Explanation: null });
 
     /**
      * Tracks the *exact* (innermost) StepGroup row currently under the

@@ -173,6 +173,16 @@ export interface BuildFailureReportInput {
     /** Caller-supplied classification. Auto-derived from attempts/variables when omitted. */
     readonly Reason?: FailureReasonCode;
     readonly ReasonDetail?: string;
+    /**
+     * Verbose-logging toggle (per
+     * mem://standards/verbose-logging-and-failure-diagnostics). When
+     * `true`, the produced report includes the full untruncated outerHTML
+     * + textContent of the captured `Target` and a top-level
+     * `CapturedHtml` field. Default `false` keeps the legacy 120/240-char
+     * truncation behavior. Callers MUST resolve this from
+     * `resolveVerboseLogging(projectId)` — never hard-code `true`.
+     */
+    readonly Verbose?: boolean;
     readonly Now?: () => Date;
 }
 
@@ -200,6 +210,12 @@ export function buildFailureReport(input: BuildFailureReportInput): FailureRepor
     const variables: ReadonlyArray<VariableContext> = input.Variables ?? [];
     const { Reason, ReasonDetail } = classifyReason(input, attempts, variables, message);
 
+    const verbose = input.Verbose === true;
+    const domContext = input.Target ? readDomContext(input.Target, verbose) : null;
+    const capturedHtml = verbose && domContext !== null
+        ? (domContext.OuterHtml ?? null)
+        : null;
+
     return {
         Phase: input.Phase,
         Message: message,
@@ -211,11 +227,13 @@ export function buildFailureReport(input: BuildFailureReportInput): FailureRepor
         StepKind: input.StepKind ?? null,
         Selectors: attempts,
         Variables: input.Variables ?? [],
-        DomContext: input.Target ? readDomContext(input.Target) : null,
+        DomContext: domContext,
         DataRow: input.DataRow ?? null,
         ResolvedXPath: input.ResolvedXPath ?? null,
         Timestamp: now().toISOString(),
         SourceFile: input.SourceFile,
+        Verbose: verbose,
+        CapturedHtml: capturedHtml,
     };
 }
 

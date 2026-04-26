@@ -203,6 +203,13 @@ export interface BuildFailureReportInput {
      * `resolveVerboseLogging(projectId)` — never hard-code `true`.
      */
     readonly Verbose?: boolean;
+    /**
+     * Pre-captured form snapshot from the recorder (preferred when the
+     * step already carries one). When absent and a `Target` is supplied,
+     * the failure logger captures one inline using `captureFormSnapshot`
+     * with the same `Verbose` flag. Pass `null` explicitly to suppress.
+     */
+    readonly FormSnapshot?: FormSnapshot | null;
     readonly Now?: () => Date;
 }
 
@@ -236,6 +243,17 @@ export function buildFailureReport(input: BuildFailureReportInput): FailureRepor
         ? (domContext.OuterHtml ?? null)
         : null;
 
+    // Form snapshot precedence:
+    //   1. Caller-supplied (recorder already attached one to the step) — use as-is.
+    //   2. Caller passed `null` — explicit suppression.
+    //   3. Otherwise capture fresh from the live Target using the same verbose flag.
+    let formSnapshot: FormSnapshot | null = null;
+    if (input.FormSnapshot !== undefined) {
+        formSnapshot = input.FormSnapshot;
+    } else if (input.Target) {
+        formSnapshot = captureFormSnapshot(input.Target, { Verbose: verbose, Now: now });
+    }
+
     return {
         Phase: input.Phase,
         Message: message,
@@ -254,6 +272,7 @@ export function buildFailureReport(input: BuildFailureReportInput): FailureRepor
         SourceFile: input.SourceFile,
         Verbose: verbose,
         CapturedHtml: capturedHtml,
+        FormSnapshot: formSnapshot,
     };
 }
 

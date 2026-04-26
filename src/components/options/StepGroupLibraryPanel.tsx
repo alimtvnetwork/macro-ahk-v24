@@ -341,6 +341,35 @@ export default function StepGroupLibraryPanel() {
         return m;
     }, [lib.Groups]);
 
+    /**
+     * Prune persisted ids that no longer exist in the loaded library.
+     * This handles the case where a group was deleted in another tab
+     * (or by an import-with-replace) between sessions. We only run
+     * after groups have been loaded at least once — `lib.Project`
+     * being non-null is our readiness signal.
+     */
+    useEffect(() => {
+        if (lib.Project === null) return;
+        if (activeGroupId !== null && !groupsById.has(activeGroupId)) {
+            setActiveGroupId(null);
+        }
+        let needsPrune = false;
+        for (const id of expanded) {
+            if (!groupsById.has(id)) {
+                needsPrune = true;
+                break;
+            }
+        }
+        if (needsPrune) {
+            const next = new Set<number>();
+            for (const id of expanded) {
+                if (groupsById.has(id)) next.add(id);
+            }
+            setExpanded(next);
+        }
+    }, [lib.Project, groupsById, activeGroupId, expanded, setActiveGroupId, setExpanded]);
+
+
     /* ------------------------ Selection --------------------------- */
 
     const applySelection = (on: boolean, ids: ReadonlyArray<number>) => {

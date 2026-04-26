@@ -34,6 +34,8 @@ const UpdaterManagementView = lazy(() => import("@/components/options/UpdaterMan
 const AutomationView = lazy(() => import("@/components/automation/AutomationView"));
 const ActivityLogTimeline = lazy(() => import("@/components/options/ActivityLogTimeline"));
 const LibraryView = lazy(() => import("@/components/options/LibraryView"));
+const StepGroupLibraryPanel = lazy(() => import("@/components/options/StepGroupLibraryPanel"));
+const StepGroupListPanel = lazy(() => import("@/components/options/StepGroupListPanel"));
 
 function LazyFallback() {
   return (

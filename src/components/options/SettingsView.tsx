@@ -387,6 +387,18 @@ export function SettingsView() {
             onCheckedChange={(v) => update("debugMode", v)}
           />
         </SettingRow>
+
+        <Separator />
+
+        <SettingRow
+          label="Verbose failure logging"
+          description="Capture full outerHTML/textContent of target elements and form values in failure reports. Increases log size — use for debugging."
+        >
+          <Switch
+            checked={settings.verboseLogging}
+            onCheckedChange={(v) => update("verboseLogging", v)}
+          />
+        </SettingRow>
       </SettingsGroup>
 
       {/* Storage */}

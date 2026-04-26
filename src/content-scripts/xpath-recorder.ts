@@ -4,7 +4,8 @@
  * Injected programmatically when the user toggles recording.
  * Listens for clicks, generates XPaths using a priority strategy
  * (ID > testid > role+text > positional), highlights elements,
- * and reports back to the background service worker.
+ * and reports a `RecorderCaptureMessage` (Phase 06 schema) back to the
+ * background service worker.
  *
  * Exclusions: iframes, Shadow DOM, SVG elements.
  *
@@ -17,6 +18,11 @@ import {
     tryRoleTextStrategy,
     buildPositionalXPath,
 } from "./xpath-strategies";
+import {
+    findAutoAnchor,
+    buildRelativeXPath,
+} from "./xpath-anchor-strategies";
+import { suggestVariableName } from "./xpath-label-suggester";
 
 /* ------------------------------------------------------------------ */
 /*  State                                                              */
@@ -28,31 +34,23 @@ let isActive = true;
 /*  XPath Generation — Priority Strategy                               */
 /* ------------------------------------------------------------------ */
 
-/** Generates an XPath for the given element using priority strategy. */
-function generateXPath(element: Element): {
-    xpath: string;
-    strategy: "id" | "testid" | "role-text" | "positional";
-} {
-    const byId = tryIdStrategy(element);
-    const hasId = byId !== null;
+type FullStrategy = "id" | "testid" | "role-text" | "positional";
 
-    if (hasId) {
-        return byId!;
-    }
+interface FullCapture {
+    xpath: string;
+    strategy: FullStrategy;
+}
+
+/** Generates an XPath for the given element using priority strategy. */
+function generateXPath(element: Element): FullCapture {
+    const byId = tryIdStrategy(element);
+    if (byId !== null) return byId;
 
     const byTestId = tryTestIdStrategy(element);
-    const hasTestId = byTestId !== null;
-
-    if (hasTestId) {
-        return byTestId!;
-    }
+    if (byTestId !== null) return byTestId;
 
     const byRole = tryRoleTextStrategy(element);
-    const hasRole = byRole !== null;
-
-    if (hasRole) {
-        return byRole!;
-    }
+    if (byRole !== null) return byRole;
 
     return buildPositionalXPath(element);
 }
@@ -71,37 +69,55 @@ function isExcludedElement(element: Element): boolean {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Capture Builder                                                    */
+/* ------------------------------------------------------------------ */
+
+/** Builds the Phase-06 XPATH_CAPTURED payload for the background worker. */
+export function buildCapturePayload(target: Element): {
+    type: "XPATH_CAPTURED";
+    XPathFull: string;
+    XPathRelative: string | null;
+    AnchorXPath: string | null;
+    Strategy: FullStrategy;
+    SuggestedVariableName: string;
+    TagName: string;
+    Text: string;
+    CapturedAt: string;
+} {
+    const generated = generateXPath(target);
+    const anchor = findAutoAnchor(target);
+    const relative = anchor === null ? null : buildRelativeXPath(target, anchor);
+    const anchorXPath = anchor === null ? null : generateXPath(anchor).xpath;
+
+    return {
+        type: "XPATH_CAPTURED",
+        XPathFull: generated.xpath,
+        XPathRelative: relative,
+        AnchorXPath: anchorXPath,
+        Strategy: generated.strategy,
+        SuggestedVariableName: suggestVariableName(target),
+        TagName: target.tagName.toLowerCase(),
+        Text: target.textContent?.trim().slice(0, 100) ?? "",
+        CapturedAt: new Date().toISOString(),
+    };
+}
+
+/* ------------------------------------------------------------------ */
 /*  Click Handler                                                      */
 /* ------------------------------------------------------------------ */
 
 /** Handles click events to record XPaths. */
 function onElementClick(event: MouseEvent): void {
-    const isInactive = isActive === false;
-
-    if (isInactive) {
-        return;
-    }
+    if (isActive === false) return;
 
     const target = event.target as Element;
-    const isExcluded = isExcludedElement(target);
-
-    if (isExcluded) {
-        return;
-    }
+    if (isExcludedElement(target)) return;
 
     event.preventDefault();
     event.stopPropagation();
 
-    const generated = generateXPath(target);
-
-    void chrome.runtime.sendMessage({
-        type: "XPATH_RECORDED",
-        xpath: generated.xpath,
-        tagName: target.tagName.toLowerCase(),
-        text: target.textContent?.trim().slice(0, 100) ?? "",
-        strategy: generated.strategy,
-        timestamp: new Date().toISOString(),
-    });
+    const payload = buildCapturePayload(target);
+    void chrome.runtime.sendMessage(payload);
 
     highlightElement(target);
 }

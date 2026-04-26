@@ -211,6 +211,20 @@ export default function StepGroupListPanel() {
         return m;
     }, [lib.Groups]);
 
+    /**
+     * Clear a persisted activeGroupId that no longer matches a real
+     * group (deleted elsewhere, project switched, etc.). Runs only
+     * once the project has loaded so we don't clobber the value
+     * during the brief hydration window before `lib.Groups` populates.
+     */
+    useEffect(() => {
+        if (lib.Project === null) return;
+        if (activeGroupId !== null && !groupsById.has(activeGroupId)) {
+            setActiveGroupId(null);
+        }
+    }, [lib.Project, groupsById, activeGroupId, setActiveGroupId]);
+
+
     const sortedGroups = useMemo(() => {
         return lib.Groups.slice().sort((a, b) => a.Name.localeCompare(b.Name));
     }, [lib.Groups]);

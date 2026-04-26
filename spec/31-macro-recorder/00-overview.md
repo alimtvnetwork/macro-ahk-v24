@@ -53,6 +53,9 @@ recorder.
 | 02 | [02-phases.md](./02-phases.md) | 12-phase implementation plan + status |
 | 16 | [16-step-group-library.md](./16-step-group-library.md) | Step Group Library — nested groups, RunGroup step, batch run, ZIP import/export via SQLite |
 | 16 | [16-step-group-library-erd.md](./16-step-group-library-erd.md) | ERD + invariants for the Step Group Library |
+| 17 | [17-hover-highlighter-and-data-controllers.md](./17-hover-highlighter-and-data-controllers.md) | Hover highlighter, CSV/JSON/JS/Endpoint data sources, endpoint scheduler + HttpRequest step |
+| 18 | [18-conditional-elements.md](./18-conditional-elements.md) | Compound boolean condition trees, inline Gate, Condition step kind, branching/routing |
+| 19 | [19-url-tabs-appearance-waits-conditions.md](./19-url-tabs-appearance-waits-conditions.md) | URL-based tab clicks, element-appearance waiting contract, XPath/CSS condition rules + acceptance criteria |
 | 99 | [99-consistency-report.md](./99-consistency-report.md) | Module health snapshot |
 
 Future files (added per phase):

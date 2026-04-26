@@ -603,6 +603,7 @@ export default function StepGroupLibraryPanel() {
                                         onMove={handleMove}
                                         onArchiveToggle={handleArchiveToggle}
                                         onApplyInputs={(g) => setInputsDialog({ open: true, group: g })}
+                                        onImportCsvInputs={(g) => setCsvDialog({ open: true, group: g })}
                                         hasInputs={(gid) => lib.GroupInputs.has(gid)}
                                         onDropReorder={handleDropReorder}
                                     />

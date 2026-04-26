@@ -11,6 +11,7 @@
  * declared in the schema and round-trips deterministically).
  */
 
+import type { Database as SqlJsDatabase } from "sql.js";
 import { initProjectDb } from "../project-db-manager";
 import type { ParsedDataSource } from "./data-source-parsers";
 
@@ -51,7 +52,7 @@ export async function insertDataSource(
 }
 
 function readLatestRow(
-    db: ReturnType<ReturnType<typeof initProjectDb> extends Promise<infer M> ? M extends { getDb: () => infer D } ? () => D : never : never>,
+    db: SqlJsDatabase,
     filePath: string,
 ): PersistedDataSource {
     const result = db.exec(

@@ -45,6 +45,67 @@ const DEFAULT_PROJECT_NAME = "My Project";
 const DEFAULT_PROJECT_EXTERNAL_ID = "00000000-0000-0000-0000-000000000001";
 
 /* ------------------------------------------------------------------ */
+/*  Structured load failure                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Discriminated load-failure shape so the panel can render an
+ * actionable error UI (icon + title + hint + recovery action) instead
+ * of a single opaque string. Each kind maps to a distinct user-facing
+ * recovery path:
+ *
+ *  - `SqlJsLoad` — sql.js WASM never resolved (CDN blocked, offline,
+ *    CSP, slow network). User can retry once connectivity is back.
+ *  - `StorageRead` — `localStorage` read or JSON parse failed
+ *    (corrupt payload, quota inaccessible). User can reset to clear
+ *    the bad blob and start fresh.
+ *  - `StorageWrite` — initial seed write failed (quota, private
+ *    mode). The library still works in-memory but won't persist;
+ *    user should free space or exit private browsing.
+ *  - `Unknown` — anything not classified above. Shown as-is with a
+ *    generic retry.
+ */
+export type StepLibraryLoadError =
+    | { Kind: "SqlJsLoad"; Message: string; Hint: string; Recoverable: true }
+    | { Kind: "StorageRead"; Message: string; Hint: string; Recoverable: true }
+    | { Kind: "StorageWrite"; Message: string; Hint: string; Recoverable: true }
+    | { Kind: "Unknown"; Message: string; Hint: string; Recoverable: true };
+
+function classifyLoadError(err: unknown, stage: "sqljs" | "storage-read" | "storage-write" | "other"): StepLibraryLoadError {
+    const message = err instanceof Error ? err.message : String(err ?? "Unknown error");
+    if (stage === "sqljs") {
+        return {
+            Kind: "SqlJsLoad",
+            Message: message,
+            Hint: "Could not download the SQL engine (sql.js WASM) from the CDN. Check your internet connection, then click Retry.",
+            Recoverable: true,
+        };
+    }
+    if (stage === "storage-read") {
+        return {
+            Kind: "StorageRead",
+            Message: message,
+            Hint: "Your saved step-library data appears to be corrupted or unreadable. Click Reset to clear it and start with an empty library.",
+            Recoverable: true,
+        };
+    }
+    if (stage === "storage-write") {
+        return {
+            Kind: "StorageWrite",
+            Message: message,
+            Hint: "Browser storage is full or unavailable (private/incognito mode often blocks writes). Free up space or use a normal window, then Retry.",
+            Recoverable: true,
+        };
+    }
+    return {
+        Kind: "Unknown",
+        Message: message,
+        Hint: "Something went wrong while opening the step library. Try retrying — if the problem persists, reset to clear local state.",
+        Recoverable: true,
+    };
+}
+
+/* ------------------------------------------------------------------ */
 /*  sql.js singleton (lazy, browser-only)                              */
 /* ------------------------------------------------------------------ */
 
@@ -56,27 +117,58 @@ function loadSql(): Promise<SqlJsStatic> {
     return sqlPromise;
 }
 
-function readBytesFromStorage(): Uint8Array | null {
+/**
+ * Read result is tri-state:
+ *   - `{ Kind: "Empty" }`  — nothing stored yet, fresh start
+ *   - `{ Kind: "Bytes" }`  — stored DB found and decoded
+ *   - `{ Kind: "Error" }`  — storage was present but unreadable
+ *                            (corrupt JSON, blocked access). Caller
+ *                            propagates to the load-error UI rather
+ *                            than silently wiping the user's data.
+ */
+type StorageReadResult =
+    | { Kind: "Empty" }
+    | { Kind: "Bytes"; Bytes: Uint8Array }
+    | { Kind: "Error"; Error: unknown };
+
+function readBytesFromStorage(): StorageReadResult {
+    let raw: string | null;
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw === null) return null;
-        const arr = JSON.parse(raw) as number[];
-        if (!Array.isArray(arr)) return null;
-        return new Uint8Array(arr);
-    } catch {
-        return null;
+        raw = localStorage.getItem(STORAGE_KEY);
+    } catch (err) {
+        // Access blocked entirely (e.g. SecurityError in sandboxed iframes).
+        return { Kind: "Error", Error: err };
+    }
+    if (raw === null) return { Kind: "Empty" };
+    try {
+        const arr = JSON.parse(raw) as unknown;
+        if (!Array.isArray(arr)) {
+            return { Kind: "Error", Error: new Error("stored payload is not a numeric array") };
+        }
+        return { Kind: "Bytes", Bytes: new Uint8Array(arr as number[]) };
+    } catch (err) {
+        return { Kind: "Error", Error: err };
     }
 }
 
-function writeBytesToStorage(bytes: Uint8Array): void {
+/**
+ * Write result mirrors the read shape so the bootstrap path can
+ * distinguish "saved fine" from "stayed in memory only". Mutation
+ * helpers downstream still call this and only `console.warn` on
+ * failure, since by then the user has been working with the library
+ * and a hard error would lose unsaved work.
+ */
+function writeBytesToStorage(bytes: Uint8Array): { Ok: true } | { Ok: false; Error: unknown } {
     try {
         // localStorage only takes strings — JSON-encode as a numeric
         // array. Acceptable for a preview-tier persistence (small DBs);
         // production wiring will flip this over to OPFS.
         localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(bytes)));
+        return { Ok: true };
     } catch (err) {
         // Quota / private-mode failures should not crash the UI.
         console.warn("useStepLibrary: localStorage write failed", err);
+        return { Ok: false, Error: err };
     }
 }
 
@@ -86,7 +178,14 @@ function writeBytesToStorage(bytes: Uint8Array): void {
 
 export interface UseStepLibraryState {
     readonly Loading: boolean;
+    /**
+     * Legacy string error — kept for back-compat with any consumer
+     * that just needs a message. New UI should read `LoadError` for
+     * the structured kind + hint.
+     */
     readonly Error: string | null;
+    /** Structured load failure for the actionable error UI. */
+    readonly LoadError: StepLibraryLoadError | null;
     readonly SqlJs: SqlJsStatic | null;
     readonly Lib: StepLibraryDb | null;
     readonly Project: ProjectRow | null;

@@ -23,11 +23,11 @@
 import {
     buildFailureReport,
     type FailureReport,
-} from "../failure-logger";
-import type { PersistedSelector } from "../step-persistence";
-import type { EvaluatedAttempt } from "../selector-attempt-evaluator";
-import type { VariableContext } from "../field-reference-resolver";
-import { SelectorKindId } from "../../recorder-db-schema";
+} from "../../failure-logger";
+import type { PersistedSelector } from "../../step-persistence";
+import type { EvaluatedAttempt } from "../../selector-attempt-evaluator";
+import type { VariableContext } from "../../field-reference-resolver";
+import { SelectorKindId } from "../../../recorder-db-schema";
 
 /** Deterministic clock — every fixture uses this so timestamps are stable. */
 export const FIXTURE_NOW = (): Date => new Date("2026-04-26T10:00:00.000Z");

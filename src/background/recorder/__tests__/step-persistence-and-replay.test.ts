@@ -171,6 +171,31 @@ describe("step-persistence — insertStepRow", () => {
         const all = listStepRows(db);
         expect(all.map((s) => s.VariableName)).toEqual(["A", "B", "C"]);
     });
+
+    it("renames a Step's VariableName and bumps UpdatedAt", () => {
+        const db = freshDb();
+        const inserted = insertStepRow(db, baseDraft("Old", "x"));
+        const renamed = updateStepVariableNameRow(db, inserted.StepId, "NewName");
+        expect(renamed.VariableName).toBe("NewName");
+        expect(renamed.StepId).toBe(inserted.StepId);
+    });
+
+    it("rejects rename when new name collides with another Step", () => {
+        const db = freshDb();
+        insertStepRow(db, baseDraft("First", "a"));
+        const second = insertStepRow(db, baseDraft("Second", "b"));
+        expect(() => updateStepVariableNameRow(db, second.StepId, "First")).toThrow(
+            /already used/,
+        );
+    });
+
+    it("rejects rename to empty string", () => {
+        const db = freshDb();
+        const inserted = insertStepRow(db, baseDraft("X", "x"));
+        expect(() => updateStepVariableNameRow(db, inserted.StepId, "")).toThrow(
+            /cannot be empty/,
+        );
+    });
 });
 
 /* ------------------------------------------------------------------ */

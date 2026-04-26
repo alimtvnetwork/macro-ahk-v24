@@ -611,15 +611,16 @@ describe("LastEvaluation order preservation in ReasonDetail", () => {
         return Number(m![1]);
     }
 
-    it("nested All(Any, Not) preserves left-to-right depth-first order with short-circuit", () => {
+    it("nested All(Any, Not, leaf) preserves left-to-right depth-first order with short-circuit", () => {
         // Stage a DOM where:
-        //   #alpha  → missing  (Any branch, leaf 1, false)
-        //   #beta   → missing  (Any branch, leaf 2, false → whole Any is false)
-        //   #gamma  → present  (Not(present)=false → All short-circuits here)
-        //   #delta  → present  (NEVER evaluated → must NOT appear in trace)
+        //   #alpha   → missing  (Any branch leaf 1, visited, false)
+        //   #beta    → present  (Any branch leaf 2, visited, true → Any=true, All continues)
+        //   #gamma   → missing  (Not(missing)=true, visited → All continues)
+        //   #delta   → missing  (visited, false → All short-circuits to false)
+        //   #epsilon → present  (NEVER evaluated, must NOT appear in trace)
         document.body.innerHTML = `
-            <div id="gamma"></div>
-            <div id="delta"></div>
+            <div id="beta"></div>
+            <div id="epsilon"></div>
         `;
 
         const condition: Condition = {
@@ -631,9 +632,10 @@ describe("LastEvaluation order preservation in ReasonDetail", () => {
                     ],
                 },
                 { Not: { Selector: "#gamma", Matcher: { Kind: "Exists" } } },
-                // #delta MUST NOT be reached because the Not above already
+                { Selector: "#delta",   Matcher: { Kind: "Exists" } },
+                // #epsilon MUST NOT be visited because the leaf above already
                 // short-circuited the surrounding All to false.
-                { Selector: "#delta", Matcher: { Kind: "Exists" } },
+                { Selector: "#epsilon", Matcher: { Kind: "Exists" } },
             ],
         };
 
@@ -641,9 +643,11 @@ describe("LastEvaluation order preservation in ReasonDetail", () => {
         const result = evaluateCondition(condition, { Doc: document, Trace: trace });
         expect(result).toBe(false);
 
-        // Sanity: the evaluator visited exactly alpha, beta, gamma — in that order.
-        expect(trace.map((p) => p.Selector)).toEqual(["#alpha", "#beta", "#gamma"]);
-        expect(trace.some((p) => p.Selector === "#delta")).toBe(false);
+        // Sanity: the evaluator visited exactly alpha, beta, gamma, delta — in that order.
+        expect(trace.map((p) => p.Selector)).toEqual(
+            ["#alpha", "#beta", "#gamma", "#delta"],
+        );
+        expect(trace.some((p) => p.Selector === "#epsilon")).toBe(false);
 
         const report = buildConditionFailureReport({
             Outcome: {
@@ -669,26 +673,29 @@ describe("LastEvaluation order preservation in ReasonDetail", () => {
         expect(traceLines).toHaveLength(trace.length);
 
         // 2) Indices are sequential starting at 0 (no alphabetisation/reorder).
-        expect(traceLines.map(indexOf)).toEqual([0, 1, 2]);
+        expect(traceLines.map(indexOf)).toEqual([0, 1, 2, 3]);
 
-        // 3) Selector order in the rendered lines mirrors the trace order
-        //    EXACTLY — alpha before beta before gamma.
+        // 3) Selector order in the rendered lines mirrors the trace order EXACTLY.
         expect(traceLines[0]).toContain("'#alpha'");
         expect(traceLines[1]).toContain("'#beta'");
         expect(traceLines[2]).toContain("'#gamma'");
+        expect(traceLines[3]).toContain("'#delta'");
 
         // 4) The unreached predicate must not leak into the rendered detail's
-        //    LastEvaluation block (it's still allowed in ConditionSerialized).
-        for (const line of traceLines) expect(line).not.toContain("'#delta'");
+        //    LastEvaluation block (it is still allowed in ConditionSerialized).
+        for (const line of traceLines) expect(line).not.toContain("'#epsilon'");
 
-        // 5) Cross-check raw substring order — alpha → beta → gamma — to
-        //    catch any future formatter that re-sorts lines after-the-fact.
-        const aIdx = report.ReasonDetail.indexOf("'#alpha'");
-        const bIdx = report.ReasonDetail.indexOf("'#beta'");
-        const gIdx = report.ReasonDetail.indexOf("'#gamma'");
+        // 5) Cross-check raw substring order in the full ReasonDetail string —
+        //    catches any future formatter that re-sorts lines after the fact.
+        const detail = report.ReasonDetail;
+        const aIdx = detail.indexOf("'#alpha'");
+        const bIdx = detail.indexOf("'#beta'");
+        const gIdx = detail.indexOf("'#gamma'");
+        const dIdx = detail.indexOf("'#delta'");
         expect(aIdx).toBeGreaterThanOrEqual(0);
         expect(aIdx).toBeLessThan(bIdx);
         expect(bIdx).toBeLessThan(gIdx);
+        expect(gIdx).toBeLessThan(dIdx);
     });
 
     it("deeply nested Any(All, Not(Any)) keeps DFS visit order in the rendered trace", () => {

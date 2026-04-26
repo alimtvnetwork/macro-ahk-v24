@@ -89,6 +89,28 @@ export async function handleRecorderStepList(
 }
 
 /* ------------------------------------------------------------------ */
+/*  Selectors-for-step list                                            */
+/* ------------------------------------------------------------------ */
+
+interface SelectorsListRequest {
+    projectSlug: string;
+    stepId: number;
+}
+
+export async function handleRecorderStepSelectorsList(
+    message: MessageRequest,
+): Promise<{ selectors: ReadonlyArray<PersistedSelector> }> {
+    const req = message as unknown as SelectorsListRequest;
+    if (!req.projectSlug || typeof req.stepId !== "number") {
+        throw new Error(
+            "RECORDER_STEP_SELECTORS_LIST requires projectSlug and stepId",
+        );
+    }
+    const selectors = await listSelectors(req.projectSlug, req.stepId);
+    return { selectors };
+}
+
+/* ------------------------------------------------------------------ */
 /*  Delete                                                             */
 /* ------------------------------------------------------------------ */
 

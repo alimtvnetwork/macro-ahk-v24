@@ -254,6 +254,50 @@ export default function StepGroupLibraryPanel() {
         [lib.Groups, showArchived],
     );
     const tree = useMemo(() => buildTree(visibleGroups), [visibleGroups]);
+
+    /**
+     * Free-text search over group names. Empty string disables filtering.
+     * The filter keeps any node whose name matches AND every ancestor
+     * along the path so the tree shape stays readable. When a query is
+     * active we also auto-expand all matching paths so results aren't
+     * hidden behind collapsed parents.
+     */
+    const [query, setQuery] = useState("");
+    const trimmedQuery = query.trim().toLowerCase();
+    const { filteredTree, autoExpand } = useMemo(() => {
+        if (trimmedQuery === "") {
+            return { filteredTree: tree, autoExpand: null as Set<number> | null };
+        }
+        const expandIds = new Set<number>();
+        const filterNodes = (nodes: ReadonlyArray<TreeNode>): TreeNode[] => {
+            const out: TreeNode[] = [];
+            for (const n of nodes) {
+                const selfMatch = n.Group.Name.toLowerCase().includes(trimmedQuery);
+                const kids = filterNodes(n.Children);
+                if (selfMatch || kids.length > 0) {
+                    if (kids.length > 0) expandIds.add(n.Group.StepGroupId);
+                    out.push({ Group: n.Group, Children: kids });
+                }
+            }
+            return out;
+        };
+        const filtered = filterNodes(tree);
+        return { filteredTree: filtered, autoExpand: expandIds };
+    }, [tree, trimmedQuery]);
+
+    /**
+     * Effective expanded set used by the renderer. When a search is
+     * active, we union the user's manual expansion with the auto-expand
+     * set so matched ancestors open without mutating the user's saved
+     * expansion state (clearing the query restores their original view).
+     */
+    const effectiveExpanded = useMemo(() => {
+        if (autoExpand === null) return expanded;
+        const merged = new Set(expanded);
+        for (const id of autoExpand) merged.add(id);
+        return merged;
+    }, [expanded, autoExpand]);
+
     const activeGroup = useMemo(
         () => lib.Groups.find((g) => g.StepGroupId === activeGroupId) ?? null,
         [lib.Groups, activeGroupId],

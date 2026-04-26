@@ -508,42 +508,14 @@ export default function StepGroupLibraryPanel() {
 
     const handleImportClick = () => fileInputRef.current?.click();
 
+    /**
+     * Thin adapter so the existing `BundleExchangePanel` + hidden file
+     * input keep their `(file: File) => Promise<void>` contract. All
+     * actual work — read, merge, dialog routing — is delegated to the
+     * shared `useStepGroupImport` hook.
+     */
     const handleImportFile = async (file: File) => {
-        if (lib.Lib === null || lib.Project === null || lib.SqlJs === null) {
-            toast.error("Library not ready");
-            return;
-        }
-        const ab = await file.arrayBuffer();
-        const result = await runStepGroupImport({
-            ZipBytes: new Uint8Array(ab),
-            Destination: lib.Lib,
-            DestinationProjectId: lib.Project.ProjectId,
-            OnNameConflict: "Rename",
-            SqlJs: lib.SqlJs,
-            JsZip: JSZip,
-        });
-        if (result.Reason !== "Ok") {
-            const explanation = explainImportFailure(result);
-            setImportError({ open: true, explanation, fileName: file.name });
-            toast.error(explanation.Title, { description: "See dialog for details" });
-            return;
-        }
-        lib.refresh();
-        const renames = result.RenamedRoots.length;
-        setLastImport({
-            GroupCount: result.Counts.StepGroups,
-            StepCount: result.Counts.Steps,
-            RenameCount: renames,
-            At: new Date().toISOString(),
-        });
-        toast.success(
-            `Imported ${result.Counts.StepGroups} group(s)`,
-            {
-                description:
-                    `${result.Counts.Steps} steps` +
-                    (renames > 0 ? ` · ${renames} renamed to avoid conflicts` : ""),
-            },
-        );
+        await importApi.importFile(file);
     };
 
     /* ------------------------ Render ------------------------------ */

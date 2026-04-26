@@ -72,6 +72,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { stepKindLabel, useStepLibrary } from "@/hooks/use-step-library";
+import { decodeNullableNumber, usePersistedState } from "@/hooks/use-persisted-state";
 import { useStepGroupExport } from "@/hooks/use-step-group-export";
 import { useStepGroupImport } from "@/hooks/use-step-group-import";
 import type { StepGroupRow, StepRow } from "@/background/recorder/step-library/db";

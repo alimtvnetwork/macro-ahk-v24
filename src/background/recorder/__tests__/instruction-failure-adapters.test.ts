@@ -575,3 +575,188 @@ describe("UrlTabClick optional fields — schema conformance", () => {
     });
 });
 
+/* ================================================================== */
+/*  LastEvaluation predicate-order preservation                         */
+/*                                                                      */
+/*  Nested AND/OR/NOT trees evaluate predicates in a deterministic       */
+/*  left-to-right, depth-first order with short-circuiting (AND stops   */
+/*  on first false, OR stops on first true). The `LastEvaluation`       */
+/*  trace MUST reflect that exact visit order, and the rendered         */
+/*  `LastEvaluation:` block in `ReasonDetail` MUST emit one `[i]` line  */
+/*  per trace entry in the SAME order with sequential indices starting  */
+/*  at 0. Any drift (alphabetisation, dedup, reorder, missing entry,    */
+/*  off-by-one index) breaks the AI debugger contract documented at     */
+/*  mem://standards/verbose-logging-and-failure-diagnostics.            */
+/* ================================================================== */
+
+describe("LastEvaluation order preservation in ReasonDetail", () => {
+    /** Pull every "  [i] Kind 'sel' Matcher=bool ..." line out of the detail. */
+    function extractTraceLines(detail: string): string[] {
+        const lines = detail.split("\n");
+        const start = lines.findIndex((l) => l === "LastEvaluation:");
+        expect(start, "LastEvaluation: header missing").toBeGreaterThanOrEqual(0);
+        const out: string[] = [];
+        for (let i = start + 1; i < lines.length; i++) {
+            const l = lines[i]!;
+            if (l.startsWith("ConditionSerialized:")) break;
+            out.push(l);
+        }
+        return out;
+    }
+
+    /** Parse the leading `  [N] ` index out of a rendered trace line. */
+    function indexOf(line: string): number {
+        const m = /^ {2}\[(\d+)\] /.exec(line);
+        expect(m, `line lacks "  [N] " prefix: ${line}`).not.toBeNull();
+        return Number(m![1]);
+    }
+
+    it("nested All(Any, Not) preserves left-to-right depth-first order with short-circuit", () => {
+        // Stage a DOM where:
+        //   #alpha  → missing  (Any branch, leaf 1, false)
+        //   #beta   → missing  (Any branch, leaf 2, false → whole Any is false)
+        //   #gamma  → present  (Not(present)=false → All short-circuits here)
+        //   #delta  → present  (NEVER evaluated → must NOT appear in trace)
+        document.body.innerHTML = `
+            <div id="gamma"></div>
+            <div id="delta"></div>
+        `;
+
+        const condition: Condition = {
+            All: [
+                {
+                    Any: [
+                        { Selector: "#alpha", Matcher: { Kind: "Exists" } },
+                        { Selector: "#beta",  Matcher: { Kind: "Exists" } },
+                    ],
+                },
+                { Not: { Selector: "#gamma", Matcher: { Kind: "Exists" } } },
+                // #delta MUST NOT be reached because the Not above already
+                // short-circuited the surrounding All to false.
+                { Selector: "#delta", Matcher: { Kind: "Exists" } },
+            ],
+        };
+
+        const trace: PredicateEvaluation[] = [];
+        const result = evaluateCondition(condition, { Doc: document, Trace: trace });
+        expect(result).toBe(false);
+
+        // Sanity: the evaluator visited exactly alpha, beta, gamma — in that order.
+        expect(trace.map((p) => p.Selector)).toEqual(["#alpha", "#beta", "#gamma"]);
+        expect(trace.some((p) => p.Selector === "#delta")).toBe(false);
+
+        const report = buildConditionFailureReport({
+            Outcome: {
+                Ok: false,
+                DurationMs: 120,
+                Polls: 3,
+                Reason: "ConditionTimeout",
+                Detail: "compound condition not met",
+                LastEvaluation: trace,
+            },
+            Condition: condition,
+            Source: "Gate",
+            StepId: 101,
+            Index: 7,
+            StepKind: "Click",
+            Now: FIXED_NOW,
+        });
+        assertValidatesAsSingleReport(report);
+
+        const traceLines = extractTraceLines(report.ReasonDetail);
+
+        // 1) Same number of lines as trace entries — no drops, no dupes.
+        expect(traceLines).toHaveLength(trace.length);
+
+        // 2) Indices are sequential starting at 0 (no alphabetisation/reorder).
+        expect(traceLines.map(indexOf)).toEqual([0, 1, 2]);
+
+        // 3) Selector order in the rendered lines mirrors the trace order
+        //    EXACTLY — alpha before beta before gamma.
+        expect(traceLines[0]).toContain("'#alpha'");
+        expect(traceLines[1]).toContain("'#beta'");
+        expect(traceLines[2]).toContain("'#gamma'");
+
+        // 4) The unreached predicate must not leak into the rendered detail's
+        //    LastEvaluation block (it's still allowed in ConditionSerialized).
+        for (const line of traceLines) expect(line).not.toContain("'#delta'");
+
+        // 5) Cross-check raw substring order — alpha → beta → gamma — to
+        //    catch any future formatter that re-sorts lines after-the-fact.
+        const aIdx = report.ReasonDetail.indexOf("'#alpha'");
+        const bIdx = report.ReasonDetail.indexOf("'#beta'");
+        const gIdx = report.ReasonDetail.indexOf("'#gamma'");
+        expect(aIdx).toBeGreaterThanOrEqual(0);
+        expect(aIdx).toBeLessThan(bIdx);
+        expect(bIdx).toBeLessThan(gIdx);
+    });
+
+    it("deeply nested Any(All, Not(Any)) keeps DFS visit order in the rendered trace", () => {
+        // Force the OR to fail so EVERY branch is evaluated and recorded.
+        //   Branch 1: All[ p1=true, p2=false ]    → false (p1, p2 both visited)
+        //   Branch 2: Not(Any[ p3=true, p4=? ])   → Not(true)=false (p3 visited; p4 short-circuited)
+        //   Branch 3: p5=false                    → false
+        // Final result: false. Visit order: p1, p2, p3, p5.
+        document.body.innerHTML = `
+            <div id="p1"></div>
+            <div id="p3"></div>
+        `;
+
+        const condition: Condition = {
+            Any: [
+                {
+                    All: [
+                        { Selector: "#p1", Matcher: { Kind: "Exists" } },
+                        { Selector: "#p2", Matcher: { Kind: "Exists" } },
+                    ],
+                },
+                {
+                    Not: {
+                        Any: [
+                            { Selector: "#p3", Matcher: { Kind: "Exists" } },
+                            { Selector: "#p4", Matcher: { Kind: "Exists" } },
+                        ],
+                    },
+                },
+                { Selector: "#p5", Matcher: { Kind: "Exists" } },
+            ],
+        };
+
+        const trace: PredicateEvaluation[] = [];
+        expect(evaluateCondition(condition, { Doc: document, Trace: trace })).toBe(false);
+        expect(trace.map((p) => p.Selector)).toEqual(["#p1", "#p2", "#p3", "#p5"]);
+
+        const report = buildConditionFailureReport({
+            Outcome: {
+                Ok: false,
+                DurationMs: 75,
+                Polls: 2,
+                Reason: "ConditionTimeout",
+                Detail: "any-branch never satisfied",
+                LastEvaluation: trace,
+            },
+            Condition: condition,
+            Source: "ConditionStep",
+            StepId: 202,
+            Index: 9,
+            StepKind: "Condition",
+            Now: FIXED_NOW,
+        });
+        assertValidatesAsSingleReport(report);
+
+        const traceLines = extractTraceLines(report.ReasonDetail);
+        expect(traceLines).toHaveLength(4);
+        expect(traceLines.map(indexOf)).toEqual([0, 1, 2, 3]);
+
+        // Selector order matches the deterministic DFS order.
+        expect(traceLines[0]).toContain("'#p1'");
+        expect(traceLines[1]).toContain("'#p2'");
+        expect(traceLines[2]).toContain("'#p3'");
+        expect(traceLines[3]).toContain("'#p5'");
+
+        // p4 was short-circuited by the inner Any (p3 was already true) — it
+        // must NOT appear in the rendered LastEvaluation block.
+        for (const line of traceLines) expect(line).not.toContain("'#p4'");
+    });
+});
+

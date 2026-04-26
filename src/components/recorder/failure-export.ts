@@ -105,3 +105,83 @@ export function buildLastFailureFilename(
     return `marco-last-failure${stepTag}-${date}-${time}.json`;
 }
 
+/* ------------------------------------------------------------------ */
+/*  Per-step lookup (Step-picker export)                               */
+/* ------------------------------------------------------------------ */
+
+export interface StepFailureOption {
+    /** StepId as stored on the report. `null` means "report has no StepId". */
+    readonly StepId: number | null;
+    /** Number of failure reports that share this StepId. */
+    readonly Count: number;
+    /** ISO timestamp of the most recent report for this StepId. */
+    readonly LatestTimestamp: string;
+    /** StepKind taken from the most recent report (may differ across retries). */
+    readonly StepKind: string | null;
+}
+
+/**
+ * Group reports by `StepId` for the export-by-step dropdown. Sorted by
+ * `LatestTimestamp` descending so the most recently failing step is at
+ * the top — that's what the user usually wants. Reports with `StepId === null`
+ * are collapsed into a single "(no step id)" bucket at the end.
+ */
+export function listStepFailureOptions(
+    reports: ReadonlyArray<FailureReport>,
+): ReadonlyArray<StepFailureOption> {
+    const buckets = new Map<string, {
+        StepId: number | null;
+        Count: number;
+        LatestTimestamp: string;
+        StepKind: string | null;
+    }>();
+    for (const r of reports) {
+        const key = r.StepId === null ? "null" : String(r.StepId);
+        const existing = buckets.get(key);
+        if (!existing) {
+            buckets.set(key, {
+                StepId: r.StepId,
+                Count: 1,
+                LatestTimestamp: r.Timestamp,
+                StepKind: r.StepKind,
+            });
+        } else {
+            existing.Count += 1;
+            if (r.Timestamp >= existing.LatestTimestamp) {
+                existing.LatestTimestamp = r.Timestamp;
+                existing.StepKind = r.StepKind;
+            }
+        }
+    }
+    const out = Array.from(buckets.values());
+    out.sort((a, b) => {
+        // null StepId always sinks to the bottom regardless of timestamp.
+        if (a.StepId === null && b.StepId !== null) return 1;
+        if (b.StepId === null && a.StepId !== null) return -1;
+        if (a.LatestTimestamp === b.LatestTimestamp) return 0;
+        return a.LatestTimestamp < b.LatestTimestamp ? 1 : -1;
+    });
+    return out;
+}
+
+/**
+ * Pick the most recent report for a specific `StepId` (or `null` to find
+ * the most recent report that has no StepId). Returns `null` when no
+ * report matches. Tie-break: last in array order wins (preserves
+ * insertion order from the recorder log), matching `pickLastFailureReport`.
+ */
+export function pickFailureReportByStepId(
+    reports: ReadonlyArray<FailureReport>,
+    stepId: number | null,
+): FailureReport | null {
+    let best: FailureReport | null = null;
+    for (const r of reports) {
+        if (r.StepId !== stepId) continue;
+        if (best === null || r.Timestamp >= best.Timestamp) {
+            best = r;
+        }
+    }
+    return best;
+}
+
+

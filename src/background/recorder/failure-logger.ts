@@ -90,8 +90,24 @@ export interface DomContext {
     readonly AriaLabel: string | null;
     readonly Name: string | null;
     readonly Type: string | null;
-    readonly TextSnippet: string;
-    readonly OuterHtmlSnippet: string;
+    readonly TextSnippet: string;       // Always truncated to 120 chars (legacy contract).
+    readonly OuterHtmlSnippet: string;  // Always truncated to 240 chars (legacy contract).
+    /**
+     * Absolute XPath of the captured element. Always populated when a
+     * target Element is supplied — cheap (single tree walk), and required
+     * by the verbose-logging standard for failure log AI-consumability.
+     */
+    readonly XPath: string;
+    /**
+     * Full untruncated outerHTML of the captured element. Populated ONLY
+     * when the failure report is built with `Verbose: true`. Omitted on
+     * non-verbose runs to keep the SQLite/OPFS payload small.
+     */
+    readonly OuterHtml?: string;
+    /**
+     * Full untruncated textContent. Populated ONLY when `Verbose: true`.
+     */
+    readonly Text?: string;
 }
 
 export interface FailureReport {
@@ -110,6 +126,18 @@ export interface FailureReport {
     readonly ResolvedXPath: string | null;
     readonly Timestamp: string;
     readonly SourceFile: string;
+    /**
+     * Was this report built with the verbose toggle ON? Persisted alongside
+     * the report so future readers can tell whether `CapturedHtml` /
+     * `DomContext.OuterHtml` / `DomContext.Text` are full or omitted.
+     */
+    readonly Verbose: boolean;
+    /**
+     * Full outerHTML of the matched/expected element. Populated ONLY when
+     * `Verbose === true`. Always identical to `DomContext.OuterHtml` when
+     * both are present — surfaced at top level for easier export tooling.
+     */
+    readonly CapturedHtml: string | null;
 }
 
 export interface BuildFailureReportInput {

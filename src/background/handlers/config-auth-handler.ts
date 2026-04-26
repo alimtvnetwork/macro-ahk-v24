@@ -254,6 +254,26 @@ export async function handleGetToken(
         };
     }
 
+    // ── Strategy 4: Opaque session-cookie exchange ──
+    const refreshLookup = sessionLookup.value === null
+        ? await readCookieValueByNameCandidates(resolvedCookieNames.refreshNames, primaryUrl)
+        : { value: null, cookieName: null };
+    const exchangeToken = await fetchAuthTokenFromSessionExchange(
+        projectId,
+        sessionLookup.value !== null || refreshLookup.value !== null,
+    );
+
+    if (exchangeToken !== null) {
+        console.log("[config-auth] GET_TOKEN: exchanged opaque session cookie for JWT");
+        cachedSessionId = exchangeToken;
+        cachedAt = Date.now();
+        return {
+            token: exchangeToken,
+            refreshed: true,
+            cookieName: "auth-token-exchange",
+        };
+    }
+
     if (sessionLookup.value !== null) {
         logBgWarnError(BgLogTag.CONFIG_AUTH, "GET_TOKEN: session cookie exists but no JWT could be derived");
         return {
@@ -348,6 +368,14 @@ export async function handleRefreshToken(
         authToken = await resolveSignedUrlTokenCandidate(tabUrlHint, primaryUrl);
     }
 
+    // Strategy 4: Opaque session-cookie exchange
+    if (!authToken) {
+        authToken = await fetchAuthTokenFromSessionExchange(
+            projectId,
+            sessionId !== null || refreshToken !== null,
+        );
+    }
+
     cachedSessionId = authToken ?? null;
     cachedRefreshToken = refreshToken;
     cachedAt = authToken ? Date.now() : 0;
@@ -436,8 +464,17 @@ export async function fetchAuthToken(
         return signedUrlToken;
     }
 
+    const exchangeToken = await fetchAuthTokenFromSessionExchange(
+        projectId,
+        sessionCookieLookup.value !== null,
+    );
+
+    if (exchangeToken !== null) {
+        return exchangeToken;
+    }
+
     if (sessionCookieLookup.value !== null) {
-        logBgWarnError(BgLogTag.CONFIG_AUTH, "Session cookie exists but auth-token exchange is disabled because the cookie is not a JWT");
+        logBgWarnError(BgLogTag.CONFIG_AUTH, "Session cookie exists but no JWT could be derived from localStorage, URL, or auth-token exchange");
     }
 
     return null;
@@ -632,6 +669,48 @@ async function resolveSignedUrlTokenCandidate(
 
     const activeTabUrl = await getActiveTabUrl();
     return extractSignedUrlTokenFromUrl(activeTabUrl);
+}
+
+async function fetchAuthTokenFromSessionExchange(
+    projectId: string | null | undefined,
+    hasSessionCookie: boolean,
+): Promise<string | null> {
+    if (!hasSessionCookie || !projectId) return null;
+
+    try {
+        const response = await fetch(`${AUTH_API_BASE}/projects/${projectId}/auth-token`, {
+            method: "GET",
+            credentials: "include",
+        });
+        if (!response.ok) return null;
+
+        const payload = await response.json() as unknown;
+        return extractJwtFromAuthTokenPayload(payload);
+    } catch (exchangeError) {
+        logBgWarnError(BgLogTag.CONFIG_AUTH, "Auth-token exchange failed", exchangeError instanceof Error ? exchangeError : undefined);
+        return null;
+    }
+}
+
+function extractJwtFromAuthTokenPayload(payload: unknown, depth = 0): string | null {
+    if (depth > 4 || payload === null || payload === undefined) return null;
+    if (typeof payload === "string") return isLikelyJwt(payload) ? payload : null;
+    if (typeof payload !== "object") return null;
+
+    const obj = payload as Record<string, unknown>;
+    const directCandidates = [obj.token, obj.authToken, obj.access_token, obj.jwt, obj.sessionId];
+    for (const candidate of directCandidates) {
+        const token = extractJwtFromAuthTokenPayload(candidate, depth + 1);
+        if (token !== null) return token;
+    }
+
+    const wrappers = [obj.payload, obj.result, obj.data, obj.response];
+    for (const wrapper of wrappers) {
+        const token = extractJwtFromAuthTokenPayload(wrapper, depth + 1);
+        if (token !== null) return token;
+    }
+
+    return null;
 }
 
 /** Extracts project ID from a URL string. */

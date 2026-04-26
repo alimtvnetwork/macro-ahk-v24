@@ -39,6 +39,7 @@ import {
 } from "@/background/recorder/step-library/run-batch";
 import type { StepGroupRow, StepLibraryDb } from "@/background/recorder/step-library/db";
 import type { LeafStepExecutor, RunStepTraceEntry } from "@/background/recorder/step-library/run-group-runner";
+import { createLiveReplayExecutor } from "@/background/recorder/step-library/replay-bridge";
 import {
     buildBatchCompletePayload,
     buildGroupRunPayload,

@@ -200,6 +200,25 @@ async function executeStep(
         if (step.Kind === "Type")   { dispatchType(target,   resolveValue(step.Value, options.Row)); }
         if (step.Kind === "Select") { dispatchSelect(target, resolveValue(step.Value, options.Row)); }
 
+        if (step.WaitFor !== undefined) {
+            const waitOutcome = await waitForElement(step.WaitFor, {
+                Doc: options.Doc,
+                Sleep: sleep,
+                Now: () => now().getTime(),
+            });
+            if (!waitOutcome.Ok) {
+                return finalize(step, options, startedAt, now(), {
+                    Ok: false,
+                    ResolvedXPath: resolved.Expression,
+                    Variables: variables,
+                    Target: target,
+                    Error: new Error(
+                        `WaitFor '${step.WaitFor.Expression}' did not appear within ${step.WaitFor.TimeoutMs}ms (${waitOutcome.Reason}: ${waitOutcome.Detail})`,
+                    ),
+                });
+            }
+        }
+
         return finalize(step, options, startedAt, now(), { Ok: true, ResolvedXPath: resolved.Expression });
     } catch (err) {
         return finalize(step, options, startedAt, now(), {

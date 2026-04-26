@@ -156,7 +156,8 @@ export const RECORDER_DB_SCHEMA: string =
     DATA_SOURCE_TABLE_DDL +
     STEP_TABLE_DDL +
     SELECTOR_TABLE_DDL +
-    FIELD_BINDING_TABLE_DDL;
+    FIELD_BINDING_TABLE_DDL +
+    JS_SNIPPET_TABLE_DDL;
 
 /* ------------------------------------------------------------------ */
 /*  Code-side enum mirrors                                             */

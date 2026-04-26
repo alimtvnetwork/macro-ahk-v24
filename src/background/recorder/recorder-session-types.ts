@@ -12,7 +12,7 @@
 
 export type RecordingPhase = "Idle" | "Recording" | "Paused";
 
-export type RecordedStepKind = "Click" | "Type" | "Select" | "Wait" | "JsInline";
+export type RecordedStepKind = "Click" | "Type" | "Select" | "Submit" | "Wait" | "JsInline";
 
 export type SelectorStrategy = "Id" | "TestId" | "RoleText" | "Positional";
 
@@ -31,6 +31,16 @@ export interface RecordedStep {
     readonly VariableName: string;
     readonly Selector: StepSelector;
     readonly CapturedAt: string;
+    /**
+     * Optional captured form/input snapshot. Populated by the recorder
+     * automatically for `Submit` steps (entire form) and for `Type` /
+     * `Select` steps (the single field's metadata, plus value when
+     * verbose). Field metadata is always present; raw values are gated by
+     * the project's verbose-logging flag — see
+     * mem://standards/verbose-logging-and-failure-diagnostics and
+     * mem://features/form-snapshot-capture.
+     */
+    readonly FormSnapshot?: import("../recorder/form-snapshot").FormSnapshot;
 }
 
 export interface RecordingSession {

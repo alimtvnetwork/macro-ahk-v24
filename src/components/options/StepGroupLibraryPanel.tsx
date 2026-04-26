@@ -36,6 +36,7 @@ import {
     ChevronDown as ChevronDownIcon,
     Download,
     FileJson,
+    FileSpreadsheet,
     FilePlus2,
     FolderTree,
     GripVertical,
@@ -94,6 +95,7 @@ import BundleExchangePanel, {
 } from "./BundleExchangePanel";
 import ImportErrorDialog from "./ImportErrorDialog";
 import { GroupInputsDialog } from "./GroupInputsDialog";
+import { CsvInputDialog } from "./CsvInputDialog";
 import {
     explainImportFailure,
     type ImportErrorExplanation,
@@ -180,6 +182,13 @@ export default function StepGroupLibraryPanel() {
      * from a row dropdown menu doesn't have to first activate the row.
      */
     const [inputsDialog, setInputsDialog] = useState<{ open: boolean; group: StepGroupRow | null }>({
+        open: false, group: null,
+    });
+    /**
+     * Per-group CSV importer dialog. Same target shape as the JSON
+     * variant — both feed `setGroupInput` with the resulting bag.
+     */
+    const [csvDialog, setCsvDialog] = useState<{ open: boolean; group: StepGroupRow | null }>({
         open: false, group: null,
     });
 
@@ -594,6 +603,7 @@ export default function StepGroupLibraryPanel() {
                                         onMove={handleMove}
                                         onArchiveToggle={handleArchiveToggle}
                                         onApplyInputs={(g) => setInputsDialog({ open: true, group: g })}
+                                        onImportCsvInputs={(g) => setCsvDialog({ open: true, group: g })}
                                         hasInputs={(gid) => lib.GroupInputs.has(gid)}
                                         onDropReorder={handleDropReorder}
                                     />
@@ -635,7 +645,17 @@ export default function StepGroupLibraryPanel() {
                                 title={activeGroup === null ? "Select a group first" : "Apply input data to this group"}
                             >
                                 <FileJson className="mr-1 h-4 w-4" />
-                                Apply input data
+                                JSON
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={activeGroup === null}
+                                onClick={() => activeGroup !== null && setCsvDialog({ open: true, group: activeGroup })}
+                                title={activeGroup === null ? "Select a group first" : "Import CSV input for this group"}
+                            >
+                                <FileSpreadsheet className="mr-1 h-4 w-4" />
+                                CSV
                             </Button>
                         </div>
                     </div>
@@ -814,6 +834,14 @@ export default function StepGroupLibraryPanel() {
                 onApply={(gid, bag) => lib.setGroupInput(gid, bag)}
                 onClear={(gid) => lib.clearGroupInput(gid)}
             />
+
+            <CsvInputDialog
+                open={csvDialog.open}
+                groupName={csvDialog.group?.Name ?? null}
+                groupId={csvDialog.group?.StepGroupId ?? null}
+                onOpenChange={(o) => setCsvDialog((p) => ({ ...p, open: o }))}
+                onApply={(gid, bag) => lib.setGroupInput(gid, bag)}
+            />
         </div>
     );
 }
@@ -843,6 +871,7 @@ interface TreeNodeRowProps {
     readonly onMove: (id: number, direction: "up" | "down") => void;
     readonly onArchiveToggle: (g: StepGroupRow) => void;
     readonly onApplyInputs: (g: StepGroupRow) => void;
+    readonly onImportCsvInputs: (g: StepGroupRow) => void;
     readonly hasInputs: (id: number) => boolean;
     readonly onDropReorder: (parentId: number | null, sourceId: number, targetId: number) => void;
 }
@@ -855,7 +884,7 @@ function TreeNodeRow(props: TreeNodeRowProps) {
         selected, expanded, activeGroupId, hoveredId, onHover,
         onToggleSelect, onToggleSubtree, onToggleExpanded,
         onActivate, onCreateChild, onRename, onDelete, onExportThis,
-        onMove, onArchiveToggle, onApplyInputs, hasInputs, onDropReorder,
+        onMove, onArchiveToggle, onApplyInputs, onImportCsvInputs, hasInputs, onDropReorder,
     } = props;
     const id = node.Group.StepGroupId;
     const parentId = node.Group.ParentStepGroupId ?? null;
@@ -1056,6 +1085,10 @@ function TreeNodeRow(props: TreeNodeRowProps) {
                         <DropdownMenuItem onSelect={() => onApplyInputs(node.Group)}>
                             <FileJson className="mr-2 h-4 w-4" />
                             {hasInputs(id) ? "Edit input data…" : "Apply input data…"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onImportCsvInputs(node.Group)}>
+                            <FileSpreadsheet className="mr-2 h-4 w-4" />
+                            Import from CSV…
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onSelect={() => onArchiveToggle(node.Group)}>

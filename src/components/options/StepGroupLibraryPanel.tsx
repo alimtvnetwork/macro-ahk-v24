@@ -89,7 +89,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { stepKindLabel, useStepLibrary } from "@/hooks/use-step-library";
 import type { StepGroupRow, StepRow } from "@/background/recorder/step-library/db";
 import { StepKindId } from "@/background/recorder/step-library/schema";
-import { runStepGroupExport } from "@/background/recorder/step-library/export-bundle";
+import { runStepGroupExport, previewStepGroupExport, type StepGroupExportPreview } from "@/background/recorder/step-library/export-bundle";
 import { runStepGroupImport } from "@/background/recorder/step-library/import-bundle";
 import BatchRunDialog from "./BatchRunDialog";
 import BundleExchangePanel, {
@@ -97,6 +97,7 @@ import BundleExchangePanel, {
     type LastImportSummary,
 } from "./BundleExchangePanel";
 import ImportErrorDialog from "./ImportErrorDialog";
+import ExportPreviewDialog from "./ExportPreviewDialog";
 import { GroupInputsDialog } from "./GroupInputsDialog";
 import { CsvInputDialog } from "./CsvInputDialog";
 import WebhookSettingsDialog from "./WebhookSettingsDialog";

@@ -34,6 +34,8 @@ const UpdaterManagementView = lazy(() => import("@/components/options/UpdaterMan
 const AutomationView = lazy(() => import("@/components/automation/AutomationView"));
 const ActivityLogTimeline = lazy(() => import("@/components/options/ActivityLogTimeline"));
 const LibraryView = lazy(() => import("@/components/options/LibraryView"));
+const StepGroupLibraryPanel = lazy(() => import("@/components/options/StepGroupLibraryPanel"));
+const StepGroupListPanel = lazy(() => import("@/components/options/StepGroupListPanel"));
 
 function LazyFallback() {
   return (
@@ -147,30 +149,68 @@ const OptionsPage = () => {
     }
   }, [pLoading, sLoading, cLoading, onboardingLoading]);
 
-  // Deep-link: parse hash to set initial sidebar section (e.g. #activity, #logging)
-  const initialSection = (() => {
+  /**
+   * Deep-link: parse hash to set initial sidebar section (e.g. `#activity`,
+   * `#logging`). Two extra aliases route to the in-page Step Group panel:
+   *
+   *   - `#step-groups`        → Step Groups section, tree sub-view
+   *   - `#step-groups-list`   → Step Groups section, list sub-view
+   *
+   * These replace the old standalone `/step-groups` and
+   * `/step-groups/list` pages so the panel renders inside the real
+   * Options shell (sidebar + header + main).
+   */
+  const parseHash = (): { section: SidebarSection; stepGroupView: "tree" | "list" } => {
     const hash = window.location.hash.replace("#", "").trim();
     const validSections: SidebarSection[] = [
       "projects", "scripts", "prompts", "activity", "logging",
       "automation", "updaters", "timing", "data", "network",
-      "storage", "api", "library", "settings", "about",
+      "storage", "api", "library", "step-groups", "settings", "about",
     ];
-    if (hash && validSections.includes(hash as SidebarSection)) {
-      return hash as SidebarSection;
+    if (hash === "step-groups-list") {
+      return { section: "step-groups", stepGroupView: "list" };
     }
-    return "projects";
-  })();
+    if (hash !== "" && validSections.includes(hash as SidebarSection)) {
+      return { section: hash as SidebarSection, stepGroupView: "tree" };
+    }
+    return { section: "projects", stepGroupView: "tree" };
+  };
+  const initialHash = parseHash();
 
   const [selection, setSelection] = useState<SidebarSelection>({
     type: "section",
-    section: initialSection,
+    section: initialHash.section,
   });
+  /**
+   * Sub-view for the Step Groups section. The tree view is the default
+   * (richer); the list view is a flat searchable browser. Both panels
+   * live inside `<main>` so the user never leaves Options.
+   */
+  const [stepGroupView, setStepGroupView] = useState<"tree" | "list">(
+    initialHash.stepGroupView,
+  );
   const [isCreating, setIsCreating] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
   const [errorDrawerOpen, setErrorDrawerOpen] = useState(false);
   /** Tracks navigation direction for view transition animation. */
   const [viewDirection, setViewDirection] = useState<"forward" | "back">("forward");
   const extensionVersion = getChromeRuntime()?.getManifest?.().version ?? null;
+
+  /**
+   * React to runtime hash changes (e.g. when a panel-internal link
+   * navigates to `/#step-groups-list`). Without this, only the very
+   * first render honours the hash and subsequent in-app links would
+   * silently no-op.
+   */
+  useEffect(() => {
+    const onHashChange = () => {
+      const next = parseHash();
+      setSelection({ type: "section", section: next.section });
+      setStepGroupView(next.stepGroupView);
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
 
   const handleSidebarSelect = useCallback((s: SidebarSelection) => {
     setIsCreating(false);
@@ -449,6 +489,18 @@ const OptionsPage = () => {
                 <StorageBrowserView />
               ) : selection.section === "library" ? (
                 <LibraryView />
+              ) : selection.section === "step-groups" ? (
+                <StepGroupsSection
+                  view={stepGroupView}
+                  onViewChange={(v: "tree" | "list") => {
+                    setStepGroupView(v);
+                    // Keep the URL in sync so refresh / share preserves the sub-view.
+                    const nextHash = v === "list" ? "step-groups-list" : "step-groups";
+                    if (window.location.hash !== `#${nextHash}`) {
+                      history.replaceState(null, "", `#${nextHash}`);
+                    }
+                  }}
+                />
               ) : selection.section === "api" ? (
                 <ApiExplorerView />
               ) : selection.section === "settings" ? (
@@ -502,3 +554,61 @@ const OptionsPage = () => {
 };
 
 export default OptionsPage;
+
+/* ------------------------------------------------------------------ */
+/*  Step Groups section                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Wrapper that hosts both Step-Group browsers (tree + list) inside the
+ * Options shell. A small toggle at the top swaps between them without
+ * leaving the page, so the panels keep all their existing toolbar +
+ * dialog behaviour while sitting inside the real sidebar layout.
+ */
+function StepGroupsSection(props: {
+  view: "tree" | "list";
+  onViewChange: (view: "tree" | "list") => void;
+}) {
+  const { view, onViewChange } = props;
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold tracking-tight">Step Groups</h2>
+          <p className="text-xs text-muted-foreground">
+            Browse, edit, import and export step-group bundles for the current project.
+          </p>
+        </div>
+        <div className="inline-flex rounded-md border border-border p-0.5 text-xs">
+          <button
+            type="button"
+            onClick={() => onViewChange("tree")}
+            className={`rounded px-3 py-1 transition-colors ${
+              view === "tree"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            aria-pressed={view === "tree"}
+          >
+            Tree
+          </button>
+          <button
+            type="button"
+            onClick={() => onViewChange("list")}
+            className={`rounded px-3 py-1 transition-colors ${
+              view === "list"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            aria-pressed={view === "list"}
+          >
+            List
+          </button>
+        </div>
+      </div>
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        {view === "tree" ? <StepGroupLibraryPanel /> : <StepGroupListPanel />}
+      </div>
+    </div>
+  );
+}

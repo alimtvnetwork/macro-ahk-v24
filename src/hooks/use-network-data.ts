@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { sendMessage } from "@/lib/message-client";
+import { useVisibilityPausedInterval } from "@/hooks/use-visibility-paused-interval";
 
 export interface NetworkEntry {
   method: string;

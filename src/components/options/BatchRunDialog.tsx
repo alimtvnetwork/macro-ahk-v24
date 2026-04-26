@@ -102,12 +102,13 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
      */
     const [lastRunDurationMs, setLastRunDurationMs] = useState<number | null>(null);
 
-    // Reset per-open: seed order, clear prior status rows.
+    // Reset per-open: seed order, clear prior status rows + summary.
     useEffect(() => {
         if (open) {
             setOrder(initialOrder);
             setReports(initialOrder.map((id) => emptyReport(id)));
             setRunning(false);
+            setLastRunDurationMs(null);
         }
     }, [open, initialOrder]);
 

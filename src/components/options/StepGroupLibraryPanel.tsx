@@ -1243,6 +1243,15 @@ export default function StepGroupLibraryPanel() {
                 onApplyMergedInput={(gid, bag) => lib.setGroupInput(gid, bag)}
             />
 
+            <RunGroupDialog
+                open={runGroupDialog.open}
+                onOpenChange={(o) => setRunGroupDialog((p) => ({ ...p, open: o }))}
+                db={lib.Lib}
+                projectId={lib.Project?.ProjectId ?? null}
+                group={runGroupDialog.group}
+                groupName={(id) => groupsById.get(id)?.Name ?? `Group #${id}`}
+            />
+
             <WebhookSettingsDialog
                 open={webhookOpen}
                 onOpenChange={setWebhookOpen}

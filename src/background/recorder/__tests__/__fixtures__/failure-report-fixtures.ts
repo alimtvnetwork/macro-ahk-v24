@@ -226,6 +226,38 @@ export function fixtureRecordNoTarget(): FixtureBundle {
     };
 }
 
+/**
+ * Replay-phase: `JsInline` step body threw inside the sandbox. Built via
+ * the JS-step diagnostics helper so the fixture exercises the same code
+ * path the recorder uses in production. Verifies the JS-step report
+ * complies with the same required-field schema as DOM-target failures.
+ */
+export function fixtureReplayJsInlineThrew(): FixtureBundle {
+    const err = new (require("../../js-step-sandbox").JsExecError)(
+        "InlineJs execution failed: TypeError: cannot read 'Email'",
+    );
+    const ctx = {
+        Vars: { TenantId: "acme", AuthToken: "secret-abc" },
+        Row: { Email: "alice@example.com" },
+    };
+    const { buildJsStepFailureReport } = require("../../js-step-diagnostics") as typeof import("../../js-step-diagnostics");
+    const base = {
+        Body: "return Ctx.Row.Email.toUpperCase();",
+        Error: err,
+        Context: ctx,
+        LogLines: ["entered hot path"],
+        StepId: 18,
+        Index: 4,
+        SourceFile: "src/background/recorder/js-step-sandbox.ts",
+        Now: FIXTURE_NOW,
+        DataRow: { Email: "alice@example.com" },
+    };
+    return {
+        NonVerbose: buildJsStepFailureReport({ ...base, Verbose: false }),
+        Verbose: buildJsStepFailureReport({ ...base, Verbose: true }),
+    };
+}
+
 /** Convenience — every fixture, used by the schema test. */
 export function allFixtures(): ReadonlyArray<{ Name: string; Bundle: FixtureBundle }> {
     return [
@@ -233,5 +265,6 @@ export function allFixtures(): ReadonlyArray<{ Name: string; Bundle: FixtureBund
         { Name: "ReplayPrimaryDrift",      Bundle: fixtureReplayPrimaryDrift() },
         { Name: "ReplayVariableMissing",   Bundle: fixtureReplayVariableMissing() },
         { Name: "RecordNoTarget",          Bundle: fixtureRecordNoTarget() },
+        { Name: "ReplayJsInlineThrew",     Bundle: fixtureReplayJsInlineThrew() },
     ];
 }

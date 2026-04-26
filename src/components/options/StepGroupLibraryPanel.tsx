@@ -173,6 +173,14 @@ export default function StepGroupLibraryPanel() {
     const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; group: StepGroupRow | null }>({
         open: false, group: null,
     });
+    /**
+     * Per-group input-data dialog. We track the *target* group on the
+     * dialog itself rather than relying on `activeGroupId` so opening
+     * from a row dropdown menu doesn't have to first activate the row.
+     */
+    const [inputsDialog, setInputsDialog] = useState<{ open: boolean; group: StepGroupRow | null }>({
+        open: false, group: null,
+    });
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 

@@ -39,6 +39,7 @@ import {
     FileSpreadsheet,
     FilePlus2,
     FolderTree,
+    Globe,
     GripVertical,
     MoreHorizontal,
     Pencil,
@@ -520,6 +521,15 @@ export default function StepGroupLibraryPanel() {
                     >
                         <Upload className="mr-1 h-4 w-4" />
                         Import ZIP
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setInputSourceOpen(true)}
+                        title="Configure run-time input source"
+                    >
+                        <Globe className="mr-1 h-4 w-4" />
+                        Input source
                     </Button>
                     <Button
                         variant="outline"

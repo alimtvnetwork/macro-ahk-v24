@@ -51,6 +51,8 @@
     "check:spec-links:ci": "node scripts/report-spec-links-ci.mjs",
     "check:spec-links:ci:strict": "node scripts/report-spec-links-ci.mjs --no-auto-resolve",
     "check:spec-folders": "node scripts/spec-folder-guard.mjs --check",
+    "report:spec-consistency": "node scripts/generate-spec-consistency-report.mjs",
+    "report:spec-consistency:strict": "node scripts/generate-spec-consistency-report.mjs --strict",
     "check:spec-folders:repair": "node scripts/spec-folder-guard.mjs",
     "check:spec-folders:verbose": "node scripts/spec-folder-guard.mjs --verbose",
     "check:readme": "node scripts/check-readme-compliance.mjs",

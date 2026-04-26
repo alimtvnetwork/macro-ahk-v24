@@ -489,6 +489,20 @@ const OptionsPage = () => {
                 <StorageBrowserView />
               ) : selection.section === "library" ? (
                 <LibraryView />
+              ) : selection.section === "step-groups" ? (
+                <StepGroupsSection
+                  view={stepGroupView}
+                  onViewChange={(v) => {
+                    setStepGroupView(v);
+                    // Keep the URL in sync so refresh / share preserves the sub-view.
+                    const nextHash = v === "list" ? "step-groups-list" : "step-groups";
+                    if (window.location.hash !== `#${nextHash}`) {
+                      history.replaceState(null, "", `#${nextHash}`);
+                    }
+                  }}
+                />
+              ) : selection.section === "library" ? (
+                <LibraryView />
               ) : selection.section === "api" ? (
                 <ApiExplorerView />
               ) : selection.section === "settings" ? (

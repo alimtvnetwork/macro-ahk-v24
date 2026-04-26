@@ -107,6 +107,7 @@ import BundleExchangePanel, {
 } from "./BundleExchangePanel";
 import ImportErrorDialog from "./ImportErrorDialog";
 import ExportPreviewDialog from "./ExportPreviewDialog";
+import StepEditorDialog, { type StepEditorMode } from "./StepEditorDialog";
 
 import ExportErrorDialog from "./ExportErrorDialog";
 import StepLibraryErrorState from "./StepLibraryErrorState";

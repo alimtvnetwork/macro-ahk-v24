@@ -254,7 +254,7 @@ export default function StepGroupLibraryPanel() {
             return;
         }
         // Trigger browser download via blob URL.
-        const blob = new Blob([result.ZipBytes], { type: "application/zip" });
+        const blob = new Blob([result.ZipBytes as BlobPart], { type: "application/zip" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;

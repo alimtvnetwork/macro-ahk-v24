@@ -175,6 +175,20 @@ export default function StepGroupLibraryPanel() {
         explanation: ImportErrorExplanation | null;
         fileName: string | null;
     }>({ open: false, explanation: null, fileName: null });
+    /**
+     * Pre-download preview state. `Pending` holds the resolved selection
+     * + descendants flag captured at the moment the user clicked Export
+     * so the eventual confirmation downloads exactly what was previewed,
+     * even if the underlying selection changes while the dialog is open.
+     */
+    const [exportPreview, setExportPreview] = useState<{
+        readonly Open: boolean;
+        readonly Preview: StepGroupExportPreview | null;
+        readonly Pending: {
+            readonly Ids: ReadonlyArray<number>;
+            readonly IncludeDescendants: boolean;
+        } | null;
+    }>({ Open: false, Preview: null, Pending: null });
 
     /**
      * Tracks the *exact* (innermost) StepGroup row currently under the

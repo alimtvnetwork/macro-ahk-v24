@@ -25,9 +25,11 @@
 | 00 | `00-overview.md` | ✅ Present |
 | 01 | `01-glossary.md` | ✅ Present |
 | 02 | `02-phases.md` | ✅ Present |
+| 03 | `03-data-model.md` | ✅ Present |
+| 03 | `03-erd.md` | ✅ Present |
 | 99 | `99-consistency-report.md` | ✅ Present |
 
-**Total:** 4 files (Phase 01 baseline)
+**Total:** 6 files (Phase 03 baseline)
 
 ---
 
@@ -42,3 +44,4 @@ All internal links verified valid. ✅
 | Date | Version | Action |
 |------|---------|--------|
 | 2026-04-26 | 1.0.0 | Initial scaffold (Phase 01) |
+| 2026-04-26 | 1.1.0 | Added data model + ERD (Phase 03) |

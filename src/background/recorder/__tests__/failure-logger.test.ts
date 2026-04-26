@@ -118,7 +118,9 @@ describe("formatFailureReport", () => {
         });
         const out = formatFailureReport(report);
         expect(out).toContain("[MarcoReplay] Element not found");
-        expect(out).toContain("Reason: NoSelectors");
+        expect(out).toContain("Reason: Unknown");
+        expect(out).toContain("XPathFull");
+        expect(out).toContain("Css");
         expect(out).toContain("at src/x.ts StepId=7 Index=2 Kind=Click");
         expect(out).toContain("ResolvedXPath: //button[@id='go']");
         expect(out).toContain('DataRow: {"Email":"a@x.com"}');

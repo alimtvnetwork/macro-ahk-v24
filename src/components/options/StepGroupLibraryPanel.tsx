@@ -804,7 +804,7 @@ const DRAG_MIME = "application/x-marco-step-group";
 function TreeNodeRow(props: TreeNodeRowProps) {
     const {
         node, depth, siblingIndex, siblingCount,
-        selected, expanded, activeGroupId,
+        selected, expanded, activeGroupId, hoveredId, onHover,
         onToggleSelect, onToggleSubtree, onToggleExpanded,
         onActivate, onCreateChild, onRename, onDelete, onExportThis,
         onMove, onArchiveToggle, onDropReorder,
@@ -818,6 +818,9 @@ function TreeNodeRow(props: TreeNodeRowProps) {
     const isArchived = node.Group.IsArchived;
     const isFirst = siblingIndex === 0;
     const isLast  = siblingIndex === siblingCount - 1;
+    // Only the *exact* (innermost) row under the cursor lights up.
+    // Ancestor rows whose `<li>` wraps the hovered child stay neutral.
+    const isHovered = hoveredId === id;
 
     const [dragOver, setDragOver] = useState(false);
 

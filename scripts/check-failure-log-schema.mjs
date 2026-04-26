@@ -525,7 +525,7 @@ function getTypeText(typeNode) {
 function loc(filePath, sf, node, extra) {
     const { line, character } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
     return {
-        file: relative(REPO_ROOT, filePath).split(sep).join("/"),
+        file: relative(SCAN_ROOT, filePath).split(sep).join("/"),
         line: line + 1,
         column: character + 1,
         ...extra,

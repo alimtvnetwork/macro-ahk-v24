@@ -50,9 +50,26 @@ import ts from "typescript";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, "..");
-const SRC_DIR = resolve(REPO_ROOT, "src");
-const FAILURE_LOGGER_REL = "src/background/recorder/failure-logger.ts";
-const FAILURE_LOGGER_ABS = resolve(REPO_ROOT, FAILURE_LOGGER_REL);
+
+// CLI flags (intended for the self-test fixture; production CI runs with
+// no flags and scans the real repo):
+//   --root=<dir>        scan <dir>/src instead of REPO_ROOT/src
+//   --logger=<relpath>  treat <relpath> (relative to root) as the
+//                       failure-logger module instead of the default.
+const ARGS = process.argv.slice(2);
+const FLAG_ROOT = readFlag(ARGS, "--root");
+const FLAG_LOGGER = readFlag(ARGS, "--logger");
+const SCAN_ROOT = FLAG_ROOT ? resolve(FLAG_ROOT) : REPO_ROOT;
+const SRC_DIR = resolve(SCAN_ROOT, "src");
+const FAILURE_LOGGER_REL = FLAG_LOGGER ?? "src/background/recorder/failure-logger.ts";
+const FAILURE_LOGGER_ABS = resolve(SCAN_ROOT, FAILURE_LOGGER_REL);
+
+function readFlag(args, name) {
+    for (const a of args) {
+        if (a.startsWith(`${name}=`)) return a.slice(name.length + 1);
+    }
+    return null;
+}
 
 const REQUIRED_REPORT_FIELDS = [
     "Phase",

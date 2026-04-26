@@ -482,6 +482,26 @@ export default function StepGroupListPanel() {
                     )}
                     <Button
                         size="sm"
+                        variant="outline"
+                        disabled={selected.size === 0}
+                        onClick={() => setBatchRenameOpen(true)}
+                        title="Rename every selected group with a shared transform"
+                    >
+                        <Pencil className="mr-1 h-4 w-4" />
+                        Rename selected
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={selected.size === 0}
+                        onClick={() => setBatchDeleteOpen(true)}
+                        title="Delete every selected group (cascades to children + steps)"
+                    >
+                        <Trash2 className="mr-1 h-4 w-4" />
+                        Delete selected
+                    </Button>
+                    <Button
+                        size="sm"
                         variant="secondary"
                         disabled={selected.size === 0}
                         onClick={exportSelected}

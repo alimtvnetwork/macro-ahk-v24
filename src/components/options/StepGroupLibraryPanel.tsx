@@ -512,6 +512,15 @@ export default function StepGroupLibraryPanel() {
 
             <Separator />
 
+            <BundleExchangePanel
+                selectedCount={selectedCount}
+                onExport={() => handleExport()}
+                onImportFile={handleImportFile}
+                lastExport={lastExport}
+                lastImport={lastImport}
+                disabled={lib.Lib === null || lib.Project === null || lib.SqlJs === null}
+            />
+
             {/* ---------- Two-pane body ---------- */}
             <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(320px,420px)_1fr]">
                 {/* ---- Left: tree ---- */}

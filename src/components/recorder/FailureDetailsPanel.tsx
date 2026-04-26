@@ -39,6 +39,7 @@ import type {
     SelectorAttempt,
 } from "@/background/recorder/failure-logger";
 import type { VariableContext } from "@/background/recorder/field-reference-resolver";
+import { FormSnapshotTable } from "./FormSnapshotTable";
 
 interface FailureDetailsPanelProps {
     readonly report: FailureReport;
@@ -110,6 +111,9 @@ export function FailureDetailsPanel({ report, embedded }: FailureDetailsPanelPro
             )}
             {report.Selectors.length > 0 && <SelectorAttemptsBlock attempts={report.Selectors} />}
             {report.Variables.length > 0 && <VariablesBlock variables={report.Variables} />}
+            {report.FormSnapshot !== null && (
+                <FormSnapshotTable snapshot={report.FormSnapshot} title="Form data at failure" />
+            )}
             {report.Verbose && report.CapturedHtml !== null && (
                 <CapturedHtmlBlock html={report.CapturedHtml} />
             )}

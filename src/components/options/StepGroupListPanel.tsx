@@ -51,6 +51,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { Toaster } from "@/components/ui/sonner";
 import {
     Dialog,
@@ -819,7 +820,9 @@ export default function StepGroupListPanel() {
                                         {activeSteps.map((s, idx) => (
                                             <li
                                                 key={s.StepId}
-                                                className="flex items-start gap-3 px-4 py-3"
+                                                className={`flex items-start gap-3 px-4 py-3 transition-opacity ${
+                                                    s.IsDisabled ? "opacity-50" : ""
+                                                }`}
                                             >
                                                 <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium tabular-nums">
                                                     {idx + 1}
@@ -829,16 +832,38 @@ export default function StepGroupListPanel() {
                                                         <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                                                             {stepKindLabel(s.StepKindId)}
                                                         </span>
-                                                        <span className="truncate text-sm font-medium">
+                                                        <span
+                                                            className={`truncate text-sm font-medium ${
+                                                                s.IsDisabled ? "line-through" : ""
+                                                            }`}
+                                                        >
                                                             {s.Label ?? "(no label)"}
                                                         </span>
                                                         {s.IsDisabled && (
                                                             <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                                                                Disabled
+                                                                Skipped
                                                             </span>
                                                         )}
                                                     </div>
                                                 </div>
+                                                <Switch
+                                                    className="mt-0.5 shrink-0"
+                                                    checked={!s.IsDisabled}
+                                                    onCheckedChange={(checked) => {
+                                                        lib.setStepDisabled(s.StepId, !checked);
+                                                        toast.success(
+                                                            checked
+                                                                ? `Step "${s.Label ?? s.StepId}" enabled`
+                                                                : `Step "${s.Label ?? s.StepId}" disabled — will be skipped on run`,
+                                                        );
+                                                    }}
+                                                    aria-label={s.IsDisabled ? "Enable step" : "Disable step"}
+                                                    title={
+                                                        s.IsDisabled
+                                                            ? "Disabled — runner will skip this step"
+                                                            : "Enabled — runner will execute this step"
+                                                    }
+                                                />
                                             </li>
                                         ))}
                                     </ol>

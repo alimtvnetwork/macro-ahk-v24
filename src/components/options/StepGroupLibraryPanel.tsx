@@ -1006,8 +1006,14 @@ export default function StepGroupLibraryPanel() {
                             <ol className="divide-y">
                                 {activeSteps.map((s, idx) => {
                                     const wait = stepWaits.get(s.StepId);
+                                    const isDisabled = s.IsDisabled;
                                     return (
-                                    <li key={s.StepId} className="flex items-start gap-3 px-4 py-3">
+                                    <li
+                                        key={s.StepId}
+                                        className={`flex items-start gap-3 px-4 py-3 transition-opacity ${
+                                            isDisabled ? "opacity-50" : ""
+                                        }`}
+                                    >
                                         <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
                                             {idx + 1}
                                         </span>
@@ -1016,9 +1022,18 @@ export default function StepGroupLibraryPanel() {
                                                 <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                                                     {stepKindLabel(s.StepKindId)}
                                                 </span>
-                                                <span className="truncate text-sm font-medium">
+                                                <span
+                                                    className={`truncate text-sm font-medium ${
+                                                        isDisabled ? "line-through" : ""
+                                                    }`}
+                                                >
                                                     {s.Label ?? "(no label)"}
                                                 </span>
+                                                {isDisabled && (
+                                                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                                                        Skipped
+                                                    </span>
+                                                )}
                                                 {wait !== undefined && (
                                                     <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400" title={`Wait for ${wait.Kind} "${wait.Selector}" to ${wait.Condition} (${wait.TimeoutMs} ms)`}>
                                                         Wait · {wait.Condition}
@@ -1036,15 +1051,34 @@ export default function StepGroupLibraryPanel() {
                                                 </pre>
                                             )}
                                         </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 shrink-0"
-                                            onClick={() => setWaitDialog({ open: true, stepId: s.StepId, stepLabel: s.Label })}
-                                            title={wait === undefined ? "Add wait condition" : "Edit wait condition"}
-                                        >
-                                            <Timer className="h-4 w-4" />
-                                        </Button>
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            <Switch
+                                                checked={!isDisabled}
+                                                onCheckedChange={(checked) => {
+                                                    lib.setStepDisabled(s.StepId, !checked);
+                                                    toast.success(
+                                                        checked
+                                                            ? `Step "${s.Label ?? s.StepId}" enabled`
+                                                            : `Step "${s.Label ?? s.StepId}" disabled — will be skipped on run`,
+                                                    );
+                                                }}
+                                                aria-label={isDisabled ? "Enable step" : "Disable step"}
+                                                title={
+                                                    isDisabled
+                                                        ? "Disabled — runner will skip this step"
+                                                        : "Enabled — runner will execute this step"
+                                                }
+                                            />
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7"
+                                                onClick={() => setWaitDialog({ open: true, stepId: s.StepId, stepLabel: s.Label })}
+                                                title={wait === undefined ? "Add wait condition" : "Edit wait condition"}
+                                            >
+                                                <Timer className="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </li>
                                     );
                                 })}

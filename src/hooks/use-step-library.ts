@@ -218,6 +218,13 @@ export interface UseStepLibraryApi extends UseStepLibraryState {
     readonly reorderSiblings: (parentStepGroupId: number | null, orderedIds: readonly number[]) => void;
     readonly setGroupArchived: (stepGroupId: number, archived: boolean) => void;
     /**
+     * Flip the `IsDisabled` flag on a single step. Disabled steps are
+     * dropped by the runner's expansion phase (`skipDisabled` defaults
+     * to true), so this is the supported way to temporarily exclude
+     * a step from a run while keeping its config intact.
+     */
+    readonly setStepDisabled: (stepId: number, disabled: boolean) => void;
+    /**
      * Replace the input variable bag for one StepGroup. The bag must
      * be a plain JSON object — see `parseGroupInputJson` in
      * `group-inputs.ts`. Persisted immediately to localStorage.
@@ -404,6 +411,13 @@ export function useStepLibrary(): UseStepLibraryApi {
         persist();
     }, [lib, project, persist]);
 
+    const setStepDisabled = useCallback<UseStepLibraryApi["setStepDisabled"]>((stepId, disabled) => {
+        if (lib === null || project === null) return;
+        lib.setStepDisabled(stepId, disabled);
+        refreshFromDb(lib, project.ProjectId, setGroups, setStepsByGroup);
+        persist();
+    }, [lib, project, persist]);
+
     const setGroupInput = useCallback<UseStepLibraryApi["setGroupInput"]>((id, bag) => {
         writeGroupInput(id, bag);
         // Snapshot the bag with a defensive copy so a consumer who
@@ -463,11 +477,12 @@ export function useStepLibrary(): UseStepLibraryApi {
         moveGroupWithinParent,
         reorderSiblings,
         setGroupArchived,
+        setStepDisabled,
         setGroupInput,
         clearGroupInput,
         resetAll,
         retryLoad,
-    }), [loading, error, loadError, sql, lib, project, groups, stepsByGroup, groupInputs, refresh, createGroup, renameGroup, deleteGroup, moveGroupWithinParent, reorderSiblings, setGroupArchived, setGroupInput, clearGroupInput, resetAll, retryLoad]);
+    }), [loading, error, loadError, sql, lib, project, groups, stepsByGroup, groupInputs, refresh, createGroup, renameGroup, deleteGroup, moveGroupWithinParent, reorderSiblings, setGroupArchived, setStepDisabled, setGroupInput, clearGroupInput, resetAll, retryLoad]);
 }
 
 /* ------------------------------------------------------------------ */

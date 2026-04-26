@@ -134,12 +134,16 @@ describe("UrlTabClick → FailureReport", () => {
             assertRequiredFieldsPresent(report);
             assertValidatesAsSingleReport(report);
 
+            // Phase: every adapter emits replay-time failures only.
             expect(report.Phase).toBe("Replay");
+            // StepKind: hard-pinned to the family name (NOT user-supplied).
             expect(report.StepKind).toBe("UrlTabClick");
-            expect(report.SourceFile).toMatch(/url-tab-click\.ts$/);
-            expect(report.Reason).toBe(
-                reason === "UrlTabClickTimeout" ? "Timeout" : "Unknown",
-            );
+            // SourceFile: exact literal — protects against accidental rename.
+            expect(report.SourceFile).toBe(URL_TAB_CLICK_SOURCE_FILE);
+            // Reason: pulled from the canonical mapping table so future drift
+            // (e.g. promoting SelectorNotFound to a real Reason) forces the
+            // contract update to be explicit.
+            expect(report.Reason).toBe(URL_TAB_CLICK_REASON_MAPPING[reason]);
             // ReasonDetail must surface the full URL-tab-click diagnostic block.
             expect(report.ReasonDetail).toContain(`Reason=${reason}`);
             expect(report.ReasonDetail).toContain("UrlMatch=Glob");

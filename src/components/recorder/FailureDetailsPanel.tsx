@@ -92,6 +92,7 @@ const GROUP_LABEL: Readonly<Record<ReasonGroup, string>> = {
 
 export function FailureDetailsPanel({ report, embedded }: FailureDetailsPanelProps) {
     const group = REASON_GROUP[report.Reason] ?? "other";
+    const targetXPath = report.DomContext?.XPath ?? null;
     const body = (
         <div className="space-y-3">
             <ReasonBanner
@@ -99,12 +100,19 @@ export function FailureDetailsPanel({ report, embedded }: FailureDetailsPanelPro
                 detail={report.ReasonDetail}
                 phase={report.Phase}
                 group={group}
+                verbose={report.Verbose}
             />
             {report.ResolvedXPath !== null && (
-                <ResolvedXPathRow xpath={report.ResolvedXPath} />
+                <ResolvedXPathRow label="Resolved XPath" xpath={report.ResolvedXPath} />
+            )}
+            {targetXPath !== null && targetXPath.length > 0 && targetXPath !== report.ResolvedXPath && (
+                <ResolvedXPathRow label="Target XPath" xpath={targetXPath} />
             )}
             {report.Selectors.length > 0 && <SelectorAttemptsBlock attempts={report.Selectors} />}
             {report.Variables.length > 0 && <VariablesBlock variables={report.Variables} />}
+            {report.Verbose && report.CapturedHtml !== null && (
+                <CapturedHtmlBlock html={report.CapturedHtml} />
+            )}
             <SourceFooter file={report.SourceFile} timestamp={report.Timestamp} stepId={report.StepId} stepKind={report.StepKind} />
         </div>
     );

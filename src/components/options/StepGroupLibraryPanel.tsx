@@ -254,6 +254,7 @@ export default function StepGroupLibraryPanel() {
                 next.delete(id);
                 return next;
             });
+            setSelectionOrder((prev) => prev.filter((sid) => sid !== id));
             if (activeGroupId === id) setActiveGroupId(null);
             toast.success(`Deleted “${deleteDialog.group.Name}”`);
             setDeleteDialog({ open: false, group: null });

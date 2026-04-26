@@ -11,6 +11,7 @@
 import type { MessageRequest, OkResponse } from "../../shared/messages";
 import { DEFAULT_CHATBOX_XPATH } from "../../shared/defaults";
 import { invalidateSettingsNsCache } from "../settings-ns-cache";
+import { setVerboseLogging } from "../recorder/verbose-logging";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */

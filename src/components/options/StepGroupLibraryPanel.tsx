@@ -956,6 +956,16 @@ export default function StepGroupLibraryPanel() {
                 fileName={importError.fileName}
             />
 
+            <ExportPreviewDialog
+                open={exportPreview.Open}
+                onOpenChange={(o) =>
+                    setExportPreview((p) => (o ? { ...p, Open: true } : { Open: false, Preview: null, Pending: null }))
+                }
+                preview={exportPreview.Preview}
+                includeDescendants={exportPreview.Pending?.IncludeDescendants ?? true}
+                onConfirm={() => void confirmExport()}
+            />
+
             <GroupInputsDialog
                 open={inputsDialog.open}
                 groupName={inputsDialog.group?.Name ?? null}

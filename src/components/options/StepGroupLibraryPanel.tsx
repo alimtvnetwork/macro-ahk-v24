@@ -100,6 +100,7 @@ import { runStepGroupExport, previewStepGroupExport, type StepGroupExportPreview
 import { useStepGroupImport } from "@/hooks/use-step-group-import";
 import ImportSummaryDialog from "./ImportSummaryDialog";
 import BatchRunDialog from "./BatchRunDialog";
+import RunGroupDialog from "./RunGroupDialog";
 import BundleExchangePanel, {
     type LastExportSummary,
     type LastImportSummary,
@@ -196,6 +197,15 @@ export default function StepGroupLibraryPanel() {
     );
     const [showArchived, setShowArchived] = useState(false);
     const [batchOpen, setBatchOpen] = useState(false);
+    /**
+     * Single-group run surface. We keep the targeted group on the
+     * dialog state itself (not a stale `activeGroupId` snapshot) so
+     * the dialog renders the right name even if the user clicks a
+     * different tree row while the run is in flight.
+     */
+    const [runGroupDialog, setRunGroupDialog] = useState<{ open: boolean; group: StepGroupRow | null }>({
+        open: false, group: null,
+    });
     const [batchRenameOpen, setBatchRenameOpen] = useState(false);
     const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
     const [webhookOpen, setWebhookOpen] = useState(false);

@@ -88,6 +88,7 @@ const ProjectUrlRulesEditor = lazy(() => import("./ProjectUrlRulesEditor").then(
 const ProjectFilesPanel = lazy(() => import("./ProjectFilesPanel").then(m => ({ default: m.ProjectFilesPanel })));
 const ProjectVariablesEditor = lazy(() => import("./ProjectVariablesEditor").then(m => ({ default: m.ProjectVariablesEditor })));
 const UpdaterPanel = lazy(() => import("./UpdaterPanel").then(m => ({ default: m.UpdaterPanel })));
+const RecorderVisualisationPanel = lazy(() => import("./recorder/RecorderVisualisationPanel"));
 import { exportProject } from "@/lib/project-exporter";
 
 /* ------------------------------------------------------------------ */
@@ -108,6 +109,7 @@ type ProjectTab =
   | "auth"
   | "storage"
   | "network"
+  | "recorder"
   | "diagnostics";
 
 interface Props {

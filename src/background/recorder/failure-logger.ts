@@ -402,7 +402,7 @@ export function formatFailureReport(report: FailureReport): string {
         const attrStr = attrs.length > 0 ? ` ${attrs.join(" ")}` : "";
         const text = ctx.TextSnippet.length > 0 ? ` "${ctx.TextSnippet}"` : "";
         lines.push(`  DomContext: <${ctx.TagName}${attrStr}>${text}`);
-        if (ctx.XPath.length > 0) {
+        if (ctx.XPath !== undefined && ctx.XPath.length > 0) {
             lines.push(`    XPath: ${ctx.XPath}`);
         }
     }

@@ -46,6 +46,7 @@ interface SettingsData {
   showInjectionToast: boolean;
   defaultRunAt: "document_start" | "document_idle" | "document_end";
   debugMode: boolean;
+  verboseLogging: boolean;
   maxCycleCount: number;
   idleTimeout: number;
   theme: "system" | "light" | "dark";
@@ -60,6 +61,7 @@ const DEFAULT_SETTINGS: SettingsData = {
   showInjectionToast: true,
   defaultRunAt: "document_idle",
   debugMode: false,
+  verboseLogging: false,
   maxCycleCount: 100,
   idleTimeout: 5000,
   theme: "system",

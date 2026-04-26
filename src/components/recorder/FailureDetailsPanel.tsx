@@ -154,11 +154,13 @@ function ReasonBanner({
     detail,
     phase,
     group,
+    verbose,
 }: {
     readonly reason: FailureReasonCode;
     readonly detail: string;
     readonly phase: string;
     readonly group: ReasonGroup;
+    readonly verbose: boolean;
 }) {
     return (
         <div
@@ -166,14 +168,24 @@ function ReasonBanner({
             data-testid="failure-reason-banner"
             data-reason={reason}
             data-group={group}
+            data-verbose={verbose}
             className={`rounded-md border px-3 py-2 text-xs ${GROUP_TONE[group]}`}
         >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
                 <AlertOctagon className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 <span className="font-semibold uppercase tracking-wide">{GROUP_LABEL[group]}</span>
                 <Badge variant="outline" className="text-[10px] font-mono">
                     {reason}
                 </Badge>
+                {verbose && (
+                    <Badge
+                        variant="default"
+                        className="text-[10px]"
+                        title="Verbose logging was ON when this report was captured"
+                    >
+                        VERBOSE
+                    </Badge>
+                )}
                 <span className="ml-auto text-[10px] opacity-70">{phase}</span>
             </div>
             <p className="mt-1 break-words whitespace-pre-wrap">{detail}</p>
@@ -181,18 +193,41 @@ function ReasonBanner({
     );
 }
 
-function ResolvedXPathRow({ xpath }: { xpath: string }) {
+function ResolvedXPathRow({ label, xpath }: { readonly label: string; readonly xpath: string }) {
     return (
         <div
             data-testid="failure-resolved-xpath"
+            data-label={label}
             className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs"
         >
             <div className="flex items-center gap-2 text-muted-foreground">
                 <Crosshair className="h-3 w-3" aria-hidden />
-                <span className="uppercase tracking-wide font-medium">Resolved XPath</span>
+                <span className="uppercase tracking-wide font-medium">{label}</span>
             </div>
             <code className="mt-1 block break-all font-mono text-foreground">{xpath}</code>
         </div>
+    );
+}
+
+function CapturedHtmlBlock({ html }: { readonly html: string }) {
+    return (
+        <section
+            data-testid="failure-captured-html"
+            className="rounded-md border border-border bg-muted/30 p-2.5 text-xs space-y-1.5"
+        >
+            <header className="flex items-center gap-2 text-muted-foreground">
+                <FileWarning className="h-3 w-3" aria-hidden />
+                <span className="uppercase tracking-wide font-medium">Captured HTML (verbose)</span>
+                <Badge variant="outline" className="ml-auto text-[10px]">
+                    {html.length.toLocaleString()} chars
+                </Badge>
+            </header>
+            <ScrollArea className="max-h-48">
+                <pre className="whitespace-pre-wrap break-all font-mono text-[11px] text-foreground">
+                    {html}
+                </pre>
+            </ScrollArea>
+        </section>
     );
 }
 

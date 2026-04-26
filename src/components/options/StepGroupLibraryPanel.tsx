@@ -833,6 +833,14 @@ export default function StepGroupLibraryPanel() {
                 onApply={(gid, bag) => lib.setGroupInput(gid, bag)}
                 onClear={(gid) => lib.clearGroupInput(gid)}
             />
+
+            <CsvInputDialog
+                open={csvDialog.open}
+                groupName={csvDialog.group?.Name ?? null}
+                groupId={csvDialog.group?.StepGroupId ?? null}
+                onOpenChange={(o) => setCsvDialog((p) => ({ ...p, open: o }))}
+                onApply={(gid, bag) => lib.setGroupInput(gid, bag)}
+            />
         </div>
     );
 }

@@ -102,6 +102,12 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
      * next batch's summary panel.
      */
     const [lastRunDurationMs, setLastRunDurationMs] = useState<number | null>(null);
+    /**
+     * Trace viewer is collapsed by default — long batches can produce
+     * hundreds of trace entries and we don't want to bloat the dialog
+     * height before the user opts in.
+     */
+    const [traceOpen, setTraceOpen] = useState(false);
 
     // Reset per-open: seed order, clear prior status rows + summary.
     useEffect(() => {
@@ -110,6 +116,7 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
             setReports(initialOrder.map((id) => emptyReport(id)));
             setRunning(false);
             setLastRunDurationMs(null);
+            setTraceOpen(false);
         }
     }, [open, initialOrder]);
 

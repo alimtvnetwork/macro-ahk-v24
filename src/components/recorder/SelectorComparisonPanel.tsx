@@ -62,7 +62,58 @@ function elementSummary(el: DomContext | null): string {
     return `${head} "${el.TextSnippet}"`;
 }
 
-function AttemptRow({ attempt }: { attempt: SelectorAttemptComparison }) {
+const STATUS_TONE: Record<SelectorHistoryBucket["Status"], string> = {
+    healthy:           "border-emerald-500/40 text-emerald-700 dark:text-emerald-300",
+    regressed:         "border-amber-500/40   text-amber-700   dark:text-amber-300",
+    "always-failing":  "border-destructive/40 text-destructive",
+    unknown:           "border-border         text-muted-foreground",
+};
+
+function HistoryBlock({ bucket }: { bucket: SelectorHistoryBucket }) {
+    const last10 = bucket.Outcomes.slice(-10);
+    return (
+        <div className={`mt-2 ml-5 rounded-md border ${STATUS_TONE[bucket.Status]} bg-card/50 p-2 text-[11px] space-y-1`}>
+            <div className="flex items-center gap-2">
+                <History className="h-3 w-3" aria-hidden />
+                <span className="uppercase tracking-wide font-semibold">{bucket.Status}</span>
+                <span className="text-muted-foreground">
+                    · {bucket.TotalRuns} run{bucket.TotalRuns === 1 ? "" : "s"}
+                    , {bucket.TotalFailures} failure{bucket.TotalFailures === 1 ? "" : "s"}
+                </span>
+            </div>
+            {bucket.LastSuccessAt !== null && (
+                <div className="text-muted-foreground">
+                    Last success: <code>{bucket.LastSuccessAt}</code>
+                </div>
+            )}
+            {bucket.FirstFailureAfterLastSuccessAt !== null && (
+                <div className="text-muted-foreground">
+                    Started failing: <code>{bucket.FirstFailureAfterLastSuccessAt}</code>
+                    {bucket.ConsecutiveFailures > 0 && (
+                        <span> · {bucket.ConsecutiveFailures} in a row</span>
+                    )}
+                </div>
+            )}
+            <div className="flex items-end gap-0.5 h-4 pt-1" aria-label="Recent run outcomes">
+                {last10.map((o) => (
+                    <span
+                        key={o.RunId}
+                        title={`${o.At} — ${o.IsOk ? "ok" : (o.Error ?? "fail")}`}
+                        className={`w-2 h-3 rounded-sm ${o.IsOk ? "bg-emerald-500" : "bg-destructive"}`}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+}
+
+interface AttemptRowProps {
+    readonly attempt: SelectorAttemptComparison;
+    readonly history: SelectorHistoryBucket | null;
+    readonly showHistory: boolean;
+}
+
+function AttemptRow({ attempt, history, showHistory }: AttemptRowProps) {
     const matched = attempt.Matched;
     const Icon = matched ? CheckCircle2 : XCircle;
     const tone = matched ? "text-emerald-500" : "text-destructive";
@@ -101,6 +152,13 @@ function AttemptRow({ attempt }: { attempt: SelectorAttemptComparison }) {
 
             {attempt.Error !== null && (
                 <div className="pl-5 text-destructive text-[11px]">Error: {attempt.Error}</div>
+            )}
+
+            {showHistory && history !== null && <HistoryBlock bucket={history} />}
+            {showHistory && history === null && (
+                <div className="ml-5 mt-1 text-[11px] text-muted-foreground italic">
+                    No prior replay history for this selector.
+                </div>
             )}
         </li>
     );

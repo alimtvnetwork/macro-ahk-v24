@@ -168,17 +168,7 @@ export default function StepGroupLibraryPanel() {
 
     /* ------------------------ Selection --------------------------- */
 
-    const toggleOne = (id: number, on: boolean) => {
-        setSelected((prev) => {
-            const next = new Set(prev);
-            if (on) next.add(id); else next.delete(id);
-            return next;
-        });
-    };
-
-    const toggleSubtree = (node: TreeNode, on: boolean) => {
-        const ids = new Set<number>();
-        collectDescendantIds(node, ids);
+    const applySelection = (on: boolean, ids: ReadonlyArray<number>) => {
         setSelected((prev) => {
             const next = new Set(prev);
             for (const id of ids) {
@@ -186,9 +176,28 @@ export default function StepGroupLibraryPanel() {
             }
             return next;
         });
+        setSelectionOrder((prev) => {
+            if (!on) return prev.filter((id) => !ids.includes(id));
+            const seen = new Set(prev);
+            const additions = ids.filter((id) => !seen.has(id));
+            return additions.length === 0 ? prev : [...prev, ...additions];
+        });
     };
 
-    const clearSelection = () => setSelected(new Set());
+    const toggleOne = (id: number, on: boolean) => {
+        applySelection(on, [id]);
+    };
+
+    const toggleSubtree = (node: TreeNode, on: boolean) => {
+        const ids = new Set<number>();
+        collectDescendantIds(node, ids);
+        applySelection(on, Array.from(ids));
+    };
+
+    const clearSelection = () => {
+        setSelected(new Set());
+        setSelectionOrder([]);
+    };
 
     const toggleExpanded = (id: number) => {
         setExpanded((prev) => {

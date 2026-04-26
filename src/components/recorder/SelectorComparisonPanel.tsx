@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, XCircle, AlertTriangle, Crosshair, FileDown, History } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, Crosshair, FileDown, History, Star } from "lucide-react";
 import { toast } from "sonner";
 import type { SelectorComparison, SelectorAttemptComparison } from "@/background/recorder/selector-comparison";
 import type { DomContext } from "@/background/recorder/failure-logger";
@@ -30,6 +30,12 @@ import {
     serializeSelectorComparisonBundle,
 } from "./selector-comparison-export";
 
+/**
+ * Promote-to-primary callback. Host owns persistence (DB write). Returning
+ * a rejected promise (or throwing) surfaces an error toast in the panel.
+ */
+export type PromoteToPrimaryHandler = (selectorId: number) => void | Promise<void>;
+
 interface SelectorComparisonPanelProps {
     readonly comparison: SelectorComparison;
     /** Optional StepId stamped into the export filename + bundle metadata. */
@@ -38,6 +44,12 @@ interface SelectorComparisonPanelProps {
     readonly url?: string;
     /** Per-selector replay history. When supplied the toggle is enabled. */
     readonly history?: ReadonlyArray<SelectorHistoryBucket>;
+    /**
+     * When supplied, each matching non-primary attempt renders a
+     * "Promote to primary" action. The handler is responsible for
+     * persisting the change (DB UPDATE) and refreshing the parent state.
+     */
+    readonly onPromoteToPrimary?: PromoteToPrimaryHandler;
     /** Test seam: override the default download side effect. */
     readonly onDownload?: (filename: string, contents: string) => void;
 }
@@ -111,15 +123,19 @@ interface AttemptRowProps {
     readonly attempt: SelectorAttemptComparison;
     readonly history: SelectorHistoryBucket | null;
     readonly showHistory: boolean;
+    readonly onPromote: ((selectorId: number) => void) | null;
+    readonly isPromoting: boolean;
 }
 
-function AttemptRow({ attempt, history, showHistory }: AttemptRowProps) {
+function AttemptRow({ attempt, history, showHistory, onPromote, isPromoting }: AttemptRowProps) {
     const matched = attempt.Matched;
     const Icon = matched ? CheckCircle2 : XCircle;
     const tone = matched ? "text-emerald-500" : "text-destructive";
     const border = attempt.IsPrimary
         ? matched ? "border-emerald-500/40" : "border-destructive/40"
         : "border-border";
+
+    const canPromote = onPromote !== null && matched && !attempt.IsPrimary;
 
     return (
         <li className={`rounded-md border ${border} bg-card p-2.5 text-xs space-y-1`}>
@@ -135,6 +151,20 @@ function AttemptRow({ attempt, history, showHistory }: AttemptRowProps) {
                 <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
                     {attempt.MatchCount} match{attempt.MatchCount === 1 ? "" : "es"}
                 </Badge>
+                {canPromote && (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 px-2 text-[10px]"
+                        onClick={() => onPromote!(attempt.SelectorId)}
+                        disabled={isPromoting}
+                        aria-label={`Promote selector ${attempt.SelectorId} to primary`}
+                        title="Promote this fallback to primary for this step"
+                    >
+                        <Star className="h-3 w-3 mr-1" />
+                        {isPromoting ? "Promoting…" : "Promote to primary"}
+                    </Button>
+                )}
             </div>
 
             {attempt.ResolvedExpression !== attempt.Expression && (
@@ -164,10 +194,11 @@ function AttemptRow({ attempt, history, showHistory }: AttemptRowProps) {
     );
 }
 
-export function SelectorComparisonPanel({ comparison, stepId, url, history, onDownload }: SelectorComparisonPanelProps) {
+export function SelectorComparisonPanel({ comparison, stepId, url, history, onPromoteToPrimary, onDownload }: SelectorComparisonPanelProps) {
     const { Attempts, PrimaryMatched, AnyFallbackMatched, DriftDetected } = comparison;
     const hasHistory = history !== undefined;
     const [showHistory, setShowHistory] = useState(false);
+    const [promotingId, setPromotingId] = useState<number | null>(null);
 
     const handleExport = () => {
         const bundle = buildSelectorComparisonBundle(comparison, { StepId: stepId, Url: url });
@@ -176,6 +207,22 @@ export function SelectorComparisonPanel({ comparison, stepId, url, history, onDo
         (onDownload ?? defaultDownload)(filename, contents);
         toast.success(`Exported selector comparison (${Attempts.length} attempt${Attempts.length === 1 ? "" : "s"})`);
     };
+
+    const handlePromote = onPromoteToPrimary
+        ? async (selectorId: number) => {
+            setPromotingId(selectorId);
+            try {
+                await onPromoteToPrimary(selectorId);
+                toast.success(`Promoted selector #${selectorId} to primary`);
+            } catch (err) {
+                toast.error(
+                    `Failed to promote selector: ${err instanceof Error ? err.message : String(err)}`,
+                );
+            } finally {
+                setPromotingId(null);
+            }
+        }
+        : null;
 
     return (
         <Card>
@@ -244,6 +291,8 @@ export function SelectorComparisonPanel({ comparison, stepId, url, history, onDo
                                 attempt={a}
                                 history={hasHistory ? findHistoryForSelector(history, a.ResolvedExpression) : null}
                                 showHistory={showHistory && hasHistory}
+                                onPromote={handlePromote}
+                                isPromoting={promotingId === a.SelectorId}
                             />
                         ))}
                     </ul>

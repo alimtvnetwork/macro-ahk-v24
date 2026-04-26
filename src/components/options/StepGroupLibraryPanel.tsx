@@ -242,6 +242,54 @@ export default function StepGroupLibraryPanel() {
         }
     };
 
+    const handleMove = (id: number, direction: "up" | "down") => {
+        try {
+            lib.moveGroupWithinParent(id, direction);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Move failed");
+        }
+    };
+
+    const handleArchiveToggle = (group: StepGroupRow) => {
+        const next = !group.IsArchived;
+        try {
+            lib.setGroupArchived(group.StepGroupId, next);
+            toast.success(next ? `Archived “${group.Name}”` : `Restored “${group.Name}”`);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Archive failed");
+        }
+    };
+
+    /**
+     * Drag-and-drop within siblings ONLY. Cross-parent drag is
+     * intentionally out of scope here — moving across parents has
+     * additional invariants (depth check, name uniqueness) that
+     * deserve their own dialog. Sibling-only drag covers the common
+     * "I want this group above that one" case without surprises.
+     */
+    const handleDropReorder = (
+        parentId: number | null,
+        sourceId: number,
+        targetId: number,
+    ) => {
+        if (sourceId === targetId) return;
+        const siblings = visibleGroups
+            .filter((g) => (g.ParentStepGroupId ?? null) === parentId)
+            .sort((a, b) => a.OrderIndex - b.OrderIndex || a.Name.localeCompare(b.Name))
+            .map((g) => g.StepGroupId);
+        const fromIdx = siblings.indexOf(sourceId);
+        const toIdx = siblings.indexOf(targetId);
+        if (fromIdx === -1 || toIdx === -1) return;
+        const next = siblings.slice();
+        next.splice(fromIdx, 1);
+        next.splice(toIdx, 0, sourceId);
+        try {
+            lib.reorderSiblings(parentId, next);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Reorder failed");
+        }
+    };
+
     /* ------------------------ Export / Import --------------------- */
 
     const handleExport = async (idsOverride?: ReadonlyArray<number>) => {

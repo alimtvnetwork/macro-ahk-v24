@@ -28,7 +28,7 @@
  * @see @/hooks/use-step-library — shared data source.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
     Archive,
@@ -40,6 +40,7 @@ import {
     Plus,
     Search,
     Trash2,
+    Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 

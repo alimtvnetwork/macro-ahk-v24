@@ -88,6 +88,7 @@ export enum MessageType {
     RECORDER_FIELD_BINDING_DELETE = "RECORDER_FIELD_BINDING_DELETE",
 
     // ─── Macro Recorder Steps + Replay (from Spec 31, Phase 09 + 10) ───
+    RECORDER_CAPTURE_PERSIST = "RECORDER_CAPTURE_PERSIST",
     RECORDER_STEP_INSERT = "RECORDER_STEP_INSERT",
     RECORDER_STEP_LIST = "RECORDER_STEP_LIST",
     RECORDER_STEP_DELETE = "RECORDER_STEP_DELETE",
@@ -462,6 +463,7 @@ export type MessageRequest =
     | { type: MessageType.RECORDER_FIELD_BINDING_UPSERT; projectSlug: string; stepId: number; dataSourceId: number; columnName: string }
     | { type: MessageType.RECORDER_FIELD_BINDING_LIST; projectSlug: string }
     | { type: MessageType.RECORDER_FIELD_BINDING_DELETE; projectSlug: string; stepId: number }
+    | { type: MessageType.RECORDER_CAPTURE_PERSIST; projectSlug?: string; payload: Record<string, JsonValue> }
     | { type: MessageType.RECORDER_STEP_INSERT; projectSlug: string; draft: Record<string, JsonValue> }
     | { type: MessageType.RECORDER_STEP_LIST; projectSlug: string }
     | { type: MessageType.RECORDER_STEP_DELETE; projectSlug: string; stepId: number }

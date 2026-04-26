@@ -116,13 +116,39 @@ export default function BundleExchangePanel(props: BundleExchangePanelProps) {
                         </span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                        Includes every nested sub-group and step. Tick groups in the tree below to add them.
+                        Tick groups in the tree below to add them. Use the checkbox to control
+                        whether nested sub-groups are packaged too.
                     </p>
+                    <div className="flex items-start gap-2">
+                        <Checkbox
+                            id="export-include-descendants"
+                            checked={includeDescendants}
+                            onCheckedChange={(v) => setIncludeDescendants(v === true)}
+                            disabled={disabled === true}
+                            aria-describedby="export-include-descendants-help"
+                        />
+                        <div className="flex flex-col">
+                            <Label
+                                htmlFor="export-include-descendants"
+                                className="cursor-pointer text-sm font-medium leading-none"
+                            >
+                                Include descendants
+                            </Label>
+                            <span
+                                id="export-include-descendants-help"
+                                className="mt-1 text-xs text-muted-foreground"
+                            >
+                                {includeDescendants
+                                    ? "Every nested sub-group of each ticked group is packaged too."
+                                    : "Only the exact groups you ticked ship — children are skipped."}
+                            </span>
+                        </div>
+                    </div>
                     <Button
                         size="sm"
                         className="self-start"
                         disabled={disabled === true || selectedCount === 0}
-                        onClick={() => void onExport()}
+                        onClick={() => void onExport(includeDescendants)}
                     >
                         <Download className="mr-1 h-4 w-4" />
                         Download .zip

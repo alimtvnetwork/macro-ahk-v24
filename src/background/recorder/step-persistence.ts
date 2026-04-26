@@ -186,6 +186,41 @@ export function deleteStepRow(db: SqlJsDatabase, stepId: number): void {
     db.run("DELETE FROM Step WHERE StepId = ?", [stepId]);
 }
 
+/**
+ * Renames a Step's `VariableName`. Throws if the new name collides with an
+ * existing Step (the partial unique index `IxStepVariableNameUnique` would
+ * also reject it, but we surface a friendly error first). Touches
+ * `UpdatedAt`.
+ */
+export function updateStepVariableNameRow(
+    db: SqlJsDatabase,
+    stepId: number,
+    newVariableName: string,
+): PersistedStep {
+    if (!newVariableName || newVariableName.trim().length === 0) {
+        throw new Error("VariableName cannot be empty");
+    }
+
+    const conflict = db.exec(
+        "SELECT StepId FROM Step WHERE VariableName = ? AND StepId != ?",
+        [newVariableName, stepId],
+    );
+    if ((conflict[0]?.values.length ?? 0) > 0) {
+        throw new Error(
+            `VariableName "${newVariableName}" already used by another Step`,
+        );
+    }
+
+    db.run(
+        `UPDATE Step
+         SET VariableName = ?, UpdatedAt = datetime('now')
+         WHERE StepId = ?`,
+        [newVariableName, stepId],
+    );
+
+    return readStep(db, stepId);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Async facade — the production callers                              */
 /* ------------------------------------------------------------------ */
@@ -224,6 +259,17 @@ export async function deleteStep(
     const mgr = await initProjectDb(projectSlug);
     deleteStepRow(mgr.getDb(), stepId);
     mgr.markDirty();
+}
+
+export async function updateStepVariableName(
+    projectSlug: string,
+    stepId: number,
+    newVariableName: string,
+): Promise<PersistedStep> {
+    const mgr = await initProjectDb(projectSlug);
+    const step = updateStepVariableNameRow(mgr.getDb(), stepId, newVariableName);
+    mgr.markDirty();
+    return step;
 }
 
 /* ------------------------------------------------------------------ */

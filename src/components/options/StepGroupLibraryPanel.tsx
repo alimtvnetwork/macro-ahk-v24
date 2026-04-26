@@ -165,6 +165,11 @@ export default function StepGroupLibraryPanel() {
     );
     const activeSteps: ReadonlyArray<StepRow> =
         activeGroupId === null ? [] : (lib.StepsByGroup.get(activeGroupId) ?? []);
+    const groupsById = useMemo(() => {
+        const m = new Map<number, StepGroupRow>();
+        for (const g of lib.Groups) m.set(g.StepGroupId, g);
+        return m;
+    }, [lib.Groups]);
 
     /* ------------------------ Selection --------------------------- */
 

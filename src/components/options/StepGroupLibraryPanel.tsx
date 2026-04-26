@@ -430,8 +430,40 @@ export default function StepGroupLibraryPanel() {
         () => lib.Groups.find((g) => g.StepGroupId === activeGroupId) ?? null,
         [lib.Groups, activeGroupId],
     );
-    const activeSteps: ReadonlyArray<StepRow> =
-        activeGroupId === null ? [] : (lib.StepsByGroup.get(activeGroupId) ?? []);
+    const activeSteps: ReadonlyArray<StepRow> = useMemo(() => {
+        if (activeGroupId === null) return [];
+        const loaded = lib.StepsByGroup.get(activeGroupId) ?? [];
+        const override = pendingStepOrder.get(activeGroupId);
+        if (override === undefined) return loaded;
+        // Materialise the override against the loaded rows. Any step
+        // missing from the override (rare race after a concurrent
+        // append) is appended to the end so nothing disappears.
+        const byId = new Map(loaded.map((s) => [s.StepId, s] as const));
+        const out: StepRow[] = [];
+        for (const id of override) {
+            const row = byId.get(id);
+            if (row !== undefined) {
+                out.push(row);
+                byId.delete(id);
+            }
+        }
+        for (const remaining of byId.values()) out.push(remaining);
+        return out;
+    }, [activeGroupId, lib.StepsByGroup, pendingStepOrder]);
+
+    /** Same settle-and-clear pattern as `pendingGroupOrder`. */
+    useEffect(() => {
+        if (pendingStepOrder.size === 0) return;
+        let allSettled = true;
+        for (const [gid, ids] of pendingStepOrder) {
+            const actual = (lib.StepsByGroup.get(gid) ?? []).map((s) => s.StepId);
+            if (actual.length !== ids.length || actual.some((id, i) => id !== ids[i])) {
+                allSettled = false;
+                break;
+            }
+        }
+        if (allSettled) setPendingStepOrder(new Map());
+    }, [lib.StepsByGroup, pendingStepOrder]);
     const groupsById = useMemo(() => {
         const m = new Map<number, StepGroupRow>();
         for (const g of lib.Groups) m.set(g.StepGroupId, g);

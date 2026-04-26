@@ -18,4 +18,4 @@ file so the user can review and override later.
 
 <!-- Append one bullet per file, newest at the bottom. -->
 
-(none yet)
+- [01 — Import/Export "screen": dedicated route vs promoted section](./01-import-export-screen-shape.md) — chose Option B (promoted card in existing page).

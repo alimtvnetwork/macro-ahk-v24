@@ -87,6 +87,10 @@ import { StepKindId } from "@/background/recorder/step-library/schema";
 import { runStepGroupExport } from "@/background/recorder/step-library/export-bundle";
 import { runStepGroupImport } from "@/background/recorder/step-library/import-bundle";
 import BatchRunDialog from "./BatchRunDialog";
+import BundleExchangePanel, {
+    type LastExportSummary,
+    type LastImportSummary,
+} from "./BundleExchangePanel";
 
 /* ------------------------------------------------------------------ */
 /*  Tree shape                                                         */
@@ -137,6 +141,8 @@ export default function StepGroupLibraryPanel() {
     const [expanded, setExpanded] = useState<Set<number>>(new Set());
     const [showArchived, setShowArchived] = useState(false);
     const [batchOpen, setBatchOpen] = useState(false);
+    const [lastExport, setLastExport] = useState<LastExportSummary | null>(null);
+    const [lastImport, setLastImport] = useState<LastImportSummary | null>(null);
 
     // Dialog state
     const [createDialog, setCreateDialog] = useState<{ open: boolean; parent: number | null; name: string }>({
@@ -351,6 +357,12 @@ export default function StepGroupLibraryPanel() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        setLastExport({
+            FileName: result.ZipFileName,
+            GroupCount: result.Manifest.Counts.StepGroups,
+            StepCount: result.Manifest.Counts.Steps,
+            At: new Date().toISOString(),
+        });
         toast.success(
             `Exported ${result.Manifest.Counts.StepGroups} group(s)`,
             { description: `${result.Manifest.Counts.Steps} steps · ${result.ZipFileName}` },
@@ -379,6 +391,12 @@ export default function StepGroupLibraryPanel() {
         }
         lib.refresh();
         const renames = result.RenamedRoots.length;
+        setLastImport({
+            GroupCount: result.Counts.StepGroups,
+            StepCount: result.Counts.Steps,
+            RenameCount: renames,
+            At: new Date().toISOString(),
+        });
         toast.success(
             `Imported ${result.Counts.StepGroups} group(s)`,
             {
@@ -493,6 +511,15 @@ export default function StepGroupLibraryPanel() {
             </header>
 
             <Separator />
+
+            <BundleExchangePanel
+                selectedCount={selectedCount}
+                onExport={() => handleExport()}
+                onImportFile={handleImportFile}
+                lastExport={lastExport}
+                lastImport={lastImport}
+                disabled={lib.Lib === null || lib.Project === null || lib.SqlJs === null}
+            />
 
             {/* ---------- Two-pane body ---------- */}
             <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(320px,420px)_1fr]">

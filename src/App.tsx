@@ -12,8 +12,8 @@ export default function App() {
       <ErrorBoundary section="App Root">
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/options" element={<Options />} />
+            <Route path="/" element={<Options />} />
+            <Route path="/step-groups" element={<Index />} />
             <Route path="/popup" element={<Popup />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

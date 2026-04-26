@@ -97,6 +97,7 @@ import BundleExchangePanel, {
 import ImportErrorDialog from "./ImportErrorDialog";
 import { GroupInputsDialog } from "./GroupInputsDialog";
 import { CsvInputDialog } from "./CsvInputDialog";
+import WebhookSettingsDialog from "./WebhookSettingsDialog";
 import {
     explainImportFailure,
     type ImportErrorExplanation,

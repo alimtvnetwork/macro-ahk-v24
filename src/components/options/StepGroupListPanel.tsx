@@ -147,8 +147,17 @@ function formatDate(iso: string): string {
 
 export default function StepGroupListPanel() {
     const lib = useStepLibrary();
+    const navigate = useNavigate();
     const [query, setQuery] = useState("");
     const [activeGroupId, setActiveGroupId] = useState<number | null>(null);
+
+    /**
+     * Multi-select state. A `Set` gives us O(1) membership checks for
+     * every row's checkbox during render. Order doesn't matter here —
+     * the export pipeline (in the tree view) computes its own canonical
+     * ordering when the bundle is packaged.
+     */
+    const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
 
     /**
      * Dialog state. We keep `name` on the dialog itself so the input

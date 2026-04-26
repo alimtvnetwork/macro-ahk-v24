@@ -344,40 +344,132 @@ describe("Condition wait → FailureReport (Gate / WaitFor / ConditionStep)", ()
 /*  XPath / CSS conditional element rules                              */
 /* ================================================================== */
 
+/**
+ * Selector-predicate adapter contract:
+ *   - Phase       : "Replay"
+ *   - StepKind    : echoes the caller's input verbatim
+ *   - SourceFile  : ALWAYS condition-evaluator.ts (single-leaf wrapper reuses
+ *                   the evaluator path)
+ *   - Reason      : determined by (SelectorKind resolution, input.Reason).
+ *
+ * The matrix below pins the third axis exhaustively.
+ */
+const SELECTOR_PREDICATE_SOURCE_FILE = "src/background/recorder/condition-evaluator.ts";
+
+interface SelectorPredicateMappingCase {
+    readonly Label: string;
+    readonly Selector: string;
+    readonly SelectorKind?: "Auto" | "XPath" | "Css";
+    readonly Reason: "InvalidSelector" | "ZeroMatches" | "ConditionTimeout";
+    readonly ExpectedReason: string;        // FailureReport.Reason
+    readonly ExpectedDetailKind: "XPath" | "Css";
+}
+
+const SELECTOR_PREDICATE_MATRIX: ReadonlyArray<SelectorPredicateMappingCase> = [
+    // --- InvalidSelector → XPathSyntaxError vs CssSyntaxError ----------
+    {
+        Label: "Auto + leading-slash + InvalidSelector → XPathSyntaxError",
+        Selector: "//div[unterminated", SelectorKind: "Auto",
+        Reason: "InvalidSelector",
+        ExpectedReason: "XPathSyntaxError", ExpectedDetailKind: "XPath",
+    },
+    {
+        Label: "Auto + non-slash + InvalidSelector → CssSyntaxError",
+        Selector: "div[unterminated", SelectorKind: "Auto",
+        Reason: "InvalidSelector",
+        ExpectedReason: "CssSyntaxError", ExpectedDetailKind: "Css",
+    },
+    {
+        Label: "Explicit XPath + InvalidSelector → XPathSyntaxError",
+        Selector: "div[unterminated",     // would auto-detect as Css; explicit overrides
+        SelectorKind: "XPath",
+        Reason: "InvalidSelector",
+        ExpectedReason: "XPathSyntaxError", ExpectedDetailKind: "XPath",
+    },
+    {
+        Label: "Explicit Css + InvalidSelector → CssSyntaxError",
+        Selector: "//div",                 // would auto-detect as XPath; explicit overrides
+        SelectorKind: "Css",
+        Reason: "InvalidSelector",
+        ExpectedReason: "CssSyntaxError", ExpectedDetailKind: "Css",
+    },
+    // --- ZeroMatches → keeps the canonical reason regardless of dialect --
+    {
+        Label: "Auto + Css selector + ZeroMatches → ZeroMatches",
+        Selector: "#never", Reason: "ZeroMatches",
+        ExpectedReason: "ZeroMatches", ExpectedDetailKind: "Css",
+    },
+    {
+        Label: "Auto + XPath selector + ZeroMatches → ZeroMatches",
+        Selector: "//never", Reason: "ZeroMatches",
+        ExpectedReason: "ZeroMatches", ExpectedDetailKind: "XPath",
+    },
+    // --- ConditionTimeout → schema Timeout regardless of dialect ---------
+    {
+        Label: "Auto + XPath selector + ConditionTimeout → Timeout",
+        Selector: "/html/body/main", SelectorKind: "Auto",
+        Reason: "ConditionTimeout",
+        ExpectedReason: "Timeout", ExpectedDetailKind: "XPath",
+    },
+    {
+        Label: "Explicit Css + ConditionTimeout → Timeout",
+        Selector: "main.app", SelectorKind: "Css",
+        Reason: "ConditionTimeout",
+        ExpectedReason: "Timeout", ExpectedDetailKind: "Css",
+    },
+];
+
 describe("Selector predicate → FailureReport", () => {
-    it("malformed XPath classifies as XPathSyntaxError", () => {
-        const report = buildSelectorPredicateFailureReport({
-            Selector: "//div[unterminated",
-            SelectorKind: "Auto",
-            Reason: "InvalidSelector",
-            Detail: "XPath parse error",
-            StepId: 1, Index: 0,
-            StepKind: "Click",
-            Now: FIXED_NOW,
-        });
-        assertRequiredFieldsPresent(report);
-        assertValidatesAsSingleReport(report);
-        expect(report.Reason).toBe("XPathSyntaxError");
-        expect(report.ReasonDetail).toContain("Kind=XPath");
+    it.each(SELECTOR_PREDICATE_MATRIX)(
+        "$Label — Phase/StepKind/SourceFile pinned, Reason mapping correct",
+        (c) => {
+            const report = buildSelectorPredicateFailureReport({
+                Selector: c.Selector,
+                SelectorKind: c.SelectorKind,
+                Reason: c.Reason,
+                Detail: `simulated ${c.Reason}`,
+                StepId: 1, Index: 0,
+                StepKind: "Wait",
+                Now: FIXED_NOW,
+            });
+
+            assertRequiredFieldsPresent(report);
+            assertValidatesAsSingleReport(report);
+
+            // Phase pinned to Replay across the whole matrix.
+            expect(report.Phase).toBe("Replay");
+            // StepKind echoes the caller's input verbatim — never overridden.
+            expect(report.StepKind).toBe("Wait");
+            // SourceFile is ALWAYS the evaluator path — the single-leaf
+            // wrapper deliberately reuses it so the AI debugger can locate
+            // the predicate runtime in one click.
+            expect(report.SourceFile).toBe(SELECTOR_PREDICATE_SOURCE_FILE);
+            // Reason mapping is the value the matrix pins.
+            expect(report.Reason).toBe(c.ExpectedReason);
+            // Dialect resolved correctly and surfaced in ReasonDetail.
+            expect(report.ReasonDetail).toContain(`Kind=${c.ExpectedDetailKind}`);
+            // The original (pre-mapping) reason code MUST stay in ReasonDetail.
+            expect(report.ReasonDetail).toContain(`Reason=${c.Reason}`);
+        },
+    );
+
+    it("StepKind echo is independent of the predicate dialect", () => {
+        // Spot-check that the StepKind echo isn't accidentally pinned by
+        // the dialect-detection branch.
+        for (const stepKind of ["Click", "Wait", "Type", "Submit", "Hover"]) {
+            const report = buildSelectorPredicateFailureReport({
+                Selector: "#x", Reason: "ZeroMatches", Detail: "no match",
+                StepId: 1, Index: 0,
+                StepKind: stepKind,
+                Now: FIXED_NOW,
+            });
+            expect(report.StepKind).toBe(stepKind);
+            expect(report.Phase).toBe("Replay");
+            expect(report.SourceFile).toBe(SELECTOR_PREDICATE_SOURCE_FILE);
+        }
     });
 
-    it("malformed CSS classifies as CssSyntaxError", () => {
-        const report = buildSelectorPredicateFailureReport({
-            Selector: "div[unterminated",
-            SelectorKind: "Auto",
-            Reason: "InvalidSelector",
-            Detail: "CSS parse error",
-            StepId: 2, Index: 1,
-            StepKind: "Click",
-            Now: FIXED_NOW,
-        });
-        assertRequiredFieldsPresent(report);
-        assertValidatesAsSingleReport(report);
-        expect(report.Reason).toBe("CssSyntaxError");
-        expect(report.ReasonDetail).toContain("Kind=Css");
-    });
-
-    it("ZeroMatches predicate keeps the canonical reason code", () => {
+    it("ZeroMatches predicate emits the canonical LastEvaluation line", () => {
         const report = buildSelectorPredicateFailureReport({
             Selector: "#never",
             Reason: "ZeroMatches",
@@ -386,28 +478,8 @@ describe("Selector predicate → FailureReport", () => {
             StepKind: "Wait",
             Now: FIXED_NOW,
         });
-        assertRequiredFieldsPresent(report);
-        assertValidatesAsSingleReport(report);
-        expect(report.Reason).toBe("ZeroMatches");
         expect(report.ReasonDetail).toContain("LastEvaluation:");
         expect(report.ReasonDetail).toContain("[0] Css '#never' Exists=false");
-    });
-
-    it("ConditionTimeout on a single predicate maps to Timeout", () => {
-        const report = buildSelectorPredicateFailureReport({
-            Selector: "/html/body/main",
-            SelectorKind: "Auto",
-            Reason: "ConditionTimeout",
-            Detail: "Condition not met within 5000ms",
-            StepId: 4, Index: 3,
-            StepKind: "Wait",
-            Now: FIXED_NOW,
-        });
-        assertRequiredFieldsPresent(report);
-        assertValidatesAsSingleReport(report);
-        expect(report.Reason).toBe("Timeout");
-        // Auto-detection picked XPath because of the leading slash.
-        expect(report.ReasonDetail).toContain("Kind=XPath");
     });
 
     it("a mixed bundle of all three instruction families validates as a bundle", () => {

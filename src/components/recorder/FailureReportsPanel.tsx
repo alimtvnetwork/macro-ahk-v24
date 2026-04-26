@@ -26,6 +26,7 @@ import {
     pickLastFailureReport,
     buildLastFailureFilename,
 } from "./failure-export";
+import { validateFailureReportPayload } from "./failure-report-validator";
 import { FailureDetailsPanel } from "./FailureDetailsPanel";
 import { SelectorReplayTracePanel } from "./SelectorReplayTracePanel";
 
@@ -87,7 +88,14 @@ export function FailureReportsPanel({ reports, onDownload }: FailureReportsPanel
         const filename = buildFailureBundleFilename();
         const contents = serializeFailureBundle(bundle);
         (onDownload ?? defaultDownload)(filename, contents);
-        toast.success(`Exported ${picked.length} failure report${picked.length === 1 ? "" : "s"}`);
+        const validation = validateFailureReportPayload(contents);
+        if (!validation.Valid) {
+            toast.warning(`Exported ${filename} — schema warning`, {
+                description: validation.Summary,
+            });
+        } else {
+            toast.success(`Exported ${picked.length} failure report${picked.length === 1 ? "" : "s"}`);
+        }
     };
 
     const handleExportLast = () => {
@@ -100,9 +108,16 @@ export function FailureReportsPanel({ reports, onDownload }: FailureReportsPanel
         const contents = JSON.stringify(last, null, 2);
         (onDownload ?? defaultDownload)(filename, contents);
         const stepLabel = last.StepId !== null ? ` (Step #${last.StepId})` : "";
-        toast.success(`Downloaded ${filename}`, {
-            description: `Last failure${stepLabel} saved as JSON`,
-        });
+        const validation = validateFailureReportPayload(contents);
+        if (!validation.Valid) {
+            toast.warning(`Downloaded ${filename} — schema warning`, {
+                description: validation.Summary,
+            });
+        } else {
+            toast.success(`Downloaded ${filename}`, {
+                description: `Last failure${stepLabel} saved as JSON`,
+            });
+        }
     };
 
     return (

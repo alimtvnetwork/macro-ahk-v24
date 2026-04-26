@@ -69,19 +69,20 @@ function StatTile(props: {
     );
 }
 
-function WarningRow(props: { readonly ref: DanglingRunGroupRef }) {
-    const { ref } = props;
+function WarningRow(props: { readonly warning: DanglingRunGroupRef }) {
+    const { warning } = props;
     const target =
-        ref.TargetStepGroupId === null
+        warning.TargetStepGroupId === null
             ? "no target set"
-            : `target #${ref.TargetStepGroupId} is outside the selection`;
+            : `target #${warning.TargetStepGroupId} is outside the selection`;
+    const label = warning.StepLabel ?? `Step #${warning.StepId}`;
     return (
         <li className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs">
             <div className="font-medium text-destructive">
-                “{ref.StepLabel}” in “{ref.OwnerStepGroupName}”
+                “{label}” in “{warning.OwnerStepGroupName}”
             </div>
             <div className="mt-0.5 text-destructive/80">
-                RunGroup step #{ref.StepId} — {target}
+                RunGroup step #{warning.StepId} — {target}
             </div>
         </li>
     );

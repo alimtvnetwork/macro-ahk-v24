@@ -78,7 +78,12 @@ const DEFAULT_SETTINGS: ExtensionSettings = {
 /** Returns current settings, merged with defaults. */
 export async function handleGetSettings(): Promise<{ settings: ExtensionSettings }> {
     const stored = await loadSettings();
-    return { settings: { ...DEFAULT_SETTINGS, ...stored } };
+    const merged = { ...DEFAULT_SETTINGS, ...stored };
+    // Mirror the persisted toggle into the in-memory verbose-logging store so
+    // every recorder log site (which reads via `resolveVerboseLogging`) sees
+    // the user's choice without an extra storage round-trip.
+    setVerboseLogging(null, merged.verboseLogging);
+    return { settings: merged };
 }
 
 /** Saves settings to chrome.storage.local. */
@@ -89,6 +94,7 @@ export async function handleSaveSettings(
     const current = await loadSettings();
     const merged = { ...DEFAULT_SETTINGS, ...current, ...msg.settings };
     await saveSettings(merged);
+    setVerboseLogging(null, merged.verboseLogging);
     invalidateSettingsNsCache();
     return { isOk: true };
 }

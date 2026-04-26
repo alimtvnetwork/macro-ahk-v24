@@ -90,7 +90,8 @@ import { stepKindLabel, useStepLibrary } from "@/hooks/use-step-library";
 import type { StepGroupRow, StepRow } from "@/background/recorder/step-library/db";
 import { StepKindId } from "@/background/recorder/step-library/schema";
 import { runStepGroupExport, previewStepGroupExport, type StepGroupExportPreview } from "@/background/recorder/step-library/export-bundle";
-import { runStepGroupImport } from "@/background/recorder/step-library/import-bundle";
+import { useStepGroupImport } from "@/hooks/use-step-group-import";
+import ImportSummaryDialog from "./ImportSummaryDialog";
 import BatchRunDialog from "./BatchRunDialog";
 import BundleExchangePanel, {
     type LastExportSummary,
@@ -113,10 +114,7 @@ import {
     readAllStepWaits,
     type WaitConfig,
 } from "@/background/recorder/step-library/step-wait";
-import {
-    explainImportFailure,
-    type ImportErrorExplanation,
-} from "@/background/recorder/step-library/import-error-explainer";
+
 
 /* ------------------------------------------------------------------ */
 /*  Tree shape                                                         */
@@ -175,12 +173,17 @@ export default function StepGroupLibraryPanel() {
     const [stepWaits, setStepWaits] = useState<ReadonlyMap<number, WaitConfig>>(() => readAllStepWaits());
     const refreshStepWaits = () => setStepWaits(readAllStepWaits());
     const [lastExport, setLastExport] = useState<LastExportSummary | null>(null);
-    const [lastImport, setLastImport] = useState<LastImportSummary | null>(null);
-    const [importError, setImportError] = useState<{
-        open: boolean;
-        explanation: ImportErrorExplanation | null;
-        fileName: string | null;
-    }>({ open: false, explanation: null, fileName: null });
+    /**
+     * Import pipeline lives in `useStepGroupImport`. The hook owns the
+     * file → ZIP → merge dance plus both dialog states (success summary
+     * + structured error). The list panel uses the same hook, so the
+     * UX stays identical across both browsers.
+     */
+    const importApi = useStepGroupImport({
+        lib: { Lib: lib.Lib, Project: lib.Project, SqlJs: lib.SqlJs },
+        onAfterImport: lib.refresh,
+    });
+    const lastImport: LastImportSummary | null = importApi.lastImport;
     /**
      * Pre-download preview state. `Pending` holds the resolved selection
      * + descendants flag captured at the moment the user clicked Export
@@ -505,42 +508,14 @@ export default function StepGroupLibraryPanel() {
 
     const handleImportClick = () => fileInputRef.current?.click();
 
+    /**
+     * Thin adapter so the existing `BundleExchangePanel` + hidden file
+     * input keep their `(file: File) => Promise<void>` contract. All
+     * actual work — read, merge, dialog routing — is delegated to the
+     * shared `useStepGroupImport` hook.
+     */
     const handleImportFile = async (file: File) => {
-        if (lib.Lib === null || lib.Project === null || lib.SqlJs === null) {
-            toast.error("Library not ready");
-            return;
-        }
-        const ab = await file.arrayBuffer();
-        const result = await runStepGroupImport({
-            ZipBytes: new Uint8Array(ab),
-            Destination: lib.Lib,
-            DestinationProjectId: lib.Project.ProjectId,
-            OnNameConflict: "Rename",
-            SqlJs: lib.SqlJs,
-            JsZip: JSZip,
-        });
-        if (result.Reason !== "Ok") {
-            const explanation = explainImportFailure(result);
-            setImportError({ open: true, explanation, fileName: file.name });
-            toast.error(explanation.Title, { description: "See dialog for details" });
-            return;
-        }
-        lib.refresh();
-        const renames = result.RenamedRoots.length;
-        setLastImport({
-            GroupCount: result.Counts.StepGroups,
-            StepCount: result.Counts.Steps,
-            RenameCount: renames,
-            At: new Date().toISOString(),
-        });
-        toast.success(
-            `Imported ${result.Counts.StepGroups} group(s)`,
-            {
-                description:
-                    `${result.Counts.Steps} steps` +
-                    (renames > 0 ? ` · ${renames} renamed to avoid conflicts` : ""),
-            },
-        );
+        await importApi.importFile(file);
     };
 
     /* ------------------------ Render ------------------------------ */
@@ -976,10 +951,16 @@ export default function StepGroupLibraryPanel() {
             />
 
             <ImportErrorDialog
-                open={importError.open}
-                onOpenChange={(o) => setImportError((p) => ({ ...p, open: o }))}
-                explanation={importError.explanation}
-                fileName={importError.fileName}
+                open={importApi.errorState.Open}
+                onOpenChange={importApi.setErrorOpen}
+                explanation={importApi.errorState.Explanation}
+                fileName={importApi.errorState.FileName}
+            />
+            <ImportSummaryDialog
+                open={importApi.summaryState.Open}
+                onOpenChange={importApi.setSummaryOpen}
+                summary={importApi.summaryState.Summary}
+                fileName={importApi.summaryState.FileName}
             />
 
             <ExportPreviewDialog

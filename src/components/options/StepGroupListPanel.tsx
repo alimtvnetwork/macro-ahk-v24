@@ -28,7 +28,7 @@
  * @see @/hooks/use-step-library — shared data source.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
     Archive,
@@ -40,6 +40,7 @@ import {
     Plus,
     Search,
     Trash2,
+    Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -72,9 +73,12 @@ import {
 
 import { stepKindLabel, useStepLibrary } from "@/hooks/use-step-library";
 import { useStepGroupExport } from "@/hooks/use-step-group-export";
+import { useStepGroupImport } from "@/hooks/use-step-group-import";
 import type { StepGroupRow, StepRow } from "@/background/recorder/step-library/db";
 import ExportPreviewDialog from "./ExportPreviewDialog";
 import ExportErrorDialog from "./ExportErrorDialog";
+import ImportErrorDialog from "./ImportErrorDialog";
+import ImportSummaryDialog from "./ImportSummaryDialog";
 
 /* ------------------------------------------------------------------ */
 /*  Validation                                                         */
@@ -143,6 +147,11 @@ export default function StepGroupListPanel() {
         Project: lib.Project,
         SqlJs: lib.SqlJs,
     });
+    const importApi = useStepGroupImport({
+        lib: { Lib: lib.Lib, Project: lib.Project, SqlJs: lib.SqlJs },
+        onAfterImport: lib.refresh,
+    });
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [query, setQuery] = useState("");
     const [activeGroupId, setActiveGroupId] = useState<number | null>(null);
 
@@ -403,6 +412,30 @@ export default function StepGroupListPanel() {
                         <Download className="mr-1 h-4 w-4" />
                         Export selected
                     </Button>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        title="Upload a ZIP bundle and merge it into this project"
+                    >
+                        <Upload className="mr-1 h-4 w-4" />
+                        Import ZIP
+                    </Button>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".zip,application/zip"
+                        className="hidden"
+                        onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file !== undefined) {
+                                void importApi.importFile(file);
+                                // Reset so re-uploading the same filename re-fires the
+                                // change event (browsers suppress it otherwise).
+                                e.target.value = "";
+                            }
+                        }}
+                    />
                     <Button size="sm" onClick={openCreate}>
                         <Plus className="mr-1 h-4 w-4" />
                         New group
@@ -674,6 +707,20 @@ export default function StepGroupListPanel() {
                 open={exportApi.errorState.Open}
                 onOpenChange={exportApi.setErrorOpen}
                 explanation={exportApi.errorState.Explanation}
+            />
+
+            {/* ---------- Import dialogs (success summary + structured error) ---------- */}
+            <ImportSummaryDialog
+                open={importApi.summaryState.Open}
+                onOpenChange={importApi.setSummaryOpen}
+                summary={importApi.summaryState.Summary}
+                fileName={importApi.summaryState.FileName}
+            />
+            <ImportErrorDialog
+                open={importApi.errorState.Open}
+                onOpenChange={importApi.setErrorOpen}
+                explanation={importApi.errorState.Explanation}
+                fileName={importApi.errorState.FileName}
             />
 
             {/* ---------- Create dialog ---------- */}

@@ -57,6 +57,7 @@ import {
   X,
   RotateCcw,
   Zap,
+  Activity,
 } from "lucide-react";
 import type { StoredProject, StoredScript, StoredConfig } from "@/hooks/use-projects-scripts";
 import { DEFAULT_CHATBOX_XPATH } from "@/shared/defaults";

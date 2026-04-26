@@ -148,6 +148,11 @@ export default function StepGroupLibraryPanel() {
     const [batchOpen, setBatchOpen] = useState(false);
     const [lastExport, setLastExport] = useState<LastExportSummary | null>(null);
     const [lastImport, setLastImport] = useState<LastImportSummary | null>(null);
+    const [importError, setImportError] = useState<{
+        open: boolean;
+        explanation: ImportErrorExplanation | null;
+        fileName: string | null;
+    }>({ open: false, explanation: null, fileName: null });
 
     // Dialog state
     const [createDialog, setCreateDialog] = useState<{ open: boolean; parent: number | null; name: string }>({

@@ -42,8 +42,13 @@ import type {
     AttemptFailureReason,
 } from "./selector-attempt-evaluator";
 import { xpathOfElement } from "./xpath-of-element";
+import {
+    captureFormSnapshot,
+    type FormSnapshot,
+} from "./form-snapshot";
 
 export type { VariableContext } from "./field-reference-resolver";
+export type { FormSnapshot } from "./form-snapshot";
 
 export type FailurePhase = "Record" | "Replay";
 
@@ -141,6 +146,18 @@ export interface FailureReport {
      * both are present — surfaced at top level for easier export tooling.
      */
     readonly CapturedHtml: string | null;
+    /**
+     * Snapshot of the form/inputs surrounding the failing step, captured
+     * by `captureFormSnapshot`. Field metadata (names, types, required) is
+     * ALWAYS populated when a form is reachable from the target — this
+     * lets a debugger see "did the user even fill in 'email'?". Raw
+     * values are present only when `Verbose === true`. Null when the
+     * step has no nearby form or the caller passed `FormSnapshot: false`.
+     *
+     * See mem://features/form-snapshot-capture and
+     * mem://standards/verbose-logging-and-failure-diagnostics.
+     */
+    readonly FormSnapshot: FormSnapshot | null;
 }
 
 export interface BuildFailureReportInput {

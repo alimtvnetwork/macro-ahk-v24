@@ -104,6 +104,12 @@ import ExportPreviewDialog from "./ExportPreviewDialog";
 
 import ExportErrorDialog from "./ExportErrorDialog";
 import StepLibraryErrorState from "./StepLibraryErrorState";
+import BatchRenameDialog, { type BatchRenameChange } from "./BatchRenameDialog";
+import BatchDeleteDialog from "./BatchDeleteDialog";
+import {
+    buildDeletePreview,
+    useStepGroupBatchActions,
+} from "@/hooks/use-step-group-batch-actions";
 import {
     explainExportFailure,
     type ExportErrorExplanation,
@@ -168,6 +174,8 @@ export default function StepGroupLibraryPanel() {
     const [expanded, setExpanded] = useState<Set<number>>(new Set());
     const [showArchived, setShowArchived] = useState(false);
     const [batchOpen, setBatchOpen] = useState(false);
+    const [batchRenameOpen, setBatchRenameOpen] = useState(false);
+    const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
     const [webhookOpen, setWebhookOpen] = useState(false);
     const [inputSourceOpen, setInputSourceOpen] = useState(false);
     const [waitDialog, setWaitDialog] = useState<{ open: boolean; stepId: number | null; stepLabel: string | null }>({
@@ -342,6 +350,72 @@ export default function StepGroupLibraryPanel() {
     const clearSelection = () => {
         setSelected(new Set());
         setSelectionOrder([]);
+    };
+
+    /* ------------------------ Batch actions ----------------------- */
+
+    const batchActions = useStepGroupBatchActions(lib);
+    const selectedGroups = useMemo(
+        () => lib.Groups.filter((g) => selected.has(g.StepGroupId)),
+        [lib.Groups, selected],
+    );
+    const deletePreview = useMemo(
+        () => buildDeletePreview(Array.from(selected), lib.Groups, lib.StepsByGroup),
+        [selected, lib.Groups, lib.StepsByGroup],
+    );
+
+    const handleBatchRenameApply = (changes: ReadonlyArray<BatchRenameChange>) => {
+        const outcome = batchActions.applyBatchRename(changes);
+        if (outcome.Error !== null && outcome.Applied === 0) {
+            toast.error("Batch rename failed", { description: outcome.Error });
+            return;
+        }
+        const verb = outcome.Error === null ? "Renamed" : "Partially renamed";
+        toast.success(`${verb} ${outcome.Applied} group${outcome.Applied === 1 ? "" : "s"}`, {
+            description: outcome.Error ?? "Click Undo to revert.",
+            action: {
+                label: "Undo",
+                onClick: () => {
+                    const undone = outcome.undo();
+                    if (undone.Error !== null && undone.Applied === 0) {
+                        toast.error("Undo failed", { description: undone.Error });
+                    } else {
+                        toast.success(`Reverted ${undone.Applied} rename${undone.Applied === 1 ? "" : "s"}`);
+                    }
+                },
+            },
+            duration: 8000,
+        });
+    };
+
+    const handleBatchDeleteConfirm = (ids: ReadonlyArray<number>) => {
+        let deleted = 0;
+        let firstError: string | null = null;
+        for (const id of ids) {
+            try {
+                lib.deleteGroup(id);
+                deleted += 1;
+            } catch (err) {
+                firstError = err instanceof Error ? err.message : String(err);
+                break;
+            }
+        }
+        setSelected((prev) => {
+            const next = new Set(prev);
+            for (const id of ids) next.delete(id);
+            return next;
+        });
+        setSelectionOrder((prev) => prev.filter((sid) => !ids.includes(sid)));
+        if (activeGroupId !== null && ids.includes(activeGroupId)) {
+            setActiveGroupId(null);
+        }
+        if (firstError !== null && deleted === 0) {
+            toast.error("Batch delete failed", { description: firstError });
+        } else {
+            toast.success(`Deleted ${deleted} group${deleted === 1 ? "" : "s"}`, {
+                description: firstError ?? "This action cannot be undone.",
+            });
+        }
     };
 
     const toggleExpanded = (id: number) => {
@@ -670,6 +744,26 @@ export default function StepGroupLibraryPanel() {
                     >
                         <Play className="mr-1 h-4 w-4" />
                         Run selected
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={selectedCount === 0}
+                        onClick={() => setBatchRenameOpen(true)}
+                        title="Rename every selected group with a shared transform"
+                    >
+                        <Pencil className="mr-1 h-4 w-4" />
+                        Rename selected
+                    </Button>
+                    <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={selectedCount === 0}
+                        onClick={() => setBatchDeleteOpen(true)}
+                        title="Delete every selected group (cascades to children + steps)"
+                    >
+                        <Trash2 className="mr-1 h-4 w-4" />
+                        Delete selected
                     </Button>
                     <Button
                         size="sm"
@@ -1012,6 +1106,20 @@ export default function StepGroupLibraryPanel() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <BatchRenameDialog
+                open={batchRenameOpen}
+                onOpenChange={setBatchRenameOpen}
+                targets={selectedGroups}
+                allGroups={lib.Groups}
+                onApply={handleBatchRenameApply}
+            />
+            <BatchDeleteDialog
+                open={batchDeleteOpen}
+                onOpenChange={setBatchDeleteOpen}
+                rows={deletePreview}
+                onConfirm={handleBatchDeleteConfirm}
+            />
 
             <BatchRunDialog
                 open={batchOpen}

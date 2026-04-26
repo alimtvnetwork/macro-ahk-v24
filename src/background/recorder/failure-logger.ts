@@ -169,7 +169,8 @@ export function buildFailureReport(input: BuildFailureReportInput): FailureRepor
             ? input.EvaluatedAttempts.map(toAttemptFromEvaluated)
             : (input.Selectors ?? []).map(toAttemptFromPersisted);
 
-    const { Reason, ReasonDetail } = classifyReason(input, attempts, message);
+    const variables: ReadonlyArray<VariableContext> = input.Variables ?? [];
+    const { Reason, ReasonDetail } = classifyReason(input, attempts, variables, message);
 
     return {
         Phase: input.Phase,
@@ -191,10 +192,13 @@ export function buildFailureReport(input: BuildFailureReportInput): FailureRepor
 }
 
 /**
- * Auto-classify the failure when the caller did not supply a Reason. The
- * input attempts (one per persisted selector, primary-first) drive the
- * classification:
+ * Auto-classify the failure when the caller did not supply a Reason.
  *
+ * Precedence (highest first):
+ *   - Caller-supplied Reason       → wins
+ *   - Variable failures (any)      → "VariableMissing" / "VariableNull" /
+ *                                    "VariableUndefined" / "VariableEmpty" /
+ *                                    "VariableTypeMismatch"
  *   - No selectors                 → "NoSelectors"
  *   - Any attempt threw XPath      → "XPathSyntaxError"
  *   - Any attempt threw CSS        → "CssSyntaxError"
@@ -207,6 +211,7 @@ export function buildFailureReport(input: BuildFailureReportInput): FailureRepor
 function classifyReason(
     input: BuildFailureReportInput,
     attempts: ReadonlyArray<SelectorAttempt>,
+    variables: ReadonlyArray<VariableContext>,
     message: string,
 ): { Reason: FailureReasonCode; ReasonDetail: string } {
     if (input.Reason !== undefined) {
@@ -214,6 +219,14 @@ function classifyReason(
             Reason: input.Reason,
             ReasonDetail: input.ReasonDetail ?? message,
         };
+    }
+    // Variable failures explain WHY the step's inputs were wrong before we
+    // even tried the DOM — surface them first.
+    const failedVar = variables.find((v) => v.FailureReason !== "Resolved");
+    if (failedVar !== undefined) {
+        const code = variableReasonToCode(failedVar.FailureReason);
+        const detail = failedVar.FailureDetail ?? `Variable {{${failedVar.Name}}} failed.`;
+        return { Reason: code, ReasonDetail: detail };
     }
     if (attempts.length === 0) {
         return { Reason: "NoSelectors", ReasonDetail: "Step has no persisted selectors to try." };

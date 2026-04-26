@@ -40,6 +40,7 @@ import {
     GripVertical,
     MoreHorizontal,
     Pencil,
+    Play,
     Plus,
     Trash2,
     Upload,
@@ -85,6 +86,7 @@ import type { StepGroupRow, StepRow } from "@/background/recorder/step-library/d
 import { StepKindId } from "@/background/recorder/step-library/schema";
 import { runStepGroupExport } from "@/background/recorder/step-library/export-bundle";
 import { runStepGroupImport } from "@/background/recorder/step-library/import-bundle";
+import BatchRunDialog from "./BatchRunDialog";
 
 /* ------------------------------------------------------------------ */
 /*  Tree shape                                                         */
@@ -123,9 +125,18 @@ function collectDescendantIds(node: TreeNode, out: Set<number>): void {
 export default function StepGroupLibraryPanel() {
     const lib = useStepLibrary();
     const [selected, setSelected] = useState<Set<number>>(new Set());
+    /**
+     * Caller-visible insertion order of `selected`. Plain JS Sets do
+     * preserve insertion order, but we keep an explicit array because
+     * `toggleSubtree` adds many ids at once and we want the **first
+     * encountered** ordering (top-of-tree first), which we cannot
+     * recover from a Set after re-toggles.
+     */
+    const [selectionOrder, setSelectionOrder] = useState<ReadonlyArray<number>>([]);
     const [activeGroupId, setActiveGroupId] = useState<number | null>(null);
     const [expanded, setExpanded] = useState<Set<number>>(new Set());
     const [showArchived, setShowArchived] = useState(false);
+    const [batchOpen, setBatchOpen] = useState(false);
 
     // Dialog state
     const [createDialog, setCreateDialog] = useState<{ open: boolean; parent: number | null; name: string }>({
@@ -154,20 +165,15 @@ export default function StepGroupLibraryPanel() {
     );
     const activeSteps: ReadonlyArray<StepRow> =
         activeGroupId === null ? [] : (lib.StepsByGroup.get(activeGroupId) ?? []);
+    const groupsById = useMemo(() => {
+        const m = new Map<number, StepGroupRow>();
+        for (const g of lib.Groups) m.set(g.StepGroupId, g);
+        return m;
+    }, [lib.Groups]);
 
     /* ------------------------ Selection --------------------------- */
 
-    const toggleOne = (id: number, on: boolean) => {
-        setSelected((prev) => {
-            const next = new Set(prev);
-            if (on) next.add(id); else next.delete(id);
-            return next;
-        });
-    };
-
-    const toggleSubtree = (node: TreeNode, on: boolean) => {
-        const ids = new Set<number>();
-        collectDescendantIds(node, ids);
+    const applySelection = (on: boolean, ids: ReadonlyArray<number>) => {
         setSelected((prev) => {
             const next = new Set(prev);
             for (const id of ids) {
@@ -175,9 +181,28 @@ export default function StepGroupLibraryPanel() {
             }
             return next;
         });
+        setSelectionOrder((prev) => {
+            if (!on) return prev.filter((id) => !ids.includes(id));
+            const seen = new Set(prev);
+            const additions = ids.filter((id) => !seen.has(id));
+            return additions.length === 0 ? prev : [...prev, ...additions];
+        });
     };
 
-    const clearSelection = () => setSelected(new Set());
+    const toggleOne = (id: number, on: boolean) => {
+        applySelection(on, [id]);
+    };
+
+    const toggleSubtree = (node: TreeNode, on: boolean) => {
+        const ids = new Set<number>();
+        collectDescendantIds(node, ids);
+        applySelection(on, Array.from(ids));
+    };
+
+    const clearSelection = () => {
+        setSelected(new Set());
+        setSelectionOrder([]);
+    };
 
     const toggleExpanded = (id: number) => {
         setExpanded((prev) => {
@@ -234,6 +259,7 @@ export default function StepGroupLibraryPanel() {
                 next.delete(id);
                 return next;
             });
+            setSelectionOrder((prev) => prev.filter((sid) => sid !== id));
             if (activeGroupId === id) setActiveGroupId(null);
             toast.success(`Deleted “${deleteDialog.group.Name}”`);
             setDeleteDialog({ open: false, group: null });
@@ -432,6 +458,15 @@ export default function StepGroupLibraryPanel() {
                     >
                         <Upload className="mr-1 h-4 w-4" />
                         Import ZIP
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={selectedCount === 0}
+                        onClick={() => setBatchOpen(true)}
+                    >
+                        <Play className="mr-1 h-4 w-4" />
+                        Run selected
                     </Button>
                     <Button
                         size="sm"
@@ -668,6 +703,15 @@ export default function StepGroupLibraryPanel() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <BatchRunDialog
+                open={batchOpen}
+                onOpenChange={setBatchOpen}
+                db={lib.Lib}
+                projectId={lib.Project?.ProjectId ?? null}
+                initialOrder={selectionOrder}
+                groupsById={groupsById}
+            />
         </div>
     );
 }

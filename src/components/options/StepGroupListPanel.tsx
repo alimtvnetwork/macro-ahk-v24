@@ -402,6 +402,27 @@ export default function StepGroupListPanel() {
                     <span className="text-sm text-muted-foreground">
                         {filtered.length} of {lib.Groups.length} group(s)
                     </span>
+                    {selected.size > 0 && (
+                        <>
+                            <Separator orientation="vertical" className="h-6" />
+                            <span className="text-sm text-muted-foreground">
+                                {selected.size} selected
+                            </span>
+                            <Button variant="ghost" size="sm" onClick={clearSelection}>
+                                Clear
+                            </Button>
+                        </>
+                    )}
+                    <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={selected.size === 0}
+                        onClick={exportSelected}
+                        title="Export the marked groups as a ZIP bundle"
+                    >
+                        <Download className="mr-1 h-4 w-4" />
+                        Export selected
+                    </Button>
                     <Button size="sm" onClick={openCreate}>
                         <Plus className="mr-1 h-4 w-4" />
                         New group

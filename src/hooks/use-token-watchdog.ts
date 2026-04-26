@@ -173,24 +173,20 @@ export function useTokenWatchdog(): TokenWatchdogState {
     void fetchToken();
   }, [fetchToken]);
 
-  // TTL countdown + auto-refresh
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const exp = expRef.current;
-      if (exp === null) return;
+  // TTL countdown + auto-refresh — visibility-paused (PERF-10).
+  useVisibilityPausedInterval(() => {
+    const exp = expRef.current;
+    if (exp === null) { return; }
 
-      const remaining = exp - Math.floor(Date.now() / 1000);
-      setTtlSec(remaining);
+    const remaining = exp - Math.floor(Date.now() / 1000);
+    setTtlSec(remaining);
 
-      // Auto-refresh when below threshold
-      if (remaining > 0 && remaining <= REFRESH_THRESHOLD_SEC && !autoRefreshTriggered.current) {
-        autoRefreshTriggered.current = true;
-        void doRefresh();
-      }
-    }, POLL_INTERVAL_MS);
-
-    return () => clearInterval(interval);
-  }, [doRefresh]);
+    // Auto-refresh when below threshold
+    if (remaining > 0 && remaining <= REFRESH_THRESHOLD_SEC && !autoRefreshTriggered.current) {
+      autoRefreshTriggered.current = true;
+      void doRefresh();
+    }
+  }, POLL_INTERVAL_MS);
 
   const isWarning = ttlSec !== null && ttlSec > 0 && ttlSec <= REFRESH_THRESHOLD_SEC;
   const isExpired = ttlSec !== null && ttlSec <= 0;

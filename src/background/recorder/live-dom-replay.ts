@@ -129,19 +129,22 @@ async function executeStep(
     now: () => Date,
 ): Promise<ReplayStepResult> {
     const startedAt = now();
+    let target: HTMLElement | null = null;
+    let resolvedXPath: string | undefined;
     try {
         if (step.Kind === "Wait") {
             await sleep(step.WaitMs ?? 0);
-            return finalize(step, startedAt, now(), { Ok: true });
+            return finalize(step, options, startedAt, now(), { Ok: true });
         }
 
         const resolved = resolveStepSelector(step.Selectors);
-        const target = locateElement(resolved, options.Doc);
+        resolvedXPath = resolved.Expression;
+        target = locateElement(resolved, options.Doc);
         if (target === null) {
-            return finalize(step, startedAt, now(), {
+            return finalize(step, options, startedAt, now(), {
                 Ok: false,
                 ResolvedXPath: resolved.Expression,
-                Error: `Element not found for selector '${resolved.Expression}'`,
+                Error: new Error(`Element not found for selector '${resolved.Expression}'`),
             });
         }
 
@@ -149,37 +152,79 @@ async function executeStep(
         if (step.Kind === "Type")   { dispatchType(target,   resolveValue(step.Value, options.Row)); }
         if (step.Kind === "Select") { dispatchSelect(target, resolveValue(step.Value, options.Row)); }
 
-        return finalize(step, startedAt, now(), { Ok: true, ResolvedXPath: resolved.Expression });
+        return finalize(step, options, startedAt, now(), { Ok: true, ResolvedXPath: resolved.Expression });
     } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        return finalize(step, startedAt, now(), { Ok: false, Error: message });
+        return finalize(step, options, startedAt, now(), {
+            Ok: false,
+            ResolvedXPath: resolvedXPath,
+            Error: err,
+            Target: target,
+        });
     }
 }
 
 function finalize(
     step: ReplayStepInput,
+    options: ReplayOptions,
     started: Date,
     finished: Date,
-    outcome: { Ok: boolean; Error?: string; ResolvedXPath?: string },
+    outcome: {
+        Ok: boolean;
+        Error?: unknown;
+        ResolvedXPath?: string;
+        Target?: HTMLElement | null;
+    },
 ): ReplayStepResult {
+    if (outcome.Ok) {
+        return {
+            StepId: step.StepId,
+            Index: step.Index,
+            Ok: true,
+            ResolvedXPath: outcome.ResolvedXPath,
+            StartedAt: toIso(started),
+            FinishedAt: toIso(finished),
+            DurationMs: Math.max(0, finished.getTime() - started.getTime()),
+        };
+    }
+
+    const report = logFailure({
+        Phase: "Replay",
+        Error: outcome.Error,
+        StepId: step.StepId,
+        Index: step.Index,
+        StepKind: step.Kind,
+        Selectors: step.Selectors,
+        Target: outcome.Target ?? null,
+        DataRow: options.Row,
+        ResolvedXPath: outcome.ResolvedXPath,
+        SourceFile: SOURCE_FILE,
+        Now: options.Now,
+    });
+
     return {
         StepId: step.StepId,
         Index: step.Index,
-        Ok: outcome.Ok,
-        Error: outcome.Error,
+        Ok: false,
+        Error: report.Message,
         ResolvedXPath: outcome.ResolvedXPath,
         StartedAt: toIso(started),
         FinishedAt: toIso(finished),
         DurationMs: Math.max(0, finished.getTime() - started.getTime()),
+        FailureReport: report,
     };
 }
 
 function toStepResultDraft(r: ReplayStepResult): ReplayStepResultDraft {
+    // When a structured FailureReport exists, persist it as JSON so the
+    // user can later copy the full diagnostic blob from the project DB.
+    const errorMessage = r.FailureReport !== undefined
+        ? JSON.stringify(r.FailureReport)
+        : (r.Error ?? null);
     return {
         StepId: r.StepId,
         OrderIndex: r.Index,
         IsOk: r.Ok,
-        ErrorMessage: r.Error ?? null,
+        ErrorMessage: errorMessage,
         ResolvedXPath: r.ResolvedXPath ?? null,
         StartedAt: r.StartedAt,
         FinishedAt: r.FinishedAt,

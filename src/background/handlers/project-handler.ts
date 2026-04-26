@@ -196,6 +196,7 @@ export async function handleSaveProject(
 ): Promise<OkResponse & { project: StoredProject }> {
     const { project } = message as { project: StoredProject };
     const projects = await readAllProjects();
+    const wasNew = !projects.some((p) => p.id === project.id);
 
     const saved = upsertProject(projects, project);
     await writeAllProjects(projects);
@@ -207,6 +208,17 @@ export async function handleSaveProject(
     seedBoundConfigs(saved).catch((e) =>
         logCaughtError(BgLogTag.PROJECT_SAVE_CONFIG_SEED, "Config seeding failed", e),
     );
+
+    // ✅ Provision per-project DB on first creation so the recorder schema
+    //    (DataSource/Step/Selector/FieldBinding + lookups) is migrated
+    //    immediately. initProjectDb is idempotent — safe to call again on
+    //    updates, but we only invoke on first save to avoid needless work.
+    //    See spec/31-macro-recorder/04-per-project-db-provisioning.md
+    if (wasNew) {
+        initProjectDb(saved.slug).catch((e) =>
+            logCaughtError(BgLogTag.PROJECT_SAVE_CONFIG_SEED, "Recorder DB provisioning failed", e),
+        );
+    }
 
     return { isOk: true, project: saved };
 }

@@ -168,6 +168,8 @@ export default function StepGroupLibraryPanel() {
     const [expanded, setExpanded] = useState<Set<number>>(new Set());
     const [showArchived, setShowArchived] = useState(false);
     const [batchOpen, setBatchOpen] = useState(false);
+    const [batchRenameOpen, setBatchRenameOpen] = useState(false);
+    const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
     const [webhookOpen, setWebhookOpen] = useState(false);
     const [inputSourceOpen, setInputSourceOpen] = useState(false);
     const [waitDialog, setWaitDialog] = useState<{ open: boolean; stepId: number | null; stepLabel: string | null }>({

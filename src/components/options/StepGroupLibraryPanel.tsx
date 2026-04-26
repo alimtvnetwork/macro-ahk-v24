@@ -1160,7 +1160,29 @@ export default function StepGroupLibraryPanel() {
                                                 </pre>
                                             )}
                                         </div>
-                                        <div className="flex shrink-0 items-center gap-2">
+                                        <div className="flex shrink-0 items-center gap-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7"
+                                                disabled={idx === 0}
+                                                onClick={() => handleStepMove(s.StepId, "up")}
+                                                title={idx === 0 ? "Already at the top" : "Move step up"}
+                                                aria-label="Move step up"
+                                            >
+                                                <ArrowUp className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7"
+                                                disabled={idx === activeSteps.length - 1}
+                                                onClick={() => handleStepMove(s.StepId, "down")}
+                                                title={idx === activeSteps.length - 1 ? "Already at the bottom" : "Move step down"}
+                                                aria-label="Move step down"
+                                            >
+                                                <ArrowDown className="h-4 w-4" />
+                                            </Button>
                                             <Switch
                                                 checked={!isDisabled}
                                                 onCheckedChange={(checked) => {
@@ -1182,10 +1204,30 @@ export default function StepGroupLibraryPanel() {
                                                 variant="ghost"
                                                 size="icon"
                                                 className="h-7 w-7"
+                                                onClick={() => setStepEditor({ open: true, mode: { Kind: "edit", Step: s } })}
+                                                title="Edit step"
+                                                aria-label="Edit step"
+                                            >
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7"
                                                 onClick={() => setWaitDialog({ open: true, stepId: s.StepId, stepLabel: s.Label })}
                                                 title={wait === undefined ? "Add wait condition" : "Edit wait condition"}
                                             >
                                                 <Timer className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                                onClick={() => setDeleteStepDialog({ open: true, step: s })}
+                                                title="Delete step"
+                                                aria-label="Delete step"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>
                                     </li>

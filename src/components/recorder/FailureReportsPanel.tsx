@@ -126,7 +126,7 @@ export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureRepo
         }
         const bundle = buildFailureBundle(picked);
         const filename = buildFailureBundleFilename();
-        const contents = serializeFailureBundle(bundle);
+        const contents = serializeFailureBundle(bundle, exportFormat);
         (onDownload ?? defaultDownload)(filename, contents);
         const validation = validateFailureReportPayload(contents);
         if (!validation.Valid) {
@@ -145,7 +145,7 @@ export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureRepo
             return;
         }
         const filename = buildLastFailureFilename(last);
-        const contents = JSON.stringify(last, null, 2);
+        const contents = serializeJson(last, exportFormat);
         (onDownload ?? defaultDownload)(filename, contents);
         const stepLabel = last.StepId !== null ? ` (Step #${last.StepId})` : "";
         const validation = validateFailureReportPayload(contents);
@@ -166,7 +166,7 @@ export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureRepo
             toast.error("No failures recorded yet");
             return;
         }
-        const contents = JSON.stringify(last, null, 2);
+        const contents = serializeJson(last, exportFormat);
         const stepLabel = last.StepId !== null ? ` (Step #${last.StepId})` : "";
         try {
             await (onCopy ?? defaultCopy)(contents);
@@ -204,7 +204,7 @@ export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureRepo
             return;
         }
         const filename = buildLastFailureFilename(report);
-        const contents = JSON.stringify(report, null, 2);
+        const contents = serializeJson(report, exportFormat);
         (onDownload ?? defaultDownload)(filename, contents);
         const stepLabel = stepId === null ? " (no Step ID)" : ` (Step #${stepId})`;
         const validation = validateFailureReportPayload(contents);

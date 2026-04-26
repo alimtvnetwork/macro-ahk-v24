@@ -142,6 +142,41 @@ CREATE INDEX IF NOT EXISTS IxJsSnippetName ON JsSnippet(Name);
 `;
 
 /* ------------------------------------------------------------------ */
+/*  Replay-run history                                                 */
+/* ------------------------------------------------------------------ */
+
+const REPLAY_RUN_TABLE_DDL = `
+CREATE TABLE IF NOT EXISTS ReplayRun (
+    ReplayRunId  INTEGER PRIMARY KEY AUTOINCREMENT,
+    StartedAt    TEXT    NOT NULL DEFAULT (datetime('now')),
+    FinishedAt   TEXT,
+    TotalSteps   INTEGER NOT NULL DEFAULT 0,
+    OkSteps      INTEGER NOT NULL DEFAULT 0,
+    FailedSteps  INTEGER NOT NULL DEFAULT 0,
+    Notes        TEXT    NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS IxReplayRunStartedAt ON ReplayRun(StartedAt DESC);
+`;
+
+const REPLAY_STEP_RESULT_TABLE_DDL = `
+CREATE TABLE IF NOT EXISTS ReplayStepResult (
+    ReplayStepResultId INTEGER PRIMARY KEY AUTOINCREMENT,
+    ReplayRunId        INTEGER NOT NULL,
+    StepId             INTEGER NOT NULL,
+    OrderIndex         INTEGER NOT NULL,
+    IsOk               INTEGER NOT NULL,
+    ErrorMessage       TEXT,
+    ResolvedXPath      TEXT,
+    StartedAt          TEXT    NOT NULL DEFAULT (datetime('now')),
+    FinishedAt         TEXT    NOT NULL DEFAULT (datetime('now')),
+    DurationMs         INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (ReplayRunId) REFERENCES ReplayRun(ReplayRunId) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS IxReplayStepResultRun  ON ReplayStepResult(ReplayRunId);
+CREATE INDEX IF NOT EXISTS IxReplayStepResultStep ON ReplayStepResult(StepId);
+`;
+
+/* ------------------------------------------------------------------ */
 /*  Composite schema                                                   */
 /* ------------------------------------------------------------------ */
 
@@ -157,7 +192,9 @@ export const RECORDER_DB_SCHEMA: string =
     STEP_TABLE_DDL +
     SELECTOR_TABLE_DDL +
     FIELD_BINDING_TABLE_DDL +
-    JS_SNIPPET_TABLE_DDL;
+    JS_SNIPPET_TABLE_DDL +
+    REPLAY_RUN_TABLE_DDL +
+    REPLAY_STEP_RESULT_TABLE_DDL;
 
 /* ------------------------------------------------------------------ */
 /*  Code-side enum mirrors                                             */

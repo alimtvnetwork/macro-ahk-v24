@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileDown, AlertTriangle } from "lucide-react";
+import { FileDown, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import type { FailureReport } from "@/background/recorder/failure-logger";
 import {
@@ -24,6 +24,7 @@ import {
     serializeFailureBundle,
     buildFailureBundleFilename,
 } from "./failure-export";
+import { FailureDetailsPanel } from "./FailureDetailsPanel";
 
 interface FailureReportsPanelProps {
     readonly reports: ReadonlyArray<FailureReport>;
@@ -47,6 +48,7 @@ function rowKey(r: FailureReport, idx: number): string {
 
 export function FailureReportsPanel({ reports, onDownload }: FailureReportsPanelProps) {
     const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+    const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 
     const allKeys = useMemo(() => reports.map((r, i) => rowKey(r, i)), [reports]);
     const allSelected = selected.size > 0 && selected.size === reports.length;
@@ -54,6 +56,14 @@ export function FailureReportsPanel({ reports, onDownload }: FailureReportsPanel
 
     const toggle = (key: string) => {
         setSelected((prev) => {
+            const next = new Set(prev);
+            if (next.has(key)) { next.delete(key); } else { next.add(key); }
+            return next;
+        });
+    };
+
+    const toggleExpanded = (key: string) => {
+        setExpanded((prev) => {
             const next = new Set(prev);
             if (next.has(key)) { next.delete(key); } else { next.add(key); }
             return next;
@@ -117,40 +127,61 @@ export function FailureReportsPanel({ reports, onDownload }: FailureReportsPanel
                             {reports.map((r, i) => {
                                 const key = rowKey(r, i);
                                 const checked = selected.has(key);
+                                const isExpanded = expanded.has(key);
+                                const ChevronIcon = isExpanded ? ChevronDown : ChevronRight;
                                 return (
                                     <li
                                         key={key}
-                                        className="flex items-start gap-2 rounded-md border border-border bg-card px-2.5 py-2"
+                                        className="rounded-md border border-border bg-card px-2.5 py-2 space-y-2"
                                     >
-                                        <Checkbox
-                                            id={`fr-${key}`}
-                                            checked={checked}
-                                            onCheckedChange={() => toggle(key)}
-                                            aria-label={`Select failure report ${i + 1}`}
-                                        />
-                                        <label
-                                            htmlFor={`fr-${key}`}
-                                            className="flex-1 cursor-pointer text-xs space-y-0.5"
-                                        >
-                                            <div className="flex items-center gap-1.5">
-                                                <Badge
-                                                    variant={r.Phase === "Replay" ? "destructive" : "outline"}
-                                                    className="text-[10px] px-1.5 py-0"
-                                                >
-                                                    {r.Phase}
-                                                </Badge>
-                                                {r.StepKind !== null && (
-                                                    <span className="text-muted-foreground">{r.StepKind}</span>
-                                                )}
-                                                {r.StepId !== null && (
-                                                    <span className="text-muted-foreground">· Step #{r.StepId}</span>
-                                                )}
-                                                <span className="text-muted-foreground ml-auto">
-                                                    {r.Timestamp}
-                                                </span>
-                                            </div>
-                                            <p className="text-foreground line-clamp-2">{r.Message}</p>
-                                        </label>
+                                        <div className="flex items-start gap-2">
+                                            <Checkbox
+                                                id={`fr-${key}`}
+                                                checked={checked}
+                                                onCheckedChange={() => toggle(key)}
+                                                aria-label={`Select failure report ${i + 1}`}
+                                            />
+                                            <label
+                                                htmlFor={`fr-${key}`}
+                                                className="flex-1 cursor-pointer text-xs space-y-0.5"
+                                            >
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <Badge
+                                                        variant={r.Phase === "Replay" ? "destructive" : "outline"}
+                                                        className="text-[10px] px-1.5 py-0"
+                                                    >
+                                                        {r.Phase}
+                                                    </Badge>
+                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono">
+                                                        {r.Reason}
+                                                    </Badge>
+                                                    {r.StepKind !== null && (
+                                                        <span className="text-muted-foreground">{r.StepKind}</span>
+                                                    )}
+                                                    {r.StepId !== null && (
+                                                        <span className="text-muted-foreground">· Step #{r.StepId}</span>
+                                                    )}
+                                                    <span className="text-muted-foreground ml-auto">
+                                                        {r.Timestamp}
+                                                    </span>
+                                                </div>
+                                                <p className="text-foreground line-clamp-2">{r.Message}</p>
+                                            </label>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 px-1.5 -mt-0.5"
+                                                onClick={() => toggleExpanded(key)}
+                                                aria-label={isExpanded ? `Hide details for failure ${i + 1}` : `Show details for failure ${i + 1}`}
+                                                aria-expanded={isExpanded}
+                                            >
+                                                <ChevronIcon className="h-3.5 w-3.5" />
+                                                <span className="ml-1 text-[10px]">{isExpanded ? "Hide" : "Details"}</span>
+                                            </Button>
+                                        </div>
+                                        {isExpanded && (
+                                            <FailureDetailsPanel report={r} embedded />
+                                        )}
                                     </li>
                                 );
                             })}

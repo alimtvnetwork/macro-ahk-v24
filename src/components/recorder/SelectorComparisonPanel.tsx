@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { CheckCircle2, XCircle, AlertTriangle, Crosshair, FileDown, History, Star } from "lucide-react";
 import { toast } from "sonner";
 import type { SelectorComparison, SelectorAttemptComparison } from "@/background/recorder/selector-comparison";
-import type { DomContext } from "@/background/recorder/failure-logger";
+import type { DomContext, FailureReport } from "@/background/recorder/failure-logger";
 import {
     findHistoryForSelector,
     type SelectorHistoryBucket,
@@ -29,6 +29,7 @@ import {
     buildSelectorComparisonFilename,
     serializeSelectorComparisonBundle,
 } from "./selector-comparison-export";
+import { FailureDetailsPanel } from "./FailureDetailsPanel";
 
 /**
  * Promote-to-primary callback. Host owns persistence (DB write). Returning
@@ -50,6 +51,14 @@ interface SelectorComparisonPanelProps {
      * persisting the change (DB UPDATE) and refreshing the parent state.
      */
     readonly onPromoteToPrimary?: PromoteToPrimaryHandler;
+    /**
+     * Structured failure report associated with this comparison. When
+     * supplied, the full diagnostic surface (Reason, ResolvedXPath, every
+     * SelectorAttempt with its FailureReason+Detail, and VariableContext)
+     * is rendered inline so the user can see *why* the selector failed
+     * without leaving the comparison view.
+     */
+    readonly failureReport?: FailureReport;
     /** Test seam: override the default download side effect. */
     readonly onDownload?: (filename: string, contents: string) => void;
 }
@@ -194,7 +203,7 @@ function AttemptRow({ attempt, history, showHistory, onPromote, isPromoting }: A
     );
 }
 
-export function SelectorComparisonPanel({ comparison, stepId, url, history, onPromoteToPrimary, onDownload }: SelectorComparisonPanelProps) {
+export function SelectorComparisonPanel({ comparison, stepId, url, history, onPromoteToPrimary, failureReport, onDownload }: SelectorComparisonPanelProps) {
     const { Attempts, PrimaryMatched, AnyFallbackMatched, DriftDetected } = comparison;
     const hasHistory = history !== undefined;
     const [showHistory, setShowHistory] = useState(false);
@@ -278,6 +287,9 @@ export function SelectorComparisonPanel({ comparison, stepId, url, history, onPr
                             but a fallback resolved. Consider promoting the fallback or repairing the primary.
                         </span>
                     </div>
+                )}
+                {failureReport !== undefined && (
+                    <FailureDetailsPanel report={failureReport} embedded />
                 )}
                 {Attempts.length === 0 ? (
                     <p className="text-xs text-muted-foreground italic py-2 text-center">

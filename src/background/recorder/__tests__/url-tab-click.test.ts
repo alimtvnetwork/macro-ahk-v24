@@ -268,18 +268,18 @@ describe("executeUrlTabClick — FocusExisting", () => {
 });
 
 describe("executeUrlTabClick — OpenOrFocus", () => {
-    it("AC-19.1.5: opens new when no match", async () => {
+    it("AC-19.1.5: opens new when no match (via selector dispatch)", async () => {
         const adapter = makeAdapter({
             Tabs: [],
             OpenedTab: { Id: 50, Url: "https://app.example.com/orders/99" },
         });
         const res = await executeUrlTabClick({
-            Params: { ...baseParams, Mode: "OpenOrFocus", DirectOpen: true, Url: "https://app.example.com/orders/99" },
+            Params: { ...baseParams, Mode: "OpenOrFocus", Selector: "#open" },
             Tabs: adapter,
         });
         expect(res.Reason).toBe("Ok");
         expect(res.OpenedNewTab).toBe(true);
-        expect(adapter.Calls.created).toEqual(["https://app.example.com/orders/99"]);
+        expect(adapter.Calls.dispatched).toEqual([{ sel: "#open", kind: "Css" }]);
     });
 
     it("AC-19.1.5: focuses when one matches", async () => {

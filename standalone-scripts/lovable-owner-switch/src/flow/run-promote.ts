@@ -48,9 +48,8 @@ interface ChainState {
     UserId: string;
 }
 
-interface StepFailure {
-    Step: PromoteStepCode;
-    Error: unknown;
+interface StepTaggedError extends Error {
+    step: PromoteStepCode;
 }
 
 const failingStep = (caught: unknown, fallback: PromoteStepCode): PromoteStepCode => {
@@ -59,6 +58,14 @@ const failingStep = (caught: unknown, fallback: PromoteStepCode): PromoteStepCod
     }
 
     return fallback;
+};
+
+const tagAndThrow = (caught: unknown, fallback: PromoteStepCode): never => {
+    const tagged = Object.assign(
+        new Error(caught instanceof Error ? caught.message : String(caught)),
+        { step: failingStep(caught, fallback) },
+    ) as StepTaggedError;
+    throw tagged;
 };
 
 const runChain = async (
@@ -72,9 +79,7 @@ const runChain = async (
         ws = await measureString(() =>
             resolveWorkspaceId(api, caches.WorkspaceByLoginEmail, request.LoginEmail));
     } catch (caught: unknown) {
-        throw Object.assign(new Error(caught instanceof Error ? caught.message : String(caught)), {
-            step: failingStep(caught, PromoteStepCode.ResolveWorkspace),
-        }) as Error & StepFailure;
+        return tagAndThrow(caught, PromoteStepCode.ResolveWorkspace);
     }
 
     let uid: MeasuredString;
@@ -83,9 +88,7 @@ const runChain = async (
         uid = await measureString(() =>
             resolveUserId(api, caches.UserIdByEmail, ws.Value, request.OwnerEmail));
     } catch (caught: unknown) {
-        throw Object.assign(new Error(caught instanceof Error ? caught.message : String(caught)), {
-            step: failingStep(caught, PromoteStepCode.ResolveUserId),
-        }) as Error & StepFailure;
+        return tagAndThrow(caught, PromoteStepCode.ResolveUserId);
     }
 
     let promoMs: number;
@@ -93,9 +96,7 @@ const runChain = async (
     try {
         promoMs = await measureVoid(() => api.promoteToOwner(ws.Value, uid.Value));
     } catch (caught: unknown) {
-        throw Object.assign(new Error(caught instanceof Error ? caught.message : String(caught)), {
-            step: failingStep(caught, PromoteStepCode.PromoteToOwner),
-        }) as Error & StepFailure;
+        return tagAndThrow(caught, PromoteStepCode.PromoteToOwner);
     }
 
     return {

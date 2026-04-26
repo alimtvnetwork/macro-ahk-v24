@@ -194,10 +194,11 @@ function AttemptRow({ attempt, history, showHistory, onPromote, isPromoting }: A
     );
 }
 
-export function SelectorComparisonPanel({ comparison, stepId, url, history, onDownload }: SelectorComparisonPanelProps) {
+export function SelectorComparisonPanel({ comparison, stepId, url, history, onPromoteToPrimary, onDownload }: SelectorComparisonPanelProps) {
     const { Attempts, PrimaryMatched, AnyFallbackMatched, DriftDetected } = comparison;
     const hasHistory = history !== undefined;
     const [showHistory, setShowHistory] = useState(false);
+    const [promotingId, setPromotingId] = useState<number | null>(null);
 
     const handleExport = () => {
         const bundle = buildSelectorComparisonBundle(comparison, { StepId: stepId, Url: url });
@@ -206,6 +207,22 @@ export function SelectorComparisonPanel({ comparison, stepId, url, history, onDo
         (onDownload ?? defaultDownload)(filename, contents);
         toast.success(`Exported selector comparison (${Attempts.length} attempt${Attempts.length === 1 ? "" : "s"})`);
     };
+
+    const handlePromote = onPromoteToPrimary
+        ? async (selectorId: number) => {
+            setPromotingId(selectorId);
+            try {
+                await onPromoteToPrimary(selectorId);
+                toast.success(`Promoted selector #${selectorId} to primary`);
+            } catch (err) {
+                toast.error(
+                    `Failed to promote selector: ${err instanceof Error ? err.message : String(err)}`,
+                );
+            } finally {
+                setPromotingId(null);
+            }
+        }
+        : null;
 
     return (
         <Card>

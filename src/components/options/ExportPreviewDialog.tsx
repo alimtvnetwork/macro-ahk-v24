@@ -151,7 +151,7 @@ export default function ExportPreviewDialog(props: ExportPreviewDialogProps) {
                                 <ScrollArea className="max-h-48 rounded border">
                                     <ul className="flex flex-col gap-1 p-2">
                                         {warnings.map((w) => (
-                                            <WarningRow key={w.StepId} ref={w} />
+                                            <WarningRow key={w.StepId} warning={w} />
                                         ))}
                                     </ul>
                                 </ScrollArea>

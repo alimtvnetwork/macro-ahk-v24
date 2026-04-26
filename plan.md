@@ -412,5 +412,6 @@ Memory: `.lovable/memory/features/release-installer.md`
 7. SQLite Schema Consistency
 8. Issue Write-Up Mandatory
 9. NEVER change code without discussing with user first
+10. **Logging & Diagnostics Enforcement** — every new failure surface obeys LOG-1..6 above (schema, verbose-gating, code-red errors, diagnostics bundle, recorder contracts, fixture parity).
 
 Full list: `/spec/02-coding-guidelines/engineering-standards.md` (26 standards)

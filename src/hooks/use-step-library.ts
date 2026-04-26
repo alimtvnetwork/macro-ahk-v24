@@ -225,6 +225,34 @@ export interface UseStepLibraryApi extends UseStepLibraryState {
      */
     readonly setStepDisabled: (stepId: number, disabled: boolean) => void;
     /**
+     * Append a new step to the end of a StepGroup. Returns the new
+     * StepId. Validation rules from the DB layer apply: RunGroup
+     * steps require a TargetStepGroupId; every other kind forbids it.
+     */
+    readonly appendStep: (input: {
+        StepGroupId: number;
+        StepKindId: StepKindId;
+        Label?: string | null;
+        PayloadJson?: string | null;
+        TargetStepGroupId?: number | null;
+    }) => number;
+    /** Edit a single step in place (preserves OrderIndex). */
+    readonly updateStep: (input: {
+        StepId: number;
+        StepKindId: StepKindId;
+        Label?: string | null;
+        PayloadJson?: string | null;
+        TargetStepGroupId?: number | null;
+    }) => void;
+    /** Delete a single step. */
+    readonly deleteStep: (stepId: number) => void;
+    /**
+     * Move a step up or down among its sibling steps in the same
+     * StepGroup. No-op when already at the edge — safe to call from
+     * an always-rendered button.
+     */
+    readonly moveStepWithinGroup: (stepId: number, direction: "up" | "down") => void;
+    /**
      * Replace the input variable bag for one StepGroup. The bag must
      * be a plain JSON object — see `parseGroupInputJson` in
      * `group-inputs.ts`. Persisted immediately to localStorage.

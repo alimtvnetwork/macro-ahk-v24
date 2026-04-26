@@ -46,6 +46,7 @@ interface SettingsData {
   showInjectionToast: boolean;
   defaultRunAt: "document_start" | "document_idle" | "document_end";
   debugMode: boolean;
+  verboseLogging: boolean;
   maxCycleCount: number;
   idleTimeout: number;
   theme: "system" | "light" | "dark";
@@ -60,6 +61,7 @@ const DEFAULT_SETTINGS: SettingsData = {
   showInjectionToast: true,
   defaultRunAt: "document_idle",
   debugMode: false,
+  verboseLogging: false,
   maxCycleCount: 100,
   idleTimeout: 5000,
   theme: "system",
@@ -383,6 +385,18 @@ export function SettingsView() {
           <Switch
             checked={settings.debugMode}
             onCheckedChange={(v) => update("debugMode", v)}
+          />
+        </SettingRow>
+
+        <Separator />
+
+        <SettingRow
+          label="Verbose failure logging"
+          description="Capture full outerHTML/textContent of target elements and form values in failure reports. Increases log size — use for debugging."
+        >
+          <Switch
+            checked={settings.verboseLogging}
+            onCheckedChange={(v) => update("verboseLogging", v)}
           />
         </SettingRow>
       </SettingsGroup>

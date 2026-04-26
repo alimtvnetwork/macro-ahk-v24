@@ -751,6 +751,13 @@ export default function StepGroupLibraryPanel() {
                 initialOrder={selectionOrder}
                 groupsById={groupsById}
             />
+
+            <ImportErrorDialog
+                open={importError.open}
+                onOpenChange={(o) => setImportError((p) => ({ ...p, open: o }))}
+                explanation={importError.explanation}
+                fileName={importError.fileName}
+            />
         </div>
     );
 }

@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileDown, AlertTriangle } from "lucide-react";
+import { FileDown, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import type { FailureReport } from "@/background/recorder/failure-logger";
 import {
@@ -24,6 +24,7 @@ import {
     serializeFailureBundle,
     buildFailureBundleFilename,
 } from "./failure-export";
+import { FailureDetailsPanel } from "./FailureDetailsPanel";
 
 interface FailureReportsPanelProps {
     readonly reports: ReadonlyArray<FailureReport>;
@@ -47,6 +48,7 @@ function rowKey(r: FailureReport, idx: number): string {
 
 export function FailureReportsPanel({ reports, onDownload }: FailureReportsPanelProps) {
     const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+    const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 
     const allKeys = useMemo(() => reports.map((r, i) => rowKey(r, i)), [reports]);
     const allSelected = selected.size > 0 && selected.size === reports.length;
@@ -54,6 +56,14 @@ export function FailureReportsPanel({ reports, onDownload }: FailureReportsPanel
 
     const toggle = (key: string) => {
         setSelected((prev) => {
+            const next = new Set(prev);
+            if (next.has(key)) { next.delete(key); } else { next.add(key); }
+            return next;
+        });
+    };
+
+    const toggleExpanded = (key: string) => {
+        setExpanded((prev) => {
             const next = new Set(prev);
             if (next.has(key)) { next.delete(key); } else { next.add(key); }
             return next;

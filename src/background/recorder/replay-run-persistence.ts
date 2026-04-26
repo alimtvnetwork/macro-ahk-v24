@@ -139,6 +139,27 @@ export function listStepResultsForRun(
     return values.map(rowToStepResult);
 }
 
+/**
+ * Returns every persisted ReplayStepResult for a single Step across all
+ * runs, oldest first. Used by the per-selector history toggle so the UI
+ * can show when a selector started failing.
+ */
+export function listStepResultsForStep(
+    db: SqlJsDatabase,
+    stepId: number,
+): ReadonlyArray<PersistedReplayStepResult> {
+    const result = db.exec(
+        `SELECT ReplayStepResultId, ReplayRunId, StepId, OrderIndex, IsOk,
+                ErrorMessage, ResolvedXPath, StartedAt, FinishedAt, DurationMs
+         FROM ReplayStepResult
+         WHERE StepId = ?
+         ORDER BY StartedAt ASC, ReplayStepResultId ASC`,
+        [stepId],
+    );
+    const values = result[0]?.values ?? [];
+    return values.map(rowToStepResult);
+}
+
 export function deleteReplayRunRow(
     db: SqlJsDatabase,
     replayRunId: number,
@@ -174,6 +195,18 @@ export async function listReplayStepResults(
 ): Promise<ReadonlyArray<PersistedReplayStepResult>> {
     const mgr = await initProjectDb(projectSlug);
     return listStepResultsForRun(mgr.getDb(), replayRunId);
+}
+
+/**
+ * Cross-run history for a single Step — load with `buildSelectorHistory`
+ * to render the per-selector "when did it start failing?" timeline.
+ */
+export async function listReplayStepResultsForStep(
+    projectSlug: string,
+    stepId: number,
+): Promise<ReadonlyArray<PersistedReplayStepResult>> {
+    const mgr = await initProjectDb(projectSlug);
+    return listStepResultsForStep(mgr.getDb(), stepId);
 }
 
 export async function deleteReplayRun(

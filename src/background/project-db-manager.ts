@@ -104,7 +104,10 @@ export async function initProjectDb(slug: string, extraSchema?: string): Promise
     if (existing) return buildProjectManager(slug);
 
     const sql = await ensureSqlJs();
-    const schema = PROJECT_SCHEMA_TABLE + (extraSchema || "");
+    // Recorder schema is idempotent — applied to every project DB so that
+    // recording steps have a guaranteed home from the moment a project exists.
+    // See spec/31-macro-recorder/04-per-project-db-provisioning.md
+    const schema = PROJECT_SCHEMA_TABLE + RECORDER_DB_SCHEMA + (extraSchema || "");
 
     const db = await tryLoadDb(sql, slug, schema);
     projectDbs.set(slug, db);

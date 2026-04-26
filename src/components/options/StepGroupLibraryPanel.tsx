@@ -577,6 +577,13 @@ export default function StepGroupLibraryPanel() {
                             · {lib.Project.Name}
                         </span>
                     )}
+                    <a
+                        href="/step-groups/list"
+                        className="ml-2 text-xs text-primary underline-offset-2 hover:underline"
+                        title="Switch to a flat searchable list"
+                    >
+                        Open list view
+                    </a>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">

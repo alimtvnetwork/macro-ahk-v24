@@ -217,13 +217,13 @@ export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureRepo
 
     return (
         <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardHeader className="flex flex-col gap-2 pb-2 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4 text-destructive" />
                     Failure Reports
                     <Badge variant="secondary" className="ml-1">{reports.length}</Badge>
                 </CardTitle>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <Button
                         variant="ghost"
                         size="sm"
@@ -254,6 +254,46 @@ export function FailureReportsPanel({ reports, onDownload, onCopy }: FailureRepo
                         <FileDown className="h-3.5 w-3.5 mr-1.5" />
                         Export last failure
                     </Button>
+                    <div className="flex items-center gap-1.5">
+                        <Select
+                            value={validPickedStep ?? ""}
+                            onValueChange={(v) => setPickedStep(v === "" ? null : v)}
+                            disabled={stepOptions.length === 0}
+                        >
+                            <SelectTrigger
+                                className="h-8 w-[180px] text-xs"
+                                aria-label="Choose a Step ID to export its latest failure"
+                            >
+                                <SelectValue placeholder="Pick step…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {stepOptions.map((o) => {
+                                    const value = o.StepId === null ? STEP_OPTION_NULL : String(o.StepId);
+                                    const label = o.StepId === null
+                                        ? "(no Step ID)"
+                                        : `Step #${o.StepId}`;
+                                    const kind = o.StepKind ? ` · ${o.StepKind}` : "";
+                                    const count = o.Count > 1 ? ` ×${o.Count}` : "";
+                                    return (
+                                        <SelectItem key={value} value={value}>
+                                            {label}{kind}{count}
+                                        </SelectItem>
+                                    );
+                                })}
+                            </SelectContent>
+                        </Select>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleExportByStep}
+                            disabled={validPickedStep === null}
+                            aria-label="Export the latest failure report for the picked Step ID"
+                            title="Download the most recent failure report for the picked Step ID as JSON"
+                        >
+                            <FileDown className="h-3.5 w-3.5 mr-1.5" />
+                            Export step
+                        </Button>
+                    </div>
                     <Button
                         variant="default"
                         size="sm"

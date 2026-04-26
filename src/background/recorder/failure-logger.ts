@@ -37,13 +37,39 @@
 
 import type { PersistedSelector } from "./step-persistence";
 import type { FieldRow } from "./field-reference-resolver";
+import type {
+    EvaluatedAttempt,
+    AttemptFailureReason,
+} from "./selector-attempt-evaluator";
 
 export type FailurePhase = "Record" | "Replay";
 
+/**
+ * Top-level short-code classifying the failure for AI grouping.
+ * Stable string values — UI / exporters key off these.
+ */
+export type FailureReasonCode =
+    | "ZeroMatches"           // No selector (primary or fallback) matched anything.
+    | "PrimaryMissedFallbackOk" // Primary missed but a fallback matched — drift.
+    | "XPathSyntaxError"      // At least one XPath threw during evaluation.
+    | "CssSyntaxError"        // At least one CSS selector threw.
+    | "UnresolvedAnchor"      // XPathRelative anchor chain broken / cyclic.
+    | "EmptyExpression"       // A stored expression was "".
+    | "NoSelectors"           // Step had zero selectors persisted.
+    | "Timeout"               // Wait/Retry exceeded budget (set by callers).
+    | "JsThrew"               // JsInline step threw inside the sandbox.
+    | "Unknown";              // Caller did not classify — last resort.
+
 export interface SelectorAttempt {
-    readonly Kind: string;     // "XPathFull" | "XPathRelative" | "Css" | "Aria"
-    readonly Expression: string;
+    readonly SelectorId: number | null;
+    readonly Strategy: string;             // "XPathFull" | "XPathRelative" | "Css" | "Aria" | …
+    readonly Expression: string;           // Stored expression (may be relative).
+    readonly ResolvedExpression: string;   // Anchor-joined expression actually evaluated.
     readonly IsPrimary: boolean;
+    readonly Matched: boolean;
+    readonly MatchCount: number;
+    readonly FailureReason: AttemptFailureReason | "NotEvaluated";
+    readonly FailureDetail: string | null;
 }
 
 export interface DomContext {
@@ -60,6 +86,8 @@ export interface DomContext {
 export interface FailureReport {
     readonly Phase: FailurePhase;
     readonly Message: string;
+    readonly Reason: FailureReasonCode;
+    readonly ReasonDetail: string;
     readonly StackTrace: string | null;
     readonly StepId: number | null;
     readonly Index: number | null;
@@ -78,11 +106,25 @@ export interface BuildFailureReportInput {
     readonly StepId?: number;
     readonly Index?: number;
     readonly StepKind?: string;
+    /**
+     * Persisted selectors as stored in the per-project DB. Used as a
+     * fallback when `EvaluatedAttempts` is not supplied (e.g. Record
+     * phase, where no live DOM evaluation happened).
+     */
     readonly Selectors?: ReadonlyArray<PersistedSelector>;
+    /**
+     * Live-DOM evaluation outcomes, one per selector. When present this
+     * supersedes `Selectors` because it carries Matched/MatchCount/Reason
+     * per attempt — exactly what AI debuggers need.
+     */
+    readonly EvaluatedAttempts?: ReadonlyArray<EvaluatedAttempt>;
     readonly Target?: Element | null;
     readonly DataRow?: FieldRow;
     readonly ResolvedXPath?: string;
     readonly SourceFile: string;        // e.g. "src/background/recorder/live-dom-replay.ts"
+    /** Caller-supplied classification. Auto-derived from attempts when omitted. */
+    readonly Reason?: FailureReasonCode;
+    readonly ReasonDetail?: string;
     readonly Now?: () => Date;
 }
 

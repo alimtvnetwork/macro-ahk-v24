@@ -91,6 +91,11 @@ import BundleExchangePanel, {
     type LastExportSummary,
     type LastImportSummary,
 } from "./BundleExchangePanel";
+import ImportErrorDialog from "./ImportErrorDialog";
+import {
+    explainImportFailure,
+    type ImportErrorExplanation,
+} from "@/background/recorder/step-library/import-error-explainer";
 
 /* ------------------------------------------------------------------ */
 /*  Tree shape                                                         */
@@ -143,6 +148,11 @@ export default function StepGroupLibraryPanel() {
     const [batchOpen, setBatchOpen] = useState(false);
     const [lastExport, setLastExport] = useState<LastExportSummary | null>(null);
     const [lastImport, setLastImport] = useState<LastImportSummary | null>(null);
+    const [importError, setImportError] = useState<{
+        open: boolean;
+        explanation: ImportErrorExplanation | null;
+        fileName: string | null;
+    }>({ open: false, explanation: null, fileName: null });
 
     // Dialog state
     const [createDialog, setCreateDialog] = useState<{ open: boolean; parent: number | null; name: string }>({
@@ -386,7 +396,9 @@ export default function StepGroupLibraryPanel() {
             JsZip: JSZip,
         });
         if (result.Reason !== "Ok") {
-            toast.error(`Import failed: ${result.Reason}`, { description: result.Detail });
+            const explanation = explainImportFailure(result);
+            setImportError({ open: true, explanation, fileName: file.name });
+            toast.error(explanation.Title, { description: "See dialog for details" });
             return;
         }
         lib.refresh();
@@ -738,6 +750,13 @@ export default function StepGroupLibraryPanel() {
                 projectId={lib.Project?.ProjectId ?? null}
                 initialOrder={selectionOrder}
                 groupsById={groupsById}
+            />
+
+            <ImportErrorDialog
+                open={importError.open}
+                onOpenChange={(o) => setImportError((p) => ({ ...p, open: o }))}
+                explanation={importError.explanation}
+                fileName={importError.fileName}
             />
         </div>
     );

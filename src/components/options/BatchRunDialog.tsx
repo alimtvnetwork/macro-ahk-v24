@@ -165,11 +165,14 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
 
         setReports(order.map((id) => emptyReport(id)));
         const live: BatchGroupReport[] = order.map((id) => emptyReport(id));
+        const executor: LeafStepExecutor = liveMode
+            ? createLiveReplayExecutor({ Doc: document })
+            : previewExecutor;
         const result = await runBatch({
             db,
             projectId,
             orderedGroupIds: order,
-            executeLeafStep: previewExecutor,
+            executeLeafStep: executor,
             failurePolicy: policy,
             onGroupStatus: (report, idx) => {
                 live[idx] = report;

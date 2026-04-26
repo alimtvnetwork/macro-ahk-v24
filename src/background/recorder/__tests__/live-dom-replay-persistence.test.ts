@@ -100,6 +100,20 @@ describe("executeReplay → ReplayRun persistence", () => {
         expect(stepResults[1]!.StepId).toBe(2);
         expect(stepResults[1]!.IsOk).toBe(0);
         expect(stepResults[1]!.ErrorMessage).toMatch(/not found/);
+
+        // ErrorMessage now holds the structured FailureReport JSON so the
+        // user can copy the diagnostic blob from the project DB later.
+        const parsed = JSON.parse(stepResults[1]!.ErrorMessage!);
+        expect(parsed.Phase).toBe("Replay");
+        expect(parsed.StepId).toBe(2);
+        expect(parsed.StepKind).toBe("Click");
+        expect(parsed.Selectors[0].Kind).toBe("Css");
+        expect(parsed.Selectors[0].Expression).toBe("#missing");
+        expect(parsed.SourceFile).toBe("src/background/recorder/live-dom-replay.ts");
+
+        // The live result also exposes the report so React layers can toast it.
+        expect(outcome.Results[1]!.FailureReport).toBeDefined();
+        expect(outcome.Results[1]!.FailureReport!.Message).toMatch(/not found/);
     });
 
     it("does not persist when Persist option is omitted", async () => {

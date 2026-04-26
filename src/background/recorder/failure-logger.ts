@@ -41,6 +41,7 @@ import type {
     EvaluatedAttempt,
     AttemptFailureReason,
 } from "./selector-attempt-evaluator";
+import { xpathOfElement } from "./xpath-of-element";
 
 export type { VariableContext } from "./field-reference-resolver";
 
@@ -90,8 +91,26 @@ export interface DomContext {
     readonly AriaLabel: string | null;
     readonly Name: string | null;
     readonly Type: string | null;
-    readonly TextSnippet: string;
-    readonly OuterHtmlSnippet: string;
+    readonly TextSnippet: string;       // Always truncated to 120 chars (legacy contract).
+    readonly OuterHtmlSnippet: string;  // Always truncated to 240 chars (legacy contract).
+    /**
+     * Absolute XPath of the captured element. Populated by `readDomContext`
+     * when a target Element is supplied. Optional so external producers
+     * (selector-comparison, selector-tester, fixtures) can omit it without
+     * a forced migration; the verbose-logging spec requires it whenever a
+     * fresh DOM read happens via `readDomContext`.
+     */
+    readonly XPath?: string;
+    /**
+     * Full untruncated outerHTML of the captured element. Populated ONLY
+     * when the failure report is built with `Verbose: true`. Omitted on
+     * non-verbose runs to keep the SQLite/OPFS payload small.
+     */
+    readonly OuterHtml?: string;
+    /**
+     * Full untruncated textContent. Populated ONLY when `Verbose: true`.
+     */
+    readonly Text?: string;
 }
 
 export interface FailureReport {
@@ -110,6 +129,18 @@ export interface FailureReport {
     readonly ResolvedXPath: string | null;
     readonly Timestamp: string;
     readonly SourceFile: string;
+    /**
+     * Was this report built with the verbose toggle ON? Persisted alongside
+     * the report so future readers can tell whether `CapturedHtml` /
+     * `DomContext.OuterHtml` / `DomContext.Text` are full or omitted.
+     */
+    readonly Verbose: boolean;
+    /**
+     * Full outerHTML of the matched/expected element. Populated ONLY when
+     * `Verbose === true`. Always identical to `DomContext.OuterHtml` when
+     * both are present — surfaced at top level for easier export tooling.
+     */
+    readonly CapturedHtml: string | null;
 }
 
 export interface BuildFailureReportInput {
@@ -145,6 +176,16 @@ export interface BuildFailureReportInput {
     /** Caller-supplied classification. Auto-derived from attempts/variables when omitted. */
     readonly Reason?: FailureReasonCode;
     readonly ReasonDetail?: string;
+    /**
+     * Verbose-logging toggle (per
+     * mem://standards/verbose-logging-and-failure-diagnostics). When
+     * `true`, the produced report includes the full untruncated outerHTML
+     * + textContent of the captured `Target` and a top-level
+     * `CapturedHtml` field. Default `false` keeps the legacy 120/240-char
+     * truncation behavior. Callers MUST resolve this from
+     * `resolveVerboseLogging(projectId)` — never hard-code `true`.
+     */
+    readonly Verbose?: boolean;
     readonly Now?: () => Date;
 }
 
@@ -172,6 +213,12 @@ export function buildFailureReport(input: BuildFailureReportInput): FailureRepor
     const variables: ReadonlyArray<VariableContext> = input.Variables ?? [];
     const { Reason, ReasonDetail } = classifyReason(input, attempts, variables, message);
 
+    const verbose = input.Verbose === true;
+    const domContext = input.Target ? readDomContext(input.Target, verbose) : null;
+    const capturedHtml = verbose && domContext !== null
+        ? (domContext.OuterHtml ?? null)
+        : null;
+
     return {
         Phase: input.Phase,
         Message: message,
@@ -183,11 +230,13 @@ export function buildFailureReport(input: BuildFailureReportInput): FailureRepor
         StepKind: input.StepKind ?? null,
         Selectors: attempts,
         Variables: input.Variables ?? [],
-        DomContext: input.Target ? readDomContext(input.Target) : null,
+        DomContext: domContext,
         DataRow: input.DataRow ?? null,
         ResolvedXPath: input.ResolvedXPath ?? null,
         Timestamp: now().toISOString(),
         SourceFile: input.SourceFile,
+        Verbose: verbose,
+        CapturedHtml: capturedHtml,
     };
 }
 
@@ -353,6 +402,14 @@ export function formatFailureReport(report: FailureReport): string {
         const attrStr = attrs.length > 0 ? ` ${attrs.join(" ")}` : "";
         const text = ctx.TextSnippet.length > 0 ? ` "${ctx.TextSnippet}"` : "";
         lines.push(`  DomContext: <${ctx.TagName}${attrStr}>${text}`);
+        if (ctx.XPath !== undefined && ctx.XPath.length > 0) {
+            lines.push(`    XPath: ${ctx.XPath}`);
+        }
+    }
+
+    if (report.Verbose && report.CapturedHtml !== null) {
+        lines.push(`  CapturedHtml (verbose):`);
+        lines.push(`    ${report.CapturedHtml}`);
     }
 
     if (report.DataRow !== null) {
@@ -428,15 +485,18 @@ function toAttemptFromEvaluated(a: EvaluatedAttempt): SelectorAttempt {
     };
 }
 
-function readDomContext(el: Element): DomContext {
+function readDomContext(el: Element, verbose: boolean): DomContext {
     const id = el.getAttribute("id");
     const cls = el.getAttribute("class");
     const aria = el.getAttribute("aria-label");
     const name = el.getAttribute("name");
     const type = el.getAttribute("type");
-    const text = (el.textContent ?? "").trim().slice(0, 120);
-    const outer = el.outerHTML?.slice(0, 240) ?? "";
-    return {
+    const fullText = (el.textContent ?? "").trim();
+    const fullOuter = el.outerHTML ?? "";
+    const text = fullText.slice(0, 120);
+    const outer = fullOuter.slice(0, 240);
+    const xpath = xpathOfElement(el);
+    const base: DomContext = {
         TagName: el.tagName.toLowerCase(),
         Id: id !== null && id.length > 0 ? id : null,
         ClassName: cls !== null && cls.length > 0 ? cls : null,
@@ -445,7 +505,12 @@ function readDomContext(el: Element): DomContext {
         Type: type !== null && type.length > 0 ? type : null,
         TextSnippet: text,
         OuterHtmlSnippet: outer,
+        XPath: xpath,
     };
+    if (verbose) {
+        return { ...base, OuterHtml: fullOuter, Text: fullText };
+    }
+    return base;
 }
 
 function defaultNow(): Date {

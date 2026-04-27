@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Allow-list of pre-existing swallowed-error sites. Each entry is matched on file + kind + snippet (line-agnostic). NEVER use this to silence new violations — fix the catch block, then run --update-baseline to drop the entry.",
-  "generatedAt": "2026-04-27T22:31:18.554Z",
+  "generatedAt": "2026-04-27T22:33:57.260Z",
   "entries": [
     {
       "file": "src/background/auth-health-handler.ts",
@@ -53,71 +53,8 @@
       "reason": "TODO: explain why this catch silently swallows, or fix it."
     },
     {
-      "file": "src/background/cookie-helpers.ts",
-      "line": 59,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/cookie-helpers.ts",
-      "line": 95,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/cookie-watcher.ts",
-      "line": 204,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/cookie-watcher.ts",
-      "line": 243,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
       "file": "src/background/db-persistence.ts",
       "line": 38,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/config-auth-handler.ts",
-      "line": 525,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/config-auth-handler.ts",
-      "line": 592,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/config-auth-handler.ts",
-      "line": 603,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/config-auth-handler.ts",
-      "line": 737,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/config-auth-handler.ts",
-      "line": 802,
       "kind": "empty-catch",
       "snippet": "catch {",
       "reason": "TODO: explain why this catch silently swallows, or fix it."
@@ -172,41 +109,6 @@
       "reason": "TODO: explain why this catch silently swallows, or fix it."
     },
     {
-      "file": "src/background/handlers/prompt-handler.ts",
-      "line": 104,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/prompt-handler.ts",
-      "line": 106,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/prompt-handler.ts",
-      "line": 108,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/prompt-handler.ts",
-      "line": 140,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/prompt-handler.ts",
-      "line": 236,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
       "file": "src/background/handlers/script-info-handler.ts",
       "line": 147,
       "kind": "empty-catch",
@@ -223,27 +125,6 @@
     {
       "file": "src/background/handlers/settings-handler.ts",
       "line": 118,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/storage-browser-handler.ts",
-      "line": 149,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/storage-browser-handler.ts",
-      "line": 153,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/storage-browser-handler.ts",
-      "line": 315,
       "kind": "empty-catch",
       "snippet": "catch {",
       "reason": "TODO: explain why this catch silently swallows, or fix it."

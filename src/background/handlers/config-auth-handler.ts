@@ -522,8 +522,10 @@ async function getActivePlatformTabs(tabUrlHint?: string): Promise<chrome.tabs.T
         try {
             const hintedTabs = await chrome.tabs.query({ url: [tabUrlHint] });
             byHint.push(...hintedTabs);
-        } catch {
-            // Ignore hint query failures.
+        } catch (hintErr) {
+            // Ignore hint query failures — pattern-based query below still runs.
+            // Hint URL may be malformed or restricted (chrome://, file://).
+            console.debug(`[config-auth] tabs.query(hint="${tabUrlHint}") failed, falling back to pattern query:`, hintErr);
         }
     }
 
@@ -585,13 +587,9 @@ async function readSupabaseJwtFromPlatformTabs(tabUrlHint?: string): Promise<str
                                 const p2 = JSON.parse(val);
                                 const t2 = p2?.access_token ?? p2?.currentSession?.access_token ?? p2?.token;
                                 if (typeof t2 === "string" && t2.startsWith("eyJ") && t2.split(".").length === 3) return t2;
-                            } catch {
-                                if (val.startsWith("eyJ") && val.split(".").length === 3) return val;
-                            }
+                            } catch { if (val.startsWith("eyJ") && val.split(".").length === 3) return val; }
                         }
-                    } catch {
-                        // localStorage may be unavailable in some contexts
-                    }
+                    } catch (lsErr) { console.debug("[config-auth] localStorage scan unavailable:", lsErr); }
                     return null;
                 },
             });
@@ -600,8 +598,10 @@ async function readSupabaseJwtFromPlatformTabs(tabUrlHint?: string): Promise<str
             if (typeof token === "string" && isLikelyJwt(token)) {
                 return token;
             }
-        } catch {
-            // Tab may be unavailable or restricted.
+        } catch (scriptErr) {
+            // Tab may be unavailable, restricted, or closed mid-scan. Log warn so a
+            // platform-tab regression that breaks token discovery surfaces in diagnostics.
+            logBgWarnError(BgLogTag.CONFIG_AUTH, `executeScript localStorage JWT scan failed for tab — proceeding to next candidate tab`, scriptErr);
         }
     }
 
@@ -734,8 +734,10 @@ function extractProjectIdFromUrl(url: string): string | null {
         // Pattern 4: bare UUID subdomain: {uuid}.lovableproject.com
         const bareUuidLabelMatch = firstLabel.match(/^([a-f0-9-]{36})$/i);
         if (bareUuidLabelMatch) return bareUuidLabelMatch[1];
-    } catch {
-        // Fall through to legacy string regex checks below.
+    } catch (urlErr) {
+        // Fall through to legacy string regex checks below. Debug only — this
+        // catch fires for any non-URL input passed to extractProjectId.
+        console.debug("[config-auth] extractProjectId URL parse failed, using legacy regex fallback:", urlErr);
     }
 
     // Legacy fallback regexes (defensive)
@@ -799,8 +801,10 @@ async function discoverAuthCookieNames(primaryUrl: string): Promise<CookieDiscov
                     authLikeCookieNames.add(cookie.name);
                 }
             }
-        } catch {
-            // Ignore candidate URL errors and keep scanning.
+        } catch (cookieErr) {
+            // Ignore candidate URL errors and keep scanning. Debug because we
+            // intentionally probe many candidate URLs and most will not match.
+            console.debug("[config-auth] cookie candidate URL scan errored, continuing:", cookieErr);
         }
     }
 

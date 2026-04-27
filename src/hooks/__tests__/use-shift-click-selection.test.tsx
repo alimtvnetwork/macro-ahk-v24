@@ -68,7 +68,7 @@ describe("reduceSelectionClick", () => {
     });
 
     it("shift-click with no anchor falls back to plain click", () => {
-        const r = reduceSelectionClick(new Set(), null, ids, "c", SHIFT);
+        const r = reduceSelectionClick(new Set<string>(), null, ids, "c", SHIFT);
         expect([...r.next]).toEqual(["c"]);
         expect(r.nextAnchor).toBe("c");
     });

@@ -133,11 +133,7 @@ export async function buildAuthHealthResponse(): Promise<AuthHealthResponse> {
                                     }
                                 }
                             }
-                        } catch (parseErr) {
-                            // localStorage value not JSON / not the expected shape — try next key.
-                            // Returns null below; debug-only inside MAIN-world func (no logger access).
-                            console.debug("[auth-health] localStorage JWT parse skipped for key:", parseErr);
-                        }
+                        } catch (parseErr) { console.debug("[auth-health] localStorage JWT parse skipped:", parseErr); }
                         return null;
                     },
                 });

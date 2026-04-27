@@ -116,6 +116,10 @@ export function FloatingController(props: FloatingControllerProps): JSX.Element 
     const [mode, setMode] = useState<ControllerMode>(() => initialMode ?? loadMode());
     const [stopArmed, setStopArmed] = useState<boolean>(false);
     const stopTimer = useRef<number | null>(null);
+    /** Toggles for the two expanded-mode panels. Local state — does
+     *  not persist across reloads (cheap to re-open). */
+    const [showTree, setShowTree] = useState<boolean>(false);
+    const [showHotkey, setShowHotkey] = useState<boolean>(false);
 
     useEffect(() => { saveMode(mode); }, [mode]);
     useEffect(() => () => {
@@ -201,11 +205,158 @@ export function FloatingController(props: FloatingControllerProps): JSX.Element 
             </div>
 
             {mode === "expanded" ? (
-                <div className="text-[11px] text-muted-foreground pt-1 border-t border-border/40 mt-1">
-                    Project: <span className="font-mono">{session.ProjectSlug}</span>
-                </div>
+                <>
+                    <div className="text-[11px] text-muted-foreground pt-1 border-t border-border/40 mt-1">
+                        Project: <span className="font-mono">{session.ProjectSlug}</span>
+                    </div>
+                    <div className="flex items-center gap-1 pt-1">
+                        <ToolToggle
+                            active={showTree}
+                            onClick={() => setShowTree((p) => !p)}
+                            icon={<Layers className="h-3 w-3" />}
+                            label="Tree"
+                            testid="controller-toggle-tree"
+                        />
+                        <ToolToggle
+                            active={showHotkey}
+                            onClick={() => setShowHotkey((p) => !p)}
+                            icon={<Keyboard className="h-3 w-3" />}
+                            label="Hotkey"
+                            testid="controller-toggle-hotkey"
+                        />
+                    </div>
+                    {showHotkey ? <HotkeyQuickAdd onClose={() => setShowHotkey(false)} /> : null}
+                    {showTree ? <RecorderLiveTreePanel /> : null}
+                </>
             ) : null}
         </FloatingShell>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Hotkey quick-add panel                                              */
+/* ------------------------------------------------------------------ */
+
+function HotkeyQuickAdd(props: { onClose: () => void }): JSX.Element {
+    const lib = useStepLibrary();
+    const { selection } = useRecorderSelection("controller");
+    const [chords, setChords] = useState<readonly string[]>([]);
+    const [waitMs, setWaitMs] = useState<string>("");
+    const [label, setLabel] = useState<string>("");
+    const [error, setError] = useState<string | null>(null);
+
+    // Pick the active group from the shared selection bus, falling
+    // back to the first available group so users don't get stuck when
+    // they haven't clicked anything yet.
+    const targetGroup = useMemo(() => {
+        if (selection.StepGroupId !== null) {
+            return lib.Groups.find((g) => g.StepGroupId === selection.StepGroupId) ?? null;
+        }
+        return lib.Groups[0] ?? null;
+    }, [selection.StepGroupId, lib.Groups]);
+
+    const handleAdd = () => {
+        setError(null);
+        if (targetGroup === null) {
+            setError("No StepGroup available — create one in the Options page first.");
+            return;
+        }
+        if (chords.length === 0) {
+            setError("Capture at least one key combination.");
+            return;
+        }
+        const wait = waitMs.trim() === "" ? undefined : Number(waitMs.trim());
+        if (wait !== undefined && (!Number.isFinite(wait) || wait < 0)) {
+            setError("Wait (ms) must be a non-negative number.");
+            return;
+        }
+        const payload = wait === undefined
+            ? { Keys: [...chords] }
+            : { Keys: [...chords], WaitMs: wait };
+        try {
+            lib.appendStep({
+                StepGroupId: targetGroup.StepGroupId,
+                StepKindId: StepKindId.Hotkey,
+                Label: label.trim() === "" ? null : label.trim(),
+                PayloadJson: JSON.stringify(payload),
+            });
+            setChords([]);
+            setWaitMs("");
+            setLabel("");
+        } catch (err) {
+            setError(err instanceof Error ? err.message : String(err));
+        }
+    };
+
+    return (
+        <div className="border-t border-border/40 mt-1 pt-1.5 space-y-1.5" data-testid="controller-hotkey-panel">
+            <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Hotkey macro</span>
+                <button
+                    type="button"
+                    onClick={props.onClose}
+                    aria-label="Close hotkey panel"
+                    className="text-muted-foreground hover:text-foreground"
+                >
+                    <X className="h-3 w-3" />
+                </button>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+                Target: <span className="font-mono">{targetGroup?.Name ?? "(none)"}</span>
+            </div>
+            <HotkeyChordCapture value={chords} onChange={setChords} />
+            <Input
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="Label (optional)"
+                className="h-7 text-xs"
+            />
+            <Input
+                type="number"
+                min={0}
+                value={waitMs}
+                onChange={(e) => setWaitMs(e.target.value)}
+                placeholder="Wait after (ms, optional)"
+                className="h-7 text-xs"
+            />
+            {error !== null ? (
+                <p className="text-[11px] text-destructive">{error}</p>
+            ) : null}
+            <Button
+                size="sm"
+                onClick={handleAdd}
+                className="w-full h-7 text-xs"
+                data-testid="controller-hotkey-add"
+            >
+                <Plus className="h-3 w-3 mr-1" /> Append hotkey step
+            </Button>
+        </div>
+    );
+}
+
+function ToolToggle(props: {
+    readonly active: boolean;
+    readonly onClick: () => void;
+    readonly icon: React.ReactNode;
+    readonly label: string;
+    readonly testid: string;
+}): JSX.Element {
+    return (
+        <button
+            type="button"
+            onClick={props.onClick}
+            data-testid={props.testid}
+            aria-pressed={props.active}
+            className={cn(
+                "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider transition-colors",
+                props.active
+                    ? "bg-primary/15 text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
+            )}
+        >
+            {props.icon}
+            {props.label}
+        </button>
     );
 }
 

@@ -459,16 +459,47 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                                                 </>
                                                             )}
                                                         </dl>
-                                                        <div className="mt-2 flex justify-end">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => void copyLogEntry(entry)}
-                                                            >
-                                                                <Copy className="mr-1 h-3.5 w-3.5" />
-                                                                Copy details
-                                                            </Button>
-                                                        </div>
+                                                        {(() => {
+                                                            const payloadJson = formatPayloadJson(entry);
+                                                            const payloadOpen = payloadOpenIdx === i;
+                                                            return (
+                                                                <div className="mt-2 space-y-2">
+                                                                    <div className="flex items-center justify-between gap-2">
+                                                                        <button
+                                                                            type="button"
+                                                                            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50"
+                                                                            onClick={() => setPayloadOpenIdx(payloadOpen ? null : i)}
+                                                                            disabled={payloadJson === null}
+                                                                            aria-expanded={payloadOpen}
+                                                                            aria-controls={`hook-log-payload-${i}`}
+                                                                        >
+                                                                            <ChevronDown
+                                                                                className={`h-3 w-3 transition-transform ${payloadOpen ? "rotate-180" : ""}`}
+                                                                            />
+                                                                            {payloadJson === null
+                                                                                ? "Raw JSON payload (not captured)"
+                                                                                : payloadOpen ? "Hide raw JSON payload" : "Show raw JSON payload"}
+                                                                        </button>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="outline"
+                                                                            onClick={() => void copyLogEntry(entry)}
+                                                                        >
+                                                                            <Copy className="mr-1 h-3.5 w-3.5" />
+                                                                            Copy details
+                                                                        </Button>
+                                                                    </div>
+                                                                    {payloadOpen && payloadJson !== null && (
+                                                                        <pre
+                                                                            id={`hook-log-payload-${i}`}
+                                                                            className="max-h-64 overflow-auto rounded-md border bg-background/60 p-2 text-[11px] font-mono whitespace-pre-wrap break-words"
+                                                                        >
+                                                                            {payloadJson}
+                                                                        </pre>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 )}
                                             </li>

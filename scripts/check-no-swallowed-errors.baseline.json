@@ -1,55 +1,20 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Allow-list of pre-existing swallowed-error sites. Each entry is matched on file + kind + snippet (line-agnostic). NEVER use this to silence new violations — fix the catch block, then run --update-baseline to drop the entry.",
-  "generatedAt": "2026-04-27T22:33:57.260Z",
+  "generatedAt": "2026-04-27T23:34:11.294Z",
   "entries": [
     {
-      "file": "src/background/auth-health-handler.ts",
-      "line": 167,
+      "file": "src/background/bg-logger.ts",
+      "line": 123,
       "kind": "empty-catch",
       "snippet": "catch {",
       "reason": "TODO: explain why this catch silently swallows, or fix it."
     },
     {
       "file": "src/background/bg-logger.ts",
-      "line": 122,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/bg-logger.ts",
-      "line": 119,
+      "line": 120,
       "kind": "promise-catch-noop",
       "snippet": ".catch(() => { })",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/boot.ts",
-      "line": 198,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/boot.ts",
-      "line": 259,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/boot.ts",
-      "line": 264,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/context-menu-handler.ts",
-      "line": 287,
-      "kind": "empty-catch",
-      "snippet": "catch {",
       "reason": "TODO: explain why this catch silently swallows, or fix it."
     },
     {
@@ -96,7 +61,7 @@
     },
     {
       "file": "src/background/handlers/logging-handler.ts",
-      "line": 280,
+      "line": 281,
       "kind": "empty-catch",
       "snippet": "catch {",
       "reason": "TODO: explain why this catch silently swallows, or fix it."
@@ -186,34 +151,6 @@
       "reason": "TODO: explain why this catch silently swallows, or fix it."
     },
     {
-      "file": "src/background/injection-diagnostics.ts",
-      "line": 53,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/injection-diagnostics.ts",
-      "line": 83,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/injection-diagnostics.ts",
-      "line": 111,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/injection-diagnostics.ts",
-      "line": 175,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
       "file": "src/background/namespace-cache.ts",
       "line": 43,
       "kind": "empty-catch",
@@ -223,34 +160,6 @@
     {
       "file": "src/background/namespace-cache.ts",
       "line": 83,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/project-db-manager.ts",
-      "line": 160,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/project-db-manager.ts",
-      "line": 195,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/project-db-manager.ts",
-      "line": 205,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/project-db-manager.ts",
-      "line": 281,
       "kind": "empty-catch",
       "snippet": "catch {",
       "reason": "TODO: explain why this catch silently swallows, or fix it."
@@ -307,34 +216,6 @@
     {
       "file": "src/background/service-worker-main.ts",
       "line": 39,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/session-log-writer.ts",
-      "line": 467,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/session-log-writer.ts",
-      "line": 469,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/session-log-writer.ts",
-      "line": 549,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/session-log-writer.ts",
-      "line": 555,
       "kind": "empty-catch",
       "snippet": "catch {",
       "reason": "TODO: explain why this catch silently swallows, or fix it."
@@ -578,6 +459,13 @@
       "reason": "TODO: explain why this catch silently swallows, or fix it."
     },
     {
+      "file": "src/components/webhook/CopyLogButton.tsx",
+      "line": 23,
+      "kind": "empty-catch",
+      "snippet": "catch {",
+      "reason": "TODO: explain why this catch silently swallows, or fix it."
+    },
+    {
       "file": "src/content-scripts/network-reporter.ts",
       "line": 76,
       "kind": "empty-catch",
@@ -685,34 +573,6 @@
     {
       "file": "src/hooks/use-version-check.ts",
       "line": 69,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/lib/click-trail.ts",
-      "line": 58,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/lib/click-trail.ts",
-      "line": 67,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/lib/click-trail.ts",
-      "line": 120,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/lib/click-trail.ts",
-      "line": 140,
       "kind": "empty-catch",
       "snippet": "catch {",
       "reason": "TODO: explain why this catch silently swallows, or fix it."
@@ -862,34 +722,6 @@
       "line": 96,
       "kind": "promise-catch-noop",
       "snippet": ".catch(() => { })",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "standalone-scripts/marco-sdk/src/notify.ts",
-      "line": 138,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "standalone-scripts/marco-sdk/src/notify.ts",
-      "line": 185,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "standalone-scripts/marco-sdk/src/notify.ts",
-      "line": 295,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "standalone-scripts/marco-sdk/src/notify.ts",
-      "line": 331,
-      "kind": "empty-catch",
-      "snippet": "catch {",
       "reason": "TODO: explain why this catch silently swallows, or fix it."
     },
     {

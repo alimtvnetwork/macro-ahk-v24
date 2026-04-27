@@ -147,10 +147,10 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
         );
         setBusy(false);
         setLog(getDeliveryLog());
-        if (result.Ok) {
-            toast.success(`Webhook reached endpoint (HTTP ${result.Status ?? "?"})`);
-        } else if (result.Skipped) {
+        if (result.Skipped) {
             toast.warning(`Skipped: ${result.SkipReason ?? "unknown reason"}`);
+        } else if (result.Ok) {
+            toast.success(`Webhook reached endpoint (HTTP ${result.Status ?? "?"})`);
         } else {
             toast.error(`Webhook failed: ${result.Error ?? "unknown error"}`);
         }
@@ -323,14 +323,17 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                             ) : (
                                 <ul className="space-y-1.5">
                                     {log.map((entry, i) => {
-                                        const detail = entry.SkipReason ?? entry.Error;
+                                        const skipReason = "SkipReason" in entry ? entry.SkipReason : undefined;
+                                        const errorText = "Error" in entry ? entry.Error : undefined;
+                                        const statusValue = "Status" in entry ? entry.Status : undefined;
+                                        const detail = skipReason ?? errorText;
                                         const hasDetail = typeof detail === "string" && detail.length > 0;
                                         const isOpen = expandedIdx === i;
                                         const statusLabel = entry.Skipped
                                             ? "Skip"
                                             : entry.Ok
-                                                ? `OK ${entry.Status ?? ""}`.trim()
-                                                : `Fail${entry.Status ? ` ${entry.Status}` : ""}`;
+                                                ? `OK ${statusValue ?? ""}`.trim()
+                                                : `Fail${statusValue ? ` ${statusValue}` : ""}`;
                                         const variant = entry.Skipped
                                             ? "outline"
                                             : entry.Ok
@@ -378,10 +381,10 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                                             <dd className="font-mono">{entry.EmittedAt}</dd>
                                                             <dt className="text-muted-foreground">Duration</dt>
                                                             <dd className="font-mono">{entry.DurationMs} ms</dd>
-                                                            {entry.Status !== undefined && (
+                                                            {statusValue !== undefined && statusValue !== null && (
                                                                 <>
                                                                     <dt className="text-muted-foreground">HTTP</dt>
-                                                                    <dd className="font-mono">{entry.Status}</dd>
+                                                                    <dd className="font-mono">{statusValue}</dd>
                                                                 </>
                                                             )}
                                                             <dt className="text-muted-foreground">

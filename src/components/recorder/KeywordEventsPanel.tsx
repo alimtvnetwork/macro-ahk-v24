@@ -132,6 +132,19 @@ function KeywordEventsEditor(): JSX.Element {
     const api = useKeywordEvents();
     const playback = useKeywordEventPlayback();
     const [newKeyword, setNewKeyword] = useState("");
+    const [search, setSearch] = useState("");
+
+    // Filter the event list by keyword/description/tags (case-insensitive
+    // substring). Selection is keyed by Id, so events that drop out of the
+    // visible list stay selected — the toolbar count reflects the full
+    // selection, not just what's on screen. Drag-reorder is disabled while
+    // a filter is active because reordering a sparse subset would corrupt
+    // the persisted order of hidden rows.
+    const visibleEvents = useMemo(
+        () => filterKeywordEvents(api.events, search),
+        [api.events, search],
+    );
+    const isFiltering = search.trim().length > 0;
 
     // Chain settings — persisted in localStorage so the recorder can read
     // them without prop drilling. We keep a local mirror so the form stays
@@ -168,9 +181,12 @@ function KeywordEventsEditor(): JSX.Element {
     const enabledCount = api.events.filter((e) => isEventRunnable(e)).length;
 
     // Gmail-style multi-select for the events list. Plain click selects one,
-    // Shift-click extends from anchor, Ctrl/Cmd-click toggles. The set is
-    // pruned automatically when events are deleted/reordered.
-    const eventIds = api.events.map(e => e.Id);
+    // Shift-click extends from anchor, Ctrl/Cmd-click toggles. Anchor pool is
+    // the *visible* list so Shift-click extends along what the user sees,
+    // not across hidden rows. Selection set itself is preserved across
+    // filter changes (see useShiftClickSelection — it prunes only on actual
+    // id removal, not on pool changes).
+    const eventIds = visibleEvents.map(e => e.Id);
     const eventSelection = useShiftClickSelection(eventIds);
     const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform);
     const handleEventRowClick = (id: string, ev: React.MouseEvent): void => {

@@ -334,7 +334,12 @@ export async function handleStorageClearAll(): Promise<{ isOk: true; cleared: st
         } catch (tableErr) {
             // Table may not exist in this schema version. Debug-only because
             // BROWSABLE_TABLES intentionally lists tables across multiple DBs.
-            console.debug(`[storage-browser] handleStorageClearAll: DELETE FROM "${table}" skipped (table missing or DB closed):`, tableErr);
+            logSampledDebug(
+                BgLogTag.STATUS_HANDLER,
+                `clearAll:${table}`,
+                `DELETE FROM "${table}" skipped (table missing or DB closed)`,
+                tableErr instanceof Error ? tableErr : String(tableErr),
+            );
         }
     }
 

@@ -56,7 +56,7 @@ describe("KeywordEventsPanel — multi-selection", () => {
             addEvent("charlie");
         });
 
-        const cards = eventCard();
+        const cards = eventCards();
         expect(cards.length).toBe(3);
 
         // Plain click on the first card → 1 selected.

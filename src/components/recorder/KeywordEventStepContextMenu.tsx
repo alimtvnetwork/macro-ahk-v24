@@ -209,6 +209,7 @@ interface StepSequenceRenameDialogProps {
     readonly onApply: (labels: readonly string[]) => void;
 }
 
+// eslint-disable-next-line max-lines-per-function -- form + preview + footer kept together for clarity
 function StepSequenceRenameDialog(props: StepSequenceRenameDialogProps): JSX.Element {
     const { open, onOpenChange, stepIds, onApply } = props;
     const [input, setInput] = useState<SequenceRenameInput>(loadPersistedSequence);

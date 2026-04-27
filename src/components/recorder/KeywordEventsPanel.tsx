@@ -912,6 +912,7 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                         </Button>
                     </div>
                 )}
+                {/* eslint-disable-next-line max-lines-per-function -- step row + context-menu wrapper kept inline for selection scope */}
                 {event.Steps.map((s, i) => {
                     const issue = issuesByIndex.get(i);
                     const stepSelected = stepSelection.isSelected(s.Id);

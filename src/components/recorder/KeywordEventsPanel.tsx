@@ -47,6 +47,8 @@ import {
     type KeywordEventTarget,
 } from "@/hooks/use-keyword-events";
 import { useKeywordEventPlayback } from "@/hooks/use-keyword-event-playback";
+import { useRecordingSession } from "@/hooks/use-recording-session";
+import { useAutoRunChainAfterRecording } from "@/hooks/use-auto-run-chain-after-recording";
 import {
     DEFAULT_CHAIN_SETTINGS,
     loadChainSettings,
@@ -123,6 +125,20 @@ function KeywordEventsEditor(): JSX.Element {
 
     useEffect(() => () => chainCtrlRef.current?.abort(), []);
 
+    // Auto-run on recorder stop. The hook keeps its own internal "previous
+    // session" ref, so it only fires on the actual stop transition. We
+    // surface a flag (`autoRunActive`) so the run-chain UI can show a
+    // muted indicator while the auto-run is in flight.
+    const { session: recordingSession } = useRecordingSession();
+    const [autoRunActive, setAutoRunActive] = useState<boolean>(false);
+    useAutoRunChainAfterRecording({
+        settings: chain,
+        events: api.events,
+        session: recordingSession,
+        onAutoRunStart: () => { setAutoRunActive(true); },
+        onAutoRunEnd: () => { setAutoRunActive(false); },
+    });
+
     const enabledCount = api.events.filter((e) => isEventRunnable(e)).length;
 
     const handleAdd = () => {
@@ -195,6 +211,7 @@ function KeywordEventsEditor(): JSX.Element {
                 enabledCount={enabledCount}
                 running={chainRunning}
                 progress={chainProgress}
+                autoRunActive={autoRunActive}
                 onRun={() => { void handleRunChain(); }}
                 onCancel={handleCancelChain}
             />
@@ -251,12 +268,14 @@ interface ChainSettingsRowProps {
     readonly enabledCount: number;
     readonly running: boolean;
     readonly progress: { current: number; total: number } | null;
+    /** True while the auto-run-after-recording chain is in flight. */
+    readonly autoRunActive?: boolean;
     readonly onRun: () => void;
     readonly onCancel: () => void;
 }
 
 function ChainSettingsRow(props: ChainSettingsRowProps): JSX.Element {
-    const { settings, onChange, enabledCount, running, progress, onRun, onCancel } = props;
+    const { settings, onChange, enabledCount, running, progress, autoRunActive, onRun, onCancel } = props;
     const pauseDraft = String(settings.PauseMs);
     return (
         <div
@@ -281,6 +300,15 @@ function ChainSettingsRow(props: ChainSettingsRowProps): JSX.Element {
                     data-testid="keyword-event-chain-toggle"
                 />
                 <div className="ml-auto flex items-center gap-2">
+                    {autoRunActive && (
+                        <Badge
+                            variant="outline"
+                            className="text-[10px] border-primary/60 text-primary animate-pulse"
+                            data-testid="keyword-event-chain-auto-running"
+                        >
+                            Auto-running
+                        </Badge>
+                    )}
                     <Badge variant="outline" className="text-[10px]">
                         {enabledCount} enabled
                     </Badge>
@@ -338,6 +366,29 @@ function ChainSettingsRow(props: ChainSettingsRowProps): JSX.Element {
                     {settings.Enabled
                         ? "Recorder playback will run every enabled event in order with this pause between them."
                         : "Off — keyword events only fire when run manually."}
+                </p>
+            </div>
+            <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                    <Square className="h-3.5 w-3.5 text-primary" />
+                    <Label
+                        htmlFor="kev-chain-after-recording"
+                        className="text-xs font-medium cursor-pointer"
+                    >
+                        Run chain after recording stops
+                    </Label>
+                </div>
+                <Switch
+                    id="kev-chain-after-recording"
+                    checked={settings.RunAfterRecording}
+                    onCheckedChange={(v) => onChange({ ...settings, RunAfterRecording: v })}
+                    aria-label="Automatically run the chain when the recorder finishes a session"
+                    data-testid="keyword-event-chain-after-recording"
+                />
+                <p className="text-[10px] text-muted-foreground ml-auto max-w-md text-right">
+                    {settings.RunAfterRecording
+                        ? "Chain will fire automatically the moment a recording session is stopped."
+                        : "Off — stopping a recording does nothing."}
                 </p>
             </div>
         </div>

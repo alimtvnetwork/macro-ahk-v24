@@ -44,14 +44,14 @@ describe("chain settings", () => {
     });
 
     it("round-trips saved settings", () => {
-        saveChainSettings({ Enabled: true, PauseMs: 750 });
-        expect(loadChainSettings()).toEqual({ Enabled: true, PauseMs: 750 });
+        saveChainSettings({ Enabled: true, PauseMs: 750, RunAfterRecording: false });
+        expect(loadChainSettings()).toEqual({ Enabled: true, PauseMs: 750, RunAfterRecording: false });
     });
 
     it("clamps PauseMs to [0, 60000]", () => {
-        saveChainSettings({ Enabled: true, PauseMs: -100 });
+        saveChainSettings({ Enabled: true, PauseMs: -100, RunAfterRecording: false });
         expect(loadChainSettings().PauseMs).toBe(0);
-        saveChainSettings({ Enabled: true, PauseMs: 999_999 });
+        saveChainSettings({ Enabled: true, PauseMs: 999_999, RunAfterRecording: false });
         expect(loadChainSettings().PauseMs).toBe(60_000);
     });
 

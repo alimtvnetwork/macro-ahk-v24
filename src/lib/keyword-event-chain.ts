@@ -32,11 +32,21 @@ export interface KeywordEventChainSettings {
     readonly Enabled: boolean;
     /** Pause inserted *between* successive events (clamped 0–60000). */
     readonly PauseMs: number;
+    /**
+     * When true, the chain auto-runs immediately after the recorder
+     * finishes a session (transition from `Recording`/`Paused` to Idle).
+     * Independent from `Enabled` so users can manually run the chain
+     * without arming the post-recording hook, and vice-versa. Defaults
+     * to `false` so existing setups don't surprise users with a chain
+     * firing the first time they stop a recording.
+     */
+    readonly RunAfterRecording: boolean;
 }
 
 export const DEFAULT_CHAIN_SETTINGS: KeywordEventChainSettings = {
     Enabled: false,
     PauseMs: 250,
+    RunAfterRecording: false,
 };
 
 const STORAGE_KEY = "marco-keyword-event-chain-v1";
@@ -50,7 +60,7 @@ function clampPause(n: unknown): number {
     return Math.round(n);
 }
 
-function isSettings(v: unknown): v is { Enabled: unknown; PauseMs: unknown } {
+function isSettings(v: unknown): v is { Enabled: unknown; PauseMs: unknown; RunAfterRecording: unknown } {
     return v !== null && typeof v === "object";
 }
 
@@ -65,6 +75,9 @@ export function loadChainSettings(): KeywordEventChainSettings {
         return {
             Enabled: typeof parsed.Enabled === "boolean" ? parsed.Enabled : DEFAULT_CHAIN_SETTINGS.Enabled,
             PauseMs: clampPause(parsed.PauseMs),
+            RunAfterRecording: typeof parsed.RunAfterRecording === "boolean"
+                ? parsed.RunAfterRecording
+                : DEFAULT_CHAIN_SETTINGS.RunAfterRecording,
         };
     } catch {
         return DEFAULT_CHAIN_SETTINGS;
@@ -76,6 +89,7 @@ export function saveChainSettings(next: KeywordEventChainSettings): void {
     const safe: KeywordEventChainSettings = {
         Enabled: Boolean(next.Enabled),
         PauseMs: clampPause(next.PauseMs),
+        RunAfterRecording: Boolean(next.RunAfterRecording),
     };
     try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(safe)); } catch { /* ignore */ }
 }

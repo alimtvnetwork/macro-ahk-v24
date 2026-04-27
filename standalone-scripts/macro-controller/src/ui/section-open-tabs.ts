@@ -26,7 +26,11 @@ interface OpenLovableTabInfoView {
     readonly windowFocused: boolean;
     readonly projectId: string | null;
     readonly projectName: string | null;
-    readonly bindingSource: 'injection' | 'none';
+    readonly bindingSource: 'injection' | 'probe' | 'none';
+    readonly detectedWorkspaceName: string | null;
+    readonly detectedWorkspaceId: string | null;
+    readonly detectedWorkspaceSource: 'api' | 'cache' | 'dom' | 'none' | null;
+    readonly probeError: string | null;
 }
 
 interface OpenLovableTabsResponseView {
@@ -113,11 +117,31 @@ function renderList(tabs: ReadonlyArray<OpenLovableTabInfoView>, capturedAt: str
 function renderRow(t: OpenLovableTabInfoView): string {
     const titleSafe = escapeHtml(t.title || '(untitled)');
     const urlSafe = escapeHtml(shortenUrl(t.url));
-    const wsLabel = t.projectName !== null
-        ? '<span style="color:#10b981;">' + escapeHtml(t.projectName) + '</span>'
-        : '<span style="color:#9ca3af;font-style:italic;">'
-            + (t.bindingSource === 'injection' ? 'unknown project' : 'not bound')
+
+    // Workspace label priority:
+    //   1. matched stored project name (projectName)
+    //   2. detected workspace name reported by the tab's controller (probe)
+    //   3. fallback "unknown / not bound"
+    let wsLabel: string;
+    if (t.projectName !== null) {
+        const tag = t.bindingSource === 'probe'
+            ? ' <span style="color:#9ca3af;font-size:8px;">(via probe)</span>'
+            : '';
+        wsLabel = '<span style="color:#10b981;">' + escapeHtml(t.projectName) + '</span>' + tag;
+    } else if (t.detectedWorkspaceName) {
+        const sourceTag = t.detectedWorkspaceSource
+            ? ' <span style="color:#9ca3af;font-size:8px;">(' + escapeHtml(t.detectedWorkspaceSource) + ')</span>'
+            : '';
+        wsLabel = '<span style="color:#fbbf24;">' + escapeHtml(t.detectedWorkspaceName) + '</span>' + sourceTag;
+    } else {
+        const reason = t.probeError
+            ? 'no controller (' + t.probeError + ')'
+            : (t.bindingSource === 'injection' ? 'unknown project' : 'not bound');
+        wsLabel = '<span style="color:#9ca3af;font-style:italic;" title="' + escapeHtml(reason) + '">'
+            + escapeHtml(reason.length > 40 ? reason.slice(0, 40) + '…' : reason)
             + '</span>';
+    }
+
     const activeBadge = t.active
         ? '<span style="color:#fbbf24;margin-right:4px;" title="Active in window">●</span>'
         : '';

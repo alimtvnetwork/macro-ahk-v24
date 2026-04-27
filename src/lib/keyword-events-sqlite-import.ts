@@ -395,3 +395,52 @@ export function buildPatchFromImport(
     if (src.PauseAfterMs !== undefined) patch.PauseAfterMs = src.PauseAfterMs;
     return patch;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Per-match field diff (preview)                                     */
+/* ------------------------------------------------------------------ */
+
+export interface FieldDiff {
+    readonly field: string;
+    readonly before: string;
+    readonly after: string;
+}
+
+type DiffableValue = string | number | boolean | readonly string[] | KeywordEvent["Steps"] | KeywordEvent["Target"] | null | undefined;
+
+/**
+ * Given a matched (target, source) pair, returns the list of fields whose
+ * value will actually change once `buildPatchFromImport(source)` is applied.
+ * Fields absent from the import (undefined) are skipped — they would not
+ * overwrite existing data. Values are stringified for display only.
+ */
+export function diffMatchedFields(
+    target: KeywordEvent,
+    source: ImportedKeywordEvent,
+): readonly FieldDiff[] {
+    const diffs: FieldDiff[] = [];
+    const compare = (field: string, before: DiffableValue, after: DiffableValue): void => {
+        if (after === undefined) return;
+        const a = stringifyForDiff(before);
+        const b = stringifyForDiff(after);
+        if (a !== b) diffs.push({ field, before: a, after: b });
+    };
+
+    compare("Keyword", target.Keyword, source.Keyword);
+    compare("Description", target.Description, source.Description);
+    compare("Enabled", target.Enabled, source.Enabled);
+    compare("Steps", target.Steps, source.Steps);
+    compare("Target", target.Target, source.Target);
+    compare("Tags", target.Tags, source.Tags);
+    compare("Category", target.Category, source.Category);
+    compare("PauseAfterMs", target.PauseAfterMs, source.PauseAfterMs);
+    return diffs;
+}
+
+function stringifyForDiff(value: DiffableValue): string {
+    if (value === null || value === undefined) return "—";
+    if (typeof value === "string") return value;
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+    try { return JSON.stringify(value); } catch { return String(value); }
+}
+

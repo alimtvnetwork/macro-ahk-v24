@@ -37,10 +37,20 @@ interface ModalState {
   /** Empty string = "use JSON / default". */
   graceInput: string;
   refillInput: string;
+  /** pro_0 IndexedDB cache TTL (minutes). Empty string = use default. */
+  proZeroTtlInput: string;
 }
 
 interface ModalHandlerStore {
   _marcoSettingsKey?: (e: KeyboardEvent) => void;
+}
+
+function readJsonConfigValue(key: 'expiryGracePeriodDays' | 'refillWarningThresholdDays'): number | undefined {
+  const cfg = (window.__MARCO_CONFIG__ || {}) as Record<string, unknown>;
+  const credit = (cfg.creditStatus || {}) as Record<string, unknown>;
+  const lifecycle = (credit.lifecycle || {}) as Record<string, unknown>;
+  const v = lifecycle[key];
+  return typeof v === 'number' ? v : undefined;
 }
 
 function readJsonConfigValue(key: 'expiryGracePeriodDays' | 'refillWarningThresholdDays'): number | undefined {

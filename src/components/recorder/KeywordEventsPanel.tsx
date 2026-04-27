@@ -311,6 +311,29 @@ function KeywordEventsEditor(): JSX.Element {
 
             <Separator />
 
+            {eventSelection.selected.size > 0 && (
+                <div
+                    className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-xs"
+                    data-testid="keyword-events-selection-toolbar"
+                >
+                    <span className="font-medium" data-testid="keyword-events-selection-count">
+                        {eventSelection.selected.size} selected
+                    </span>
+                    <span className="text-muted-foreground">
+                        Shift-click to extend · Ctrl/Cmd-click to toggle
+                    </span>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="ml-auto h-6 px-2 text-xs"
+                        onClick={eventSelection.clear}
+                        data-testid="keyword-events-selection-clear"
+                    >
+                        Clear
+                    </Button>
+                </div>
+            )}
+
             <ScrollArea className="h-[380px] pr-3">
                 {api.events.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-12">
@@ -333,6 +356,18 @@ function KeywordEventsEditor(): JSX.Element {
                                         event={ev}
                                         isRunning={playback.isRunning(ev.Id)}
                                         currentStepIndex={playback.isRunning(ev.Id) ? playback.currentStepIndex : null}
+                                        selected={eventSelection.isSelected(ev.Id)}
+                                        onRowClick={(e) => handleEventRowClick(ev.Id, e)}
+                                        onToggleSelect={(checked, e) => {
+                                            // Checkbox toggles selection; Shift held while clicking
+                                            // the checkbox extends from anchor like a row click.
+                                            if (e && e.shiftKey) {
+                                                eventSelection.handleClick(ev.Id, { shiftKey: true, toggleKey: false });
+                                            } else {
+                                                eventSelection.handleClick(ev.Id, { shiftKey: false, toggleKey: true });
+                                            }
+                                            void checked;
+                                        }}
                                         onPlay={() => { void playback.play(ev); }}
                                         onCancel={playback.cancel}
                                         onRemove={() => api.removeEvent(ev.Id)}

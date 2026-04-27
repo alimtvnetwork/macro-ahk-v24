@@ -61,6 +61,7 @@ export function KeywordEventsPanel(props: KeywordEventsPanelProps): JSX.Element 
 
 function KeywordEventsEditor(): JSX.Element {
     const api = useKeywordEvents();
+    const playback = useKeywordEventPlayback();
     const [newKeyword, setNewKeyword] = useState("");
 
     const handleAdd = () => {
@@ -99,6 +100,10 @@ function KeywordEventsEditor(): JSX.Element {
                             <KeywordEventCard
                                 key={ev.Id}
                                 event={ev}
+                                isRunning={playback.isRunning(ev.Id)}
+                                currentStepIndex={playback.isRunning(ev.Id) ? playback.currentStepIndex : null}
+                                onPlay={() => { void playback.play(ev); }}
+                                onCancel={playback.cancel}
                                 onRemove={() => api.removeEvent(ev.Id)}
                                 onUpdate={patch => api.updateEvent(ev.Id, patch)}
                                 onAddStep={step => api.addStep(ev.Id, step)}
@@ -115,6 +120,10 @@ function KeywordEventsEditor(): JSX.Element {
 
 interface KeywordEventCardProps {
     readonly event: import("@/hooks/use-keyword-events").KeywordEvent;
+    readonly isRunning: boolean;
+    readonly currentStepIndex: number | null;
+    readonly onPlay: () => void;
+    readonly onCancel: () => void;
     readonly onRemove: () => void;
     readonly onUpdate: (patch: Partial<Omit<import("@/hooks/use-keyword-events").KeywordEvent, "Id">>) => void;
     readonly onAddStep: (step: Omit<import("@/hooks/use-keyword-events").KeywordEventStep, "Id">) => void;
@@ -123,12 +132,18 @@ interface KeywordEventCardProps {
 }
 
 function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
-    const { event, onRemove, onUpdate, onAddStep, onRemoveStep, onMoveStep } = props;
+    const { event, isRunning, currentStepIndex, onPlay, onCancel, onRemove, onUpdate, onAddStep, onRemoveStep, onMoveStep } = props;
     const [keyCombo, setKeyCombo] = useState("");
     const [waitMs, setWaitMs] = useState("500");
 
     return (
-        <div className="rounded-md border border-border bg-card/60 p-3 space-y-3" data-testid={`keyword-event-${event.Id}`}>
+        <div
+            className={cn(
+                "rounded-md border border-border bg-card/60 p-3 space-y-3 transition-shadow",
+                isRunning && "ring-2 ring-primary shadow-[0_0_0_1px_hsl(var(--primary)/0.3)]",
+            )}
+            data-testid={`keyword-event-${event.Id}`}
+        >
             <div className="flex items-center gap-2">
                 <Input
                     value={event.Keyword}

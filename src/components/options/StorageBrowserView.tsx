@@ -614,7 +614,10 @@ function TableDataView({
       setSchema(schemaResp.columns ?? []);
     } catch (err) {
       toast.error("Failed to load table data");
-      console.error(err);
+      console.error(
+        `[StorageBrowserView::loadData] Failed to load table data\n  Path: STORAGE_QUERY_TABLE + STORAGE_GET_SCHEMA for table="${tableName}" offset=${offset} limit=${limit}\n  Missing: rows[] / columns[] / total / schema for the active table view\n  Reason: ${err instanceof Error ? err.message : String(err)} — background message handler rejected or returned malformed payload`,
+        err,
+      );
     } finally {
       setLoading(false);
     }

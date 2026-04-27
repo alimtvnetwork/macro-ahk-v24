@@ -340,8 +340,11 @@ function logInjectionError(
         ? error.message
         : String(error);
 
-    console.error(
-        `[auto-injector] Failed to inject ${scriptId}: ${errorMessage}`,
+    logCaughtError(
+        BgLogTag.INJECTION,
+        `Failed to inject ${scriptId}: ${errorMessage}`,
+        error instanceof Error ? error : new Error(errorMessage),
+        { scriptId, projectId: getActiveProjectId() ?? undefined },
     );
 
     void persistInjectionError(
@@ -353,8 +356,9 @@ function logInjectionError(
 
 /** Logs a CSP fallback event. */
 function logCspFallbackUsed(scriptId: string, tabId: number): void {
-    console.error(
-        `[auto-injector] CSP fallback used for ${scriptId} in tab ${tabId}`,
+    logBgWarnError(
+        BgLogTag.CSP_FALLBACK,
+        `CSP fallback used for ${scriptId} in tab ${tabId}`,
     );
 
     void persistInjectionWarn(

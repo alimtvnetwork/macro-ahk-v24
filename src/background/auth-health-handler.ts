@@ -82,7 +82,7 @@ export async function buildAuthHealthResponse(): Promise<AuthHealthResponse> {
         tabUrl = tab?.url ?? null;
         projectId = extractProjectId(tabUrl);
     } catch (queryErr) {
-        logBgWarnError(BgLogTag.AUTH_HEALTH, "chrome.tabs.query({active,currentWindow}) failed — proceeding with tabUrl=null and projectId=null; downstream strategies will skip URL-dependent checks", queryErr);
+        logBgWarnError(BgLogTag.AUTH_HEALTH, "chrome.tabs.query({active,currentWindow}) failed — proceeding with tabUrl=null and projectId=null; downstream strategies will skip URL-dependent checks", queryErr instanceof Error ? queryErr : new Error(String(queryErr)));
     }
 
     // ── Strategy 1: Cookie presence check ──
@@ -142,7 +142,7 @@ export async function buildAuthHealthResponse(): Promise<AuthHealthResponse> {
                     return { success: true, detail: `JWT in ${val.slice(6)} (tabId=${tab.id})` };
                 }
             } catch (tabErr) {
-                logBgWarnError(BgLogTag.AUTH_HEALTH, `chrome.scripting.executeScript JWT scan failed for tabId=${tab.id} (url=${tab.url ?? "?"}) — tab may be discarded, restricted (chrome://, devtools), or closed mid-scan`, tabErr);
+                logBgWarnError(BgLogTag.AUTH_HEALTH, `chrome.scripting.executeScript JWT scan failed for tabId=${tab.id} (url=${tab.url ?? "?"}) — tab may be discarded, restricted (chrome://, devtools), or closed mid-scan`, tabErr instanceof Error ? tabErr : new Error(String(tabErr)));
             }
         }
         return { success: false, detail: `Scanned ${tabs.length} tab(s) — no JWT found` };
@@ -271,7 +271,7 @@ async function getActivePlatformTabs(): Promise<PlatformTab[]> {
             const tabs = await _chrome.tabs!.query({ url: pattern });
             if (Array.isArray(tabs)) results.push(...tabs);
         } catch (queryErr) {
-            logBgWarnError(BgLogTag.AUTH_HEALTH, `chrome.tabs.query({url:"${pattern}"}) failed — pattern skipped, other platform tabs (if any) still scanned`, queryErr);
+            logBgWarnError(BgLogTag.AUTH_HEALTH, `chrome.tabs.query({url:"${pattern}"}) failed — pattern skipped, other platform tabs (if any) still scanned`, queryErr instanceof Error ? queryErr : new Error(String(queryErr)));
         }
     }
     // Dedupe by tab ID

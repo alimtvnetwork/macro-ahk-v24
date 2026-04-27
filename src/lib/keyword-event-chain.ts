@@ -60,7 +60,7 @@ function clampPause(n: unknown): number {
     return Math.round(n);
 }
 
-function isSettings(v: unknown): v is { Enabled: unknown; PauseMs: unknown } {
+function isSettings(v: unknown): v is { Enabled: unknown; PauseMs: unknown; RunAfterRecording: unknown } {
     return v !== null && typeof v === "object";
 }
 
@@ -75,6 +75,9 @@ export function loadChainSettings(): KeywordEventChainSettings {
         return {
             Enabled: typeof parsed.Enabled === "boolean" ? parsed.Enabled : DEFAULT_CHAIN_SETTINGS.Enabled,
             PauseMs: clampPause(parsed.PauseMs),
+            RunAfterRecording: typeof parsed.RunAfterRecording === "boolean"
+                ? parsed.RunAfterRecording
+                : DEFAULT_CHAIN_SETTINGS.RunAfterRecording,
         };
     } catch {
         return DEFAULT_CHAIN_SETTINGS;
@@ -86,6 +89,7 @@ export function saveChainSettings(next: KeywordEventChainSettings): void {
     const safe: KeywordEventChainSettings = {
         Enabled: Boolean(next.Enabled),
         PauseMs: clampPause(next.PauseMs),
+        RunAfterRecording: Boolean(next.RunAfterRecording),
     };
     try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(safe)); } catch { /* ignore */ }
 }

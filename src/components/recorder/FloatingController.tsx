@@ -419,11 +419,11 @@ function ModeSwitcher(props: { mode: ControllerMode; onModeChange: (m: Controlle
         <button
             type="button"
             onClick={() => onModeChange(next[mode])}
-            className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
+            className="text-muted-foreground hover:text-foreground transition-all duration-200 p-1 rounded hover-scale"
             aria-label={`Switch to ${next[mode]} mode`}
             data-testid="controller-mode-switch"
         >
-            <Icon className="h-3 w-3" />
+            <Icon key={mode} className="h-3 w-3 animate-scale-in" />
         </button>
     );
 }

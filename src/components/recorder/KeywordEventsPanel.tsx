@@ -159,6 +159,30 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                     />
                     <Label className="text-xs text-muted-foreground">{event.Enabled ? "On" : "Off"}</Label>
                 </div>
+                {isRunning ? (
+                    <Button
+                        size="sm"
+                        variant="destructive"
+                        className="h-8"
+                        onClick={onCancel}
+                        data-testid={`keyword-event-stop-${event.Id}`}
+                        aria-label="Stop keyword event playback"
+                    >
+                        <Square className="h-3.5 w-3.5 mr-1" /> Stop
+                    </Button>
+                ) : (
+                    <Button
+                        size="sm"
+                        variant="secondary"
+                        className="h-8"
+                        onClick={onPlay}
+                        disabled={!event.Enabled || event.Steps.length === 0}
+                        data-testid={`keyword-event-play-${event.Id}`}
+                        aria-label="Run keyword event"
+                    >
+                        <Play className="h-3.5 w-3.5 mr-1" /> Run
+                    </Button>
+                )}
                 <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={onRemove} aria-label="Remove keyword event">
                     <Trash2 className="h-4 w-4" />
                 </Button>
@@ -176,7 +200,13 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                     <p className="text-xs text-muted-foreground italic">No steps yet — add a key press or wait below.</p>
                 )}
                 {event.Steps.map((s, i) => (
-                    <div key={s.Id} className="flex items-center gap-2 rounded bg-muted/40 px-2 py-1.5 text-xs">
+                    <div
+                        key={s.Id}
+                        className={cn(
+                            "flex items-center gap-2 rounded bg-muted/40 px-2 py-1.5 text-xs transition-colors",
+                            currentStepIndex === i && "bg-primary/15 ring-1 ring-primary/40",
+                        )}
+                    >
                         <Badge variant="outline" className="text-[10px] w-6 justify-center">{i + 1}</Badge>
                         {s.Kind === "Key" ? (
                             <>

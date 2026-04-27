@@ -212,6 +212,7 @@ export const RECORDER_DB_SCHEMA: string =
     LOOKUP_SEED_DML +
     DATA_SOURCE_TABLE_DDL +
     STEP_TABLE_DDL +
+    STEP_TAG_TABLE_DDL +
     SELECTOR_TABLE_DDL +
     FIELD_BINDING_TABLE_DDL +
     JS_SNIPPET_TABLE_DDL +
@@ -222,6 +223,11 @@ export const RECORDER_DB_SCHEMA: string =
 /*  Migration 005 — Step.ParamsJson (Spec 19.4)                        */
 /* ------------------------------------------------------------------ */
 
+type MigrationDb = {
+    exec(sql: string): Array<{ values: ReadonlyArray<ReadonlyArray<unknown>> }>;
+    run(sql: string): void;
+};
+
 /**
  * Idempotent ALTER for existing DBs that pre-date the `ParamsJson` column.
  * Fresh DBs already have the column from `STEP_TABLE_DDL` so this no-ops.
@@ -230,15 +236,44 @@ export const RECORDER_DB_SCHEMA: string =
  * Step table exists. Uses `PRAGMA table_info` to check column presence —
  * SQLite has no `IF NOT EXISTS` clause for `ADD COLUMN`.
  */
-export function applyParamsJsonMigration(
-    db: { exec(sql: string): Array<{ values: ReadonlyArray<ReadonlyArray<unknown>> }>; run(sql: string): void },
-): void {
+export function applyParamsJsonMigration(db: MigrationDb): void {
     const info = db.exec("PRAGMA table_info(Step)");
     const cols = info[0]?.values ?? [];
     const hasParamsJson = cols.some((row) => row[1] === "ParamsJson");
     if (!hasParamsJson) {
         db.run("ALTER TABLE Step ADD COLUMN ParamsJson TEXT");
     }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Migration 006 — Step chain columns + StepTag (Phase 14)            */
+/* ------------------------------------------------------------------ */
+
+const STEP_CHAIN_COLUMNS: ReadonlyArray<readonly [name: string, ddl: string]> = [
+    ["Description", "ALTER TABLE Step ADD COLUMN Description TEXT"],
+    ["IsDisabled", "ALTER TABLE Step ADD COLUMN IsDisabled INTEGER NOT NULL DEFAULT 0"],
+    ["RetryCount", "ALTER TABLE Step ADD COLUMN RetryCount INTEGER NOT NULL DEFAULT 0"],
+    ["TimeoutMs", "ALTER TABLE Step ADD COLUMN TimeoutMs INTEGER"],
+    ["OnSuccessProjectId", "ALTER TABLE Step ADD COLUMN OnSuccessProjectId TEXT"],
+    ["OnFailureProjectId", "ALTER TABLE Step ADD COLUMN OnFailureProjectId TEXT"],
+];
+
+/**
+ * Idempotent migration that brings Step + StepTag up to the Phase 14 shape.
+ * Fresh DBs already have everything from the DDL above so this no-ops.
+ * Existing DBs gain each missing column via individual `ALTER TABLE` calls
+ * gated on `PRAGMA table_info(Step)`, then the StepTag table is created via
+ * `CREATE TABLE IF NOT EXISTS` (already-existing schema is a no-op).
+ *
+ * Caller (`initProjectDb`) MUST run this AFTER `RECORDER_DB_SCHEMA`.
+ */
+export function applyChainColumnsMigration(db: MigrationDb): void {
+    const info = db.exec("PRAGMA table_info(Step)");
+    const present = new Set((info[0]?.values ?? []).map((row) => row[1] as string));
+    for (const [name, ddl] of STEP_CHAIN_COLUMNS) {
+        if (!present.has(name)) db.run(ddl);
+    }
+    db.run(STEP_TAG_TABLE_DDL);
 }
 
 /* ------------------------------------------------------------------ */

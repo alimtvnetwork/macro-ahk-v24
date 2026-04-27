@@ -323,14 +323,17 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                             ) : (
                                 <ul className="space-y-1.5">
                                     {log.map((entry, i) => {
-                                        const detail = entry.SkipReason ?? entry.Error;
+                                        const skipReason = "SkipReason" in entry ? entry.SkipReason : undefined;
+                                        const errorText = "Error" in entry ? entry.Error : undefined;
+                                        const statusValue = "Status" in entry ? entry.Status : undefined;
+                                        const detail = skipReason ?? errorText;
                                         const hasDetail = typeof detail === "string" && detail.length > 0;
                                         const isOpen = expandedIdx === i;
                                         const statusLabel = entry.Skipped
                                             ? "Skip"
                                             : entry.Ok
-                                                ? `OK ${entry.Status ?? ""}`.trim()
-                                                : `Fail${entry.Status ? ` ${entry.Status}` : ""}`;
+                                                ? `OK ${statusValue ?? ""}`.trim()
+                                                : `Fail${statusValue ? ` ${statusValue}` : ""}`;
                                         const variant = entry.Skipped
                                             ? "outline"
                                             : entry.Ok

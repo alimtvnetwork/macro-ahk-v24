@@ -994,6 +994,7 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                                 <p className="text-[10px] text-destructive pl-8">{issue.Message}</p>
                             )}
                         </div>
+                        </KeywordEventStepContextMenu>
                     );
                 })}
             </div>

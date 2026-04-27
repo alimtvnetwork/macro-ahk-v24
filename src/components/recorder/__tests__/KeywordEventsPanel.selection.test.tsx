@@ -27,9 +27,19 @@ function addEvent(name: string): void {
     fireEvent.keyDown(input, { key: "Enter" });
 }
 
-function eventCard(): HTMLElement[] {
-    return Array.from(document.querySelectorAll<HTMLElement>("[data-testid^=keyword-event-]"))
-        .filter(el => /^keyword-event-[^-]+$/.test(el.dataset.testid ?? ""));
+function eventCards(): HTMLElement[] {
+    // Outer event cards have testid "keyword-event-<uuid>" (UUIDs contain
+    // dashes). Filter by structural depth: the outer card directly hosts an
+    // input labelled "Keyword".
+    const all = Array.from(document.querySelectorAll<HTMLElement>("[data-testid^='keyword-event-']"));
+    return all.filter(el => {
+        const tid = el.getAttribute("data-testid") ?? "";
+        if (!tid.startsWith("keyword-event-")) return false;
+        if (tid.startsWith("keyword-event-step")) return false;
+        if (tid.startsWith("keyword-events-")) return false;
+        // The outer card hosts the keyword input directly.
+        return !!el.querySelector("input[aria-label='Keyword']");
+    });
 }
 
 describe("KeywordEventsPanel — multi-selection", () => {

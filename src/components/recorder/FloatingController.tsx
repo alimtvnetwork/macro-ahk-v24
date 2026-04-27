@@ -229,6 +229,17 @@ export function FloatingController(props: FloatingControllerProps): JSX.Element 
                 >
                     {elapsed}
                 </span>
+                <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => { openExtensionOptions(); }}
+                    className="h-8 w-8 ml-auto"
+                    data-testid="controller-open-options"
+                    aria-label="Open extension options page"
+                    title="Open Options — view full recording status & captured items"
+                >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                </Button>
             </div>
 
             <div className="flex items-center gap-1.5 flex-wrap pt-1">

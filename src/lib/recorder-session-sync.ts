@@ -28,6 +28,7 @@ import {
     RECORDER_SESSION_STORAGE_KEY,
     type RecordingSession,
 } from "@/background/recorder/recorder-session-types";
+import { logError } from "./lib-logger";
 
 export type RecorderSessionListener = (session: RecordingSession | null) => void;
 export type RecorderSyncTransport = "chrome.storage" | "localStorage" | "memory";
@@ -168,8 +169,9 @@ function dispatch(session: RecordingSession | null): void {
     // Iterate a snapshot — listeners may unsubscribe during dispatch.
     for (const cb of [...subscribers]) {
         try { cb(session); } catch (err) {
-            console.error(
-                `[recorder-session-sync::dispatch] Subscriber callback threw\n  Path: subscribers Set (${subscribers.size} listener(s)) — RecorderSessionListener invocation\n  Missing: Clean callback execution for session=${session?.SessionId ?? "null"}\n  Reason: ${err instanceof Error ? err.message : String(err)} — listener body threw; remaining subscribers still dispatched`,
+            logError(
+                "recorder-session-sync.dispatch",
+                `Subscriber callback threw\n  Path: subscribers Set (${subscribers.size} listener(s)) — RecorderSessionListener invocation\n  Missing: Clean callback execution for session=${session?.SessionId ?? "null"}\n  Reason: ${err instanceof Error ? err.message : String(err)} — listener body threw; remaining subscribers still dispatched`,
                 err,
             );
         }

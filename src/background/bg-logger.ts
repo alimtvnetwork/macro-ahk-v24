@@ -61,6 +61,7 @@ export const enum BgLogTag {
     STATUS_HANDLER = "[status-handler]",
     TOKEN_SEEDER = "[token-seeder]",
     URL_MATCHER = "[url-matcher]",
+    WEBHOOK = "[webhook]",
     XPATH = "[xpath]",
 }
 

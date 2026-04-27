@@ -48,6 +48,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { StorageRuntimePanels } from "./StorageRuntimePanels";
+import { logError } from "./options-logger";
 
 const JsonSchemaTab = lazy(() =>
   import("./project-database/JsonSchemaTab").then(m => ({ default: m.JsonSchemaTab }))
@@ -614,8 +615,9 @@ function TableDataView({
       setSchema(schemaResp.columns ?? []);
     } catch (err) {
       toast.error("Failed to load table data");
-      console.error(
-        `[StorageBrowserView::loadData] Failed to load table data\n  Path: STORAGE_QUERY_TABLE + STORAGE_GET_SCHEMA for table="${tableName}" offset=${offset} limit=${limit}\n  Missing: rows[] / columns[] / total / schema for the active table view\n  Reason: ${err instanceof Error ? err.message : String(err)} — background message handler rejected or returned malformed payload`,
+      logError(
+        "StorageBrowserView.loadData",
+        `Failed to load table data\n  Path: STORAGE_QUERY_TABLE + STORAGE_GET_SCHEMA for table="${tableName}" offset=${offset} limit=${limit}\n  Missing: rows[] / columns[] / total / schema for the active table view\n  Reason: ${err instanceof Error ? err.message : String(err)} — background message handler rejected or returned malformed payload`,
         err,
       );
     } finally {

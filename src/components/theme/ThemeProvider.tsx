@@ -11,6 +11,7 @@
  */
 import { createContext, useContext, useEffect } from "react";
 import { toast } from "sonner";
+import { logError } from "@/components/options/options-logger";
 
 type Theme = "dark";
 
@@ -54,10 +55,9 @@ function validateCssInjection() {
     const isCssLoaded = computed.display === "none";
 
     if (!isCssLoaded) {
-      console.error(
-        "[ThemeProvider] CSS injection FAILED — sentinel #" + SENTINEL_ID +
-        " has display:" + computed.display + " instead of none. " +
-        "index.css may not be bundled or linked correctly."
+      logError(
+        "ThemeProvider.cssSentinel",
+        `CSS injection FAILED\n  Path: #${SENTINEL_ID} sentinel element — getComputedStyle().display\n  Missing: display:none on the sentinel (proves index.css applied)\n  Reason: computed display="${computed.display}" instead of "none" — index.css may not be bundled or linked correctly`,
       );
 
       // Apply emergency dark background so the page isn't white

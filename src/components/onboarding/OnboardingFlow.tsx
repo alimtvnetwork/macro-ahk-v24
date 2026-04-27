@@ -17,6 +17,7 @@ import {
   Lock,
 } from "lucide-react";
 import { toast } from "sonner";
+import { logError } from "@/components/options/options-logger";
 
 interface OnboardingFlowProps {
   onComplete: () => void;
@@ -537,11 +538,10 @@ class OnboardingStepBoundary extends Component<
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    console.error(
-      "[Onboarding] step %s failed to render: %s",
-      this.props.stepId,
-      error?.message ?? error,
-      info?.componentStack ?? "",
+    logError(
+      "OnboardingStepBoundary",
+      `Onboarding step "${this.props.stepId}" failed to render\n  Path: <OnboardingStepBoundary stepId="${this.props.stepId}"> — componentDidCatch\n  Missing: Successful render of step children\n  Reason: ${error?.message ?? String(error)} — componentStack: ${info?.componentStack ?? "<unavailable>"}`,
+      error,
     );
   }
 

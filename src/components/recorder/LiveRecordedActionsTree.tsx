@@ -125,7 +125,9 @@ export function LiveRecordedActionsTree(props: LiveRecordedActionsTreeProps): JS
 
     // Selection scroll + highlight pulse. Runs whenever the active selection
     // changes (internal click OR controlled prop change) so the matching row
-    // is always visible regardless of how it was selected.
+    // is always visible regardless of how it was selected. Also re-runs when
+    // the underlying step list grows so a controlled selection set *before*
+    // the session loaded still gets scrolled/pulsed once its row mounts.
     const [pulseStepId, setPulseStepId] = useState<string | null>(null);
     useEffect(() => {
         if (activeStepId === null) { return; }
@@ -137,7 +139,7 @@ export function LiveRecordedActionsTree(props: LiveRecordedActionsTreeProps): JS
         setPulseStepId(activeStepId);
         const timer = window.setTimeout(() => { setPulseStepId(null); }, HIGHLIGHT_PULSE_MS);
         return () => { window.clearTimeout(timer); };
-    }, [activeStepId]);
+    }, [activeStepId, steps.length]);
 
     const isRecording = session?.Phase === "Recording";
     const isPaused = session?.Phase === "Paused";

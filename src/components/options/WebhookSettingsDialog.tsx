@@ -18,7 +18,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ChevronDown, Copy, Plus, RefreshCw, Search, Send, Trash2, Webhook, Wrench, X } from "lucide-react";
+import { ChevronDown, Copy, Download, Plus, RefreshCw, Search, Send, Trash2, Webhook, Wrench, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +45,12 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 import {
     ALL_WEBHOOK_EVENTS,

@@ -328,6 +328,13 @@ async function doFetchLoopCreditsAsync(isRetry?: boolean): Promise<void> {
   const data = resp.data as Record<string, unknown>;
   parseLoopApiResponse(data);
   log('Credit API (async): parsed ' + (loopCreditState.perWorkspace || []).length + ' workspaces', 'success');
+  // Pro_0 enrichment runs in the background; awaited here so async callers
+  // (e.g. loop-cycle) see authoritative numbers before continuing.
+  const mutated = await applyProZeroEnrichment().catch(function (err: unknown): number {
+    logError('credit-fetch-async', 'pro_0 enrichment failed', err);
+    return 0;
+  });
+  if (mutated > 0) { syncCreditStateFromApi(); mc().updateUI(); }
 }
 
 // ============================================

@@ -48,6 +48,8 @@ import {
     type WebhookEventKind,
     type WebhookHeader,
     type WebhookDeliveryResult,
+    isWebhookSkipped,
+    isWebhookSuccess,
 } from "@/background/recorder/step-library/result-webhook";
 
 interface Props {
@@ -147,12 +149,12 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
         );
         setBusy(false);
         setLog(getDeliveryLog());
-        if (result.Skipped) {
-            toast.warning(`Skipped: ${result.SkipReason ?? "unknown reason"}`);
-        } else if (result.Ok) {
-            toast.success(`Webhook reached endpoint (HTTP ${result.Status ?? "?"})`);
+        if (isWebhookSkipped(result)) {
+            toast.warning(`Skipped: ${result.SkipReason}`);
+        } else if (isWebhookSuccess(result)) {
+            toast.success(`Webhook reached endpoint (HTTP ${result.Status})`);
         } else {
-            toast.error(`Webhook failed: ${result.Error ?? "unknown error"}`);
+            toast.error(`Webhook failed: ${result.Error}`);
         }
     };
 
@@ -323,27 +325,33 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                             ) : (
                                 <ul className="space-y-1.5">
                                     {log.map((entry, i) => {
-                                        const skipReason = "SkipReason" in entry ? entry.SkipReason : undefined;
-                                        const errorText = "Error" in entry ? entry.Error : undefined;
-                                        const statusValue = "Status" in entry ? entry.Status : undefined;
+                                        const skipped = isWebhookSkipped(entry);
+                                        const success = isWebhookSuccess(entry);
+                                        const skipReason = skipped ? entry.SkipReason : undefined;
+                                        const errorText = !skipped && !success ? entry.Error : undefined;
+                                        const statusValue = success
+                                            ? entry.Status
+                                            : !skipped
+                                                ? entry.Status
+                                                : undefined;
                                         const detail = skipReason ?? errorText;
                                         const hasDetail = typeof detail === "string" && detail.length > 0;
                                         const hasStatus = statusValue !== undefined && statusValue !== null;
                                         const isExpandable = hasDetail || hasStatus;
                                         const isOpen = expandedIdx === i;
-                                        const statusLabel = entry.Skipped
+                                        const statusLabel = skipped
                                             ? "Skipped"
-                                            : entry.Ok
-                                                ? `OK${hasStatus ? ` ${statusValue}` : ""}`
+                                            : success
+                                                ? `OK ${statusValue}`
                                                 : `Failed${hasStatus ? ` ${statusValue}` : ""}`;
-                                        const variant = entry.Skipped
+                                        const variant = skipped
                                             ? "outline"
-                                            : entry.Ok
+                                            : success
                                                 ? "default"
                                                 : "destructive";
-                                        const detailLabel = entry.Skipped
+                                        const detailLabel = skipped
                                             ? "Skip reason"
-                                            : entry.Ok
+                                            : success
                                                 ? "Note"
                                                 : "Error";
                                         return (

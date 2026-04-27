@@ -872,3 +872,164 @@ function BulkDeleteConfirmDialog(props: BulkDeleteConfirmDialogProps): JSX.Eleme
         </Dialog>
     );
 }
+
+/* ------------------------------------------------------------------ */
+/*  Import dialog                                                      */
+/* ------------------------------------------------------------------ */
+
+interface BulkImportDialogProps {
+    readonly open: boolean;
+    readonly onOpenChange: (open: boolean) => void;
+    readonly selectedEvents: ReadonlyArray<KeywordEvent>;
+    readonly onApply: (plan: ImportMatchPlan) => void;
+}
+
+// eslint-disable-next-line max-lines-per-function -- single dialog owns picker + dry-run + apply
+function BulkImportDialog(props: BulkImportDialogProps): JSX.Element {
+    const { open, onOpenChange, selectedEvents, onApply } = props;
+    const [bundle, setBundle] = useState<KeywordEventsImportResult | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [busy, setBusy] = useState(false);
+    const [filename, setFilename] = useState<string>("");
+
+    useEffect(() => {
+        if (!open) {
+            setBundle(null);
+            setError(null);
+            setBusy(false);
+            setFilename("");
+        }
+    }, [open]);
+
+    const plan = useMemo<ImportMatchPlan | null>(
+        () => (bundle ? planImportMatches(selectedEvents, bundle.events) : null),
+        [bundle, selectedEvents],
+    );
+
+    const handleFile = async (file: File | undefined): Promise<void> => {
+        if (!file) return;
+        setBusy(true);
+        setError(null);
+        try {
+            const result = await readKeywordEventsZip(file);
+            setBundle(result);
+            setFilename(file.name);
+        } catch (err) {
+            setBundle(null);
+            setError(err instanceof Error ? err.message : "Failed to read ZIP");
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const handleApply = (): void => {
+        if (!plan) return;
+        onApply(plan);
+        onOpenChange(false);
+    };
+
+    const matchCount = plan?.matches.length ?? 0;
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="max-w-md"
+                data-testid="keyword-events-bulk-import-dialog"
+            >
+                <DialogHeader>
+                    <DialogTitle>Update selected from ZIP</DialogTitle>
+                    <DialogDescription>
+                        Reads <code>keyword-events.db</code> from a ZIP previously
+                        produced by Export and overlays each imported row onto the
+                        matching event in your current selection
+                        ({selectedEvents.length} selected). Matches by Id first,
+                        then by Keyword (case-insensitive).
+                    </DialogDescription>
+                </DialogHeader>
+
+                {selectedEvents.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                        Select at least one event before importing.
+                    </p>
+                ) : (
+                    <div className="space-y-3">
+                        <div className="space-y-1">
+                            <Label htmlFor="kw-import-file" className="text-xs">
+                                ZIP file
+                            </Label>
+                            <Input
+                                id="kw-import-file"
+                                type="file"
+                                accept=".zip,application/zip"
+                                disabled={busy}
+                                onChange={(e) => {
+                                    void handleFile(e.target.files?.[0]);
+                                }}
+                                data-testid="keyword-events-bulk-import-file"
+                            />
+                            {filename && (
+                                <p className="text-[11px] text-muted-foreground truncate">
+                                    {filename}
+                                </p>
+                            )}
+                        </div>
+
+                        {error && (
+                            <p
+                                className="text-xs text-destructive"
+                                role="alert"
+                                data-testid="keyword-events-bulk-import-error"
+                            >
+                                {error}
+                            </p>
+                        )}
+
+                        {plan && (
+                            <div
+                                className="rounded border border-border/60 bg-muted/30 p-2 text-xs space-y-1"
+                                data-testid="keyword-events-bulk-import-summary"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span className="text-muted-foreground">Will update</span>
+                                    <Badge variant="secondary">{matchCount}</Badge>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-muted-foreground">Imported rows with no match</span>
+                                    <Badge variant="outline">{plan.unmatchedImports.length}</Badge>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-muted-foreground">Selected rows left untouched</span>
+                                    <Badge variant="outline">{plan.unmatchedSelected.length}</Badge>
+                                </div>
+                                {bundle?.exportedAt && (
+                                    <p className="text-[11px] text-muted-foreground pt-1">
+                                        Bundle exported {bundle.exportedAt}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                <DialogFooter>
+                    <Button
+                        variant="ghost"
+                        onClick={() => onOpenChange(false)}
+                        disabled={busy}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleApply}
+                        disabled={busy || matchCount === 0}
+                        data-testid="keyword-events-bulk-import-apply"
+                    >
+                        {busy
+                            ? "Reading…"
+                            : `Update ${matchCount} event${matchCount === 1 ? "" : "s"}`}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}

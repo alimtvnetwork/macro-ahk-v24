@@ -42,21 +42,55 @@ function tryReinjectUI(createUI: () => void): void {
   }
 }
 
+// PERF-13: Idle-callback handle type (window.requestIdleCallback may be absent).
+interface IdleCallbackWindow {
+  requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+  cancelIdleCallback?: (handle: number) => void;
+}
+
 /** Install MutationObserver + visibilitychange listener for SPA persistence. */
 export function setupPersistenceObserver(createUI: () => void): void {
-  let reinjectDebounce: ReturnType<typeof setTimeout> | null = null;
+  let reinjectTimer: ReturnType<typeof setTimeout> | null = null;
+  let reinjectIdleHandle: number | null = null;
   const REINJECT_DELAY_MS = 500;
+  const IDLE_TIMEOUT_MS = 1000;
+  const idleWin = window as unknown as IdleCallbackWindow;
+
+  function cancelPending(): void {
+    if (reinjectTimer) {
+      clearTimeout(reinjectTimer);
+      reinjectTimer = null;
+    }
+    if (reinjectIdleHandle !== null && idleWin.cancelIdleCallback) {
+      idleWin.cancelIdleCallback(reinjectIdleHandle);
+      reinjectIdleHandle = null;
+    }
+  }
+
+  function scheduleReinject(): void {
+    cancelPending();
+    // PERF-13: debounce burst, then yield to idle frame so busy SPA pages
+    // (e.g. infinite-scroll feeds) do not pay the check cost mid-render.
+    reinjectTimer = setTimeout(function () {
+      reinjectTimer = null;
+      const run = function (): void {
+        reinjectIdleHandle = null;
+        log('SPA navigation detected - checking UI state', 'check');
+        tryReinjectUI(createUI);
+      };
+      if (idleWin.requestIdleCallback) {
+        reinjectIdleHandle = idleWin.requestIdleCallback(run, { timeout: IDLE_TIMEOUT_MS });
+      } else {
+        run();
+      }
+    }, REINJECT_DELAY_MS);
+  }
 
   // MC-04 fix: Use childList-only (no subtree) on a narrow parent.
   const observer = new MutationObserver(function (_mutations: MutationRecord[]) {
     const isBothPresent = !!document.getElementById(IDS.SCRIPT_MARKER) && !!document.getElementById(IDS.CONTAINER);
     if (isBothPresent) return;
-
-    if (reinjectDebounce) clearTimeout(reinjectDebounce);
-    reinjectDebounce = setTimeout(function () {
-      log('SPA navigation detected - checking UI state', 'check');
-      tryReinjectUI(createUI);
-    }, REINJECT_DELAY_MS);
+    scheduleReinject();
   });
 
   const observeTarget = document.querySelector('main') || document.querySelector('#root') || document.body;

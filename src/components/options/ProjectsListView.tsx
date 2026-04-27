@@ -75,18 +75,36 @@ function formatCategoryLine(label: string, c: CategoryCounts): string {
   return `${label}: ${c.matched} matched, ${c.unmatched} new, ${c.untouched} untouched`;
 }
 
+/**
+ * Canonical render order for the import-summary toast.
+ *
+ * The toast description MUST always render Projects → Scripts → Configs in
+ * this exact order, regardless of how the underlying counting code is
+ * refactored. Do not reorder these entries; doing so changes user-visible
+ * output and will fail the round-trip toast tests.
+ */
+const SUMMARY_CATEGORY_ORDER: ReadonlyArray<{
+  readonly label: "Projects" | "Scripts" | "Configs";
+  readonly pick: (preview: BundlePreview) => { items: DiffItem[]; existing: number };
+}> = [
+  { label: "Projects", pick: (p) => ({ items: p.projectItems, existing: p.existingProjectCount }) },
+  { label: "Scripts", pick: (p) => ({ items: p.scriptItems, existing: p.existingScriptCount }) },
+  { label: "Configs", pick: (p) => ({ items: p.configItems, existing: p.existingConfigCount }) },
+];
+
 function buildImportSummary(preview: BundlePreview, mode: "merge" | "replace"): string {
-  const projects = countCategory(preview.projectItems, preview.existingProjectCount, mode);
-  const scripts = countCategory(preview.scriptItems, preview.existingScriptCount, mode);
-  const configs = countCategory(preview.configItems, preview.existingConfigCount, mode);
-  const totalMatched = projects.matched + scripts.matched + configs.matched;
-  const totalUnmatched = projects.unmatched + scripts.unmatched + configs.unmatched;
-  return [
-    formatCategoryLine("Projects", projects),
-    formatCategoryLine("Scripts", scripts),
-    formatCategoryLine("Configs", configs),
-    `Total: ${totalMatched} matched, ${totalUnmatched} new`,
-  ].join("\n");
+  const lines: string[] = [];
+  let totalMatched = 0;
+  let totalUnmatched = 0;
+  for (const entry of SUMMARY_CATEGORY_ORDER) {
+    const { items, existing } = entry.pick(preview);
+    const counts = countCategory(items, existing, mode);
+    lines.push(formatCategoryLine(entry.label, counts));
+    totalMatched += counts.matched;
+    totalUnmatched += counts.unmatched;
+  }
+  lines.push(`Total: ${totalMatched} matched, ${totalUnmatched} new`);
+  return lines.join("\n");
 }
 
 /* ------------------------------------------------------------------ */

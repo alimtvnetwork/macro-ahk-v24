@@ -135,9 +135,16 @@ export interface UseRecordingSessionResult {
     readonly session: RecordingSession | null;
     /** True while the initial storage read is in flight. */
     readonly loading: boolean;
+    readonly start: (projectSlug?: string) => Promise<void>;
     readonly pause: () => Promise<void>;
     readonly resume: () => Promise<void>;
     readonly stop: () => Promise<void>;
+}
+
+function newSessionId(): string {
+    const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+    if (c?.randomUUID !== undefined) { return c.randomUUID(); }
+    return `sess-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function useRecordingSession(): UseRecordingSessionResult {

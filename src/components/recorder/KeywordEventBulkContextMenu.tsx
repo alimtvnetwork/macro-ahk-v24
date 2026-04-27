@@ -434,6 +434,14 @@ export function BulkRenameSequenceDialog(props: BulkRenameSequenceDialogProps): 
         return () => window.removeEventListener("storage", handler);
     }, [open]);
 
+    // Persist edits live (debounced via React's batching) so other open tabs
+    // receive the `storage` event and mirror the changes immediately. Skipped
+    // while the dialog is closed to avoid writing default values on mount.
+    useEffect(() => {
+        if (!open) return;
+        persistSequence(input);
+    }, [open, input]);
+
     // Build the set of "outside" keywords once per (allEvents, selection) change.
     // Selected events are excluded so renaming an event back to its own name
     // doesn't falsely flag a collision.

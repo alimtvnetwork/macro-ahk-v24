@@ -40,6 +40,12 @@ const STEPS = [
     hint: "Flags imports pointing at the step-library folder instead of the explicit file. Update offending imports to `.../step-library/result-webhook`.",
   },
   {
+    name: "verify:worktree-fresh",
+    cmd: "node",
+    args: ["scripts/verify-worktree-fresh.mjs"],
+    hint: "Confirms critical source files are present, non-empty, and stable across a 250ms settle (re-read from disk, hashed twice). If this fails, the working tree is mid-checkout or a writer is still active — wait for it to finish and re-run.",
+  },
+  {
     name: "vite:build:dev",
     cmd: "npx",
     args: ["vite", "build", "--mode", "development"],

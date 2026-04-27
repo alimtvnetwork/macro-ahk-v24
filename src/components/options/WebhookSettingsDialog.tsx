@@ -604,11 +604,13 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                 </div>
                             ) : filteredLog.length === 0 ? (
                                 <p className="rounded-md border border-dashed border-muted-foreground/30 bg-muted/10 px-3 py-4 text-center text-xs text-muted-foreground">
-                                    No deliveries match the “{statusFilter}” filter.{" "}
+                                    {searchQuery.trim().length > 0
+                                        ? <>No deliveries match search “{searchQuery}”{statusFilter !== "all" ? <> in “{statusFilter}”</> : null}. </>
+                                        : <>No deliveries match the “{statusFilter}” filter. </>}
                                     <button
                                         type="button"
                                         className="underline underline-offset-2 hover:text-foreground"
-                                        onClick={() => setStatusFilter("all")}
+                                        onClick={() => { setStatusFilter("all"); setSearchQuery(""); }}
                                     >
                                         Show all
                                     </button>

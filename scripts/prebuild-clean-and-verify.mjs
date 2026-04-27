@@ -15,6 +15,7 @@
 import { existsSync, rmSync, statSync, readdirSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { waitForBuildLock } from "./lib/build-lock.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -201,6 +202,12 @@ function verifyStepLibrary() {
     }
 }
 
+try {
+    await waitForBuildLock();
+} catch (err) {
+    if (err?.code === "EBUILDLOCK") process.exit(1);
+    throw err;
+}
 clearCaches();
 verifyStepLibrary();
 console.log("✅ [prebuild-clean-and-verify] Cache cleared, step-library verified — safe to bundle.\n");

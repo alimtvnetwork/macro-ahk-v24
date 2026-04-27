@@ -141,6 +141,7 @@ function wait(ms: number, signal?: AbortSignal): Promise<void> {
  * Run all steps of `event` sequentially. Resolves with a result describing
  * whether playback completed or was aborted.
  */
+// eslint-disable-next-line sonarjs/cognitive-complexity -- Enabled-skip + abort + Kind switch in one loop is intentional
 export async function runKeywordEvent(
     event: KeywordEvent,
     options: PlaybackOptions = {},

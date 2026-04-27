@@ -144,6 +144,7 @@ function save(events: readonly KeywordEvent[]): void {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(events)); } catch { /* quota / SSR */ }
 }
 
+// eslint-disable-next-line max-lines-per-function -- single hook owns the full event+step API surface
 export function useKeywordEvents(): UseKeywordEventsApi {
     const [events, setEvents] = useState<readonly KeywordEvent[]>(() => load());
 

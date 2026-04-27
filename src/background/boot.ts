@@ -34,7 +34,7 @@ import { configureUserScriptWorld } from "./csp-fallback";
 import { markInitialized, drainBuffer } from "./message-buffer";
 import { cacheScriptCode, getCachedScriptCode, purgeStaleEntries, syncCacheWithBuildId, invalidateCacheOnDeploy } from "./injection-cache";
 import { invalidateNamespaceCache } from "./namespace-cache";
-import { logCaughtError, BgLogTag} from "./bg-logger";
+import { logCaughtError, logBgWarnError, BgLogTag} from "./bg-logger";
 
 const BUILD_META_URL = "build-meta.json";
 

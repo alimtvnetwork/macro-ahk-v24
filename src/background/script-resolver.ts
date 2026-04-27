@@ -102,10 +102,14 @@ async function resolveScriptCode(script: StoredScript): Promise<ResolvedCode> {
                     code.length, cacheMissMs, fetchMs, totalMs);
             }
 
-            cacheScriptCode(candidate.path, code).catch(() => {});
+            cacheScriptCode(candidate.path, code).catch((cacheErr) => {
+                logBgWarnError(BgLogTag.SCRIPT_RESOLVER, `cacheScriptCode failed for "${candidate.path}" — code fetched OK but cache miss will repeat next call`, cacheErr);
+            });
             if (candidate.path !== script.filePath) {
                 logBgWarnError(BgLogTag.SCRIPT_RESOLVER, `Recovered ${script.filePath} via bundled fallback ${candidate.path}`);
-                cacheScriptCode(script.filePath, code).catch(() => {});
+                cacheScriptCode(script.filePath, code).catch((cacheErr) => {
+                    logBgWarnError(BgLogTag.SCRIPT_RESOLVER, `cacheScriptCode (alias) failed for "${script.filePath}" → "${candidate.path}"`, cacheErr);
+                });
             }
 
             return { code, source: "fetch" };

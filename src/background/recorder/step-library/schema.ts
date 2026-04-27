@@ -38,6 +38,14 @@ export enum StepKindId {
     Wait = 5,
     /** New in §5.3 — invokes another group inline. */
     RunGroup = 6,
+    /**
+     * AutoHotkey-style chord macro. Payload shape:
+     * `{ "Keys": ["Ctrl+S","Tab","Enter"], "WaitMs": 500 }`.
+     * Each entry in `Keys` is a single chord dispatched in order; an
+     * optional `WaitMs` pauses after the final chord. The replayer
+     * translates each chord into KeyboardEvent dispatches.
+     */
+    Hotkey = 7,
 }
 
 const STEP_KIND_SEED: ReadonlyArray<{ Id: StepKindId; Name: string }> = [
@@ -47,6 +55,7 @@ const STEP_KIND_SEED: ReadonlyArray<{ Id: StepKindId; Name: string }> = [
     { Id: StepKindId.JsInline, Name: "JsInline" },
     { Id: StepKindId.Wait,     Name: "Wait" },
     { Id: StepKindId.RunGroup, Name: "RunGroup" },
+    { Id: StepKindId.Hotkey,   Name: "Hotkey" },
 ];
 
 /* ------------------------------------------------------------------ */

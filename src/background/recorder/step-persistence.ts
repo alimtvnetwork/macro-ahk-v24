@@ -117,7 +117,7 @@ export function insertStepRow(
     );
 
     const stepId = lastInsertId(db);
-    const step = readStep(db, stepId);
+    const step = readStepRow(db, stepId);
 
     insertSelectorsForStep(db, stepId, draft.Selectors);
 
@@ -231,7 +231,7 @@ export function updateStepVariableNameRow(
         [newVariableName, stepId],
     );
 
-    return readStep(db, stepId);
+    return readStepRow(db, stepId);
 }
 
 /* ------------------------------------------------------------------ */

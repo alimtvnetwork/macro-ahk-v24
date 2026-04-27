@@ -202,6 +202,16 @@ export function KeywordEventBulkContextMenu(
                     });
                 }}
             />
+            <BulkCategoryDialog
+                open={dialog === "category"}
+                onOpenChange={(o) => setDialog(o ? "category" : null)}
+                selectedEvents={selectedEvents}
+                onApply={(category) => {
+                    for (const ev of selectedEvents) {
+                        onUpdateEvent(ev.Id, { Category: category });
+                    }
+                }}
+            />
             <BulkExportDialog
                 open={dialog === "export"}
                 onOpenChange={(o) => setDialog(o ? "export" : null)}

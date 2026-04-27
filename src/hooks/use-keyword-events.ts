@@ -94,6 +94,25 @@ export interface UseKeywordEventsApi {
     readonly removeStep: (eventId: string, stepId: string) => void;
     readonly moveStep: (eventId: string, stepId: string, direction: "up" | "down") => void;
     /**
+     * Bulk delete a set of steps inside a single event. No-op when the id list
+     * is empty or none of the ids resolve. Kept event-scoped so the right-click
+     * menu can never accidentally drop steps from a sibling event.
+     */
+    readonly removeSteps: (eventId: string, stepIds: readonly string[]) => void;
+    /**
+     * Bulk set the `Enabled` flag on a set of steps. Pass `true` to enable
+     * (clears the field — absent means enabled), `false` to mark them
+     * skipped at playback time.
+     */
+    readonly setStepsEnabled: (eventId: string, stepIds: readonly string[], enabled: boolean) => void;
+    /**
+     * Bulk overwrite each step's `Label` with the provided ordered list. The
+     * caller is responsible for matching `labels[i]` to `stepIds[i]`. Skips
+     * any id that does not resolve in the event so a stale selection cannot
+     * corrupt the list.
+     */
+    readonly relabelSteps: (eventId: string, stepIds: readonly string[], labels: readonly string[]) => void;
+    /**
      * Reorder the persisted events list. `fromId` is the event being dragged,
      * `toId` is the event it was dropped onto. Both ids must reference
      * existing events; otherwise the call is a no-op so a stale drag from a

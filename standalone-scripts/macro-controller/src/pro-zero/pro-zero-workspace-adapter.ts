@@ -25,8 +25,17 @@ function readStr(src: Record<string, unknown>, key: string): string {
 
 function readMembership(src: Record<string, unknown>): WorkspaceMembership {
     const m = (src.membership || {}) as Record<string, unknown>;
+    const limit = m.monthly_credit_limit;
 
-    return { role: readStr(m, 'role') };
+    return {
+        workspace_id: readStr(m, 'workspace_id'),
+        user_id: readStr(m, 'user_id'),
+        role: readStr(m, 'role'),
+        email: readStr(m, 'email'),
+        monthly_credit_limit: typeof limit === 'number' ? limit : null,
+        invited_at: readStr(m, 'invited_at'),
+        joined_at: readStr(m, 'joined_at'),
+    };
 }
 
 function pickWorkspaceSection(rawApi: Record<string, unknown>): Record<string, unknown> {

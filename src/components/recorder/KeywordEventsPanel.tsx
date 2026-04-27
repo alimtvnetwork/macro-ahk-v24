@@ -340,6 +340,29 @@ function ChainSettingsRow(props: ChainSettingsRowProps): JSX.Element {
                         : "Off — keyword events only fire when run manually."}
                 </p>
             </div>
+            <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                    <Square className="h-3.5 w-3.5 text-primary" />
+                    <Label
+                        htmlFor="kev-chain-after-recording"
+                        className="text-xs font-medium cursor-pointer"
+                    >
+                        Run chain after recording stops
+                    </Label>
+                </div>
+                <Switch
+                    id="kev-chain-after-recording"
+                    checked={settings.RunAfterRecording}
+                    onCheckedChange={(v) => onChange({ ...settings, RunAfterRecording: v })}
+                    aria-label="Automatically run the chain when the recorder finishes a session"
+                    data-testid="keyword-event-chain-after-recording"
+                />
+                <p className="text-[10px] text-muted-foreground ml-auto max-w-md text-right">
+                    {settings.RunAfterRecording
+                        ? "Chain will fire automatically the moment a recording session is stopped."
+                        : "Off — stopping a recording does nothing."}
+                </p>
+            </div>
         </div>
     );
 }

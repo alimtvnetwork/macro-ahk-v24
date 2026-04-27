@@ -751,9 +751,11 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                 <ul className="space-y-1.5">
                                     {filteredLog.map((entry, i) => {
                                         const presentation = presentVariant(entry);
-                                        const hasPayload = entry.Payload !== null && entry.Payload !== undefined;
                                         const hasSummaryDetail = presentation.summaryDetail !== null;
-                                        const isExpandable = hasSummaryDetail || hasPayload || isWebhookSuccess(entry);
+                                        // Every entry has at least Event/Emitted/Duration + a status block
+                                        // (HTTP status for success, SkipReason for skipped, Error for failure),
+                                        // so all rows are clickable to reveal the detail panel.
+                                        const isExpandable = true;
                                         const isOpen = expandedIdx === i;
                                         return (
                                             <li

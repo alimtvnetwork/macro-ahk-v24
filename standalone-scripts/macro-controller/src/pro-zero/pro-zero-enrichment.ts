@@ -20,11 +20,18 @@ import { buildProZeroCreditSummary } from './pro-zero-credit-summary';
 import type { MacroCreditSummary } from './macro-credit-summary';
 import { logError } from '../error-utils';
 
-function applySummaryToRow(ws: WorkspaceCredit, summary: MacroCreditSummary): void {
+/** WorkspaceCredit field used to expose the verbatim /credit-balance JSON to Copy-JSON. */
+export const PRO_ZERO_BALANCE_JSON_FIELD = 'proZeroCreditBalanceJson';
+/** WorkspaceCredit field marking the row as enriched by the pro_0 branch. */
+export const PRO_ZERO_SOURCE_FIELD = 'proZeroSource';
+
+function applySummaryToRow(ws: WorkspaceCredit, summary: MacroCreditSummary, balanceJson: string): void {
     ws.totalCredits = summary.Total;
     ws.available = summary.AvailableCredits;
     ws.totalCreditsUsed = summary.TotalUsed;
     ws.billingAvailable = Math.max(0, summary.Total - summary.TotalUsed);
+    ws[PRO_ZERO_BALANCE_JSON_FIELD] = balanceJson;
+    ws[PRO_ZERO_SOURCE_FIELD] = summary.Source;
 }
 
 async function enrichOne(ws: WorkspaceCredit): Promise<boolean> {

@@ -507,6 +507,8 @@ function clearPersistedSequence(): void {
         // Best-effort; reset still applies to the in-memory state.
     }
 }
+
+export function BulkRenameSequenceDialog(props: BulkRenameSequenceDialogProps): JSX.Element {
     const { open, onOpenChange, selectedEvents, allEvents, onApply } = props;
     const [input, setInput] = useState<SequenceRenameInput>(loadPersistedSequence);
 

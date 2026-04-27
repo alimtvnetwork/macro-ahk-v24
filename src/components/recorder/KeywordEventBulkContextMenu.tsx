@@ -21,11 +21,18 @@ import {
     Eye,
     EyeOff,
     FolderTree,
+    HelpCircle,
     Pencil,
     Tag,
     TagsIcon,
     Trash2,
 } from "lucide-react";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import {
     ContextMenu,
@@ -366,7 +373,36 @@ function BulkRenameSequenceDialog(props: BulkRenameSequenceDialogProps): JSX.Ele
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent data-testid="keyword-events-bulk-rename-dialog">
                 <DialogHeader>
-                    <DialogTitle>Rename in sequence</DialogTitle>
+                    <DialogTitle className="flex items-center gap-2">
+                        Rename in sequence
+                        <TooltipProvider delayDuration={150}>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        type="button"
+                                        aria-label="How {n} and Separator work"
+                                        className="text-muted-foreground hover:text-foreground"
+                                        data-testid="keyword-events-bulk-rename-help"
+                                    >
+                                        <HelpCircle className="h-4 w-4" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="right" className="max-w-xs text-xs leading-relaxed">
+                                    <p className="mb-1 font-semibold">How sequencing works</p>
+                                    <p className="mb-1">
+                                        <code>{"{n}"}</code> is replaced with the row number, starting at <em>Start number</em> and zero-padded to <em>Padding</em> digits.
+                                    </p>
+                                    <p className="mb-1">
+                                        Example: base <code>Login {"{n}"}</code>, start <code>1</code>, padding <code>2</code> →
+                                        <code> Login 01</code>, <code>Login 02</code>…
+                                    </p>
+                                    <p>
+                                        <strong>Separator</strong> is appended only when the base has no <code>{"{n}"}</code>. e.g. base <code>Step</code> with separator <code>-</code> → <code>Step-01</code>.
+                                    </p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </DialogTitle>
                     <DialogDescription>
                         Renames {selectedEvents.length} event{selectedEvents.length === 1 ? "" : "s"}.
                         Use <code>{"{n}"}</code> in the base to control number placement.

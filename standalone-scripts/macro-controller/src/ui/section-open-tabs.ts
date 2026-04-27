@@ -169,16 +169,57 @@ function renderRow(t: OpenLovableTabInfoView): string {
         : '';
     const whyLine = renderWhyLine(t);
 
+    const copyBtn = ''
+        + '<button type="button" data-copy-url="' + escapeHtml(t.url) + '" '
+        +   'title="Copy tab URL to clipboard" '
+        +   'style="margin-left:4px;padding:1px 6px;background:#1e3a5f;color:#cbd5e1;border:1px solid #3b6fa0;border-radius:3px;font-size:9px;cursor:pointer;flex-shrink:0;">'
+        +   '⎘ Copy'
+        + '</button>';
+
     return ''
         + '<div style="font-size:10px;font-family:monospace;padding:3px 4px;border-top:1px solid rgba(255,255,255,0.06);">'
         +   '<div style="display:flex;align-items:center;gap:4px;">'
         +     focusBadge + activeBadge
         +     '<span style="color:#e2e8f0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escapeHtml(t.title) + '">' + titleSafe + '</span>'
+        +     copyBtn
         +   '</div>'
         +   '<div style="color:' + cPanelFgDim + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escapeHtml(t.url) + '">' + urlSafe + '</div>'
         +   '<div style="color:#9ca3af;">↳ workspace: ' + wsLabel + '</div>'
         +   whyLine
         + '</div>';
+}
+
+async function copyToClipboard(url: string, btn: HTMLElement): Promise<void> {
+    const originalText = btn.textContent ?? '⎘ Copy';
+    try {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            await navigator.clipboard.writeText(url);
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = url;
+            ta.style.cssText = 'position:fixed;top:-1000px;left:-1000px;opacity:0;';
+            document.body.appendChild(ta);
+            ta.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            if (!ok) throw new Error('execCommand("copy") returned false');
+        }
+        btn.textContent = '✓ Copied';
+        btn.style.background = '#065f46';
+        window.setTimeout(function (): void {
+            btn.textContent = originalText;
+            btn.style.background = '#1e3a5f';
+        }, 1200);
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        log('Copy URL failed: ' + msg, 'warn');
+        btn.textContent = '✗ Failed';
+        btn.style.background = '#7f1d1d';
+        window.setTimeout(function (): void {
+            btn.textContent = originalText;
+            btn.style.background = '#1e3a5f';
+        }, 1500);
+    }
 }
 
 /**

@@ -367,6 +367,12 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                 className="h-8 text-xs"
             />
 
+            <TargetPickerRow
+                eventId={event.Id}
+                value={event.Target ?? DEFAULT_KEYWORD_EVENT_TARGET}
+                onChange={(next) => onUpdate({ Target: next })}
+            />
+
             <div className="space-y-1.5">
                 {event.Steps.length === 0 && (
                     <p className="text-xs text-muted-foreground italic">No steps yet — add a key press or wait below.</p>

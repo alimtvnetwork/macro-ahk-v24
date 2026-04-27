@@ -175,7 +175,11 @@ export function PopupFooter({
   useEffect(() => {
     sendMessage<{ entryCount: number; categories: Record<string, number> }>({ type: "GET_CACHE_STATS" })
       .then(setCacheStats)
-      .catch(() => {});
+      .catch((err) => {
+        // Non-fatal: cache stats panel just shows empty. Breadcrumb so a broken
+        // GET_CACHE_STATS handler is still discoverable in devtools.
+        console.debug("[PopupFooter] GET_CACHE_STATS failed:", err);
+      });
   }, [cacheCleared]);
 
   const handleInvalidateCache = async () => {

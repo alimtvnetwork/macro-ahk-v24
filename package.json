@@ -12,6 +12,7 @@
     "check:no-swallowed-errors:update-baseline": "node scripts/check-no-swallowed-errors.mjs --update-baseline",
     "test:check-no-swallowed-errors": "node --test scripts/__tests__/check-no-swallowed-errors.test.mjs",
     "audit:error-swallow": "node scripts/audit-error-swallow.mjs",
+    "audit:checklist": "node scripts/audit-checklist.mjs",
     "prebuild:clean-verify": "node scripts/prebuild-clean-and-verify.mjs",
     "verify:worktree-fresh": "node scripts/verify-worktree-fresh.mjs",
     "repro:build": "node scripts/repro-build-error.mjs",

@@ -478,13 +478,14 @@ function RecordingDot(props: { isRecording: boolean }): JSX.Element {
     );
 }
 
-function StopButton(props: { armed: boolean; onClick: () => void; compact?: boolean }): JSX.Element {
-    const { armed, onClick, compact } = props;
+function StopButton(props: { armed: boolean; onClick: () => void; compact?: boolean; disabled?: boolean }): JSX.Element {
+    const { armed, onClick, compact, disabled } = props;
     return (
         <Button
             size="sm"
             variant={armed ? "destructive" : "outline"}
             onClick={onClick}
+            disabled={disabled}
             className={cn("h-8", compact ? "px-2" : "px-3")}
             data-testid="controller-stop"
             data-armed={armed ? "true" : "false"}

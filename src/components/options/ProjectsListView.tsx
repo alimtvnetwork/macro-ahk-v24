@@ -50,25 +50,40 @@ interface Props {
 /* ------------------------------------------------------------------ */
 
 /**
- * Build a human-readable summary line for the post-import toast.
- * - matched: items in the bundle that already existed in the workspace (overwritten/updated).
- * - unmatched: items in the bundle that were new to the workspace (added).
- * - untouched: items in the workspace that were not present in the bundle.
+ * Build a per-category breakdown for the post-import toast description.
+ *
+ * For each of projects / scripts / configs we report:
+ * - matched: items in the bundle that already existed (overwritten/updated).
+ * - unmatched: items in the bundle that were new (added).
+ * - untouched: items in the workspace not present in the bundle.
  *   In replace mode these get deleted, so untouched is always 0.
  */
+interface CategoryCounts {
+  readonly matched: number;
+  readonly unmatched: number;
+  readonly untouched: number;
+}
+
+function countCategory(items: DiffItem[], existing: number, mode: "merge" | "replace"): CategoryCounts {
+  const matched = items.filter((i) => i.status === "overwrite").length;
+  const unmatched = items.filter((i) => i.status === "new").length;
+  const untouched = mode === "replace" ? 0 : Math.max(0, existing - matched);
+  return { matched, unmatched, untouched };
+}
+
+function formatCategoryLine(label: string, c: CategoryCounts): string {
+  return `${label}: ${c.matched} matched, ${c.unmatched} new, ${c.untouched} untouched`;
+}
+
 function buildImportSummary(preview: BundlePreview, mode: "merge" | "replace"): string {
-  const countMatched = (items: DiffItem[]): number => items.filter((i) => i.status === "overwrite").length;
-  const countUnmatched = (items: DiffItem[]): number => items.filter((i) => i.status === "new").length;
-
-  const matched =
-    countMatched(preview.projectItems) + countMatched(preview.scriptItems) + countMatched(preview.configItems);
-  const unmatched =
-    countUnmatched(preview.projectItems) + countUnmatched(preview.scriptItems) + countUnmatched(preview.configItems);
-
-  const existingTotal = preview.existingProjectCount + preview.existingScriptCount + preview.existingConfigCount;
-  const untouched = mode === "replace" ? 0 : Math.max(0, existingTotal - matched);
-
-  return `${matched} matched (overwritten), ${unmatched} new (added), ${untouched} untouched`;
+  const projects = countCategory(preview.projectItems, preview.existingProjectCount, mode);
+  const scripts = countCategory(preview.scriptItems, preview.existingScriptCount, mode);
+  const configs = countCategory(preview.configItems, preview.existingConfigCount, mode);
+  return [
+    formatCategoryLine("Projects", projects),
+    formatCategoryLine("Scripts", scripts),
+    formatCategoryLine("Configs", configs),
+  ].join("\n");
 }
 
 /* ------------------------------------------------------------------ */
@@ -159,7 +174,7 @@ export const ProjectsListView = forwardRef<HTMLDivElement, Props>(function Proje
       const result = await importFromSqliteZip(pendingFile);
       toast.success(
         `Replaced with ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs, ${result.promptCount} prompts`,
-        { description: summary },
+        { description: <span style={{ whiteSpace: "pre-line" }}>{summary}</span> },
       );
       window.location.reload();
     } catch (err) {
@@ -181,7 +196,7 @@ export const ProjectsListView = forwardRef<HTMLDivElement, Props>(function Proje
       const result = await mergeFromSqliteZip(pendingFile);
       toast.success(
         `Merged ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs, ${result.promptCount} prompts`,
-        { description: summary },
+        { description: <span style={{ whiteSpace: "pre-line" }}>{summary}</span> },
       );
       window.location.reload();
     } catch (err) {

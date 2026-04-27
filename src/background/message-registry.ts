@@ -372,6 +372,7 @@ export const HANDLER_REGISTRY = new Map<MessageType, MessageHandler>([
     [MessageType.GET_OPTIONS_BOOTSTRAP, async () => handleOptionsBootstrap()],
     [MessageType.INJECT_SCRIPTS, async (msg) => handleInjectScripts(msg)],
     [MessageType.GET_TAB_INJECTIONS, async (msg) => handleGetTabInjections(msg)],
+    [MessageType.GET_OPEN_LOVABLE_TABS, async () => handleGetOpenLovableTabs()],
     [MessageType.GET_STATUS, async () => buildStatusResponse()],
     [MessageType.GET_HEALTH_STATUS, async () => buildHealthResponse()],
     [MessageType.GET_AUTH_HEALTH, async () => buildAuthHealthResponse()],

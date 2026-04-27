@@ -15,6 +15,7 @@ import type { SqlRow } from "./handler-types";
 import type { SqlValue } from "sql.js";
 import type { MessageRequest, OkResponse } from "../../shared/messages";
 import type { DbManager } from "../db-manager";
+import { EXTENSION_VERSION } from "../../shared/constants";
 import { collectRows, countTable, queryAll, queryWithSource } from "./logging-queries";
 import { initSessionLogDir, writeLogEntry, writeErrorEntry, buildSessionReport, listSessionIds, listSessionsWithTimestamps, browseOpfsSessions, getOpfsSessionStatus } from "../session-log-writer";
 import type { SessionInfo, OpfsStatusData } from "../session-log-writer";
@@ -133,7 +134,7 @@ function insertLogRow(msg: {
 }, sessionId: number): void {
     const db = getLogsDb();
     const now = new Date().toISOString();
-    const version = chrome.runtime.getManifest().version;
+    const version = EXTENSION_VERSION;
 
     db.run(
         `INSERT INTO Logs (SessionId, Timestamp, Level, Source, Category, Action, Detail, ScriptId, ProjectId, ConfigId, ExtVersion)
@@ -196,7 +197,7 @@ function insertErrorRow(msg: {
 }, sessionId: number): void {
     const db = getErrorsDb();
     const now = new Date().toISOString();
-    const version = chrome.runtime.getManifest().version;
+    const version = EXTENSION_VERSION;
 
     db.run(
         `INSERT INTO Errors (SessionId, Timestamp, Level, Source, Category, ErrorCode, Message, StackTrace, Context, ScriptId, ProjectId, ConfigId, ScriptFile, ExtVersion)
@@ -225,8 +226,8 @@ function insertErrorRow(msg: {
 /* ------------------------------------------------------------------ */
 
 /** Maps PascalCase SQLite column names to the camelCase keys the UI expects. */
-function normalizeRow(row: Record<string, unknown>): Record<string, unknown> {
-    const out: Record<string, unknown> = {};
+function normalizeRow(row: SqlRow): Record<string, SqlValue> {
+    const out: Record<string, SqlValue> = {};
     for (const [key, value] of Object.entries(row)) {
         // Convert first char to lowercase: "Timestamp" → "timestamp", "StackTrace" → "stackTrace"
         const camel = key.charAt(0).toLowerCase() + key.slice(1);
@@ -238,7 +239,7 @@ function normalizeRow(row: Record<string, unknown>): Record<string, unknown> {
 }
 
 function normalizeRows(rows: SqlRow[]): Record<string, SqlValue>[] {
-    return rows.map((r) => normalizeRow(r as Record<string, unknown>));
+    return rows.map((r) => normalizeRow(r));
 }
 
 /* ------------------------------------------------------------------ */

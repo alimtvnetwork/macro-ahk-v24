@@ -295,8 +295,16 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                         {/* Delivery log */}
                         <section className="space-y-2 rounded-md border p-3">
                             <div className="flex items-center justify-between">
-                                <Label className="text-sm font-medium">Recent deliveries</Label>
+                                <Label className="text-sm font-medium">
+                                    Recent deliveries
+                                    <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                                        ({log.length}/20)
+                                    </span>
+                                </Label>
                                 <div className="flex items-center gap-2">
+                                    <Button size="sm" variant="ghost" onClick={refreshLog} title="Refresh log">
+                                        <RefreshCw className="h-3.5 w-3.5" />
+                                    </Button>
                                     <Button size="sm" variant="outline" onClick={handleTest} disabled={busy}>
                                         <Send className="mr-1 h-3.5 w-3.5" />
                                         {busy ? "Sending…" : "Send test ping"}
@@ -310,37 +318,84 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                             </div>
                             {log.length === 0 ? (
                                 <p className="text-xs text-muted-foreground">
-                                    No deliveries yet. The last 20 attempts will appear here.
+                                    No deliveries yet. The last 20 attempts will appear here, newest first.
                                 </p>
                             ) : (
                                 <ul className="space-y-1.5">
-                                    {log.map((entry, i) => (
-                                        <li
-                                            key={`${entry.EmittedAt}-${i}`}
-                                            className="flex items-center justify-between gap-2 rounded-md border bg-muted/20 px-2 py-1.5 text-xs"
-                                        >
-                                            <div className="flex min-w-0 items-center gap-2">
-                                                <Badge
-                                                    variant={
-                                                        entry.Skipped ? "outline"
-                                                            : entry.Ok ? "default" : "destructive"
-                                                    }
-                                                    className="shrink-0"
+                                    {log.map((entry, i) => {
+                                        const detail = entry.SkipReason ?? entry.Error;
+                                        const hasDetail = typeof detail === "string" && detail.length > 0;
+                                        const isOpen = expandedIdx === i;
+                                        const statusLabel = entry.Skipped
+                                            ? "Skip"
+                                            : entry.Ok
+                                                ? `OK ${entry.Status ?? ""}`.trim()
+                                                : `Fail${entry.Status ? ` ${entry.Status}` : ""}`;
+                                        const variant = entry.Skipped
+                                            ? "outline"
+                                            : entry.Ok
+                                                ? "default"
+                                                : "destructive";
+                                        return (
+                                            <li
+                                                key={`${entry.EmittedAt}-${i}`}
+                                                className="rounded-md border bg-muted/20 text-xs"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    className="flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left hover:bg-muted/40"
+                                                    onClick={() => setExpandedIdx(isOpen ? null : i)}
+                                                    aria-expanded={isOpen}
+                                                    aria-controls={`hook-log-detail-${i}`}
                                                 >
-                                                    {entry.Skipped ? "Skip" : entry.Ok ? `OK ${entry.Status ?? ""}` : "Fail"}
-                                                </Badge>
-                                                <span className="truncate font-mono">{entry.Event}</span>
-                                                {(entry.SkipReason ?? entry.Error) !== null && (
-                                                    <span className="truncate text-muted-foreground">
-                                                        {entry.SkipReason ?? entry.Error}
+                                                    <div className="flex min-w-0 items-center gap-2">
+                                                        <Badge variant={variant} className="shrink-0">
+                                                            {statusLabel}
+                                                        </Badge>
+                                                        <span className="shrink-0 font-mono">{entry.Event}</span>
+                                                        {hasDetail && (
+                                                            <span className="truncate text-muted-foreground">
+                                                                — {detail}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <span className="flex shrink-0 items-center gap-1 text-muted-foreground">
+                                                        <span>{formatTime(entry.EmittedAt)} · {entry.DurationMs} ms</span>
+                                                        {hasDetail && (
+                                                            <ChevronDown
+                                                                className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                                                            />
+                                                        )}
                                                     </span>
+                                                </button>
+                                                {isOpen && hasDetail && (
+                                                    <div
+                                                        id={`hook-log-detail-${i}`}
+                                                        className="border-t px-2 py-1.5"
+                                                    >
+                                                        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px]">
+                                                            <dt className="text-muted-foreground">Emitted</dt>
+                                                            <dd className="font-mono">{entry.EmittedAt}</dd>
+                                                            <dt className="text-muted-foreground">Duration</dt>
+                                                            <dd className="font-mono">{entry.DurationMs} ms</dd>
+                                                            {entry.Status !== undefined && (
+                                                                <>
+                                                                    <dt className="text-muted-foreground">HTTP</dt>
+                                                                    <dd className="font-mono">{entry.Status}</dd>
+                                                                </>
+                                                            )}
+                                                            <dt className="text-muted-foreground">
+                                                                {entry.Skipped ? "Skip reason" : "Error"}
+                                                            </dt>
+                                                            <dd className="whitespace-pre-wrap break-words font-mono text-destructive">
+                                                                {detail}
+                                                            </dd>
+                                                        </dl>
+                                                    </div>
                                                 )}
-                                            </div>
-                                            <span className="shrink-0 text-muted-foreground">
-                                                {formatTime(entry.EmittedAt)} · {entry.DurationMs} ms
-                                            </span>
-                                        </li>
-                                    ))}
+                                            </li>
+                                        );
+                                    })}
                                 </ul>
                             )}
                         </section>

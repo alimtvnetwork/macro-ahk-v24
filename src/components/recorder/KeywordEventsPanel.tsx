@@ -384,18 +384,25 @@ function KeywordEventsEditor(): JSX.Element {
                     <p className="text-sm text-muted-foreground text-center py-12">
                         No keyword events yet. Add one above to script key presses and waits.
                     </p>
+                ) : visibleEvents.length === 0 ? (
+                    <p
+                        className="text-sm text-muted-foreground text-center py-12"
+                        data-testid="keyword-events-search-empty"
+                    >
+                        No events match “{search.trim()}”.
+                    </p>
                 ) : (
                     <DndContext
                         sensors={sensors}
                         collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
+                        onDragEnd={isFiltering ? () => { /* drag-reorder disabled while filtering */ } : handleDragEnd}
                     >
                         <SortableContext
-                            items={api.events.map(e => e.Id)}
+                            items={visibleEvents.map(e => e.Id)}
                             strategy={verticalListSortingStrategy}
                         >
                             <div className="space-y-3" data-testid="keyword-events-sortable-list">
-                                {api.events.map(ev => {
+                                {visibleEvents.map(ev => {
                                     const isSelected = eventSelection.isSelected(ev.Id);
                                     // Right-click on a non-selected row should
                                     // act on that single row — promote it to

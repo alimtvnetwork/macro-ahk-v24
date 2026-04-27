@@ -174,7 +174,7 @@ export const ProjectsListView = forwardRef<HTMLDivElement, Props>(function Proje
       const result = await importFromSqliteZip(pendingFile);
       toast.success(
         `Replaced with ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs, ${result.promptCount} prompts`,
-        { description: summary },
+        { description: <span style={{ whiteSpace: "pre-line" }}>{summary}</span> },
       );
       window.location.reload();
     } catch (err) {
@@ -196,7 +196,7 @@ export const ProjectsListView = forwardRef<HTMLDivElement, Props>(function Proje
       const result = await mergeFromSqliteZip(pendingFile);
       toast.success(
         `Merged ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs, ${result.promptCount} prompts`,
-        { description: summary },
+        { description: <span style={{ whiteSpace: "pre-line" }}>{summary}</span> },
       );
       window.location.reload();
     } catch (err) {

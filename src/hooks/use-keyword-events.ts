@@ -141,5 +141,18 @@ export function useKeywordEvents(): UseKeywordEventsApi {
         }));
     }, []);
 
-    return { events, addEvent, removeEvent, updateEvent, addStep, removeStep, moveStep };
+    const reorderEvents = useCallback((fromId: string, toId: string) => {
+        if (fromId === toId) { return; }
+        setEvents(prev => {
+            const fromIdx = prev.findIndex(e => e.Id === fromId);
+            const toIdx = prev.findIndex(e => e.Id === toId);
+            if (fromIdx < 0 || toIdx < 0) { return prev; }
+            const next = [...prev];
+            const [moved] = next.splice(fromIdx, 1);
+            next.splice(toIdx, 0, moved);
+            return next;
+        });
+    }, []);
+
+    return { events, addEvent, removeEvent, updateEvent, addStep, removeStep, moveStep, reorderEvents };
 }

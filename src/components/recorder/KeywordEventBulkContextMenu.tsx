@@ -412,9 +412,29 @@ export function BulkRenameSequenceDialog(props: BulkRenameSequenceDialogProps): 
         onOpenChange(false);
     };
 
+    // Keyboard shortcuts:
+    //   • Enter (in any text/number field)        → submit (handled by <form>).
+    //   • Ctrl/Cmd+Enter from anywhere in dialog → submit even when focus
+    //     is on a non-form control (e.g. the help button).
+    //   • Escape                                  → close (Dialog default).
+    const handleDialogKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+            e.preventDefault();
+            handleApply();
+        }
+    };
+
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
+        e.preventDefault();
+        handleApply();
+    };
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent data-testid="keyword-events-bulk-rename-dialog">
+            <DialogContent
+                data-testid="keyword-events-bulk-rename-dialog"
+                onKeyDown={handleDialogKeyDown}
+            >
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         Rename in sequence

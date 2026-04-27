@@ -8,10 +8,10 @@
 
 | ID | Sev | File:Line | Failure mode | Fix sketch |
 |---|---|---|---|---|
-| PERF-9  | High   | `standalone-scripts/macro-controller/src/loop-controls.ts:297` | `startStatusRefresh()` early-returns if `statusRefreshId` exists, so the 5 s vs 30 s interval gets locked to whichever ran first regardless of `state.running`. | When called with a different desired interval, `clearInterval` + re-install. |
-| PERF-10 | High   | `src/hooks/use-token-watchdog.ts:168` | 10 s `setInterval` runs continuously in the Options page even when the tab is hidden. Decodes JWT every tick. | Add `visibilitychange` pause/resume guard like `usePopupData.ts`. |
-| PERF-11 | Medium | `src/hooks/use-network-data.ts:54` | 5 s auto-refresh fires 2× `sendMessage` per tick with no visibility guard. | Same visibility-pause pattern. |
-| PERF-12 | Medium | `src/hooks/use-error-count.ts:55` | 30 s polling fallback runs even when broadcast listener attached AND when page hidden. | Skip `setInterval` install if `listenerAttached === true`; add visibility guard regardless. |
+| PERF-9  | ✅ Fixed | `standalone-scripts/macro-controller/src/loop-controls.ts` | Stale interval period after running↔stopped transition. | `startStatusRefresh()` now compares `state.statusRefreshPeriodMs` to desired interval, tears down + reinstalls on drift; fast-path no-op when matched. |
+| PERF-10 | ✅ Fixed | `src/hooks/use-token-watchdog.ts` | 10 s setInterval ran while tab hidden. | Visibility-pause guard installed; refresh-on-visible. |
+| PERF-11 | ✅ Fixed | `src/hooks/use-network-data.ts` | 5 s auto-refresh ran while tab hidden. | Visibility-pause guard; immediate tick on mount + `visibilitychange→visible`. |
+| PERF-12 | ✅ Fixed | `src/hooks/use-error-count.ts` | 30 s fallback poll ran with broadcast listener AND while hidden. | `document.hidden` early-return + visibility listener; skips poll when listener attached. |
 | PERF-13 | ✅ Fixed 2026-04-27 | `standalone-scripts/macro-controller/src/startup-persistence.ts` | MutationObserver bursts paid check cost mid-render on busy SPA pages. | Debounced burst now yields to `requestIdleCallback` (1 s timeout fallback) before re-checking marker/container. |
 | PERF-14 | Low    | `standalone-scripts/marco-sdk/src/notify.ts:175` | `_dedupTimer` self-clears when map empties — already correct. Documented for completeness. | None. |
 | PERF-15 | Low    | `standalone-scripts/macro-controller/src/ui/countdown.ts:86` | 1 Hz countdown tick runs while host tab hidden. Cheap (1 DOM write/tick). | None unless profile shows it. |

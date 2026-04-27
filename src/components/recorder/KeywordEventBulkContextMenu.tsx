@@ -412,9 +412,29 @@ export function BulkRenameSequenceDialog(props: BulkRenameSequenceDialogProps): 
         onOpenChange(false);
     };
 
+    // Keyboard shortcuts:
+    //   • Enter (in any text/number field)        → submit (handled by <form>).
+    //   • Ctrl/Cmd+Enter from anywhere in dialog → submit even when focus
+    //     is on a non-form control (e.g. the help button).
+    //   • Escape                                  → close (Dialog default).
+    const handleDialogKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+            e.preventDefault();
+            handleApply();
+        }
+    };
+
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
+        e.preventDefault();
+        handleApply();
+    };
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent data-testid="keyword-events-bulk-rename-dialog">
+            <DialogContent
+                data-testid="keyword-events-bulk-rename-dialog"
+                onKeyDown={handleDialogKeyDown}
+            >
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         Rename in sequence
@@ -451,97 +471,105 @@ export function BulkRenameSequenceDialog(props: BulkRenameSequenceDialogProps): 
                         Use <code>{"{n}"}</code> in the base to control number placement.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="col-span-2 space-y-1.5">
-                        <Label htmlFor="bulk-rename-base">Base name</Label>
-                        <Input
-                            id="bulk-rename-base"
-                            value={input.Base}
-                            onChange={(e) => setInput(s => ({ ...s, Base: e.target.value }))}
-                            data-testid="keyword-events-bulk-rename-base"
-                        />
+                <form onSubmit={handleSubmit} data-testid="keyword-events-bulk-rename-form">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="col-span-2 space-y-1.5">
+                            <Label htmlFor="bulk-rename-base">Base name</Label>
+                            <Input
+                                id="bulk-rename-base"
+                                value={input.Base}
+                                onChange={(e) => setInput(s => ({ ...s, Base: e.target.value }))}
+                                autoFocus
+                                tabIndex={1}
+                                data-testid="keyword-events-bulk-rename-base"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="bulk-rename-start">Start number</Label>
+                            <Input
+                                id="bulk-rename-start"
+                                type="number"
+                                min={0}
+                                value={input.Start}
+                                tabIndex={2}
+                                onChange={(e) => setInput(s => ({ ...s, Start: Math.max(0, Number(e.target.value) || 0) }))}
+                                data-testid="keyword-events-bulk-rename-start"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="bulk-rename-padding">Padding</Label>
+                            <Input
+                                id="bulk-rename-padding"
+                                type="number"
+                                min={1}
+                                max={6}
+                                value={input.Padding}
+                                tabIndex={3}
+                                onChange={(e) => setInput(s => ({ ...s, Padding: Math.max(1, Math.min(6, Number(e.target.value) || 1)) }))}
+                                data-testid="keyword-events-bulk-rename-padding"
+                            />
+                        </div>
+                        <div className="col-span-2 space-y-1.5">
+                            <Label htmlFor="bulk-rename-separator">Separator (used when {"{n}"} is absent)</Label>
+                            <Input
+                                id="bulk-rename-separator"
+                                value={input.Separator}
+                                tabIndex={4}
+                                onChange={(e) => setInput(s => ({ ...s, Separator: e.target.value }))}
+                                data-testid="keyword-events-bulk-rename-separator"
+                            />
+                        </div>
                     </div>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="bulk-rename-start">Start number</Label>
-                        <Input
-                            id="bulk-rename-start"
-                            type="number"
-                            min={0}
-                            value={input.Start}
-                            onChange={(e) => setInput(s => ({ ...s, Start: Math.max(0, Number(e.target.value) || 0) }))}
-                            data-testid="keyword-events-bulk-rename-start"
-                        />
-                    </div>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="bulk-rename-padding">Padding</Label>
-                        <Input
-                            id="bulk-rename-padding"
-                            type="number"
-                            min={1}
-                            max={6}
-                            value={input.Padding}
-                            onChange={(e) => setInput(s => ({ ...s, Padding: Math.max(1, Math.min(6, Number(e.target.value) || 1)) }))}
-                            data-testid="keyword-events-bulk-rename-padding"
-                        />
-                    </div>
-                    <div className="col-span-2 space-y-1.5">
-                        <Label htmlFor="bulk-rename-separator">Separator (used when {"{n}"} is absent)</Label>
-                        <Input
-                            id="bulk-rename-separator"
-                            value={input.Separator}
-                            onChange={(e) => setInput(s => ({ ...s, Separator: e.target.value }))}
-                            data-testid="keyword-events-bulk-rename-separator"
-                        />
-                    </div>
-                </div>
 
-                <PreviewSummaryBanner summary={summary} />
+                    <PreviewSummaryBanner summary={summary} />
 
-                <div className="rounded-md border border-border bg-muted/30 p-2 text-xs">
-                    <p className="mb-1 font-medium text-muted-foreground">Preview</p>
-                    <ul className="space-y-0.5 font-mono" data-testid="keyword-events-bulk-rename-preview">
-                        {previewRows.map((row) => {
-                            const hasIssue = row.Issues.length > 0;
-                            const nextClass = hasIssue
-                                ? "truncate text-destructive font-semibold"
-                                : "truncate text-foreground";
-                            return (
-                                <li
-                                    key={row.Id}
-                                    className="flex items-center gap-2"
-                                    data-testid="keyword-events-bulk-rename-preview-row"
-                                    data-issues={row.Issues.join(",")}
-                                >
-                                    <span className="truncate text-muted-foreground line-through">{row.Old}</span>
-                                    <span aria-hidden>→</span>
-                                    <span className={nextClass}>{row.Next || "(empty)"}</span>
-                                    {row.Issues.map(issue => (
-                                        <Badge
-                                            key={issue}
-                                            variant="destructive"
-                                            className="h-4 px-1 text-[10px] uppercase tracking-wide"
-                                        >
-                                            {issueLabel(issue)}
-                                        </Badge>
-                                    ))}
-                                </li>
-                            );
-                        })}
-                        {summary.Rows.length > previewRows.length && (
-                            <li className="text-muted-foreground">…and {summary.Rows.length - previewRows.length} more</li>
-                        )}
-                    </ul>
-                </div>
-                <DialogFooter>
-                    <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button
-                        onClick={handleApply}
-                        disabled={!summary.IsValid || selectedEvents.length === 0}
-                        data-testid="keyword-events-bulk-rename-apply"
-                    >
-                        Rename
-                    </Button>
-                </DialogFooter>
+                    <div className="mt-2 rounded-md border border-border bg-muted/30 p-2 text-xs">
+                        <p className="mb-1 font-medium text-muted-foreground">Preview</p>
+                        <ul className="space-y-0.5 font-mono" data-testid="keyword-events-bulk-rename-preview">
+                            {previewRows.map((row) => {
+                                const hasIssue = row.Issues.length > 0;
+                                const nextClass = hasIssue
+                                    ? "truncate text-destructive font-semibold"
+                                    : "truncate text-foreground";
+                                return (
+                                    <li
+                                        key={row.Id}
+                                        className="flex items-center gap-2"
+                                        data-testid="keyword-events-bulk-rename-preview-row"
+                                        data-issues={row.Issues.join(",")}
+                                    >
+                                        <span className="truncate text-muted-foreground line-through">{row.Old}</span>
+                                        <span aria-hidden>→</span>
+                                        <span className={nextClass}>{row.Next || "(empty)"}</span>
+                                        {row.Issues.map(issue => (
+                                            <Badge
+                                                key={issue}
+                                                variant="destructive"
+                                                className="h-4 px-1 text-[10px] uppercase tracking-wide"
+                                            >
+                                                {issueLabel(issue)}
+                                            </Badge>
+                                        ))}
+                                    </li>
+                                );
+                            })}
+                            {summary.Rows.length > previewRows.length && (
+                                <li className="text-muted-foreground">…and {summary.Rows.length - previewRows.length} more</li>
+                            )}
+                        </ul>
+                    </div>
+                    <DialogFooter className="mt-3">
+                        <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} tabIndex={6}>Cancel</Button>
+                        <Button
+                            type="submit"
+                            disabled={!summary.IsValid || selectedEvents.length === 0}
+                            tabIndex={5}
+                            data-testid="keyword-events-bulk-rename-apply"
+                        >
+                            Rename
+                        </Button>
+                    </DialogFooter>
+                </form>
             </DialogContent>
         </Dialog>
     );

@@ -20,6 +20,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+    Activity,
     Circle,
     Keyboard,
     Layers,
@@ -38,6 +39,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { RecordingSession } from "@/background/recorder/recorder-session-types";
 import { RecorderLiveTreePanel } from "./RecorderLiveTreePanel";
+import { LiveRecordedActionsTree } from "./LiveRecordedActionsTree";
 import { HotkeyChordCapture } from "./HotkeyChordCapture";
 import { useStepLibrary } from "@/hooks/use-step-library";
 import { useRecorderSelection } from "@/hooks/use-recorder-selection";

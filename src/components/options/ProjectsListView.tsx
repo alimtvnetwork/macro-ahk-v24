@@ -125,13 +125,15 @@ export const ProjectsListView = forwardRef<HTMLDivElement, Props>(function Proje
   }, [importMode]);
 
   const handleConfirmImport = useCallback(async () => {
-    if (!pendingFile) return;
+    if (!pendingFile || !preview) return;
+    const summary = buildImportSummary(preview, "replace");
     setPreviewOpen(false);
     setImporting(true);
     try {
       const result = await importFromSqliteZip(pendingFile);
       toast.success(
         `Replaced with ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs, ${result.promptCount} prompts`,
+        { description: summary },
       );
       window.location.reload();
     } catch (err) {
@@ -142,16 +144,18 @@ export const ProjectsListView = forwardRef<HTMLDivElement, Props>(function Proje
       setPendingFile(null);
       setPreview(null);
     }
-  }, [pendingFile]);
+  }, [pendingFile, preview]);
 
   const handleMergeImport = useCallback(async () => {
-    if (!pendingFile) return;
+    if (!pendingFile || !preview) return;
+    const summary = buildImportSummary(preview, "merge");
     setPreviewOpen(false);
     setImporting(true);
     try {
       const result = await mergeFromSqliteZip(pendingFile);
       toast.success(
         `Merged ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs, ${result.promptCount} prompts`,
+        { description: summary },
       );
       window.location.reload();
     } catch (err) {
@@ -162,7 +166,7 @@ export const ProjectsListView = forwardRef<HTMLDivElement, Props>(function Proje
       setPendingFile(null);
       setPreview(null);
     }
-  }, [pendingFile]);
+  }, [pendingFile, preview]);
 
   const handleCancelPreview = useCallback(() => {
     setPreviewOpen(false);

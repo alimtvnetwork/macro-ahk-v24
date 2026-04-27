@@ -18,6 +18,12 @@ export interface OpenTabsSectionResult {
     refresh: () => void;
 }
 
+interface MatchedRuleInfoView {
+    readonly pattern: string;
+    readonly matchType: 'glob' | 'regex' | 'exact' | 'prefix';
+    readonly origin: 'injection-record' | 'evaluated';
+}
+
 interface OpenLovableTabInfoView {
     readonly tabId: number | null;
     readonly title: string;
@@ -31,6 +37,7 @@ interface OpenLovableTabInfoView {
     readonly detectedWorkspaceId: string | null;
     readonly detectedWorkspaceSource: 'api' | 'cache' | 'dom' | 'none' | null;
     readonly probeError: string | null;
+    readonly matchedRule: MatchedRuleInfoView | null;
 }
 
 interface OpenLovableTabsResponseView {

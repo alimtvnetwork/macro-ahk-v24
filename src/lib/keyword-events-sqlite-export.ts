@@ -63,6 +63,7 @@ const CREATE_KEYWORD_EVENTS_TABLE = `
     Steps TEXT NOT NULL,
     Target TEXT,
     Tags TEXT,
+    Category TEXT,
     PauseAfterMs INTEGER,
     SortOrder INTEGER NOT NULL DEFAULT 0,
     CreatedAt TEXT NOT NULL,

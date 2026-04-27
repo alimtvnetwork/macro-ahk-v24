@@ -395,3 +395,44 @@ export function buildPatchFromImport(
     if (src.PauseAfterMs !== undefined) patch.PauseAfterMs = src.PauseAfterMs;
     return patch;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Per-match field diff (preview)                                     */
+/* ------------------------------------------------------------------ */
+
+export interface FieldDiff {
+    readonly field: string;
+    readonly before: string;
+    readonly after: string;
+}
+
+/**
+ * Given a matched (target, source) pair, returns the list of fields whose
+ * value will actually change once `buildPatchFromImport(source)` is applied.
+ * Fields absent from the import (undefined) are skipped — they would not
+ * overwrite existing data. Values are stringified for display only.
+ */
+export function diffMatchedFields(
+    target: KeywordEvent,
+    source: ImportedKeywordEvent,
+): readonly FieldDiff[] {
+    const patch = buildPatchFromImport(source);
+    const diffs: FieldDiff[] = [];
+    for (const key of Object.keys(patch) as Array<keyof typeof patch>) {
+        const next = patch[key];
+        if (next === undefined) continue;
+        const prev = (target as Record<string, unknown>)[key as string];
+        const a = stringifyForDiff(prev);
+        const b = stringifyForDiff(next);
+        if (a !== b) diffs.push({ field: String(key), before: a, after: b });
+    }
+    return diffs;
+}
+
+function stringifyForDiff(value: unknown): string {
+    if (value === null || value === undefined) return "—";
+    if (typeof value === "string") return value;
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+    try { return JSON.stringify(value); } catch { return String(value); }
+}
+

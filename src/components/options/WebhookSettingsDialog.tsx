@@ -443,6 +443,16 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                                                 </>
                                                             )}
                                                         </dl>
+                                                        <div className="mt-2 flex justify-end">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() => void copyLogEntry(entry)}
+                                                            >
+                                                                <Copy className="mr-1 h-3.5 w-3.5" />
+                                                                Copy details
+                                                            </Button>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </li>

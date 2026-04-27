@@ -116,6 +116,11 @@ export default function StepEditorDialog(props: StepEditorDialogProps): JSX.Elem
     const [label, setLabel] = useState("");
     const [payloadJson, setPayloadJson] = useState("");
     const [targetGroupId, setTargetGroupId] = useState<number | null>(null);
+    /** Hotkey-specific state. The chord list + waitMs are serialised
+     *  into PayloadJson on submit; when editing an existing Hotkey we
+     *  hydrate from the stored PayloadJson on open. */
+    const [hotkeyChords, setHotkeyChords] = useState<readonly string[]>([]);
+    const [hotkeyWaitMs, setHotkeyWaitMs] = useState<string>("");
 
     // Reset form whenever the dialog (re-)opens with a new mode.
     useEffect(() => {
@@ -125,11 +130,27 @@ export default function StepEditorDialog(props: StepEditorDialogProps): JSX.Elem
             setLabel("");
             setPayloadJson("");
             setTargetGroupId(null);
+            setHotkeyChords([]);
+            setHotkeyWaitMs("");
         } else {
             setKind(mode.Step.StepKindId);
             setLabel(mode.Step.Label ?? "");
             setPayloadJson(mode.Step.PayloadJson ?? "");
             setTargetGroupId(mode.Step.TargetStepGroupId);
+            // Hydrate hotkey form from PayloadJson when editing.
+            if (mode.Step.StepKindId === StepKindId.Hotkey && mode.Step.PayloadJson !== null) {
+                try {
+                    const parsed = JSON.parse(mode.Step.PayloadJson) as { Keys?: unknown; WaitMs?: unknown };
+                    setHotkeyChords(Array.isArray(parsed.Keys) ? parsed.Keys.filter((k): k is string => typeof k === "string") : []);
+                    setHotkeyWaitMs(typeof parsed.WaitMs === "number" ? String(parsed.WaitMs) : "");
+                } catch {
+                    setHotkeyChords([]);
+                    setHotkeyWaitMs("");
+                }
+            } else {
+                setHotkeyChords([]);
+                setHotkeyWaitMs("");
+            }
         }
     }, [open, mode]);
 

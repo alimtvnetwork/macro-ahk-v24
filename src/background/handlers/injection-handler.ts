@@ -1640,7 +1640,7 @@ async function showInjectionToastInTab(
                 // Try SDK toast first
                 const m = (window as unknown as Record<string, Record<string, ((...args: unknown[]) => void)>>).marco;
                 if (m?.notify?.success) {
-                    try { m.notify.success(msg, { duration: 4000 }); return; } catch { /* fall through */ }
+                    try { m.notify.success(msg, { duration: 4000 }); return; } catch (sdkErr) { console.debug("[Marco] SDK toast.success failed, falling through to DOM toast:", sdkErr); }
                 }
 
                 // DOM fallback — self-contained, no dependencies
@@ -1747,7 +1747,7 @@ async function showInjectionFailureToastInTab(
                 // Try SDK toast first
                 const m = (window as unknown as Record<string, Record<string, ((...args: unknown[]) => void)>>).marco;
                 if (m?.notify?.error) {
-                    try { m.notify.error(msg, { duration: 6000 }); return; } catch { /* fall through */ }
+                    try { m.notify.error(msg, { duration: 6000 }); return; } catch (sdkErr) { console.debug("[Marco] SDK toast.error failed, falling through to DOM toast:", sdkErr); }
                 }
 
                 // DOM fallback

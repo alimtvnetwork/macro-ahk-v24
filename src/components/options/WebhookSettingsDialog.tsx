@@ -803,31 +803,49 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                                             <dd className="font-mono">{entry.EmittedAt}</dd>
                                                             <dt className="text-muted-foreground">Duration</dt>
                                                             <dd className="font-mono">{entry.DurationMs} ms</dd>
-                                                            {isWebhookSuccess(entry) && (
-                                                                <>
-                                                                    <dt className="text-muted-foreground">HTTP</dt>
-                                                                    <dd className="font-mono">{entry.Status}</dd>
-                                                                </>
-                                                            )}
+                                                            {/* Consistent "HTTP <status>" row across all variants. Skipped entries
+                                                                have no Status; failures may have null. Variant guards drive null handling. */}
+                                                            {(() => {
+                                                                let httpText: string;
+                                                                let httpClass = "font-mono";
+                                                                if (isWebhookSuccess(entry)) {
+                                                                    httpText = `${entry.Status}`;
+                                                                } else if (isWebhookSkipped(entry)) {
+                                                                    httpText = "— (not sent)";
+                                                                    httpClass = "font-mono text-muted-foreground";
+                                                                } else if (isWebhookFailure(entry)) {
+                                                                    httpText = entry.Status !== null ? `${entry.Status}` : "— (no response)";
+                                                                    httpClass = entry.Status !== null
+                                                                        ? "font-mono text-destructive"
+                                                                        : "font-mono text-muted-foreground";
+                                                                } else {
+                                                                    httpText = "—";
+                                                                    httpClass = "font-mono text-muted-foreground";
+                                                                }
+                                                                return (
+                                                                    <>
+                                                                        <dt className="text-muted-foreground">HTTP</dt>
+                                                                        <dd className={httpClass}>{httpText}</dd>
+                                                                    </>
+                                                                );
+                                                            })()}
                                                             {isWebhookSkipped(entry) && (
                                                                 <>
                                                                     <dt className="text-muted-foreground">Skip reason</dt>
                                                                     <dd className="whitespace-pre-wrap break-words font-mono">
-                                                                        {entry.SkipReason}
+                                                                        {entry.SkipReason && entry.SkipReason.length > 0
+                                                                            ? entry.SkipReason
+                                                                            : "(no reason recorded)"}
                                                                     </dd>
                                                                 </>
                                                             )}
                                                             {isWebhookFailure(entry) && (
                                                                 <>
-                                                                    {entry.Status !== null && (
-                                                                        <>
-                                                                            <dt className="text-muted-foreground">HTTP</dt>
-                                                                            <dd className="font-mono">{entry.Status}</dd>
-                                                                        </>
-                                                                    )}
                                                                     <dt className="text-muted-foreground">Error</dt>
                                                                     <dd className="whitespace-pre-wrap break-words font-mono text-destructive">
-                                                                        {entry.Error}
+                                                                        {entry.Error && entry.Error.length > 0
+                                                                            ? entry.Error
+                                                                            : "(no error message)"}
                                                                     </dd>
                                                                 </>
                                                             )}

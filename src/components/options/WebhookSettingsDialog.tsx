@@ -18,7 +18,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ChevronDown, Plus, RefreshCw, Send, Trash2, Webhook } from "lucide-react";
+import { ChevronDown, Copy, Plus, RefreshCw, Send, Trash2, Webhook } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -69,6 +69,37 @@ function formatTime(iso: string): string {
         return new Date(iso).toLocaleTimeString();
     } catch {
         return iso;
+    }
+}
+
+function buildLogClipboardText(entry: WebhookDeliveryResult): string {
+    const skipped = isWebhookSkipped(entry);
+    const success = isWebhookSuccess(entry);
+    const lines: string[] = [
+        `Event: ${entry.Event}`,
+        `Emitted: ${entry.EmittedAt}`,
+        `Duration: ${entry.DurationMs} ms`,
+    ];
+    if (skipped) {
+        lines.push("Status: Skipped");
+        lines.push(`Skip reason: ${entry.SkipReason}`);
+    } else if (success) {
+        lines.push(`Status: OK (HTTP ${entry.Status})`);
+    } else {
+        const httpPart = entry.Status !== undefined && entry.Status !== null ? ` (HTTP ${entry.Status})` : "";
+        lines.push(`Status: Failed${httpPart}`);
+        lines.push(`Error: ${entry.Error}`);
+    }
+    return lines.join("\n");
+}
+
+async function copyLogEntry(entry: WebhookDeliveryResult): Promise<void> {
+    const text = buildLogClipboardText(entry);
+    try {
+        await navigator.clipboard.writeText(text);
+        toast.success("Webhook details copied");
+    } catch (err) {
+        toast.error(`Copy failed: ${err instanceof Error ? err.message : String(err)}`);
     }
 }
 
@@ -412,6 +443,16 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                                                 </>
                                                             )}
                                                         </dl>
+                                                        <div className="mt-2 flex justify-end">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() => void copyLogEntry(entry)}
+                                                            >
+                                                                <Copy className="mr-1 h-3.5 w-3.5" />
+                                                                Copy details
+                                                            </Button>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </li>

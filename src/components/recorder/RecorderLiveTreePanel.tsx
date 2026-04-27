@@ -78,14 +78,38 @@ export function RecorderLiveTreePanel(): JSX.Element {
     const { selection, select } = useRecorderSelection("controller");
     const [expanded, setExpanded] = useState<Set<number>>(new Set());
     const [didAutoExpand, setDidAutoExpand] = useState(false);
+    const [query, setQuery] = useState("");
 
     const forest = useMemo(() => buildForest(lib.Groups), [lib.Groups]);
+
+    // Filter the forest by the search query. When the query is empty this
+    // returns the original forest at zero cost so the unfiltered render path
+    // is unchanged.
+    const filtered = useMemo(
+        () => filterLiveTree(forest, lib.StepsByGroup, query),
+        [forest, lib.StepsByGroup, query],
+    );
+
+    const isFiltering = query.trim().length > 0;
 
     useEffect(() => {
         if (didAutoExpand || forest.length === 0) { return; }
         setExpanded(defaultExpanded(forest));
         setDidAutoExpand(true);
     }, [didAutoExpand, forest]);
+
+    // While filtering, force-expand every ancestor of a match so the user
+    // can see results without manual clicking. We *merge* into the user's
+    // expansion set instead of replacing it so collapsing-after-clearing
+    // restores their previous state.
+    useEffect(() => {
+        if (!isFiltering) { return; }
+        setExpanded((prev) => {
+            const next = new Set(prev);
+            for (const id of filtered.ExpandIds) { next.add(id); }
+            return next;
+        });
+    }, [isFiltering, filtered.ExpandIds]);
 
     // When the Options panel selects a group, expand its ancestor chain.
     useEffect(() => {
@@ -118,6 +142,9 @@ export function RecorderLiveTreePanel(): JSX.Element {
         return <div className="text-[11px] text-muted-foreground p-2">No project loaded.</div>;
     }
 
+    const visibleForest = isFiltering ? filtered.Forest : forest;
+    const visibleStepsByGroup = isFiltering ? filtered.StepsByGroup : lib.StepsByGroup;
+
     return (
         <div className="border-t border-border/40 mt-1 pt-1.5">
             <div className="flex items-center gap-1.5 px-1 pb-1">
@@ -127,18 +154,59 @@ export function RecorderLiveTreePanel(): JSX.Element {
                     {lib.Groups.length} group{lib.Groups.length === 1 ? "" : "s"}
                 </Badge>
             </div>
+            <div className="relative px-1 pb-1.5">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+                <Input
+                    type="search"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Filter groups & steps…"
+                    aria-label="Filter live tree"
+                    data-testid="live-tree-search"
+                    className="h-7 text-[11px] pl-6 pr-7"
+                />
+                {query.length > 0 ? (
+                    <button
+                        type="button"
+                        onClick={() => setQuery("")}
+                        aria-label="Clear filter"
+                        data-testid="live-tree-search-clear"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                        <X className="h-3 w-3" />
+                    </button>
+                ) : null}
+            </div>
+            {isFiltering ? (
+                <div
+                    className="px-2 pb-1 text-[10px] text-muted-foreground flex items-center justify-between"
+                    data-testid="live-tree-search-summary"
+                >
+                    <span>
+                        {filtered.GroupMatchCount} group{filtered.GroupMatchCount === 1 ? "" : "s"},{" "}
+                        {filtered.StepMatchCount} step{filtered.StepMatchCount === 1 ? "" : "s"}
+                    </span>
+                </div>
+            ) : null}
             <ScrollArea className="h-[220px] pr-1">
                 <div className="px-1 pb-1">
-                    <ProjectRow
-                        name={lib.Project.Name}
-                        active={selection.StepGroupId === null}
-                        onClick={() => select({ StepGroupId: null, StepId: null })}
-                    />
-                    {forest.length === 0 ? (
-                        <div className="text-[11px] text-muted-foreground italic px-3 pt-1">
-                            No groups yet — recorded steps will appear here.
+                    {!isFiltering ? (
+                        <ProjectRow
+                            name={lib.Project.Name}
+                            active={selection.StepGroupId === null}
+                            onClick={() => select({ StepGroupId: null, StepId: null })}
+                        />
+                    ) : null}
+                    {visibleForest.length === 0 ? (
+                        <div
+                            className="text-[11px] text-muted-foreground italic px-3 pt-1"
+                            data-testid="live-tree-empty"
+                        >
+                            {isFiltering
+                                ? `No matches for "${query.trim()}".`
+                                : "No groups yet — recorded steps will appear here."}
                         </div>
-                    ) : forest.map((node) => (
+                    ) : visibleForest.map((node) => (
                         <GroupNode
                             key={node.Group.StepGroupId}
                             node={node}
@@ -147,7 +215,7 @@ export function RecorderLiveTreePanel(): JSX.Element {
                             onToggle={toggle}
                             selectedGroupId={selection.StepGroupId}
                             selectedStepId={selection.StepId}
-                            stepsByGroup={lib.StepsByGroup}
+                            stepsByGroup={visibleStepsByGroup}
                             onSelect={(payload) => select(payload)}
                         />
                     ))}

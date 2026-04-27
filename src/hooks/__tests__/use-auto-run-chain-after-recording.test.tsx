@@ -79,12 +79,18 @@ describe("useAutoRunChainAfterRecording", () => {
         const onStart = vi.fn();
         const onEnd = vi.fn();
 
+        type Props = {
+            settings: KeywordEventChainSettings;
+            events: KeywordEvent[];
+            session: RecordingSession | null;
+        };
+        const initialProps: Props = {
+            settings: initial.settings ?? { ...DEFAULT_CHAIN_SETTINGS, RunAfterRecording: true },
+            events: initial.events ?? [mkEvent("a")],
+            session: initial.session ?? mkSession("Recording"),
+        };
         const { rerender } = renderHook(
-            (props: {
-                settings: KeywordEventChainSettings;
-                events: KeywordEvent[];
-                session: RecordingSession | null;
-            }) => useAutoRunChainAfterRecording({
+            (props: Props) => useAutoRunChainAfterRecording({
                 settings: props.settings,
                 events: props.events,
                 session: props.session,
@@ -92,13 +98,7 @@ describe("useAutoRunChainAfterRecording", () => {
                 onAutoRunStart: onStart,
                 onAutoRunEnd: onEnd,
             }),
-            {
-                initialProps: {
-                    settings: initial.settings ?? { ...DEFAULT_CHAIN_SETTINGS, RunAfterRecording: true },
-                    events: initial.events ?? [mkEvent("a")],
-                    session: initial.session ?? mkSession("Recording"),
-                },
-            },
+            { initialProps },
         );
 
         return { rerender, chainRunner, onStart, onEnd };

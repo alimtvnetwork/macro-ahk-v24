@@ -43,7 +43,7 @@ import { useErrorCount } from "@/hooks/use-error-count";
 
 export type SidebarSection =
   | "projects" | "scripts" | "prompts" | "automation" | "updaters" | "storage" | "api" | "library" | "step-groups" | "settings" | "about"
-  | "logging" | "timing" | "data" | "network" | "activity";
+  | "logging" | "timing" | "data" | "network" | "activity" | "audit";
 
 export interface SidebarSelection {
   type: "section" | "project" | "script";
@@ -82,6 +82,7 @@ const overflowItems: Array<{ id: SidebarSection; label: string; icon: typeof Fol
   { id: "timing", label: "Timing", icon: Timer },
   { id: "data", label: "Data", icon: BarChart3 },
   { id: "network", label: "Network", icon: Wifi },
+  { id: "audit", label: "Error Audit", icon: ShieldAlert },
 ];
 
 /* ------------------------------------------------------------------ */

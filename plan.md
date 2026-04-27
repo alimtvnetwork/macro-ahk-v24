@@ -441,3 +441,13 @@ Memory: `.lovable/memory/features/release-installer.md`
 10. **Logging & Diagnostics Enforcement** — every new failure surface obeys LOG-1..6 above (schema, verbose-gating, code-red errors, diagnostics bundle, recorder contracts, fixture parity).
 
 Full list: `/spec/02-coding-guidelines/engineering-standards.md` (26 standards)
+
+---
+
+### Follow-up: error-swallowing audit scanner
+
+The Options → **Error Audit** page (`src/components/options/ErrorSwallowAuditView.tsx`)
+consumes `public/error-swallow-audit.json`. The file is not yet generated;
+build a scanner that emits the documented JSON contract (see the page's
+empty-state). Suggested location: `scripts/audit-error-swallow.mjs`,
+classifying findings into P0/P1/P2 per `mem://standards/error-logging-requirements.md`.

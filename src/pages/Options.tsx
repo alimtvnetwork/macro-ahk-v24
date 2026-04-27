@@ -38,6 +38,7 @@ const ActivityLogTimeline = lazy(() => import("@/components/options/ActivityLogT
 const LibraryView = lazy(() => import("@/components/options/LibraryView"));
 const StepGroupLibraryPanel = lazy(() => import("@/components/options/StepGroupLibraryPanel"));
 const StepGroupListPanel = lazy(() => import("@/components/options/StepGroupListPanel"));
+const ErrorSwallowAuditView = lazy(() => import("@/components/options/ErrorSwallowAuditView"));
 
 function LazyFallback() {
   return (
@@ -167,7 +168,7 @@ const OptionsPage = () => {
     const validSections: SidebarSection[] = [
       "projects", "scripts", "prompts", "activity", "logging",
       "automation", "updaters", "timing", "data", "network",
-      "storage", "api", "library", "step-groups", "settings", "about",
+      "storage", "api", "library", "step-groups", "settings", "about", "audit",
     ];
     if (hash === "step-groups-list") {
       return { section: "step-groups", stepGroupView: "list" };
@@ -511,6 +512,8 @@ const OptionsPage = () => {
                 <SettingsView />
               ) : selection.section === "about" ? (
                 <GlobalAboutView />
+              ) : selection.section === "audit" ? (
+                <ErrorSwallowAuditView />
               ) : null}
               </ErrorBoundary>
               </Suspense>

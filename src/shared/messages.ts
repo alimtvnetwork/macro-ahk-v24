@@ -96,6 +96,10 @@ export enum MessageType {
     RECORDER_STEP_RESOLVE = "RECORDER_STEP_RESOLVE",
     RECORDER_STEP_RENAME = "RECORDER_STEP_RENAME",
     RECORDER_STEP_SELECTORS_LIST = "RECORDER_STEP_SELECTORS_LIST",
+    // ─── Macro Recorder Step Chain + Cross-Project Links (Phase 14) ───
+    RECORDER_STEP_UPDATE_META = "RECORDER_STEP_UPDATE_META",
+    RECORDER_STEP_TAGS_SET = "RECORDER_STEP_TAGS_SET",
+    RECORDER_STEP_LINK_SET = "RECORDER_STEP_LINK_SET",
 
     // ─── Macro Recorder Inline JS + Snippets (from Spec 31, Phase 11) ───
     RECORDER_JS_SNIPPET_UPSERT = "RECORDER_JS_SNIPPET_UPSERT",
@@ -471,6 +475,9 @@ export type MessageRequest =
     | { type: MessageType.RECORDER_STEP_RESOLVE; projectSlug: string; stepId: number }
     | { type: MessageType.RECORDER_STEP_RENAME; projectSlug: string; stepId: number; newVariableName: string }
     | { type: MessageType.RECORDER_STEP_SELECTORS_LIST; projectSlug: string; stepId: number }
+    | { type: MessageType.RECORDER_STEP_UPDATE_META; projectSlug: string; stepId: number; patch: Record<string, JsonValue> }
+    | { type: MessageType.RECORDER_STEP_TAGS_SET; projectSlug: string; stepId: number; tags: ReadonlyArray<string> }
+    | { type: MessageType.RECORDER_STEP_LINK_SET; projectSlug: string; stepId: number; slot: "OnSuccessProjectId" | "OnFailureProjectId"; targetProjectSlug: string | null }
     | { type: MessageType.RECORDER_JS_SNIPPET_UPSERT; projectSlug: string; draft: Record<string, JsonValue> }
     | { type: MessageType.RECORDER_JS_SNIPPET_LIST; projectSlug: string }
     | { type: MessageType.RECORDER_JS_SNIPPET_DELETE; projectSlug: string; jsSnippetId: number }

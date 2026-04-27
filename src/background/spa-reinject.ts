@@ -17,6 +17,7 @@ import {
     persistInjectionWarn,
 } from "./injection-diagnostics";
 import { readAllProjects } from "./handlers/project-helpers";
+import { logCaughtError, logBgWarnError, BgLogTag } from "./bg-logger";
 import type { ResolvedScript } from "./script-resolver";
 
 /* ------------------------------------------------------------------ */
@@ -224,7 +225,8 @@ function logMarkersIntact(tabId: number): void {
 
 /** Logs that markers were lost after SPA navigation. */
 function logMarkersLost(tabId: number): void {
-    console.error(
+    logBgWarnError(
+        BgLogTag.INJECTION,
         `[spa-reinject] Markers lost in tab ${tabId} after SPA navigation, re-injecting`,
     );
 
@@ -251,8 +253,11 @@ function logReinjectSuccess(tabId: number, count: number): void {
 /** Logs a failed SPA re-injection. */
 function logReinjectError(tabId: number, error: unknown): void {
     const reason = error instanceof Error ? error.message : String(error);
-    console.error(
+    logCaughtError(
+        BgLogTag.INJECTION,
         `[spa-reinject] Re-inject failed for tab ${tabId}: ${reason}`,
+        error instanceof Error ? error : new Error(reason),
+        { contextDetail: `tabId=${tabId}` },
     );
 
     void persistInjectionError(

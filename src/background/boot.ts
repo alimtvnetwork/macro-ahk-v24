@@ -260,6 +260,9 @@ async function readCurrentBuildId(): Promise<string | null> {
         );
         return null;
     }
+}
+
+/** Clears all log and error rows for a fresh start. */
 function clearAllLogsAndErrors(): void {
     try {
         const logsDb = getLogsDb();

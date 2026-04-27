@@ -366,9 +366,15 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                 </div>
                             </div>
                             {log.length === 0 ? (
-                                <p className="text-xs text-muted-foreground">
-                                    No deliveries yet. The last 20 attempts will appear here, newest first.
-                                </p>
+                                <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-muted-foreground/30 bg-muted/10 px-4 py-6 text-center">
+                                    <Webhook className="h-6 w-6 text-muted-foreground/60" aria-hidden />
+                                    <p className="text-sm font-medium text-foreground">No deliveries yet</p>
+                                    <p className="text-xs text-muted-foreground max-w-xs">
+                                        {draft.Enabled && draft.Url.trim().length > 0
+                                            ? "The last 20 webhook attempts will appear here, newest first. Use \"Send test ping\" to verify your endpoint."
+                                            : "Enable the webhook and set an endpoint URL above, then run a group or use \"Send test ping\" to see delivery results here."}
+                                    </p>
+                                </div>
                             ) : (
                                 <ul className="space-y-1.5">
                                     {log.map((entry, i) => {

@@ -15,7 +15,7 @@
  * a separate roadmap item tracked in plan.md.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     Download,
     Eye,

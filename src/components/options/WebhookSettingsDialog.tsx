@@ -98,6 +98,69 @@ function describeFailure(entry: WebhookDeliveryFailure): string {
     return `Status: Failed${httpPart}\nError: ${entry.Error}`;
 }
 
+type VariantBadgeVariant = "default" | "secondary" | "outline" | "destructive";
+
+interface VariantPresentation {
+    readonly badgeLabel: string;
+    readonly badgeVariant: VariantBadgeVariant;
+    readonly badgeExtraClass: string;
+    readonly rowClass: string;
+    readonly hoverClass: string;
+    readonly summaryDetail: string | null;
+    readonly summaryDetailClass: string;
+    readonly eventClass: string;
+}
+
+const ROW_SUCCESS = "rounded-md border border-emerald-500/30 bg-emerald-500/5 text-xs";
+const ROW_SKIPPED = "rounded-md border border-dashed border-muted-foreground/40 bg-muted/10 text-xs";
+const ROW_FAILED  = "rounded-md border border-destructive/60 bg-destructive/10 text-xs shadow-[0_0_0_1px_hsl(var(--destructive)/0.35)]";
+
+function presentSuccess(entry: WebhookDeliverySuccess): VariantPresentation {
+    return {
+        badgeLabel: `OK ${entry.Status}`,
+        badgeVariant: "default",
+        badgeExtraClass: "",
+        rowClass: ROW_SUCCESS,
+        hoverClass: "hover:bg-emerald-500/10",
+        summaryDetail: null,
+        summaryDetailClass: "",
+        eventClass: "",
+    };
+}
+
+function presentSkipped(entry: WebhookDeliverySkipped): VariantPresentation {
+    return {
+        badgeLabel: "Skipped",
+        badgeVariant: "outline",
+        badgeExtraClass: "",
+        rowClass: ROW_SKIPPED,
+        hoverClass: "hover:bg-muted/30",
+        summaryDetail: entry.SkipReason,
+        summaryDetailClass: "text-muted-foreground",
+        eventClass: "",
+    };
+}
+
+function presentFailure(entry: WebhookDeliveryFailure): VariantPresentation {
+    const statusSuffix = entry.Status !== null ? ` ${entry.Status}` : "";
+    return {
+        badgeLabel: `Failed${statusSuffix}`,
+        badgeVariant: "destructive",
+        badgeExtraClass: "uppercase tracking-wide font-bold ring-1 ring-destructive/60 shadow-sm",
+        rowClass: ROW_FAILED,
+        hoverClass: "hover:bg-destructive/15",
+        summaryDetail: entry.Error,
+        summaryDetailClass: "text-destructive/90 font-medium",
+        eventClass: "text-destructive font-semibold",
+    };
+}
+
+function presentVariant(entry: WebhookDeliveryResult): VariantPresentation {
+    if (isWebhookSuccess(entry)) return presentSuccess(entry);
+    if (isWebhookSkipped(entry)) return presentSkipped(entry);
+    return presentFailure(entry);
+}
+
 function buildLogClipboardText(entry: WebhookDeliveryResult): string {
     const lines: string[] = [
         `Event: ${entry.Event}`,

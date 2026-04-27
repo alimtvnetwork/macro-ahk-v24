@@ -8,7 +8,7 @@
  */
 
 import { useState } from "react";
-import { ArrowDown, ArrowUp, Clock, Keyboard, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Clock, Keyboard, Play, Plus, Square, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useKeywordEvents } from "@/hooks/use-keyword-events";
+import { useKeywordEventPlayback } from "@/hooks/use-keyword-event-playback";
 import { cn } from "@/lib/utils";
 
 export interface KeywordEventsPanelProps {

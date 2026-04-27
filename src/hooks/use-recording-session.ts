@@ -207,9 +207,29 @@ export function useRecordingSession(): UseRecordingSessionResult {
         setSession(next.Phase === "Idle" ? null : next);
     }, []);
 
+    const start = useCallback(async (projectSlug?: string) => {
+        const current = await readFromStorage();
+        if (current !== null && current.Phase !== "Idle") { return; }
+        const seed: RecordingSession = {
+            SessionId: "",
+            ProjectSlug: projectSlug ?? "default",
+            StartedAt: "",
+            Phase: "Idle",
+            Steps: [],
+        };
+        const next = recorderReducer(seed, {
+            Kind: "Start",
+            ProjectSlug: projectSlug ?? "default",
+            SessionId: newSessionId(),
+            StartedAt: new Date().toISOString(),
+        });
+        await writeToStorage(next);
+        setSession(next);
+    }, []);
+
     const pause = useCallback(() => dispatch({ Kind: "Pause" }), [dispatch]);
     const resume = useCallback(() => dispatch({ Kind: "Resume" }), [dispatch]);
     const stop = useCallback(() => dispatch({ Kind: "Stop" }), [dispatch]);
 
-    return { session, loading, pause, resume, stop };
+    return { session, loading, start, pause, resume, stop };
 }

@@ -46,6 +46,32 @@ interface Props {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Build a human-readable summary line for the post-import toast.
+ * - matched: items in the bundle that already existed in the workspace (overwritten/updated).
+ * - unmatched: items in the bundle that were new to the workspace (added).
+ * - untouched: items in the workspace that were not present in the bundle.
+ *   In replace mode these get deleted, so untouched is always 0.
+ */
+function buildImportSummary(preview: BundlePreview, mode: "merge" | "replace"): string {
+  const countMatched = (items: DiffItem[]): number => items.filter((i) => i.status === "overwrite").length;
+  const countUnmatched = (items: DiffItem[]): number => items.filter((i) => i.status === "new").length;
+
+  const matched =
+    countMatched(preview.projectItems) + countMatched(preview.scriptItems) + countMatched(preview.configItems);
+  const unmatched =
+    countUnmatched(preview.projectItems) + countUnmatched(preview.scriptItems) + countUnmatched(preview.configItems);
+
+  const existingTotal = preview.existingProjectCount + preview.existingScriptCount + preview.existingConfigCount;
+  const untouched = mode === "replace" ? 0 : Math.max(0, existingTotal - matched);
+
+  return `${matched} matched (overwritten), ${unmatched} new (added), ${untouched} untouched`;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 

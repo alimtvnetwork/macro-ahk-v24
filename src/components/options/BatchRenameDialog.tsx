@@ -2,11 +2,16 @@
  * Marco Extension — Batch Rename Dialog
  *
  * Lets the user rename every selected step group at once via one of
- * three composable transforms:
+ * four composable transforms:
  *
  *   • **Find & replace** — case-sensitive substring swap
  *   • **Add prefix**     — prepend a fixed string
  *   • **Add suffix**     — append a fixed string
+ *   • **Sequence**       — rename every selected row to "{Base}{N}" with
+ *                          a configurable start number and zero-padding
+ *                          width. If the Base contains the literal token
+ *                          `{n}` the number is substituted there; otherwise
+ *                          it is appended after a separator.
  *
  * The dialog renders a live preview row for every selected group:
  * "OldName  →  NewName", with badges for `unchanged`, `invalid`
@@ -80,7 +85,7 @@ export interface BatchRenameDialogProps {
 /*  Transforms                                                         */
 /* ------------------------------------------------------------------ */
 
-type Mode = "replace" | "prefix" | "suffix";
+type Mode = "replace" | "prefix" | "suffix" | "sequence";
 
 interface TransformInput {
     readonly Mode: Mode;
@@ -88,9 +93,35 @@ interface TransformInput {
     readonly Replace: string;
     readonly Prefix: string;
     readonly Suffix: string;
+    /** Sequence base name. May contain `{n}` as the substitution token. */
+    readonly SequenceBase: string;
+    /** Sequence start number (defaults to 1). Negative values clamp to 0. */
+    readonly SequenceStart: number;
+    /** Zero-padding width (1 → "1", 2 → "01", 3 → "001"). Clamped to 1..6. */
+    readonly SequencePadding: number;
+    /** Separator between base and number when `{n}` is absent. */
+    readonly SequenceSeparator: string;
 }
 
-function applyTransform(name: string, t: TransformInput): string {
+const SEQUENCE_TOKEN = "{n}";
+
+function formatSequenceNumber(n: number, padding: number): string {
+    const width = Math.max(1, Math.min(6, Math.floor(padding)));
+    return String(Math.max(0, Math.floor(n))).padStart(width, "0");
+}
+
+/** Builds the new name for the `index`-th selected target (0-based). */
+function applySequence(t: TransformInput, index: number): string {
+    const n = formatSequenceNumber(t.SequenceStart + index, t.SequencePadding);
+    if (t.SequenceBase.includes(SEQUENCE_TOKEN)) {
+        return t.SequenceBase.split(SEQUENCE_TOKEN).join(n);
+    }
+    const base = t.SequenceBase.trim();
+    if (base.length === 0) return n;
+    return `${base}${t.SequenceSeparator}${n}`;
+}
+
+function applyTransform(name: string, t: TransformInput, index: number): string {
     switch (t.Mode) {
         case "replace":
             // Empty Find = identity. Splitting on empty string would
@@ -101,6 +132,8 @@ function applyTransform(name: string, t: TransformInput): string {
             return `${t.Prefix}${name}`;
         case "suffix":
             return `${name}${t.Suffix}`;
+        case "sequence":
+            return applySequence(t, index);
     }
 }
 

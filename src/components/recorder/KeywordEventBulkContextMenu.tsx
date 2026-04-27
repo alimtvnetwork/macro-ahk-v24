@@ -622,13 +622,39 @@ function PreviewSummaryBanner({ summary }: { readonly summary: ReturnType<typeof
     if (summary.CollisionCount > 0) parts.push(`${summary.CollisionCount} collide with existing names`);
     if (summary.EmptyCount > 0)     parts.push(`${summary.EmptyCount} empty`);
     if (summary.TooLongCount > 0)   parts.push(`${summary.TooLongCount} too long`);
+
+    const collidingRows = summary.Rows.filter(r => r.CollidesWith.length > 0);
+
     return (
         <div
             role="alert"
             className="rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1.5 text-xs text-destructive"
             data-testid="keyword-events-bulk-rename-issues"
         >
-            Cannot apply: {parts.join(" · ")}.
+            <div>Cannot apply: {parts.join(" · ")}.</div>
+            {collidingRows.length > 0 && (
+                <details
+                    className="mt-1.5"
+                    data-testid="keyword-events-bulk-rename-collision-details"
+                >
+                    <summary className="cursor-pointer select-none font-medium underline-offset-2 hover:underline">
+                        Show {collidingRows.length} collision{collidingRows.length === 1 ? "" : "s"}
+                    </summary>
+                    <ul className="mt-1.5 space-y-0.5 pl-3 font-mono">
+                        {collidingRows.map(row => (
+                            <li
+                                key={row.Id}
+                                data-testid="keyword-events-bulk-rename-collision-row"
+                                data-row-id={row.Id}
+                            >
+                                <span className="font-semibold">{row.Next || "(empty)"}</span>
+                                {" → already used by "}
+                                <span>{row.CollidesWith.map(k => `“${k}”`).join(", ")}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </details>
+            )}
         </div>
     );
 }

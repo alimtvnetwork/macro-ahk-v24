@@ -198,6 +198,65 @@ export function useKeywordEvents(): UseKeywordEventsApi {
         }));
     }, []);
 
+    const removeSteps = useCallback((eventId: string, stepIds: readonly string[]) => {
+        if (stepIds.length === 0) return;
+        const drop = new Set(stepIds);
+        setEvents(prev => prev.map(e =>
+            e.Id === eventId ? { ...e, Steps: e.Steps.filter(s => !drop.has(s.Id)) } : e,
+        ));
+    }, []);
+
+    const setStepsEnabled = useCallback(
+        (eventId: string, stepIds: readonly string[], enabled: boolean) => {
+            if (stepIds.length === 0) return;
+            const target = new Set(stepIds);
+            setEvents(prev => prev.map(e => {
+                if (e.Id !== eventId) return e;
+                return {
+                    ...e,
+                    Steps: e.Steps.map(s => {
+                        if (!target.has(s.Id)) return s;
+                        // `Enabled === undefined` already means enabled, so when
+                        // enabling we strip the field to keep persisted JSON tidy.
+                        if (enabled) {
+                            const { Enabled: _drop, ...rest } = s as KeywordEventStep & { Enabled?: boolean };
+                            void _drop;
+                            return rest as KeywordEventStep;
+                        }
+                        return { ...s, Enabled: false } as KeywordEventStep;
+                    }),
+                };
+            }));
+        },
+        [],
+    );
+
+    const relabelSteps = useCallback(
+        (eventId: string, stepIds: readonly string[], labels: readonly string[]) => {
+            if (stepIds.length === 0) return;
+            const labelById = new Map<string, string>();
+            stepIds.forEach((id, i) => { labelById.set(id, labels[i] ?? ""); });
+            setEvents(prev => prev.map(e => {
+                if (e.Id !== eventId) return e;
+                return {
+                    ...e,
+                    Steps: e.Steps.map(s => {
+                        const next = labelById.get(s.Id);
+                        if (next === undefined) return s;
+                        const trimmed = next.trim();
+                        if (trimmed.length === 0) {
+                            const { Label: _drop, ...rest } = s as KeywordEventStep & { Label?: string };
+                            void _drop;
+                            return rest as KeywordEventStep;
+                        }
+                        return { ...s, Label: trimmed } as KeywordEventStep;
+                    }),
+                };
+            }));
+        },
+        [],
+    );
+
     const reorderEvents = useCallback((fromId: string, toId: string) => {
         if (fromId === toId) { return; }
         setEvents(prev => {
@@ -211,5 +270,10 @@ export function useKeywordEvents(): UseKeywordEventsApi {
         });
     }, []);
 
-    return { events, addEvent, removeEvent, updateEvent, addStep, removeStep, moveStep, reorderEvents };
+    return {
+        events, addEvent, removeEvent, updateEvent,
+        addStep, removeStep, moveStep,
+        removeSteps, setStepsEnabled, relabelSteps,
+        reorderEvents,
+    };
 }

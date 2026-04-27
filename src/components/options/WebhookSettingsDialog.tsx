@@ -621,6 +621,29 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                         </Button>
                                     )}
                                     {log.length > 0 && (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    disabled={filteredLog.length === 0}
+                                                    title="Export filtered results"
+                                                >
+                                                    <Download className="mr-1 h-3.5 w-3.5" />
+                                                    Export ({filteredLog.length})
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end" className="text-xs">
+                                                <DropdownMenuItem onSelect={() => exportFilteredLog(filteredLog, "json")}>
+                                                    Download as JSON
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => exportFilteredLog(filteredLog, "csv")}>
+                                                    Download as CSV
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    )}
+                                    {log.length > 0 && (
                                         <Button size="sm" variant="ghost" onClick={handleClearLog}>
                                             Clear
                                         </Button>

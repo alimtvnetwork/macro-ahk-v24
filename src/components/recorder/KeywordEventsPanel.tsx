@@ -860,20 +860,58 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                 {event.Steps.length === 0 && (
                     <p className="text-xs text-muted-foreground italic">No steps yet — add a key press or wait below.</p>
                 )}
+                {stepSelection.selected.size > 0 && (
+                    <div
+                        className="flex items-center gap-2 rounded border border-border/60 bg-muted/30 px-2 py-1 text-[10px]"
+                        data-testid={`keyword-event-step-selection-toolbar-${event.Id}`}
+                    >
+                        <span className="font-medium" data-testid={`keyword-event-step-selection-count-${event.Id}`}>
+                            {stepSelection.selected.size} step{stepSelection.selected.size === 1 ? "" : "s"} selected
+                        </span>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className="ml-auto h-5 px-1.5 text-[10px]"
+                            onClick={(e) => { e.stopPropagation(); stepSelection.clear(); }}
+                            data-testid={`keyword-event-step-selection-clear-${event.Id}`}
+                        >
+                            Clear
+                        </Button>
+                    </div>
+                )}
                 {event.Steps.map((s, i) => {
                     const issue = issuesByIndex.get(i);
+                    const stepSelected = stepSelection.isSelected(s.Id);
                     return (
                         <div
                             key={s.Id}
                             className={cn(
-                                "flex flex-col gap-0.5 rounded bg-muted/40 px-2 py-1.5 text-xs transition-colors",
+                                "flex flex-col gap-0.5 rounded bg-muted/40 px-2 py-1.5 text-xs transition-colors cursor-pointer",
                                 currentStepIndex === i && "bg-primary/15 ring-1 ring-primary/40",
                                 issue && "bg-destructive/10 ring-1 ring-destructive/40",
+                                stepSelected && "bg-primary/20 ring-1 ring-primary/60",
                             )}
                             data-testid={`keyword-event-step-${event.Id}-${i}`}
                             data-invalid={issue ? "true" : undefined}
+                            data-selected={stepSelected ? "true" : undefined}
+                            onClick={(e) => { e.stopPropagation(); handleStepRowClick(s.Id, e); }}
                         >
                             <div className="flex items-center gap-2">
+                                <Checkbox
+                                    checked={stepSelected}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        const me = e as React.MouseEvent<HTMLButtonElement>;
+                                        if (me.shiftKey) {
+                                            stepSelection.handleClick(s.Id, { shiftKey: true, toggleKey: false });
+                                        } else {
+                                            stepSelection.handleClick(s.Id, { shiftKey: false, toggleKey: true });
+                                        }
+                                    }}
+                                    aria-label={`Select step ${i + 1}`}
+                                    data-testid={`keyword-event-step-select-${event.Id}-${i}`}
+                                    className="h-3.5 w-3.5"
+                                />
                                 <Badge variant="outline" className="text-[10px] w-6 justify-center">{i + 1}</Badge>
                                 {s.Kind === "Key" ? (
                                     <>
@@ -887,13 +925,13 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                                     </>
                                 )}
                                 <div className="ml-auto flex items-center gap-0.5">
-                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onMoveStep(s.Id, "up")} disabled={i === 0} aria-label="Move step up">
+                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); onMoveStep(s.Id, "up"); }} disabled={i === 0} aria-label="Move step up">
                                         <ArrowUp className="h-3 w-3" />
                                     </Button>
-                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onMoveStep(s.Id, "down")} disabled={i === event.Steps.length - 1} aria-label="Move step down">
+                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); onMoveStep(s.Id, "down"); }} disabled={i === event.Steps.length - 1} aria-label="Move step down">
                                         <ArrowDown className="h-3 w-3" />
                                     </Button>
-                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => onRemoveStep(s.Id)} aria-label="Remove step">
+                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={(e) => { e.stopPropagation(); onRemoveStep(s.Id); }} aria-label="Remove step">
                                         <Trash2 className="h-3 w-3" />
                                     </Button>
                                 </div>

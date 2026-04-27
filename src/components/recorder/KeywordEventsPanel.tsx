@@ -397,6 +397,7 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
             data-testid={`keyword-event-${event.Id}`}
         >
             <div className="flex items-center gap-2">
+                {dragHandle}
                 <Input
                     value={event.Keyword}
                     onChange={e => onUpdate({ Keyword: e.target.value })}

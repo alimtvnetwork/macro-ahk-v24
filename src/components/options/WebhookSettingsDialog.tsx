@@ -123,6 +123,7 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
     const [busy, setBusy] = useState(false);
     const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
     const [payloadOpenIdx, setPayloadOpenIdx] = useState<number | null>(null);
+    const [statusFilter, setStatusFilter] = useState<"all" | "success" | "skipped" | "failure">("all");
 
     useEffect(() => {
         if (open) {

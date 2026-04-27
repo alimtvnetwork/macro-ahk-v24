@@ -526,6 +526,8 @@ async function getActiveTabUrl(): Promise<string | null> {
         return null;
     }
 }
+
+async function getActivePlatformTabs(tabUrlHint?: string): Promise<chrome.tabs.Tab[]> {
     const byHint: chrome.tabs.Tab[] = [];
 
     if (typeof tabUrlHint === "string" && tabUrlHint.length > 0) {

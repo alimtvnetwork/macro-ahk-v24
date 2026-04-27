@@ -71,8 +71,8 @@ describe("useKeywordEvents — reorderEvents", () => {
 
     it("preserves each event's steps and metadata after reorder", () => {
         const { result, aId, bId, cId } = seedThree();
-        act(() => { result.current.addStep(aId, { Kind: "Key", Combo: "Enter" }); });
-        act(() => { result.current.addStep(bId, { Kind: "Wait", DurationMs: 250 }); });
+        act(() => { result.current.addStep(aId, { Kind: "Key", Combo: "Enter" } as Omit<import("@/hooks/use-keyword-events").KeywordEventStep, "Id">); });
+        act(() => { result.current.addStep(bId, { Kind: "Wait", DurationMs: 250 } as Omit<import("@/hooks/use-keyword-events").KeywordEventStep, "Id">); });
 
         act(() => { result.current.reorderEvents(cId, aId); });
 

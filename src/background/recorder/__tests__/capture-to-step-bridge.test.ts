@@ -13,6 +13,7 @@ import { RECORDER_DB_SCHEMA, SelectorKindId, StepKindId } from "../../recorder-d
 import {
     buildLabel,
     buildStepDraftFromCapture,
+    deriveUrlTabClickParams,
     findAnchorSelectorId,
     inferStepKind,
     type XPathCapturePayload,
@@ -194,5 +195,94 @@ describe("end-to-end capture → persist", () => {
         expect(primary?.Expression).toBe("//html/body/form/button[1]");
         expect(relative?.AnchorSelectorId).toBe(anchorId);
         expect(relative?.IsPrimary).toBe(0);
+    });
+});
+
+describe("Spec 19.1 — UrlTabClick capture branch", () => {
+    it("returns null when no UrlTabClickHint is supplied (plain Click)", () => {
+        const params = deriveUrlTabClickParams(capture({ TagName: "a" }));
+        expect(params).toBeNull();
+    });
+
+    it("derives Glob params from a target=_blank anchor click", () => {
+        const params = deriveUrlTabClickParams(
+            capture({
+                TagName: "a",
+                UrlTabClickHint: {
+                    Tag: "a",
+                    Target: "_blank",
+                    Href: "https://app.example.com/orders/42",
+                    LocationOrigin: "https://app.example.com",
+                    WindowOpenCalled: false,
+                },
+            }),
+        );
+        expect(params).not.toBeNull();
+        expect(params?.Mode).toBe("OpenNew");
+        expect(params?.UrlMatch).toBe("Glob");
+        expect(params?.UrlPattern).toBe("https://app.example.com/orders/*");
+    });
+
+    it("returns null when shouldRecordAsUrlTabClick says no (same-origin, no _blank, no window.open)", () => {
+        const params = deriveUrlTabClickParams(
+            capture({
+                TagName: "a",
+                UrlTabClickHint: {
+                    Tag: "a",
+                    Href: "https://app.example.com/orders/42",
+                    LocationOrigin: "https://app.example.com",
+                    WindowOpenCalled: false,
+                },
+            }),
+        );
+        expect(params).toBeNull();
+    });
+
+    it("buildStepDraftFromCapture promotes to StepKindId.UrlTabClick + ParamsJson", () => {
+        const draft = buildStepDraftFromCapture(
+            capture({
+                TagName: "a",
+                XPathFull: "//a[@id='order-42']",
+                SuggestedVariableName: "OpenOrder42",
+                UrlTabClickHint: {
+                    Tag: "a",
+                    Target: "_blank",
+                    Href: "https://app.example.com/orders/42",
+                    LocationOrigin: "https://app.example.com",
+                    WindowOpenCalled: false,
+                },
+            }),
+            null,
+        );
+        expect(draft.StepKindId).toBe(StepKindId.UrlTabClick);
+        expect(draft.ParamsJson).not.toBeNull();
+        const parsed = JSON.parse(draft.ParamsJson ?? "{}");
+        expect(parsed.Mode).toBe("OpenNew");
+        expect(parsed.Selector).toBe("//a[@id='order-42']");
+        expect(parsed.SelectorKind).toBe("XPath");
+    });
+
+    it("persisted UrlTabClick row round-trips ParamsJson via listStepRows", () => {
+        const db = freshDb();
+        const draft = buildStepDraftFromCapture(
+            capture({
+                TagName: "a",
+                XPathFull: "//a[@id='order-42']",
+                SuggestedVariableName: "OpenOrder42",
+                UrlTabClickHint: {
+                    Tag: "a",
+                    Target: "_blank",
+                    Href: "https://app.example.com/orders/42",
+                    LocationOrigin: "https://app.example.com",
+                    WindowOpenCalled: false,
+                },
+            }),
+            null,
+        );
+        const row = insertStepRow(db, draft);
+        expect(row.StepKindId).toBe(StepKindId.UrlTabClick);
+        expect(row.ParamsJson).not.toBeNull();
+        const parsed = JSON.parse(row.ParamsJson ?? "{}");
+        expect(parsed.UrlPattern).toBe("https://app.example.com/orders/*");
     });
 });

@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS Step (
     VariableName   TEXT    NOT NULL,
     Label          TEXT    NOT NULL,
     InlineJs       TEXT,
+    ParamsJson     TEXT,
     IsBreakpoint   INTEGER NOT NULL DEFAULT 0,
     CapturedAt     TEXT    NOT NULL DEFAULT (datetime('now')),
     UpdatedAt      TEXT    NOT NULL DEFAULT (datetime('now')),
@@ -196,6 +197,29 @@ export const RECORDER_DB_SCHEMA: string =
     JS_SNIPPET_TABLE_DDL +
     REPLAY_RUN_TABLE_DDL +
     REPLAY_STEP_RESULT_TABLE_DDL;
+
+/* ------------------------------------------------------------------ */
+/*  Migration 005 — Step.ParamsJson (Spec 19.4)                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Idempotent ALTER for existing DBs that pre-date the `ParamsJson` column.
+ * Fresh DBs already have the column from `STEP_TABLE_DDL` so this no-ops.
+ *
+ * Caller (`initProjectDb`) MUST run this AFTER `RECORDER_DB_SCHEMA` so the
+ * Step table exists. Uses `PRAGMA table_info` to check column presence —
+ * SQLite has no `IF NOT EXISTS` clause for `ADD COLUMN`.
+ */
+export function applyParamsJsonMigration(
+    db: { exec(sql: string): Array<{ values: ReadonlyArray<ReadonlyArray<unknown>> }>; run(sql: string): void },
+): void {
+    const info = db.exec("PRAGMA table_info(Step)");
+    const cols = info[0]?.values ?? [];
+    const hasParamsJson = cols.some((row) => row[1] === "ParamsJson");
+    if (!hasParamsJson) {
+        db.run("ALTER TABLE Step ADD COLUMN ParamsJson TEXT");
+    }
+}
 
 /* ------------------------------------------------------------------ */
 /*  Code-side enum mirrors                                             */

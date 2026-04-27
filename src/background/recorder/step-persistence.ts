@@ -43,6 +43,7 @@ export interface PersistedStep {
     readonly VariableName: string;
     readonly Label: string;
     readonly InlineJs: string | null;
+    readonly ParamsJson: string | null;
     readonly IsBreakpoint: number;
     readonly CapturedAt: string;
     readonly UpdatedAt: string;
@@ -69,6 +70,8 @@ export interface StepDraft {
     readonly VariableName: string;
     readonly Label: string;
     readonly InlineJs: string | null;
+    /** JSON-serialised step-kind-specific params (e.g. UrlTabClickParams). */
+    readonly ParamsJson?: string | null;
     readonly IsBreakpoint: boolean;
     readonly Selectors: ReadonlyArray<SelectorDraft>;
 }
@@ -93,8 +96,8 @@ export function insertStepRow(
 
     db.run(
         `INSERT INTO Step
-            (StepKindId, StepStatusId, OrderIndex, VariableName, Label, InlineJs, IsBreakpoint)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            (StepKindId, StepStatusId, OrderIndex, VariableName, Label, InlineJs, ParamsJson, IsBreakpoint)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
             draft.StepKindId,
             StepStatusId.Active,
@@ -102,6 +105,7 @@ export function insertStepRow(
             draft.VariableName,
             draft.Label,
             draft.InlineJs,
+            draft.ParamsJson ?? null,
             draft.IsBreakpoint ? 1 : 0,
         ],
     );
@@ -158,7 +162,7 @@ export function insertSelectorsForStep(
 export function listStepRows(db: SqlJsDatabase): ReadonlyArray<PersistedStep> {
     const result = db.exec(
         `SELECT StepId, StepKindId, StepStatusId, OrderIndex, VariableName,
-                Label, InlineJs, IsBreakpoint, CapturedAt, UpdatedAt
+                Label, InlineJs, ParamsJson, IsBreakpoint, CapturedAt, UpdatedAt
          FROM Step
          ORDER BY OrderIndex ASC`,
     );
@@ -292,7 +296,7 @@ function lastInsertId(db: SqlJsDatabase): number {
 function readStep(db: SqlJsDatabase, stepId: number): PersistedStep {
     const result = db.exec(
         `SELECT StepId, StepKindId, StepStatusId, OrderIndex, VariableName,
-                Label, InlineJs, IsBreakpoint, CapturedAt, UpdatedAt
+                Label, InlineJs, ParamsJson, IsBreakpoint, CapturedAt, UpdatedAt
          FROM Step WHERE StepId = ?`,
         [stepId],
     );
@@ -325,9 +329,10 @@ function rowToStep(row: ReadonlyArray<unknown>): PersistedStep {
         VariableName: row[4] as string,
         Label: row[5] as string,
         InlineJs: (row[6] as string | null) ?? null,
-        IsBreakpoint: row[7] as number,
-        CapturedAt: row[8] as string,
-        UpdatedAt: row[9] as string,
+        ParamsJson: (row[7] as string | null) ?? null,
+        IsBreakpoint: row[8] as number,
+        CapturedAt: row[9] as string,
+        UpdatedAt: row[10] as string,
     };
 }
 

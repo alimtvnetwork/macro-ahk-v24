@@ -6,7 +6,11 @@
  */
 
 import { useState, useCallback, useRef } from "react";
-import { getPlatform } from "../../platform";
+import {
+    exportAllAsSqliteZip,
+    importFromSqliteZip,
+    mergeFromSqliteZip,
+} from "../../lib/sqlite-bundle";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -32,7 +36,6 @@ export function SqliteBundleActions({
     debugOk,
     debugError,
 }: SqliteBundleActionsProps) {
-    const platform = getPlatform();
     const [importMode, setImportMode] = useState<"merge" | "replace">("replace");
     const [exportLabel, setExportLabel] = useState("🗄️ Export DB");
     const [importLabel, setImportLabel] = useState("📥 Import");
@@ -49,9 +52,7 @@ export function SqliteBundleActions({
     const handleExport = useCallback(async () => {
         setExportLabel("⏳ Exporting...");
         try {
-            // In extension context, this would call the full SQLite export.
-            // For PoC, we call GET_ALL_PROJECTS and log success.
-            await platform.sendMessage({ type: "GET_ALL_PROJECTS" });
+            await exportAllAsSqliteZip();
             logSuccess("SQLite Export", "Downloaded marco-backup.zip");
             debugOk("SQLite Export");
             setExportLabel("✅ Done!");
@@ -62,7 +63,7 @@ export function SqliteBundleActions({
             setExportLabel("❌ Failed");
         }
         resetExport();
-    }, [platform, logSuccess, logError, debugOk, debugError, resetExport]);
+    }, [logSuccess, logError, debugOk, debugError, resetExport]);
 
     const handleImportClick = useCallback(() => {
         if (importMode === "replace") {
@@ -81,9 +82,11 @@ export function SqliteBundleActions({
             logInfo("SQLite Import", `${modeLabel} from ${file.name}...`);
 
             try {
-                // In full implementation, this calls importFromZip.
-                // For PoC, simulate success.
-                logSuccess("SQLite Import", `${modeLabel} complete`);
+                const result = importMode === "replace"
+                    ? await importFromSqliteZip(file)
+                    : await mergeFromSqliteZip(file);
+                const detail = `${modeLabel} complete — ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs`;
+                logSuccess("SQLite Import", detail);
                 debugOk("SQLite Import");
                 setImportLabel("✅ Done!");
             } catch (err) {

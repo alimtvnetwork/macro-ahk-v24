@@ -402,26 +402,40 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                             : success
                                                 ? "Note"
                                                 : "Error";
+                                        const failed = !skipped && !success;
+                                        const rowClass = failed
+                                            ? "rounded-md border border-destructive/60 bg-destructive/10 text-xs shadow-[0_0_0_1px_hsl(var(--destructive)/0.35)]"
+                                            : skipped
+                                                ? "rounded-md border border-dashed border-muted-foreground/40 bg-muted/10 text-xs"
+                                                : "rounded-md border border-emerald-500/30 bg-emerald-500/5 text-xs";
+                                        const hoverClass = failed
+                                            ? "hover:bg-destructive/15"
+                                            : skipped
+                                                ? "hover:bg-muted/30"
+                                                : "hover:bg-emerald-500/10";
                                         return (
                                             <li
                                                 key={`${entry.EmittedAt}-${i}`}
-                                                className="rounded-md border bg-muted/20 text-xs"
+                                                className={rowClass}
                                             >
                                                 <button
                                                     type="button"
-                                                    className="flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left hover:bg-muted/40"
+                                                    className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left ${hoverClass}`}
                                                     onClick={() => isExpandable && setExpandedIdx(isOpen ? null : i)}
                                                     aria-expanded={isOpen}
                                                     aria-controls={`hook-log-detail-${i}`}
                                                     disabled={!isExpandable}
                                                 >
                                                     <div className="flex min-w-0 items-center gap-2">
-                                                        <Badge variant={variant} className="shrink-0">
+                                                        <Badge
+                                                            variant={variant}
+                                                            className={`shrink-0 ${failed ? "uppercase tracking-wide font-bold ring-1 ring-destructive/60 shadow-sm" : ""}`}
+                                                        >
                                                             {statusLabel}
                                                         </Badge>
-                                                        <span className="shrink-0 font-mono">{entry.Event}</span>
+                                                        <span className={`shrink-0 font-mono ${failed ? "text-destructive font-semibold" : ""}`}>{entry.Event}</span>
                                                         {hasDetail && (
-                                                            <span className="truncate text-muted-foreground">
+                                                            <span className={`truncate ${failed ? "text-destructive/90 font-medium" : "text-muted-foreground"}`}>
                                                                 — {detail}
                                                             </span>
                                                         )}

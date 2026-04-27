@@ -387,6 +387,34 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                     )}
                                 </div>
                             </div>
+                            {log.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter deliveries by status">
+                                    {([
+                                        { key: "all", label: "All", count: logCounts.all, activeClass: "bg-foreground text-background border-foreground" },
+                                        { key: "success", label: "OK", count: logCounts.success, activeClass: "bg-emerald-500/20 text-emerald-300 border-emerald-500/60" },
+                                        { key: "skipped", label: "Skipped", count: logCounts.skipped, activeClass: "bg-muted text-foreground border-muted-foreground/60" },
+                                        { key: "failure", label: "Failed", count: logCounts.failure, activeClass: "bg-destructive/20 text-destructive border-destructive/60" },
+                                    ] as const).map((chip) => {
+                                        const active = statusFilter === chip.key;
+                                        const disabled = chip.key !== "all" && chip.count === 0;
+                                        return (
+                                            <button
+                                                key={chip.key}
+                                                type="button"
+                                                onClick={() => setStatusFilter(chip.key)}
+                                                disabled={disabled}
+                                                aria-pressed={active}
+                                                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${active ? chip.activeClass : "border-border bg-transparent text-muted-foreground hover:bg-muted/40"}`}
+                                            >
+                                                {chip.label}
+                                                <span className={`rounded-full px-1 text-[10px] ${active ? "bg-background/30" : "bg-muted/60"}`}>
+                                                    {chip.count}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
                             {log.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-muted-foreground/30 bg-muted/10 px-4 py-6 text-center">
                                     <Webhook className="h-6 w-6 text-muted-foreground/60" aria-hidden />
@@ -397,9 +425,20 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                             : "Enable the webhook and set an endpoint URL above, then run a group or use \"Send test ping\" to see delivery results here."}
                                     </p>
                                 </div>
+                            ) : filteredLog.length === 0 ? (
+                                <p className="rounded-md border border-dashed border-muted-foreground/30 bg-muted/10 px-3 py-4 text-center text-xs text-muted-foreground">
+                                    No deliveries match the “{statusFilter}” filter.{" "}
+                                    <button
+                                        type="button"
+                                        className="underline underline-offset-2 hover:text-foreground"
+                                        onClick={() => setStatusFilter("all")}
+                                    >
+                                        Show all
+                                    </button>
+                                </p>
                             ) : (
                                 <ul className="space-y-1.5">
-                                    {log.map((entry, i) => {
+                                    {filteredLog.map((entry, i) => {
                                         const skipped = isWebhookSkipped(entry);
                                         const success = isWebhookSuccess(entry);
                                         const skipReason = skipped ? entry.SkipReason : undefined;

@@ -175,8 +175,10 @@ describe("parseHotkeyPayload — shape edge cases", () => {
         expect(() => parseHotkeyPayload("   ")).toThrow(/empty PayloadJson/);
     });
 
-    it("rejects JSON arrays at the root", () => {
-        expect(() => parseHotkeyPayload("[]")).toThrow(/must be a JSON object/);
+    it("rejects JSON arrays at the root (caught by missing Keys property)", () => {
+        // Arrays pass `typeof raw === "object"` but lack a Keys field, so
+        // they're rejected by the Keys validation step.
+        expect(() => parseHotkeyPayload("[]")).toThrow(/Keys must be a non-empty array/);
     });
 
     it("rejects JSON primitives at the root", () => {

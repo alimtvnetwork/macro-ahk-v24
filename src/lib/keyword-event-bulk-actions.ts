@@ -85,6 +85,33 @@ export function parseTagInput(raw: string): string[] {
         .filter(t => t.length > 0);
 }
 
+/**
+ * Normalises a category string for storage. Trims whitespace and collapses
+ * inner runs; empty input returns `undefined` so the field round-trips as
+ * "uncategorised" through the persistence layer (matching the
+ * `Category?: string` shape on `KeywordEvent`).
+ */
+export function normaliseCategory(raw: string | undefined): string | undefined {
+    if (raw === undefined) return undefined;
+    const trimmed = raw.replace(/\s+/g, " ").trim();
+    return trimmed.length === 0 ? undefined : trimmed;
+}
+
+/** Returns the unique, non-empty categories currently in use across the
+ *  given events — sorted case-insensitively for stable suggestion lists. */
+export function collectCategories(
+    events: ReadonlyArray<{ readonly Category?: string }>,
+): string[] {
+    const seen = new Map<string, string>();
+    for (const ev of events) {
+        const c = normaliseCategory(ev.Category);
+        if (c === undefined) continue;
+        const key = c.toLowerCase();
+        if (!seen.has(key)) seen.set(key, c);
+    }
+    return Array.from(seen.values()).sort((a, b) => a.localeCompare(b));
+}
+
 export interface ExportPayload {
     readonly Format: "marco.keyword-events.v1";
     readonly ExportedAt: string;

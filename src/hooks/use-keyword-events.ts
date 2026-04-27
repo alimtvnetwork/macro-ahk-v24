@@ -55,11 +55,20 @@ export interface KeywordEvent {
      */
     readonly PauseAfterMs?: number;
     /**
-     * Optional flat list of tags. Used by the bulk-actions context menu to
-     * group/categorise events. Persisted as-is by `updateEvent`. Older
-     * persisted events without this field are treated as tag-less.
+     * Optional flat list of tags (also called "labels" in the UI). Used by
+     * the bulk-actions context menu to group/categorise events. Persisted
+     * as-is by `updateEvent`. Older persisted events without this field
+     * are treated as tag-less.
      */
     readonly Tags?: readonly string[];
+    /**
+     * Optional single category. Mirrors the `Prompts.Category` field in the
+     * SQLite bundle contract: a single denormalised string, NOT a flat list
+     * — keeps the runtime model simple while still letting the bulk UI
+     * group events by a primary bucket. Empty string and undefined both
+     * mean "uncategorised".
+     */
+    readonly Category?: string;
 }
 
 export interface UseKeywordEventsApi {

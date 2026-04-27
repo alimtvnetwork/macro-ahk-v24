@@ -217,11 +217,13 @@ export default function ErrorSwallowAuditView() {
                         Each item links to its source file and line.
                     </p>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => void load()} disabled={state.kind === "loading"}>
-                    <RefreshCw className={`mr-1 h-3.5 w-3.5 ${state.kind === "loading" ? "animate-spin" : ""}`} />
-                    Reload
+                <Button size="sm" variant="default" onClick={() => void load()} disabled={state.kind === "loading"}>
+                    <Play className={`mr-1 h-3.5 w-3.5 ${state.kind === "loading" ? "animate-pulse" : ""}`} />
+                    Run audit
                 </Button>
             </div>
+
+            <AuditSummaryPanel state={state} onReload={() => void load()} />
 
             {state.kind === "ok" && state.report.Items.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter audit items by severity">

@@ -75,7 +75,7 @@ describe("schema — applySchema", () => {
         applySchema(db);
         applySchema(db);
         const kindCount = db.exec("SELECT COUNT(*) FROM StepKind;")[0].values[0][0];
-        expect(kindCount).toBe(6); // Click..RunGroup
+        expect(kindCount).toBe(7); // Click..Hotkey
     });
 
     it("seeds the RunGroup StepKind row with id=6", () => {

@@ -429,6 +429,11 @@ async function isLegacyInjectionForced(): Promise<boolean> {
         );
         return false;
     }
+}
+
+/**
+ * Legacy fallback tier 1: Blob URL script tag from ISOLATED world.
+ */
 async function attemptBlobFallback(
     tabId: number,
     code: string,

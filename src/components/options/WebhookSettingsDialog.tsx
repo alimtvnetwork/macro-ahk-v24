@@ -18,7 +18,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ChevronDown, Copy, Plus, RefreshCw, Send, Trash2, Webhook, Wrench } from "lucide-react";
+import { ChevronDown, Copy, Plus, RefreshCw, Search, Send, Trash2, Webhook, Wrench, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -223,6 +223,7 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
     const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
     const [payloadOpenIdx, setPayloadOpenIdx] = useState<number | null>(null);
     const [statusFilter, setStatusFilter] = useState<"all" | "success" | "skipped" | "failure">("all");
+    const [searchQuery, setSearchQuery] = useState("");
     const [repairConfirmOpen, setRepairConfirmOpen] = useState(false);
     const [repairBusy, setRepairBusy] = useState(false);
 
@@ -230,6 +231,7 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
         if (open) {
             setDraft(loadWebhookConfig());
             setLog(getDeliveryLog());
+            setSearchQuery("");
         }
     }, [open]);
 
@@ -248,13 +250,19 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
     }, [log]);
 
     const filteredLog = useMemo(() => {
-        if (statusFilter === "all") return log;
+        const query = searchQuery.trim().toLowerCase();
         return log.filter((entry) => {
-            if (statusFilter === "skipped") return isWebhookSkipped(entry);
-            if (statusFilter === "success") return isWebhookSuccess(entry);
-            return !isWebhookSkipped(entry) && !isWebhookSuccess(entry);
+            if (statusFilter === "skipped" && !isWebhookSkipped(entry)) return false;
+            if (statusFilter === "success" && !isWebhookSuccess(entry)) return false;
+            if (statusFilter === "failure" && (isWebhookSkipped(entry) || isWebhookSuccess(entry))) return false;
+            if (query.length === 0) return true;
+            const event = entry.Event?.toLowerCase() ?? "";
+            const emitted = entry.EmittedAt?.toLowerCase() ?? "";
+            const statusValue = isWebhookSkipped(entry) ? null : entry.Status;
+            const status = statusValue === null || statusValue === undefined ? "" : String(statusValue);
+            return event.includes(query) || emitted.includes(query) || status.includes(query);
         });
-    }, [log, statusFilter]);
+    }, [log, statusFilter, searchQuery]);
 
     const toggleEvent = (kind: WebhookEventKind, on: boolean) => {
         setDraft((prev) => {
@@ -534,6 +542,29 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                 </div>
                             </div>
                             {log.length > 0 && (
+                                <div className="relative">
+                                    <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                                    <Input
+                                        type="search"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        placeholder="Filter by event, time, or status…"
+                                        aria-label="Filter webhook deliveries by event, emitted time, or status"
+                                        className="h-8 pl-7 pr-7 text-xs"
+                                    />
+                                    {searchQuery.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setSearchQuery("")}
+                                            aria-label="Clear search"
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
+                                        >
+                                            <X className="h-3.5 w-3.5" />
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                            {log.length > 0 && (
                                 <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter deliveries by status">
                                     {([
                                         { key: "all", label: "All", count: logCounts.all, activeClass: "bg-foreground text-background border-foreground" },
@@ -573,11 +604,13 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                 </div>
                             ) : filteredLog.length === 0 ? (
                                 <p className="rounded-md border border-dashed border-muted-foreground/30 bg-muted/10 px-3 py-4 text-center text-xs text-muted-foreground">
-                                    No deliveries match the “{statusFilter}” filter.{" "}
+                                    {searchQuery.trim().length > 0
+                                        ? <>No deliveries match search “{searchQuery}”{statusFilter !== "all" ? <> in “{statusFilter}”</> : null}. </>
+                                        : <>No deliveries match the “{statusFilter}” filter. </>}
                                     <button
                                         type="button"
                                         className="underline underline-offset-2 hover:text-foreground"
-                                        onClick={() => setStatusFilter("all")}
+                                        onClick={() => { setStatusFilter("all"); setSearchQuery(""); }}
                                     >
                                         Show all
                                     </button>

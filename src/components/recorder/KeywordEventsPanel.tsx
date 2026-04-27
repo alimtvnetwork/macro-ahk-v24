@@ -915,18 +915,30 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                 {event.Steps.map((s, i) => {
                     const issue = issuesByIndex.get(i);
                     const stepSelected = stepSelection.isSelected(s.Id);
+                    const stepDisabled = s.Enabled === false;
                     return (
-                        <div
+                        <KeywordEventStepContextMenu
                             key={s.Id}
+                            step={s}
+                            event={event}
+                            selectedStepIds={stepSelection.selected}
+                            onSetEnabled={onSetStepsEnabled}
+                            onRemove={onRemoveSteps}
+                            onRelabel={onRelabelSteps}
+                            onAfterRemove={() => stepSelection.clear()}
+                        >
+                        <div
                             className={cn(
                                 "flex flex-col gap-0.5 rounded bg-muted/40 px-2 py-1.5 text-xs transition-colors cursor-pointer",
                                 currentStepIndex === i && "bg-primary/15 ring-1 ring-primary/40",
                                 issue && "bg-destructive/10 ring-1 ring-destructive/40",
                                 stepSelected && "bg-primary/20 ring-1 ring-primary/60",
+                                stepDisabled && "opacity-60",
                             )}
                             data-testid={`keyword-event-step-${event.Id}-${i}`}
                             data-invalid={issue ? "true" : undefined}
                             data-selected={stepSelected ? "true" : undefined}
+                            data-step-disabled={stepDisabled ? "true" : undefined}
                             onClick={(e) => { e.stopPropagation(); handleStepRowClick(s.Id, e); }}
                         >
                             <div className="flex items-center gap-2">
@@ -946,6 +958,15 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                                     className="h-3.5 w-3.5"
                                 />
                                 <Badge variant="outline" className="text-[10px] w-6 justify-center">{i + 1}</Badge>
+                                {s.Label && (
+                                    <Badge
+                                        variant="secondary"
+                                        className="text-[10px] px-1.5"
+                                        data-testid={`keyword-event-step-label-${event.Id}-${i}`}
+                                    >
+                                        {s.Label}
+                                    </Badge>
+                                )}
                                 {s.Kind === "Key" ? (
                                     <>
                                         <Keyboard className={cn("h-3.5 w-3.5", issue ? "text-destructive" : "text-primary")} />

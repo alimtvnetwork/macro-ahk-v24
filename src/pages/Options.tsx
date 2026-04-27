@@ -13,6 +13,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { DraggableOverlay } from "@/components/overlay/DraggableOverlay";
 import { ErrorDrawer } from "@/components/options/ErrorDrawer";
 import { FloatingControllerHost } from "@/components/recorder/FloatingControllerHost";
+import { RecorderControlBar } from "@/components/recorder/RecorderControlBar";
 import { useProjects, useScripts, useConfigs, type StoredProject } from "@/hooks/use-projects-scripts";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
@@ -349,6 +350,7 @@ const OptionsPage = () => {
           <header className="h-12 flex items-center border-b border-border bg-card/80 backdrop-blur-xl px-4 gap-3 sticky top-0 z-10 shadow-[0_1px_12px_-2px_hsl(var(--primary)/0.15)]">
             <SidebarTrigger className="hover:bg-primary/15 hover:text-primary transition-all duration-200" />
             <h1 className="text-sm font-bold tracking-tight">Marco Extension</h1>
+            <RecorderControlBar />
             <div className="ml-auto flex items-center gap-1">
               {extensionVersion && (
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0">

@@ -255,7 +255,6 @@ async function executeInMainWorld(code: string): Promise<string> {
         // CRITICAL: appendNodeToTarget must be inlined here because this function
         // is serialized by chrome.scripting.executeScript — outer-scope references
         // are NOT available in the target page context. See spec/22-app-issues/92-*.md
-        // eslint-disable-next-line sonarjs/no-identical-functions
         const appendNode = (node: Node): boolean => {
             try {
                 Node.prototype.appendChild.call(target, node);

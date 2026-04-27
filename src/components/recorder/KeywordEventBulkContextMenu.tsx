@@ -78,7 +78,7 @@ export interface KeywordEventBulkContextMenuProps {
     readonly onClearSelection: () => void;
 }
 
-type DialogKind = null | "tags-add" | "tags-remove" | "rename" | "export";
+type DialogKind = null | "tags-add" | "tags-remove" | "category" | "rename" | "export";
 
 export function KeywordEventBulkContextMenu(
     props: KeywordEventBulkContextMenuProps,
@@ -133,13 +133,19 @@ export function KeywordEventBulkContextMenu(
                         onSelect={() => setDialog("tags-add")}
                         data-testid="keyword-events-context-tags-add"
                     >
-                        <Tag className="mr-2 h-4 w-4" /> Add tags…
+                        <Tag className="mr-2 h-4 w-4" /> Add labels…
                     </ContextMenuItem>
                     <ContextMenuItem
                         onSelect={() => setDialog("tags-remove")}
                         data-testid="keyword-events-context-tags-remove"
                     >
-                        <TagsIcon className="mr-2 h-4 w-4" /> Remove tags…
+                        <TagsIcon className="mr-2 h-4 w-4" /> Remove labels…
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                        onSelect={() => setDialog("category")}
+                        data-testid="keyword-events-context-category"
+                    >
+                        <FolderTree className="mr-2 h-4 w-4" /> Set category…
                     </ContextMenuItem>
                     <ContextMenuItem
                         onSelect={() => setDialog("rename")}

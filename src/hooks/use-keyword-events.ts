@@ -17,12 +17,34 @@ export type KeywordEventStep =
     | { readonly Kind: "Key"; readonly Id: string; readonly Combo: string }
     | { readonly Kind: "Wait"; readonly Id: string; readonly DurationMs: number };
 
+/**
+ * Where the synthetic key events should be dispatched.
+ *   - `ActiveElement` — current `document.activeElement` at dispatch time
+ *     (legacy default; preserves the prior playback behaviour).
+ *   - `Body`          — always `document.body`.
+ *   - `Selector`      — first match of `Selector` (a CSS selector). Falls back
+ *     to `document.body` when the selector matches nothing so playback never
+ *     silently no-ops.
+ */
+export type KeywordEventTarget =
+    | { readonly Kind: "ActiveElement" }
+    | { readonly Kind: "Body" }
+    | { readonly Kind: "Selector"; readonly Selector: string };
+
+export const DEFAULT_KEYWORD_EVENT_TARGET: KeywordEventTarget = { Kind: "ActiveElement" };
+
 export interface KeywordEvent {
     readonly Id: string;
     readonly Keyword: string;
     readonly Description: string;
     readonly Steps: readonly KeywordEventStep[];
     readonly Enabled: boolean;
+    /**
+     * Target picker for the synthetic keystrokes. Optional — older persisted
+     * events without this field default to {@link DEFAULT_KEYWORD_EVENT_TARGET}
+     * so existing data keeps working.
+     */
+    readonly Target?: KeywordEventTarget;
 }
 
 export interface UseKeywordEventsApi {

@@ -75,6 +75,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import {
     buildPatchFromImport,
+    diffMatchedFields,
     planImportMatches,
     readKeywordEventsZip,
     type ImportMatchPlan,

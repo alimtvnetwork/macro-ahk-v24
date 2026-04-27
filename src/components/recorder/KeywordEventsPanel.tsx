@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Clock, Keyboard, Link2, Play, Plus, Square, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Clock, Crosshair, Keyboard, Link2, Play, Plus, Square, Target, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -18,7 +18,18 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { useKeywordEvents } from "@/hooks/use-keyword-events";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
+    DEFAULT_KEYWORD_EVENT_TARGET,
+    useKeywordEvents,
+    type KeywordEventTarget,
+} from "@/hooks/use-keyword-events";
 import { useKeywordEventPlayback } from "@/hooks/use-keyword-event-playback";
 import {
     DEFAULT_CHAIN_SETTINGS,
@@ -356,6 +367,12 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                 className="h-8 text-xs"
             />
 
+            <TargetPickerRow
+                eventId={event.Id}
+                value={event.Target ?? DEFAULT_KEYWORD_EVENT_TARGET}
+                onChange={(next) => onUpdate({ Target: next })}
+            />
+
             <div className="space-y-1.5">
                 {event.Steps.length === 0 && (
                     <p className="text-xs text-muted-foreground italic">No steps yet — add a key press or wait below.</p>
@@ -439,6 +456,125 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                     </Button>
                 </div>
             </div>
+        </div>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Per-event target picker                                            */
+/* ------------------------------------------------------------------ */
+
+interface TargetPickerRowProps {
+    readonly eventId: string;
+    readonly value: KeywordEventTarget;
+    readonly onChange: (next: KeywordEventTarget) => void;
+}
+
+/**
+ * Three-mode target picker. When `Selector` is chosen we render a CSS
+ * selector input below the picker and live-validate it via
+ * `document.querySelector` so users see an inline error before they hit
+ * Run. The check is wrapped in try/catch because invalid CSS throws.
+ */
+function TargetPickerRow(props: TargetPickerRowProps): JSX.Element {
+    const { eventId, value, onChange } = props;
+    const isSelector = value.Kind === "Selector";
+    const selectorText = isSelector ? value.Selector : "";
+
+    const handleKindChange = (raw: string): void => {
+        if (raw === "ActiveElement" || raw === "Body") {
+            onChange({ Kind: raw });
+            return;
+        }
+        if (raw === "Selector") {
+            onChange({ Kind: "Selector", Selector: selectorText });
+        }
+    };
+
+    // Live selector check — distinguishes "syntactically invalid" (red) from
+    // "valid but matches nothing" (amber) from "matches" (green).
+    const selectorStatus: "empty" | "invalid" | "no-match" | "match" = (() => {
+        if (!isSelector) { return "empty"; }
+        const trimmed = selectorText.trim();
+        if (trimmed === "") { return "empty"; }
+        if (typeof document === "undefined") { return "no-match"; }
+        try {
+            const node = document.querySelector(trimmed);
+            return node === null ? "no-match" : "match";
+        } catch {
+            return "invalid";
+        }
+    })();
+
+    return (
+        <div
+            className="rounded border border-border/60 bg-muted/20 p-2 space-y-1.5"
+            data-testid={`keyword-event-target-${eventId}`}
+        >
+            <div className="flex items-center gap-2">
+                <Target className="h-3.5 w-3.5 text-muted-foreground" />
+                <Label className="text-xs font-medium">Dispatch target</Label>
+                <Select value={value.Kind} onValueChange={handleKindChange}>
+                    <SelectTrigger
+                        className="h-7 w-44 text-xs ml-auto"
+                        data-testid={`keyword-event-target-kind-${eventId}`}
+                        aria-label="Dispatch target"
+                    >
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="ActiveElement">
+                            <span className="inline-flex items-center gap-2">
+                                <Crosshair className="h-3 w-3" /> Active element
+                            </span>
+                        </SelectItem>
+                        <SelectItem value="Body">
+                            <span className="inline-flex items-center gap-2">
+                                <Target className="h-3 w-3" /> document.body
+                            </span>
+                        </SelectItem>
+                        <SelectItem value="Selector">
+                            <span className="inline-flex items-center gap-2">
+                                <Keyboard className="h-3 w-3" /> CSS selector…
+                            </span>
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            {isSelector ? (
+                <div className="space-y-1">
+                    <Input
+                        value={selectorText}
+                        onChange={(e) => onChange({ Kind: "Selector", Selector: e.target.value })}
+                        placeholder="#chat-input, textarea[name='msg'], …"
+                        className={cn(
+                            "h-7 text-xs font-mono",
+                            selectorStatus === "invalid" && "border-destructive focus-visible:ring-destructive",
+                            selectorStatus === "no-match" && "border-amber-500/60",
+                            selectorStatus === "match" && "border-emerald-500/60",
+                        )}
+                        aria-label="CSS selector for dispatch target"
+                        aria-invalid={selectorStatus === "invalid" ? true : undefined}
+                        data-testid={`keyword-event-target-selector-${eventId}`}
+                        data-status={selectorStatus}
+                    />
+                    {selectorStatus === "invalid" ? (
+                        <p className="text-[10px] text-destructive">Invalid CSS selector — playback will fall back to document.body.</p>
+                    ) : selectorStatus === "no-match" ? (
+                        <p className="text-[10px] text-amber-500">No element matches yet — playback will fall back to document.body if still unmatched.</p>
+                    ) : selectorStatus === "match" ? (
+                        <p className="text-[10px] text-emerald-500">Matches an element on the current page.</p>
+                    ) : (
+                        <p className="text-[10px] text-muted-foreground">Enter a CSS selector for the dispatch target.</p>
+                    )}
+                </div>
+            ) : (
+                <p className="text-[10px] text-muted-foreground">
+                    {value.Kind === "ActiveElement"
+                        ? "Dispatches on whichever element has focus when playback runs."
+                        : "Dispatches directly on document.body — useful for global hotkey listeners."}
+                </p>
+            )}
         </div>
     );
 }

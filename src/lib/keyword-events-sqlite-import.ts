@@ -406,6 +406,8 @@ export interface FieldDiff {
     readonly after: string;
 }
 
+type DiffableValue = string | number | boolean | readonly string[] | KeywordEvent["Steps"] | KeywordEvent["Target"] | null | undefined;
+
 /**
  * Given a matched (target, source) pair, returns the list of fields whose
  * value will actually change once `buildPatchFromImport(source)` is applied.
@@ -416,20 +418,26 @@ export function diffMatchedFields(
     target: KeywordEvent,
     source: ImportedKeywordEvent,
 ): readonly FieldDiff[] {
-    const patch = buildPatchFromImport(source);
     const diffs: FieldDiff[] = [];
-    for (const key of Object.keys(patch) as Array<keyof typeof patch>) {
-        const next = patch[key];
-        if (next === undefined) continue;
-        const prev = (target as Record<string, unknown>)[key as string];
-        const a = stringifyForDiff(prev);
-        const b = stringifyForDiff(next);
-        if (a !== b) diffs.push({ field: String(key), before: a, after: b });
-    }
+    const compare = (field: string, before: DiffableValue, after: DiffableValue): void => {
+        if (after === undefined) return;
+        const a = stringifyForDiff(before);
+        const b = stringifyForDiff(after);
+        if (a !== b) diffs.push({ field, before: a, after: b });
+    };
+
+    compare("Keyword", target.Keyword, source.Keyword);
+    compare("Description", target.Description, source.Description);
+    compare("Enabled", target.Enabled, source.Enabled);
+    compare("Steps", target.Steps, source.Steps);
+    compare("Target", target.Target, source.Target);
+    compare("Tags", target.Tags, source.Tags);
+    compare("Category", target.Category, source.Category);
+    compare("PauseAfterMs", target.PauseAfterMs, source.PauseAfterMs);
     return diffs;
 }
 
-function stringifyForDiff(value: unknown): string {
+function stringifyForDiff(value: DiffableValue): string {
     if (value === null || value === undefined) return "—";
     if (typeof value === "string") return value;
     if (typeof value === "number" || typeof value === "boolean") return String(value);

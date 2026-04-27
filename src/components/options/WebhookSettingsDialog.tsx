@@ -384,7 +384,8 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                         const detail = skipReason ?? errorText;
                                         const hasDetail = typeof detail === "string" && detail.length > 0;
                                         const hasStatus = statusValue !== undefined && statusValue !== null;
-                                        const isExpandable = hasDetail || hasStatus;
+                                        const hasPayload = entry.Payload !== null && entry.Payload !== undefined;
+                                        const isExpandable = hasDetail || hasStatus || hasPayload;
                                         const isOpen = expandedIdx === i;
                                         const statusLabel = skipped
                                             ? "Skipped"

@@ -55,6 +55,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
     DEFAULT_SEQUENCE_RENAME,
     collectCategories,
@@ -1105,6 +1106,7 @@ function BulkImportDialog(props: BulkImportDialogProps): JSX.Element {
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
     const [filename, setFilename] = useState<string>("");
+    const [strictUidOnly, setStrictUidOnly] = useState(false);
 
     useEffect(() => {
         if (!open) {
@@ -1112,12 +1114,13 @@ function BulkImportDialog(props: BulkImportDialogProps): JSX.Element {
             setError(null);
             setBusy(false);
             setFilename("");
+            setStrictUidOnly(false);
         }
     }, [open]);
 
     const plan = useMemo<ImportMatchPlan | null>(
-        () => (bundle ? planImportMatches(selectedEvents, bundle.events) : null),
-        [bundle, selectedEvents],
+        () => (bundle ? planImportMatches(selectedEvents, bundle.events, { strictUidOnly }) : null),
+        [bundle, selectedEvents, strictUidOnly],
     );
 
     const handleFile = async (file: File | undefined): Promise<void> => {
@@ -1156,8 +1159,10 @@ function BulkImportDialog(props: BulkImportDialogProps): JSX.Element {
                         Reads <code>keyword-events.db</code> from a ZIP previously
                         produced by Export and overlays each imported row onto the
                         matching event in your current selection
-                        ({selectedEvents.length} selected). Matches by Id first,
-                        then by Keyword (case-insensitive).
+                        ({selectedEvents.length} selected).{" "}
+                        {strictUidOnly
+                            ? "Strict mode: matches by Uid only."
+                            : "Matches by Uid first, then by Keyword (case-insensitive)."}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -1186,6 +1191,28 @@ function BulkImportDialog(props: BulkImportDialogProps): JSX.Element {
                                     {filename}
                                 </p>
                             )}
+                        </div>
+
+                        <div className="flex items-start gap-2">
+                            <Checkbox
+                                id="kw-import-strict-uid"
+                                checked={strictUidOnly}
+                                onCheckedChange={(v) => setStrictUidOnly(v === true)}
+                                disabled={busy}
+                                data-testid="keyword-events-bulk-import-strict-uid"
+                            />
+                            <div className="grid gap-0.5 leading-tight">
+                                <Label
+                                    htmlFor="kw-import-strict-uid"
+                                    className="text-xs cursor-pointer"
+                                >
+                                    Match by Uid only (no keyword fallback)
+                                </Label>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Skip rows whose Uid isn&apos;t in your selection instead of
+                                    falling back to Keyword.
+                                </p>
+                            </div>
                         </div>
 
                         {error && (

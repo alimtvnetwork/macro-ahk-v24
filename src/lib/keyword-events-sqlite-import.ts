@@ -308,12 +308,21 @@ export interface ImportMatchPlan {
  * Matching policy (decided in `.lovable/question-and-ambiguity/11-…`):
  *   1. Uid (== KeywordEvent.Id) — exact, preferred.
  *   2. Fallback: Keyword, case-insensitive + trimmed.
+ *      Disabled when `options.strictUidOnly` is true — Uid mismatches stay
+ *      unmatched instead of falling through to keyword.
  *   3. First selected match wins; later duplicates left untouched.
  */
+export interface PlanImportMatchesOptions {
+    /** When true, disable the Keyword fallback and match strictly by Uid. */
+    readonly strictUidOnly?: boolean;
+}
+
 export function planImportMatches(
     selected: ReadonlyArray<KeywordEvent>,
     imported: ReadonlyArray<ImportedKeywordEvent>,
+    options: PlanImportMatchesOptions = {},
 ): ImportMatchPlan {
+    const strictUidOnly = options.strictUidOnly === true;
     const consumedSelectedIds = new Set<string>();
     const matches: ImportMatchPlan["matches"] = [];
     const unmatchedImports: ImportedKeywordEvent[] = [];
@@ -336,13 +345,17 @@ export function planImportMatches(
         let target = byUid.get(src.Uid);
         let matchedBy: "uid" | "keyword" = "uid";
         if (!target || consumedSelectedIds.has(target.Id)) {
-            const key = src.Keyword.trim().toLowerCase();
-            const candidate = key ? byKeyword.get(key) : undefined;
-            if (candidate && !consumedSelectedIds.has(candidate.Id)) {
-                target = candidate;
-                matchedBy = "keyword";
-            } else {
+            if (strictUidOnly) {
                 target = undefined;
+            } else {
+                const key = src.Keyword.trim().toLowerCase();
+                const candidate = key ? byKeyword.get(key) : undefined;
+                if (candidate && !consumedSelectedIds.has(candidate.Id)) {
+                    target = candidate;
+                    matchedBy = "keyword";
+                } else {
+                    target = undefined;
+                }
             }
         }
 

@@ -126,6 +126,7 @@ export function LiveRecordedActionsTree(props: LiveRecordedActionsTreeProps): JS
                         {steps.length}
                     </Badge>
                 </div>
+            </div>
 
             <ScrollArea className="h-[180px]">
                 <div ref={scrollRef} className="pr-2">

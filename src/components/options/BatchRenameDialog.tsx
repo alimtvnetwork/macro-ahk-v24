@@ -174,8 +174,8 @@ function buildPreview(
     // the batch are also surfaced (two groups both renamed to "Foo").
     const newNamesByParent = new Map<number | null, Map<string, number>>();
 
-    const rows: PreviewRow[] = targets.map((g) => {
-        const newName = applyTransform(g.Name, transform);
+    const rows: PreviewRow[] = targets.map((g, i) => {
+        const newName = applyTransform(g.Name, transform, i);
         const trimmed = newName.trim();
         const parent = g.ParentStepGroupId ?? null;
         const externals = externalSiblingsByParent.get(parent) ?? [];
@@ -232,13 +232,28 @@ export default function BatchRenameDialog({
     const [replace, setReplace] = useState("");
     const [prefix, setPrefix] = useState("");
     const [suffix, setSuffix] = useState("");
+    const [sequenceBase, setSequenceBase] = useState("");
+    const [sequenceStart, setSequenceStart] = useState(1);
+    const [sequencePadding, setSequencePadding] = useState(1);
+    const [sequenceSeparator, setSequenceSeparator] = useState(" ");
 
-    const transform: TransformInput = { Mode: mode, Find: find, Replace: replace, Prefix: prefix, Suffix: suffix };
+    const transform: TransformInput = {
+        Mode: mode,
+        Find: find,
+        Replace: replace,
+        Prefix: prefix,
+        Suffix: suffix,
+        SequenceBase: sequenceBase,
+        SequenceStart: sequenceStart,
+        SequencePadding: sequencePadding,
+        SequenceSeparator: sequenceSeparator,
+    };
     const preview = useMemo(
         () => buildPreview(targets, allGroups, transform),
         // `transform` is stable enough — recompute whenever any input changes.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [targets, allGroups, mode, find, replace, prefix, suffix],
+        [targets, allGroups, mode, find, replace, prefix, suffix,
+         sequenceBase, sequenceStart, sequencePadding, sequenceSeparator],
     );
 
     const changedCount = preview.filter((r) => r.Changed).length;

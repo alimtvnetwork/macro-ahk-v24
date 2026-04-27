@@ -977,6 +977,9 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                             onRemove={onRemoveSteps}
                             onRelabel={onRelabelSteps}
                             onAfterRemove={() => stepSelection.clear()}
+                            onContextOpenForUnselected={() => {
+                                stepSelection.handleClick(s.Id, { shiftKey: false, toggleKey: false });
+                            }}
                         >
                         <div
                             className={cn(

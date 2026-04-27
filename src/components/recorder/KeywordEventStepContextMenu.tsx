@@ -70,6 +70,10 @@ export interface KeywordEventStepContextMenuProps {
     /** Called after a destructive bulk action (Remove) so the parent can
      *  drop the now-stale selection. Optional. */
     readonly onAfterRemove?: () => void;
+    /** Fired when the menu opens on a row that is NOT in the current
+     *  selection — parent should replace the selection with just this row
+     *  so the visible state matches the menu's operand list. */
+    readonly onContextOpenForUnselected?: () => void;
 }
 
 /* ------------------------------------------------------------------ */
@@ -114,7 +118,13 @@ export function KeywordEventStepContextMenu(
     const {
         children, step, event, selectedStepIds,
         onSetEnabled, onRemove, onRelabel, onAfterRemove,
+        onContextOpenForUnselected,
     } = props;
+
+    const isRowSelected = selectedStepIds.has(step.Id);
+    const handleOpenChange = (open: boolean): void => {
+        if (open && !isRowSelected) onContextOpenForUnselected?.();
+    };
 
     // Resolve the operand list once per render. If the right-clicked row is
     // NOT in the current selection, we operate on just that row — matches
@@ -140,7 +150,7 @@ export function KeywordEventStepContextMenu(
 
     return (
         <>
-            <ContextMenu>
+            <ContextMenu onOpenChange={handleOpenChange}>
                 <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
                 <ContextMenuContent
                     className="w-56"

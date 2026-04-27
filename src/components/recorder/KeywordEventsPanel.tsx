@@ -755,11 +755,25 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                 "rounded-md border border-border bg-card/60 p-3 space-y-3 transition-shadow",
                 isRunning && "ring-2 ring-primary shadow-[0_0_0_1px_hsl(var(--primary)/0.3)]",
                 stepIssues.length > 0 && !isRunning && "border-destructive/50",
+                selected && "ring-2 ring-primary/60 bg-primary/5",
             )}
             data-testid={`keyword-event-${event.Id}`}
+            data-selected={selected ? "true" : undefined}
+            onClick={onRowClick}
         >
             <div className="flex items-center gap-2">
                 {dragHandle}
+                {onToggleSelect && (
+                    <Checkbox
+                        checked={!!selected}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleSelect(!selected, e as React.MouseEvent<HTMLButtonElement>);
+                        }}
+                        aria-label={`Select ${event.Keyword}`}
+                        data-testid={`keyword-event-select-${event.Id}`}
+                    />
+                )}
                 <Input
                     value={event.Keyword}
                     onChange={e => onUpdate({ Keyword: e.target.value })}

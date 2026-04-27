@@ -822,3 +822,55 @@ function LiveDispatchPreview(props: LiveDispatchPreviewProps): JSX.Element {
         </div>
     );
 }
+
+/* ------------------------------------------------------------------ */
+/*  Sortable wrapper                                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Wraps {@link KeywordEventCard} with `useSortable` so the parent list
+ * can render it inside a `SortableContext`. Supplies a `<button>` drag
+ * handle (rendered inside the card header) bound to dnd-kit listeners —
+ * the rest of the card body stays interactive (Run, inputs, switches).
+ */
+function SortableKeywordEventCard(props: KeywordEventCardProps): JSX.Element {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+        id: props.event.Id,
+    });
+
+    const style: React.CSSProperties = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.6 : 1,
+        zIndex: isDragging ? 10 : undefined,
+    };
+
+    const handle = (
+        <button
+            type="button"
+            className={cn(
+                "shrink-0 inline-flex items-center justify-center h-8 w-6 rounded",
+                "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                "cursor-grab active:cursor-grabbing touch-none",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+            )}
+            aria-label={`Drag to reorder ${props.event.Keyword}`}
+            data-testid={`keyword-event-drag-handle-${props.event.Id}`}
+            {...attributes}
+            {...listeners}
+        >
+            <GripVertical className="h-4 w-4" />
+        </button>
+    );
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            data-testid={`keyword-event-sortable-${props.event.Id}`}
+            data-dragging={isDragging ? "true" : undefined}
+        >
+            <KeywordEventCard {...props} dragHandle={handle} />
+        </div>
+    );
+}

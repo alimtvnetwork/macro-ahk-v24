@@ -22,6 +22,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
     Activity,
     Circle,
+    ExternalLink,
     Keyboard,
     Layers,
     Maximize2,
@@ -44,6 +45,7 @@ import { HotkeyChordCapture } from "./HotkeyChordCapture";
 import { useStepLibrary } from "@/hooks/use-step-library";
 import { useRecorderSelection } from "@/hooks/use-recorder-selection";
 import { useDraggable } from "@/hooks/use-draggable";
+import { openExtensionOptions } from "@/lib/open-extension-options";
 import { StepKindId } from "@/background/recorder/step-library/schema";
 
 /* ------------------------------------------------------------------ */
@@ -227,6 +229,17 @@ export function FloatingController(props: FloatingControllerProps): JSX.Element 
                 >
                     {elapsed}
                 </span>
+                <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => { openExtensionOptions(); }}
+                    className="h-8 w-8 ml-auto"
+                    data-testid="controller-open-options"
+                    aria-label="Open extension options page"
+                    title="Open Options — view full recording status & captured items"
+                >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                </Button>
             </div>
 
             <div className="flex items-center gap-1.5 flex-wrap pt-1">

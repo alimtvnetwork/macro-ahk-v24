@@ -42,6 +42,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { StepGroupRow, StepRow } from "@/background/recorder/step-library/db";
 import { StepKindId } from "@/background/recorder/step-library/schema";
 import { stepKindLabel } from "@/hooks/use-step-library";
+import { HotkeyChordCapture } from "@/components/recorder/HotkeyChordCapture";
 
 /* ------------------------------------------------------------------ */
 /*  Public surface                                                     */

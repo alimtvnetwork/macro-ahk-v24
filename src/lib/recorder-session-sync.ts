@@ -28,6 +28,7 @@ import {
     RECORDER_SESSION_STORAGE_KEY,
     type RecordingSession,
 } from "@/background/recorder/recorder-session-types";
+import { logError } from "./lib-logger";
 
 export type RecorderSessionListener = (session: RecordingSession | null) => void;
 export type RecorderSyncTransport = "chrome.storage" | "localStorage" | "memory";

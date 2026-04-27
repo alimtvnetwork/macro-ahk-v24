@@ -300,6 +300,15 @@ function ChainSettingsRow(props: ChainSettingsRowProps): JSX.Element {
                     data-testid="keyword-event-chain-toggle"
                 />
                 <div className="ml-auto flex items-center gap-2">
+                    {autoRunActive && (
+                        <Badge
+                            variant="outline"
+                            className="text-[10px] border-primary/60 text-primary animate-pulse"
+                            data-testid="keyword-event-chain-auto-running"
+                        >
+                            Auto-running
+                        </Badge>
+                    )}
                     <Badge variant="outline" className="text-[10px]">
                         {enabledCount} enabled
                     </Badge>

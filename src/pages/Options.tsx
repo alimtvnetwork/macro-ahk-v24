@@ -512,6 +512,8 @@ const OptionsPage = () => {
                 <SettingsView />
               ) : selection.section === "about" ? (
                 <GlobalAboutView />
+              ) : selection.section === "audit" ? (
+                <ErrorSwallowAuditView />
               ) : null}
               </ErrorBoundary>
               </Suspense>

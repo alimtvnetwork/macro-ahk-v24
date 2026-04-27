@@ -13,9 +13,23 @@ import { useCallback, useEffect, useState } from "react";
 
 const STORAGE_KEY = "marco-keyword-events-v1";
 
+/**
+ * Per-step optional flags. Both default to "absent = on/no-label" so older
+ * persisted events without these fields keep their current behaviour:
+ *   • `Enabled` — `false` skips the step at playback time. Absent / `true`
+ *     runs as before. Set in bulk by the step-row right-click context menu.
+ *   • `Label`   — free-form display name shown next to the step's
+ *     Combo/Wait summary. Used by the "Rename in sequence" bulk action so
+ *     selected steps can be relabelled to "Login 01", "Login 02", … without
+ *     touching the underlying Combo (which carries real keystroke data).
+ */
+export interface KeywordEventStepCommon {
+    readonly Enabled?: boolean;
+    readonly Label?: string;
+}
 export type KeywordEventStep =
-    | { readonly Kind: "Key"; readonly Id: string; readonly Combo: string }
-    | { readonly Kind: "Wait"; readonly Id: string; readonly DurationMs: number };
+    | (KeywordEventStepCommon & { readonly Kind: "Key"; readonly Id: string; readonly Combo: string })
+    | (KeywordEventStepCommon & { readonly Kind: "Wait"; readonly Id: string; readonly DurationMs: number });
 
 /**
  * Where the synthetic key events should be dispatched.

@@ -8,7 +8,7 @@
 
 import { transitionHealth } from "./health-handler";
 import { handleGetSettings } from "./handlers/settings-handler";
-import { logBgWarnError, logCaughtError, BgLogTag} from "./bg-logger";
+import { logBgWarnError, logCaughtError, logSampledDebug, BgLogTag} from "./bg-logger";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -32,16 +32,34 @@ function appendNodeToTarget(target: Element, node: Node): boolean {
     try {
         Node.prototype.appendChild.call(target, node);
         return true;
-    } catch {
+    } catch (appendErr) {
+        logSampledDebug(
+            BgLogTag.CSP_FALLBACK,
+            "appendNodeToTarget:appendChild",
+            "appendChild failed — trying insertBefore (DOM patched by host page)",
+            appendErr instanceof Error ? appendErr : String(appendErr),
+        );
         try {
             Node.prototype.insertBefore.call(target, node, null);
             return true;
-        } catch {
+        } catch (insertErr) {
+            logSampledDebug(
+                BgLogTag.CSP_FALLBACK,
+                "appendNodeToTarget:insertBefore",
+                "insertBefore failed — trying insertAdjacentElement",
+                insertErr instanceof Error ? insertErr : String(insertErr),
+            );
             if (node.nodeType === Node.ELEMENT_NODE) {
                 try {
                     Element.prototype.insertAdjacentElement.call(target, "beforeend", node as Element);
                     return true;
-                } catch {
+                } catch (adjacentErr) {
+                    logSampledDebug(
+                        BgLogTag.CSP_FALLBACK,
+                        "appendNodeToTarget:insertAdjacent",
+                        "insertAdjacentElement failed — DOM is hostile, giving up",
+                        adjacentErr instanceof Error ? adjacentErr : String(adjacentErr),
+                    );
                     return false;
                 }
             }
@@ -402,14 +420,15 @@ async function isLegacyInjectionForced(): Promise<boolean> {
     try {
         const { settings } = await handleGetSettings();
         return settings.forceLegacyInjection === true;
-    } catch {
+    } catch (settingsErr) {
+        logSampledDebug(
+            BgLogTag.CSP_FALLBACK,
+            "isLegacyInjectionForced",
+            "handleGetSettings unavailable — defaulting forceLegacyInjection=false",
+            settingsErr instanceof Error ? settingsErr : String(settingsErr),
+        );
         return false;
     }
-}
-
-/**
- * Legacy fallback tier 1: Blob URL script tag from ISOLATED world.
- */
 async function attemptBlobFallback(
     tabId: number,
     code: string,

@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useRecordingSession } from "@/hooks/use-recording-session";
+import { KeywordEventsPanel } from "@/components/recorder/KeywordEventsPanel";
 
 export interface RecorderControlBarProps {
     /** Project slug used when starting a fresh session. Defaults to "default". */
@@ -96,6 +97,7 @@ export function RecorderControlBar(props: RecorderControlBarProps): JSX.Element 
             >
                 {phase}
             </Badge>
+            <KeywordEventsPanel className="ml-1" />
         </div>
     );
 }

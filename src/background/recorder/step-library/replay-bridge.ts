@@ -243,6 +243,16 @@ export function stepRowToReplayInput(step: StepRow): ReplayStepInput {
                 + `this should be handled by runGroup() recursion, not the bridge.`,
             );
         }
+        case StepKindId.Hotkey: {
+            // Hotkey (AutoHotkey-style chord macro) is dispatched by a
+            // dedicated keyboard executor — not the selector-based
+            // replay bridge. Surface a precise reason so the failure
+            // diagnostics show "wrong path" instead of a silent skip.
+            throw new Error(
+                `Hotkey step #${step.StepId} is not handled by the live replay bridge — `
+                + `it is dispatched by the dedicated hotkey executor (see executeHotkeyStep).`,
+            );
+        }
         default: {
             const exhaustive: never = step.StepKindId;
             throw new Error(`Unknown StepKindId for step #${step.StepId}: ${String(exhaustive)}`);

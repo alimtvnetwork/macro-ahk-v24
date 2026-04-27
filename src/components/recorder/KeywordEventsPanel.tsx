@@ -316,7 +316,28 @@ function KeywordEventsEditor(): JSX.Element {
                 </Button>
             </div>
 
-            <ChainSettingsRow
+            <div className="relative" data-testid="keyword-events-search-row">
+                <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search by keyword, description, or tag…"
+                    aria-label="Search keyword events"
+                    className="h-8 pl-7 pr-7 text-xs"
+                    data-testid="keyword-events-search-input"
+                />
+                {isFiltering && (
+                    <button
+                        type="button"
+                        onClick={() => setSearch("")}
+                        aria-label="Clear search"
+                        className="absolute right-1.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                        data-testid="keyword-events-search-clear"
+                    >
+                        <X className="h-3 w-3" />
+                    </button>
+                )}
+            </div>
                 settings={chain}
                 onChange={setChain}
                 enabledCount={enabledCount}

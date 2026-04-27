@@ -54,6 +54,12 @@ export interface KeywordEvent {
      * before being honored.
      */
     readonly PauseAfterMs?: number;
+    /**
+     * Optional flat list of tags. Used by the bulk-actions context menu to
+     * group/categorise events. Persisted as-is by `updateEvent`. Older
+     * persisted events without this field are treated as tag-less.
+     */
+    readonly Tags?: readonly string[];
 }
 
 export interface UseKeywordEventsApi {

@@ -88,6 +88,7 @@ import {
     matchChainShortcut,
 } from "@/lib/keyword-event-chain-shortcuts";
 import { cn } from "@/lib/utils";
+import { KeywordEventBulkContextMenu } from "./KeywordEventBulkContextMenu";
 
 export interface KeywordEventsPanelProps {
     readonly trigger?: React.ReactNode;
@@ -350,33 +351,55 @@ function KeywordEventsEditor(): JSX.Element {
                             strategy={verticalListSortingStrategy}
                         >
                             <div className="space-y-3" data-testid="keyword-events-sortable-list">
-                                {api.events.map(ev => (
-                                    <SortableKeywordEventCard
-                                        key={ev.Id}
-                                        event={ev}
-                                        isRunning={playback.isRunning(ev.Id)}
-                                        currentStepIndex={playback.isRunning(ev.Id) ? playback.currentStepIndex : null}
-                                        selected={eventSelection.isSelected(ev.Id)}
-                                        onRowClick={(e) => handleEventRowClick(ev.Id, e)}
-                                        onToggleSelect={(checked, e) => {
-                                            // Checkbox toggles selection; Shift held while clicking
-                                            // the checkbox extends from anchor like a row click.
-                                            if (e && e.shiftKey) {
-                                                eventSelection.handleClick(ev.Id, { shiftKey: true, toggleKey: false });
-                                            } else {
-                                                eventSelection.handleClick(ev.Id, { shiftKey: false, toggleKey: true });
-                                            }
-                                            void checked;
-                                        }}
-                                        onPlay={() => { void playback.play(ev); }}
-                                        onCancel={playback.cancel}
-                                        onRemove={() => api.removeEvent(ev.Id)}
-                                        onUpdate={patch => api.updateEvent(ev.Id, patch)}
-                                        onAddStep={step => api.addStep(ev.Id, step)}
-                                        onRemoveStep={sid => api.removeStep(ev.Id, sid)}
-                                        onMoveStep={(sid, dir) => api.moveStep(ev.Id, sid, dir)}
-                                    />
-                                ))}
+                                {api.events.map(ev => {
+                                    const isSelected = eventSelection.isSelected(ev.Id);
+                                    // Right-click on a non-selected row should
+                                    // act on that single row — promote it to
+                                    // the selection so the bulk menu has data.
+                                    const selectedForMenu = isSelected
+                                        ? api.events.filter(e => eventSelection.isSelected(e.Id))
+                                        : [ev];
+                                    return (
+                                        <KeywordEventBulkContextMenu
+                                            key={ev.Id}
+                                            isRowSelected={isSelected}
+                                            selectedEvents={selectedForMenu}
+                                            onContextOpenForUnselected={() => {
+                                                eventSelection.handleClick(ev.Id, { shiftKey: false, toggleKey: false });
+                                            }}
+                                            onUpdateEvent={(id, patch) => api.updateEvent(id, patch)}
+                                            onRemoveEvent={(id) => api.removeEvent(id)}
+                                            onClearSelection={eventSelection.clear}
+                                        >
+                                            <div>
+                                                <SortableKeywordEventCard
+                                                    event={ev}
+                                                    isRunning={playback.isRunning(ev.Id)}
+                                                    currentStepIndex={playback.isRunning(ev.Id) ? playback.currentStepIndex : null}
+                                                    selected={isSelected}
+                                                    onRowClick={(e) => handleEventRowClick(ev.Id, e)}
+                                                    onToggleSelect={(checked, e) => {
+                                                        // Checkbox toggles selection; Shift held while clicking
+                                                        // the checkbox extends from anchor like a row click.
+                                                        if (e && e.shiftKey) {
+                                                            eventSelection.handleClick(ev.Id, { shiftKey: true, toggleKey: false });
+                                                        } else {
+                                                            eventSelection.handleClick(ev.Id, { shiftKey: false, toggleKey: true });
+                                                        }
+                                                        void checked;
+                                                    }}
+                                                    onPlay={() => { void playback.play(ev); }}
+                                                    onCancel={playback.cancel}
+                                                    onRemove={() => api.removeEvent(ev.Id)}
+                                                    onUpdate={patch => api.updateEvent(ev.Id, patch)}
+                                                    onAddStep={step => api.addStep(ev.Id, step)}
+                                                    onRemoveStep={sid => api.removeStep(ev.Id, sid)}
+                                                    onMoveStep={(sid, dir) => api.moveStep(ev.Id, sid, dir)}
+                                                />
+                                            </div>
+                                        </KeywordEventBulkContextMenu>
+                                    );
+                                })}
                             </div>
                         </SortableContext>
                     </DndContext>

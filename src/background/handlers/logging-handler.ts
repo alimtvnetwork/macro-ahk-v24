@@ -226,7 +226,7 @@ function insertErrorRow(msg: {
 /* ------------------------------------------------------------------ */
 
 /** Maps PascalCase SQLite column names to the camelCase keys the UI expects. */
-function normalizeRow(row: SqlRow): Record<string, SqlValue> {
+export function normalizeRow(row: SqlRow): Record<string, SqlValue> {
     const out: Record<string, SqlValue> = {};
     for (const [key, value] of Object.entries(row)) {
         // Convert first char to lowercase: "Timestamp" → "timestamp", "StackTrace" → "stackTrace"

@@ -512,6 +512,19 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                         <Send className="mr-1 h-3.5 w-3.5" />
                                         {busy ? "Sending…" : "Send test ping"}
                                     </Button>
+                                    {corruptCount > 0 && (
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => setRepairConfirmOpen(true)}
+                                            disabled={repairBusy}
+                                            title={`Remove ${corruptCount} corrupted entr${corruptCount === 1 ? "y" : "ies"} from the log`}
+                                            className="border-destructive/60 text-destructive hover:bg-destructive/10"
+                                        >
+                                            <Wrench className="mr-1 h-3.5 w-3.5" />
+                                            {repairBusy ? "Repairing…" : `Repair (${corruptCount})`}
+                                        </Button>
+                                    )}
                                     {log.length > 0 && (
                                         <Button size="sm" variant="ghost" onClick={handleClearLog}>
                                             Clear

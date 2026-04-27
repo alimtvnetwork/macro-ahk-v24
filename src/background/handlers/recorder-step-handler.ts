@@ -31,6 +31,13 @@ import {
     type StepDraft,
 } from "../recorder/step-persistence";
 import {
+    updateStepMeta,
+    setStepTags,
+    setStepLink,
+    type StepMetaPatch,
+    type StepLinkSlot,
+} from "../recorder/step-chain-persistence";
+import {
     resolveStepSelector,
     type ResolvedSelector,
 } from "../recorder/replay-resolver";

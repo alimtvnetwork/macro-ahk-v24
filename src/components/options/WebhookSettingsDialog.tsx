@@ -328,17 +328,24 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                         const statusValue = "Status" in entry ? entry.Status : undefined;
                                         const detail = skipReason ?? errorText;
                                         const hasDetail = typeof detail === "string" && detail.length > 0;
+                                        const hasStatus = statusValue !== undefined && statusValue !== null;
+                                        const isExpandable = hasDetail || hasStatus;
                                         const isOpen = expandedIdx === i;
                                         const statusLabel = entry.Skipped
-                                            ? "Skip"
+                                            ? "Skipped"
                                             : entry.Ok
-                                                ? `OK ${statusValue ?? ""}`.trim()
-                                                : `Fail${statusValue ? ` ${statusValue}` : ""}`;
+                                                ? `OK${hasStatus ? ` ${statusValue}` : ""}`
+                                                : `Failed${hasStatus ? ` ${statusValue}` : ""}`;
                                         const variant = entry.Skipped
                                             ? "outline"
                                             : entry.Ok
                                                 ? "default"
                                                 : "destructive";
+                                        const detailLabel = entry.Skipped
+                                            ? "Skip reason"
+                                            : entry.Ok
+                                                ? "Note"
+                                                : "Error";
                                         return (
                                             <li
                                                 key={`${entry.EmittedAt}-${i}`}
@@ -347,9 +354,10 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                                 <button
                                                     type="button"
                                                     className="flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left hover:bg-muted/40"
-                                                    onClick={() => setExpandedIdx(isOpen ? null : i)}
+                                                    onClick={() => isExpandable && setExpandedIdx(isOpen ? null : i)}
                                                     aria-expanded={isOpen}
                                                     aria-controls={`hook-log-detail-${i}`}
+                                                    disabled={!isExpandable}
                                                 >
                                                     <div className="flex min-w-0 items-center gap-2">
                                                         <Badge variant={variant} className="shrink-0">
@@ -364,14 +372,14 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                                     </div>
                                                     <span className="flex shrink-0 items-center gap-1 text-muted-foreground">
                                                         <span>{formatTime(entry.EmittedAt)} · {entry.DurationMs} ms</span>
-                                                        {hasDetail && (
+                                                        {isExpandable && (
                                                             <ChevronDown
                                                                 className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`}
                                                             />
                                                         )}
                                                     </span>
                                                 </button>
-                                                {isOpen && hasDetail && (
+                                                {isOpen && isExpandable && (
                                                     <div
                                                         id={`hook-log-detail-${i}`}
                                                         className="border-t px-2 py-1.5"
@@ -381,18 +389,20 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                                             <dd className="font-mono">{entry.EmittedAt}</dd>
                                                             <dt className="text-muted-foreground">Duration</dt>
                                                             <dd className="font-mono">{entry.DurationMs} ms</dd>
-                                                            {statusValue !== undefined && statusValue !== null && (
+                                                            {hasStatus && (
                                                                 <>
                                                                     <dt className="text-muted-foreground">HTTP</dt>
                                                                     <dd className="font-mono">{statusValue}</dd>
                                                                 </>
                                                             )}
-                                                            <dt className="text-muted-foreground">
-                                                                {entry.Skipped ? "Skip reason" : "Error"}
-                                                            </dt>
-                                                            <dd className="whitespace-pre-wrap break-words font-mono text-destructive">
-                                                                {detail}
-                                                            </dd>
+                                                            {hasDetail && (
+                                                                <>
+                                                                    <dt className="text-muted-foreground">{detailLabel}</dt>
+                                                                    <dd className={`whitespace-pre-wrap break-words font-mono ${entry.Ok && !entry.Skipped ? "" : "text-destructive"}`}>
+                                                                        {detail}
+                                                                    </dd>
+                                                                </>
+                                                            )}
                                                         </dl>
                                                     </div>
                                                 )}

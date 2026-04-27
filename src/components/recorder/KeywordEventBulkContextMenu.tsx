@@ -1106,6 +1106,7 @@ function BulkImportDialog(props: BulkImportDialogProps): JSX.Element {
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
     const [filename, setFilename] = useState<string>("");
+    const [strictUidOnly, setStrictUidOnly] = useState(false);
 
     useEffect(() => {
         if (!open) {
@@ -1113,12 +1114,13 @@ function BulkImportDialog(props: BulkImportDialogProps): JSX.Element {
             setError(null);
             setBusy(false);
             setFilename("");
+            setStrictUidOnly(false);
         }
     }, [open]);
 
     const plan = useMemo<ImportMatchPlan | null>(
-        () => (bundle ? planImportMatches(selectedEvents, bundle.events) : null),
-        [bundle, selectedEvents],
+        () => (bundle ? planImportMatches(selectedEvents, bundle.events, { strictUidOnly }) : null),
+        [bundle, selectedEvents, strictUidOnly],
     );
 
     const handleFile = async (file: File | undefined): Promise<void> => {

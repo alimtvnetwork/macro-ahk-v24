@@ -340,7 +340,7 @@ async function doFetchLoopCreditsAsync(isRetry?: boolean): Promise<void> {
 // ============================================
 // Barrel re-exports from credit-parser
 // ============================================
-export { parseLoopApiResponse, syncCreditStateFromApi, resolveWsTier, WsTier, WS_TIER_LABELS, isExpiredWs, expiredDays, formatExpiryStartDate, formatExpiredDuration } from './credit-parser';
+export { parseLoopApiResponse, syncCreditStateFromApi, applyProZeroEnrichment, resolveWsTier, WsTier, WS_TIER_LABELS, isExpiredWs, expiredDays, formatExpiryStartDate, formatExpiredDuration } from './credit-parser';
 export {
   getEffectiveStatus,
   applyCanceledCreditOverride,

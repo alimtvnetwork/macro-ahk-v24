@@ -541,7 +541,12 @@ export function BulkRenameSequenceDialog(props: BulkRenameSequenceDialogProps): 
                             />
                         </div>
                         <div className="col-span-2 space-y-1.5">
-                            <Label htmlFor="bulk-rename-separator">Separator (used when {"{n}"} is absent)</Label>
+                            <Label htmlFor="bulk-rename-separator" className="flex items-baseline justify-between gap-2">
+                                <span>Separator</span>
+                                <span className="text-[11px] font-normal text-muted-foreground">
+                                    Only applied when <code className="rounded bg-muted px-1 py-0.5">{"{n}"}</code> is not in the base
+                                </span>
+                            </Label>
                             <Input
                                 id="bulk-rename-separator"
                                 value={input.Separator}
@@ -549,6 +554,9 @@ export function BulkRenameSequenceDialog(props: BulkRenameSequenceDialogProps): 
                                 onChange={(e) => setInput(s => ({ ...s, Separator: e.target.value }))}
                                 data-testid="keyword-events-bulk-rename-separator"
                             />
+                            <p className="text-[11px] text-muted-foreground">
+                                Example: base <code className="rounded bg-muted px-1 py-0.5">Step</code> + separator <code className="rounded bg-muted px-1 py-0.5">-</code> → <code className="rounded bg-muted px-1 py-0.5">Step-01</code>. Ignored if base already contains <code className="rounded bg-muted px-1 py-0.5">{"{n}"}</code>.
+                            </p>
                         </div>
                     </div>
 

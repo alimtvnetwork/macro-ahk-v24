@@ -26,6 +26,7 @@ import {
     Tag,
     TagsIcon,
     Trash2,
+    Upload,
 } from "lucide-react";
 import {
     Tooltip,
@@ -67,6 +68,13 @@ import {
     type SequenceRenameInput,
 } from "@/lib/keyword-event-bulk-actions";
 import { downloadKeywordEventsZip } from "@/lib/keyword-events-sqlite-export";
+import {
+    buildPatchFromImport,
+    planImportMatches,
+    readKeywordEventsZip,
+    type ImportMatchPlan,
+    type KeywordEventsImportResult,
+} from "@/lib/keyword-events-sqlite-import";
 import type { KeywordEvent } from "@/hooks/use-keyword-events";
 
 export interface KeywordEventBulkContextMenuProps {
@@ -91,7 +99,7 @@ export interface KeywordEventBulkContextMenuProps {
     readonly onClearSelection: () => void;
 }
 
-type DialogKind = null | "tags-add" | "tags-remove" | "category" | "rename" | "export" | "delete";
+type DialogKind = null | "tags-add" | "tags-remove" | "category" | "rename" | "export" | "import" | "delete";
 
 export function KeywordEventBulkContextMenu(
     props: KeywordEventBulkContextMenuProps,
@@ -173,6 +181,12 @@ export function KeywordEventBulkContextMenu(
                     >
                         <Download className="mr-2 h-4 w-4" /> Export selected as ZIP…
                     </ContextMenuItem>
+                    <ContextMenuItem
+                        onSelect={() => setDialog("import")}
+                        data-testid="keyword-events-context-import"
+                    >
+                        <Upload className="mr-2 h-4 w-4" /> Update selected from ZIP…
+                    </ContextMenuItem>
                     <ContextMenuSeparator />
                     <ContextMenuItem
                         className="text-destructive focus:text-destructive"
@@ -231,6 +245,16 @@ export function KeywordEventBulkContextMenu(
                 open={dialog === "export"}
                 onOpenChange={(o) => setDialog(o ? "export" : null)}
                 selectedEvents={selectedEvents}
+            />
+            <BulkImportDialog
+                open={dialog === "import"}
+                onOpenChange={(o) => setDialog(o ? "import" : null)}
+                selectedEvents={selectedEvents}
+                onApply={(plan) => {
+                    for (const m of plan.matches) {
+                        onUpdateEvent(m.target.Id, buildPatchFromImport(m.source));
+                    }
+                }}
             />
             <BulkDeleteConfirmDialog
                 open={dialog === "delete"}
@@ -842,6 +866,167 @@ function BulkDeleteConfirmDialog(props: BulkDeleteConfirmDialogProps): JSX.Eleme
                         data-testid="keyword-events-bulk-delete-confirm"
                     >
                         Delete {count} event{count === 1 ? "" : "s"}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Import dialog                                                      */
+/* ------------------------------------------------------------------ */
+
+interface BulkImportDialogProps {
+    readonly open: boolean;
+    readonly onOpenChange: (open: boolean) => void;
+    readonly selectedEvents: ReadonlyArray<KeywordEvent>;
+    readonly onApply: (plan: ImportMatchPlan) => void;
+}
+
+// eslint-disable-next-line max-lines-per-function -- single dialog owns picker + dry-run + apply
+function BulkImportDialog(props: BulkImportDialogProps): JSX.Element {
+    const { open, onOpenChange, selectedEvents, onApply } = props;
+    const [bundle, setBundle] = useState<KeywordEventsImportResult | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [busy, setBusy] = useState(false);
+    const [filename, setFilename] = useState<string>("");
+
+    useEffect(() => {
+        if (!open) {
+            setBundle(null);
+            setError(null);
+            setBusy(false);
+            setFilename("");
+        }
+    }, [open]);
+
+    const plan = useMemo<ImportMatchPlan | null>(
+        () => (bundle ? planImportMatches(selectedEvents, bundle.events) : null),
+        [bundle, selectedEvents],
+    );
+
+    const handleFile = async (file: File | undefined): Promise<void> => {
+        if (!file) return;
+        setBusy(true);
+        setError(null);
+        try {
+            const result = await readKeywordEventsZip(file);
+            setBundle(result);
+            setFilename(file.name);
+        } catch (err) {
+            setBundle(null);
+            setError(err instanceof Error ? err.message : "Failed to read ZIP");
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const handleApply = (): void => {
+        if (!plan) return;
+        onApply(plan);
+        onOpenChange(false);
+    };
+
+    const matchCount = plan?.matches.length ?? 0;
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="max-w-md"
+                data-testid="keyword-events-bulk-import-dialog"
+            >
+                <DialogHeader>
+                    <DialogTitle>Update selected from ZIP</DialogTitle>
+                    <DialogDescription>
+                        Reads <code>keyword-events.db</code> from a ZIP previously
+                        produced by Export and overlays each imported row onto the
+                        matching event in your current selection
+                        ({selectedEvents.length} selected). Matches by Id first,
+                        then by Keyword (case-insensitive).
+                    </DialogDescription>
+                </DialogHeader>
+
+                {selectedEvents.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                        Select at least one event before importing.
+                    </p>
+                ) : (
+                    <div className="space-y-3">
+                        <div className="space-y-1">
+                            <Label htmlFor="kw-import-file" className="text-xs">
+                                ZIP file
+                            </Label>
+                            <Input
+                                id="kw-import-file"
+                                type="file"
+                                accept=".zip,application/zip"
+                                disabled={busy}
+                                onChange={(e) => {
+                                    void handleFile(e.target.files?.[0]);
+                                }}
+                                data-testid="keyword-events-bulk-import-file"
+                            />
+                            {filename && (
+                                <p className="text-[11px] text-muted-foreground truncate">
+                                    {filename}
+                                </p>
+                            )}
+                        </div>
+
+                        {error && (
+                            <p
+                                className="text-xs text-destructive"
+                                role="alert"
+                                data-testid="keyword-events-bulk-import-error"
+                            >
+                                {error}
+                            </p>
+                        )}
+
+                        {plan && (
+                            <div
+                                className="rounded border border-border/60 bg-muted/30 p-2 text-xs space-y-1"
+                                data-testid="keyword-events-bulk-import-summary"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span className="text-muted-foreground">Will update</span>
+                                    <Badge variant="secondary">{matchCount}</Badge>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-muted-foreground">Imported rows with no match</span>
+                                    <Badge variant="outline">{plan.unmatchedImports.length}</Badge>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-muted-foreground">Selected rows left untouched</span>
+                                    <Badge variant="outline">{plan.unmatchedSelected.length}</Badge>
+                                </div>
+                                {bundle?.exportedAt && (
+                                    <p className="text-[11px] text-muted-foreground pt-1">
+                                        Bundle exported {bundle.exportedAt}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                <DialogFooter>
+                    <Button
+                        variant="ghost"
+                        onClick={() => onOpenChange(false)}
+                        disabled={busy}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleApply}
+                        disabled={busy || matchCount === 0}
+                        data-testid="keyword-events-bulk-import-apply"
+                    >
+                        {busy
+                            ? "Reading…"
+                            : `Update ${matchCount} event${matchCount === 1 ? "" : "s"}`}
                     </Button>
                 </DialogFooter>
             </DialogContent>

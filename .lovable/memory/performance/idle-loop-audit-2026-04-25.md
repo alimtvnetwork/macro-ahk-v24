@@ -12,7 +12,7 @@
 | PERF-10 | High   | `src/hooks/use-token-watchdog.ts:168` | 10 s `setInterval` runs continuously in the Options page even when the tab is hidden. Decodes JWT every tick. | Add `visibilitychange` pause/resume guard like `usePopupData.ts`. |
 | PERF-11 | Medium | `src/hooks/use-network-data.ts:54` | 5 s auto-refresh fires 2× `sendMessage` per tick with no visibility guard. | Same visibility-pause pattern. |
 | PERF-12 | Medium | `src/hooks/use-error-count.ts:55` | 30 s polling fallback runs even when broadcast listener attached AND when page hidden. | Skip `setInterval` install if `listenerAttached === true`; add visibility guard regardless. |
-| PERF-13 | Medium | `standalone-scripts/macro-controller/src/startup-persistence.ts:51` | MutationObserver on `<main>`/`#root` with `childList:true` fires on every nav add/remove on busy SPA pages. | Narrow target to a stable wrapper or upgrade debounce to `requestIdleCallback`. |
+| PERF-13 | ✅ Fixed 2026-04-27 | `standalone-scripts/macro-controller/src/startup-persistence.ts` | MutationObserver bursts paid check cost mid-render on busy SPA pages. | Debounced burst now yields to `requestIdleCallback` (1 s timeout fallback) before re-checking marker/container. |
 | PERF-14 | Low    | `standalone-scripts/marco-sdk/src/notify.ts:175` | `_dedupTimer` self-clears when map empties — already correct. Documented for completeness. | None. |
 | PERF-15 | Low    | `standalone-scripts/macro-controller/src/ui/countdown.ts:86` | 1 Hz countdown tick runs while host tab hidden. Cheap (1 DOM write/tick). | None unless profile shows it. |
 

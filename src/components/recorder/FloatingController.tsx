@@ -41,6 +41,7 @@ import { RecorderLiveTreePanel } from "./RecorderLiveTreePanel";
 import { HotkeyChordCapture } from "./HotkeyChordCapture";
 import { useStepLibrary } from "@/hooks/use-step-library";
 import { useRecorderSelection } from "@/hooks/use-recorder-selection";
+import { useDraggable } from "@/hooks/use-draggable";
 import { StepKindId } from "@/background/recorder/step-library/schema";
 
 /* ------------------------------------------------------------------ */

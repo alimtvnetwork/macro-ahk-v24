@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Clock, Keyboard, Link2, Play, Plus, Square, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Clock, Crosshair, Keyboard, Link2, Play, Plus, Square, Target, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -18,7 +18,18 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { useKeywordEvents } from "@/hooks/use-keyword-events";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
+    DEFAULT_KEYWORD_EVENT_TARGET,
+    useKeywordEvents,
+    type KeywordEventTarget,
+} from "@/hooks/use-keyword-events";
 import { useKeywordEventPlayback } from "@/hooks/use-keyword-event-playback";
 import {
     DEFAULT_CHAIN_SETTINGS,

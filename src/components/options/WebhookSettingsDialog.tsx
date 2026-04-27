@@ -222,6 +222,86 @@ async function copyLogEntry(entry: WebhookDeliveryResult): Promise<void> {
     }
 }
 
+function entryStatusLabel(entry: WebhookDeliveryResult): string {
+    if (isWebhookSkipped(entry)) return "Skipped";
+    if (isWebhookSuccess(entry)) return "Success";
+    return "Failure";
+}
+
+function entryStatusCode(entry: WebhookDeliveryResult): number | null {
+    if (isWebhookSkipped(entry)) return null;
+    return entry.Status ?? null;
+}
+
+function entryDetail(entry: WebhookDeliveryResult): string {
+    if (isWebhookSkipped(entry)) return entry.SkipReason;
+    if (isWebhookFailure(entry)) return entry.Error;
+    return "";
+}
+
+function csvCell(value: string | number | null): string {
+    if (value === null || value === undefined) return "";
+    const s = String(value);
+    if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+}
+
+function buildJsonExport(entries: ReadonlyArray<WebhookDeliveryResult>): string {
+    return JSON.stringify(
+        {
+            ExportedAt: new Date().toISOString(),
+            Count: entries.length,
+            Entries: entries,
+        },
+        null,
+        2,
+    );
+}
+
+function buildCsvExport(entries: ReadonlyArray<WebhookDeliveryResult>): string {
+    const headers = ["Event", "EmittedAt", "Status", "HttpStatus", "DurationMs", "Detail", "PayloadJson"];
+    const rows: string[] = [headers.join(",")];
+    for (const entry of entries) {
+        const payload = formatPayloadJson(entry);
+        rows.push([
+            csvCell(entry.Event ?? ""),
+            csvCell(entry.EmittedAt ?? ""),
+            csvCell(entryStatusLabel(entry)),
+            csvCell(entryStatusCode(entry)),
+            csvCell(entry.DurationMs ?? null),
+            csvCell(entryDetail(entry)),
+            csvCell(payload ?? ""),
+        ].join(","));
+    }
+    return rows.join("\n");
+}
+
+function downloadFile(filename: string, mimeType: string, content: string): void {
+    const blob = new Blob([content], { type: `${mimeType};charset=utf-8` });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function exportFilteredLog(entries: ReadonlyArray<WebhookDeliveryResult>, format: "json" | "csv"): void {
+    if (entries.length === 0) {
+        toast.error("No entries match the current filters");
+        return;
+    }
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    if (format === "json") {
+        downloadFile(`webhook-log-${stamp}.json`, "application/json", buildJsonExport(entries));
+    } else {
+        downloadFile(`webhook-log-${stamp}.csv`, "text/csv", buildCsvExport(entries));
+    }
+    toast.success(`Exported ${entries.length} ${entries.length === 1 ? "entry" : "entries"} as ${format.toUpperCase()}`);
+}
+
 export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
     const [draft, setDraft] = useState<WebhookConfig>(DEFAULT_WEBHOOK_CONFIG);
     const [log, setLog] = useState<ReadonlyArray<WebhookDeliveryResult>>([]);

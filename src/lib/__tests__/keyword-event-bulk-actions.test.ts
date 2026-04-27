@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
     buildExportPayload,
+    collectCategories,
     formatSequenceNumber,
     mergeTags,
+    normaliseCategory,
     parseTagInput,
     removeTags,
     renderSequenceName,

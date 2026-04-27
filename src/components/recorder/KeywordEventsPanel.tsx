@@ -207,23 +207,34 @@ function KeywordEventsEditor(): JSX.Element {
                         No keyword events yet. Add one above to script key presses and waits.
                     </p>
                 ) : (
-                    <div className="space-y-3">
-                        {api.events.map(ev => (
-                            <KeywordEventCard
-                                key={ev.Id}
-                                event={ev}
-                                isRunning={playback.isRunning(ev.Id)}
-                                currentStepIndex={playback.isRunning(ev.Id) ? playback.currentStepIndex : null}
-                                onPlay={() => { void playback.play(ev); }}
-                                onCancel={playback.cancel}
-                                onRemove={() => api.removeEvent(ev.Id)}
-                                onUpdate={patch => api.updateEvent(ev.Id, patch)}
-                                onAddStep={step => api.addStep(ev.Id, step)}
-                                onRemoveStep={sid => api.removeStep(ev.Id, sid)}
-                                onMoveStep={(sid, dir) => api.moveStep(ev.Id, sid, dir)}
-                            />
-                        ))}
-                    </div>
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
+                    >
+                        <SortableContext
+                            items={api.events.map(e => e.Id)}
+                            strategy={verticalListSortingStrategy}
+                        >
+                            <div className="space-y-3" data-testid="keyword-events-sortable-list">
+                                {api.events.map(ev => (
+                                    <SortableKeywordEventCard
+                                        key={ev.Id}
+                                        event={ev}
+                                        isRunning={playback.isRunning(ev.Id)}
+                                        currentStepIndex={playback.isRunning(ev.Id) ? playback.currentStepIndex : null}
+                                        onPlay={() => { void playback.play(ev); }}
+                                        onCancel={playback.cancel}
+                                        onRemove={() => api.removeEvent(ev.Id)}
+                                        onUpdate={patch => api.updateEvent(ev.Id, patch)}
+                                        onAddStep={step => api.addStep(ev.Id, step)}
+                                        onRemoveStep={sid => api.removeStep(ev.Id, sid)}
+                                        onMoveStep={(sid, dir) => api.moveStep(ev.Id, sid, dir)}
+                                    />
+                                ))}
+                            </div>
+                        </SortableContext>
+                    </DndContext>
                 )}
             </ScrollArea>
         </div>

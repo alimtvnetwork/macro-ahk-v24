@@ -155,6 +155,8 @@ function renderRow(t: OpenLovableTabInfoView): string {
     const focusBadge = t.windowFocused
         ? '<span style="color:#60a5fa;margin-right:4px;" title="Focused window">◆</span>'
         : '';
+    const whyLine = renderWhyLine(t);
+
     return ''
         + '<div style="font-size:10px;font-family:monospace;padding:3px 4px;border-top:1px solid rgba(255,255,255,0.06);">'
         +   '<div style="display:flex;align-items:center;gap:4px;">'
@@ -163,7 +165,41 @@ function renderRow(t: OpenLovableTabInfoView): string {
         +   '</div>'
         +   '<div style="color:' + cPanelFgDim + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escapeHtml(t.url) + '">' + urlSafe + '</div>'
         +   '<div style="color:#9ca3af;">↳ workspace: ' + wsLabel + '</div>'
+        +   whyLine
         + '</div>';
+}
+
+/**
+ * Renders the "why this binding?" diagnostic line, e.g.
+ *   ↳ via injection · glob "https://*.lovable.app/*"
+ *   ↳ via probe · evaluated · regex "^https://lovable\\.dev/projects/.+"
+ *   ↳ via none (no project rule matched)
+ */
+function renderWhyLine(t: OpenLovableTabInfoView): string {
+    const sourceLabel = t.bindingSource === 'injection'
+        ? '<span style="color:#10b981;">injection</span>'
+        : t.bindingSource === 'probe'
+            ? '<span style="color:#fbbf24;">probe</span>'
+            : '<span style="color:#9ca3af;">none</span>';
+
+    let ruleLabel: string;
+    if (t.matchedRule !== null) {
+        const originTag = t.matchedRule.origin === 'injection-record'
+            ? ''
+            : ' <span style="color:#9ca3af;font-size:8px;">(evaluated)</span>';
+        const patternSafe = escapeHtml(t.matchedRule.pattern);
+        const patternShort = t.matchedRule.pattern.length > 50
+            ? escapeHtml(t.matchedRule.pattern.slice(0, 50) + '…')
+            : patternSafe;
+        ruleLabel = ''
+            + '<span style="color:#9ca3af;">' + escapeHtml(t.matchedRule.matchType) + '</span> '
+            + '<span style="color:#cbd5e1;" title="' + patternSafe + '">"' + patternShort + '"</span>'
+            + originTag;
+    } else {
+        ruleLabel = '<span style="color:#9ca3af;font-style:italic;">no project rule matched</span>';
+    }
+
+    return '<div style="color:#9ca3af;font-size:9px;">↳ via ' + sourceLabel + ' · ' + ruleLabel + '</div>';
 }
 
 function shortenUrl(url: string): string {

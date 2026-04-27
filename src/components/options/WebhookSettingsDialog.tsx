@@ -514,55 +514,19 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                             ) : (
                                 <ul className="space-y-1.5">
                                     {filteredLog.map((entry, i) => {
-                                        const skipped = isWebhookSkipped(entry);
-                                        const success = isWebhookSuccess(entry);
-                                        const skipReason = skipped ? entry.SkipReason : undefined;
-                                        const errorText = !skipped && !success ? entry.Error : undefined;
-                                        const statusValue = success
-                                            ? entry.Status
-                                            : !skipped
-                                                ? entry.Status
-                                                : undefined;
-                                        const detail = skipReason ?? errorText;
-                                        const hasDetail = typeof detail === "string" && detail.length > 0;
-                                        const hasStatus = statusValue !== undefined && statusValue !== null;
+                                        const presentation = presentVariant(entry);
                                         const hasPayload = entry.Payload !== null && entry.Payload !== undefined;
-                                        const isExpandable = hasDetail || hasStatus || hasPayload;
+                                        const hasSummaryDetail = presentation.summaryDetail !== null;
+                                        const isExpandable = hasSummaryDetail || hasPayload || isWebhookSuccess(entry);
                                         const isOpen = expandedIdx === i;
-                                        const statusLabel = skipped
-                                            ? "Skipped"
-                                            : success
-                                                ? `OK ${statusValue}`
-                                                : `Failed${hasStatus ? ` ${statusValue}` : ""}`;
-                                        const variant = skipped
-                                            ? "outline"
-                                            : success
-                                                ? "default"
-                                                : "destructive";
-                                        const detailLabel = skipped
-                                            ? "Skip reason"
-                                            : success
-                                                ? "Note"
-                                                : "Error";
-                                        const failed = !skipped && !success;
-                                        const rowClass = failed
-                                            ? "rounded-md border border-destructive/60 bg-destructive/10 text-xs shadow-[0_0_0_1px_hsl(var(--destructive)/0.35)]"
-                                            : skipped
-                                                ? "rounded-md border border-dashed border-muted-foreground/40 bg-muted/10 text-xs"
-                                                : "rounded-md border border-emerald-500/30 bg-emerald-500/5 text-xs";
-                                        const hoverClass = failed
-                                            ? "hover:bg-destructive/15"
-                                            : skipped
-                                                ? "hover:bg-muted/30"
-                                                : "hover:bg-emerald-500/10";
                                         return (
                                             <li
                                                 key={`${entry.EmittedAt}-${i}`}
-                                                className={rowClass}
+                                                className={presentation.rowClass}
                                             >
                                                 <button
                                                     type="button"
-                                                    className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left ${hoverClass}`}
+                                                    className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left ${presentation.hoverClass}`}
                                                     onClick={() => isExpandable && setExpandedIdx(isOpen ? null : i)}
                                                     aria-expanded={isOpen}
                                                     aria-controls={`hook-log-detail-${i}`}
@@ -570,15 +534,15 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                                 >
                                                     <div className="flex min-w-0 items-center gap-2">
                                                         <Badge
-                                                            variant={variant}
-                                                            className={`shrink-0 ${failed ? "uppercase tracking-wide font-bold ring-1 ring-destructive/60 shadow-sm" : ""}`}
+                                                            variant={presentation.badgeVariant}
+                                                            className={`shrink-0 ${presentation.badgeExtraClass}`}
                                                         >
-                                                            {statusLabel}
+                                                            {presentation.badgeLabel}
                                                         </Badge>
-                                                        <span className={`shrink-0 font-mono ${failed ? "text-destructive font-semibold" : ""}`}>{entry.Event}</span>
-                                                        {hasDetail && (
-                                                            <span className={`truncate ${failed ? "text-destructive/90 font-medium" : "text-muted-foreground"}`}>
-                                                                — {detail}
+                                                        <span className={`shrink-0 font-mono ${presentation.eventClass}`}>{entry.Event}</span>
+                                                        {hasSummaryDetail && (
+                                                            <span className={`truncate ${presentation.summaryDetailClass}`}>
+                                                                — {presentation.summaryDetail}
                                                             </span>
                                                         )}
                                                     </div>
@@ -601,17 +565,31 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                                             <dd className="font-mono">{entry.EmittedAt}</dd>
                                                             <dt className="text-muted-foreground">Duration</dt>
                                                             <dd className="font-mono">{entry.DurationMs} ms</dd>
-                                                            {hasStatus && (
+                                                            {isWebhookSuccess(entry) && (
                                                                 <>
                                                                     <dt className="text-muted-foreground">HTTP</dt>
-                                                                    <dd className="font-mono">{statusValue}</dd>
+                                                                    <dd className="font-mono">{entry.Status}</dd>
                                                                 </>
                                                             )}
-                                                            {hasDetail && (
+                                                            {isWebhookSkipped(entry) && (
                                                                 <>
-                                                                    <dt className="text-muted-foreground">{detailLabel}</dt>
-                                                                    <dd className={`whitespace-pre-wrap break-words font-mono ${entry.Ok && !entry.Skipped ? "" : "text-destructive"}`}>
-                                                                        {detail}
+                                                                    <dt className="text-muted-foreground">Skip reason</dt>
+                                                                    <dd className="whitespace-pre-wrap break-words font-mono">
+                                                                        {entry.SkipReason}
+                                                                    </dd>
+                                                                </>
+                                                            )}
+                                                            {isWebhookFailure(entry) && (
+                                                                <>
+                                                                    {entry.Status !== null && (
+                                                                        <>
+                                                                            <dt className="text-muted-foreground">HTTP</dt>
+                                                                            <dd className="font-mono">{entry.Status}</dd>
+                                                                        </>
+                                                                    )}
+                                                                    <dt className="text-muted-foreground">Error</dt>
+                                                                    <dd className="whitespace-pre-wrap break-words font-mono text-destructive">
+                                                                        {entry.Error}
                                                                     </dd>
                                                                 </>
                                                             )}

@@ -80,23 +80,43 @@ CREATE INDEX IF NOT EXISTS IxDataSourceKind ON DataSource(DataSourceKindId);
 
 const STEP_TABLE_DDL = `
 CREATE TABLE IF NOT EXISTS Step (
-    StepId         INTEGER PRIMARY KEY AUTOINCREMENT,
-    StepKindId     INTEGER NOT NULL,
-    StepStatusId   INTEGER NOT NULL DEFAULT 1,
-    OrderIndex     INTEGER NOT NULL,
-    VariableName   TEXT    NOT NULL,
-    Label          TEXT    NOT NULL,
-    InlineJs       TEXT,
-    ParamsJson     TEXT,
-    IsBreakpoint   INTEGER NOT NULL DEFAULT 0,
-    CapturedAt     TEXT    NOT NULL DEFAULT (datetime('now')),
-    UpdatedAt      TEXT    NOT NULL DEFAULT (datetime('now')),
+    StepId             INTEGER PRIMARY KEY AUTOINCREMENT,
+    StepKindId         INTEGER NOT NULL,
+    StepStatusId       INTEGER NOT NULL DEFAULT 1,
+    OrderIndex         INTEGER NOT NULL,
+    VariableName       TEXT    NOT NULL,
+    Label              TEXT    NOT NULL,
+    Description        TEXT,
+    InlineJs           TEXT,
+    ParamsJson         TEXT,
+    IsBreakpoint       INTEGER NOT NULL DEFAULT 0,
+    IsDisabled         INTEGER NOT NULL DEFAULT 0,
+    RetryCount         INTEGER NOT NULL DEFAULT 0,
+    TimeoutMs          INTEGER,
+    OnSuccessProjectId TEXT,
+    OnFailureProjectId TEXT,
+    CapturedAt         TEXT    NOT NULL DEFAULT (datetime('now')),
+    UpdatedAt          TEXT    NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (StepKindId)   REFERENCES StepKind(StepKindId),
     FOREIGN KEY (StepStatusId) REFERENCES StepStatus(StepStatusId),
-    CHECK (InlineJs IS NULL OR StepKindId = 4)
+    CHECK (InlineJs IS NULL OR StepKindId = 4),
+    CHECK (RetryCount >= 0),
+    CHECK (TimeoutMs IS NULL OR TimeoutMs > 0)
 );
 CREATE INDEX IF NOT EXISTS IxStepOrder ON Step(OrderIndex);
 CREATE UNIQUE INDEX IF NOT EXISTS IxStepVariableNameUnique ON Step(VariableName);
+`;
+
+const STEP_TAG_TABLE_DDL = `
+CREATE TABLE IF NOT EXISTS StepTag (
+    StepTagId INTEGER PRIMARY KEY AUTOINCREMENT,
+    StepId    INTEGER NOT NULL,
+    Name      TEXT    NOT NULL,
+    FOREIGN KEY (StepId) REFERENCES Step(StepId) ON DELETE CASCADE,
+    UNIQUE (StepId, Name)
+);
+CREATE INDEX IF NOT EXISTS IxStepTagStep ON StepTag(StepId);
+CREATE INDEX IF NOT EXISTS IxStepTagName ON StepTag(Name);
 `;
 
 const SELECTOR_TABLE_DDL = `

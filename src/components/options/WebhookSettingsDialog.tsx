@@ -122,6 +122,7 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
     const [log, setLog] = useState<ReadonlyArray<WebhookDeliveryResult>>([]);
     const [busy, setBusy] = useState(false);
     const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+    const [payloadOpenIdx, setPayloadOpenIdx] = useState<number | null>(null);
 
     useEffect(() => {
         if (open) {

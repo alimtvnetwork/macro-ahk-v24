@@ -1159,8 +1159,10 @@ function BulkImportDialog(props: BulkImportDialogProps): JSX.Element {
                         Reads <code>keyword-events.db</code> from a ZIP previously
                         produced by Export and overlays each imported row onto the
                         matching event in your current selection
-                        ({selectedEvents.length} selected). Matches by Id first,
-                        then by Keyword (case-insensitive).
+                        ({selectedEvents.length} selected).{" "}
+                        {strictUidOnly
+                            ? "Strict mode: matches by Uid only."
+                            : "Matches by Uid first, then by Keyword (case-insensitive)."}
                     </DialogDescription>
                 </DialogHeader>
 

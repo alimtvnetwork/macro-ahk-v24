@@ -75,6 +75,7 @@ const KIND_OPTIONS: ReadonlyArray<StepKindId> = [
     StepKindId.JsInline,
     StepKindId.Wait,
     StepKindId.RunGroup,
+    StepKindId.Hotkey,
 ];
 
 /**
@@ -96,6 +97,8 @@ function payloadPlaceholderFor(kind: StepKindId): string {
             return '{ "WaitMs": 1000 }';
         case StepKindId.RunGroup:
             return "(payload not used — pick a target group below)";
+        case StepKindId.Hotkey:
+            return '{ "Keys": ["Ctrl+S","Tab","Enter"], "WaitMs": 500 }';
         default:
             return "{ }";
     }

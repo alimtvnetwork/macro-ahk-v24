@@ -373,36 +373,125 @@ interface BulkRenameSequenceDialogProps {
     readonly onApply: (input: SequenceRenameInput) => void;
 }
 
-const SEQUENCE_RENAME_STORAGE_KEY = "marco.bulkRename.sequence.v1";
+// ──────────────────────────────────────────────────────────────────────────
+//  Persisted Sequence settings: versioned envelope + migration chain
+// ──────────────────────────────────────────────────────────────────────────
+//
+// Storage shape (v2+):
+//     { v: <number>, data: <SequenceRenameInput> }
+//
+// Legacy (v1) shape that may exist on disk:
+//     { Base, Start, Padding, Separator }   ← bare object, no envelope
+//
+// To evolve the schema:
+//   1. Bump CURRENT_SEQUENCE_VERSION.
+//   2. Append a migration to SEQUENCE_MIGRATIONS that takes the previous
+//      version's payload and returns the next one. Migrations run in
+//      sequence and are idempotent (re-running on already-current data
+//      is a no-op because the version stamp matches).
+//   3. Field-validate the final result in `coerceSequenceInput()` so any
+//      garbage from older builds still falls back to safe defaults.
+//
+// The localStorage KEY itself is stable across versions to avoid orphaned
+// keys from older releases piling up in users' browser storage.
+const SEQUENCE_RENAME_STORAGE_KEY = "marco.bulkRename.sequence";
+
+/** Bump this whenever the persisted shape changes in a non-additive way. */
+const CURRENT_SEQUENCE_VERSION = 2;
+
+/** Legacy key used before the versioned envelope was introduced. */
+const LEGACY_SEQUENCE_KEY_V1 = "marco.bulkRename.sequence.v1";
+
+interface VersionedSequenceEnvelope {
+    readonly v: number;
+    readonly data: SequenceRenameInput;
+}
+
+/**
+ * Migration chain: index `i` upgrades a payload from version `i+1` to `i+2`.
+ * Each migration receives the *raw* parsed JSON (shape is whatever the
+ * previous version persisted) and returns the next version's payload.
+ *
+ * Add new migrations to the end of this array — never reorder or remove.
+ */
+const SEQUENCE_MIGRATIONS: ReadonlyArray<(prev: Partial<SequenceRenameInput>) => Partial<SequenceRenameInput>> = [
+    // v1 → v2: no shape change, just wrapped in {v, data} envelope. The
+    // wrapping is handled by the loader; this migration is identity.
+    (prev) => prev,
+    // Example for future use:
+    //   v2 → v3: rename `Padding` to `MinDigits`
+    // (prev) => ({ ...prev, MinDigits: prev.Padding ?? 2 }),
+];
+
+/** Field-validate and clamp a raw object into a safe SequenceRenameInput. */
+function coerceSequenceInput(parsed: Partial<SequenceRenameInput>): SequenceRenameInput {
+    return {
+        Base: typeof parsed.Base === "string" ? parsed.Base : DEFAULT_SEQUENCE_RENAME.Base,
+        Start: typeof parsed.Start === "number" && Number.isFinite(parsed.Start)
+            ? Math.max(0, Math.floor(parsed.Start))
+            : DEFAULT_SEQUENCE_RENAME.Start,
+        Padding: typeof parsed.Padding === "number" && Number.isFinite(parsed.Padding)
+            ? Math.max(1, Math.min(6, Math.floor(parsed.Padding)))
+            : DEFAULT_SEQUENCE_RENAME.Padding,
+        Separator: typeof parsed.Separator === "string"
+            ? parsed.Separator
+            : DEFAULT_SEQUENCE_RENAME.Separator,
+    };
+}
+
+/** Run migrations from `fromVersion` up to CURRENT_SEQUENCE_VERSION. */
+function migrateSequencePayload(payload: Partial<SequenceRenameInput>, fromVersion: number): Partial<SequenceRenameInput> {
+    let current = payload;
+    let v = fromVersion;
+    while (v < CURRENT_SEQUENCE_VERSION) {
+        const migration = SEQUENCE_MIGRATIONS[v - 1];
+        if (!migration) break;  // no migration registered → stop and let coerce fix it
+        current = migration(current);
+        v++;
+    }
+    return current;
+}
 
 function loadPersistedSequence(): SequenceRenameInput {
+    if (typeof localStorage === "undefined") return DEFAULT_SEQUENCE_RENAME;
     try {
-        const raw = typeof localStorage !== "undefined"
-            ? localStorage.getItem(SEQUENCE_RENAME_STORAGE_KEY)
-            : null;
-        if (!raw) return DEFAULT_SEQUENCE_RENAME;
-        const parsed = JSON.parse(raw) as Partial<SequenceRenameInput>;
-        return {
-            Base: typeof parsed.Base === "string" ? parsed.Base : DEFAULT_SEQUENCE_RENAME.Base,
-            Start: typeof parsed.Start === "number" && Number.isFinite(parsed.Start)
-                ? Math.max(0, Math.floor(parsed.Start))
-                : DEFAULT_SEQUENCE_RENAME.Start,
-            Padding: typeof parsed.Padding === "number" && Number.isFinite(parsed.Padding)
-                ? Math.max(1, Math.min(6, Math.floor(parsed.Padding)))
-                : DEFAULT_SEQUENCE_RENAME.Padding,
-            Separator: typeof parsed.Separator === "string"
-                ? parsed.Separator
-                : DEFAULT_SEQUENCE_RENAME.Separator,
-        };
+        // 1. Prefer the current versioned key.
+        const raw = localStorage.getItem(SEQUENCE_RENAME_STORAGE_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw) as Partial<VersionedSequenceEnvelope> | Partial<SequenceRenameInput>;
+            // Versioned envelope?
+            if (parsed && typeof parsed === "object" && "v" in parsed && typeof parsed.v === "number" && "data" in parsed && parsed.data) {
+                const migrated = migrateSequencePayload(parsed.data, parsed.v);
+                return coerceSequenceInput(migrated);
+            }
+            // Bare object found under the new key (shouldn't happen, but treat as v1).
+            const migrated = migrateSequencePayload(parsed as Partial<SequenceRenameInput>, 1);
+            return coerceSequenceInput(migrated);
+        }
+        // 2. Fall back to the legacy v1 key (one-shot migration; we'll
+        //    rewrite under the new key on the next persist).
+        const legacy = localStorage.getItem(LEGACY_SEQUENCE_KEY_V1);
+        if (legacy) {
+            const parsed = JSON.parse(legacy) as Partial<SequenceRenameInput>;
+            const migrated = migrateSequencePayload(parsed, 1);
+            return coerceSequenceInput(migrated);
+        }
+        return DEFAULT_SEQUENCE_RENAME;
     } catch {
         return DEFAULT_SEQUENCE_RENAME;
     }
 }
 
 function persistSequence(input: SequenceRenameInput): void {
+    if (typeof localStorage === "undefined") return;
     try {
-        if (typeof localStorage === "undefined") return;
-        localStorage.setItem(SEQUENCE_RENAME_STORAGE_KEY, JSON.stringify(input));
+        const envelope: VersionedSequenceEnvelope = { v: CURRENT_SEQUENCE_VERSION, data: input };
+        localStorage.setItem(SEQUENCE_RENAME_STORAGE_KEY, JSON.stringify(envelope));
+        // Best-effort cleanup of the legacy key once we've successfully
+        // written the new one — keeps user storage tidy across upgrades.
+        if (localStorage.getItem(LEGACY_SEQUENCE_KEY_V1) !== null) {
+            localStorage.removeItem(LEGACY_SEQUENCE_KEY_V1);
+        }
     } catch {
         // Storage may be unavailable (private mode, quota); silently ignore — the
         // dialog still works, it just won't remember last used settings.

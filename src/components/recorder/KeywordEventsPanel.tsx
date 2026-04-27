@@ -400,10 +400,19 @@ function ChainSettingsRow(props: ChainSettingsRowProps): JSX.Element {
                             className="h-8"
                             onClick={onCancel}
                             data-testid="keyword-event-chain-cancel"
+                            title={stopShortcutLabel ? `Stop the chain (${stopShortcutLabel})` : "Stop the chain"}
                         >
                             <Square className="h-3.5 w-3.5 mr-1" />
                             Stop
                             {progress !== null ? ` (${progress.current}/${progress.total})` : ""}
+                            {stopShortcutLabel && (
+                                <kbd
+                                    className="ml-2 hidden sm:inline-flex items-center rounded border border-destructive-foreground/30 px-1 text-[9px] font-mono opacity-80"
+                                    data-testid="keyword-event-chain-stop-shortcut"
+                                >
+                                    {stopShortcutLabel}
+                                </kbd>
+                            )}
                         </Button>
                     ) : (
                         <Button
@@ -413,10 +422,22 @@ function ChainSettingsRow(props: ChainSettingsRowProps): JSX.Element {
                             onClick={onRun}
                             disabled={enabledCount === 0}
                             data-testid="keyword-event-chain-run"
-                            title="Run all enabled keyword events sequentially"
+                            title={
+                                runShortcutLabel
+                                    ? `Run all enabled keyword events sequentially (${runShortcutLabel})`
+                                    : "Run all enabled keyword events sequentially"
+                            }
                         >
                             <Play className="h-3.5 w-3.5 mr-1" />
                             Run chain
+                            {runShortcutLabel && (
+                                <kbd
+                                    className="ml-2 hidden sm:inline-flex items-center rounded border border-border px-1 text-[9px] font-mono opacity-80"
+                                    data-testid="keyword-event-chain-run-shortcut"
+                                >
+                                    {runShortcutLabel}
+                                </kbd>
+                            )}
                         </Button>
                     )}
                 </div>

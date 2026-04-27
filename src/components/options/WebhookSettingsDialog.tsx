@@ -18,7 +18,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Send, Trash2, Webhook } from "lucide-react";
+import { ChevronDown, Plus, RefreshCw, Send, Trash2, Webhook } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {

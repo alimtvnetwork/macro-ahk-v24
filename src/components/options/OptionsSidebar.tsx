@@ -82,6 +82,7 @@ const overflowItems: Array<{ id: SidebarSection; label: string; icon: typeof Fol
   { id: "timing", label: "Timing", icon: Timer },
   { id: "data", label: "Data", icon: BarChart3 },
   { id: "network", label: "Network", icon: Wifi },
+  { id: "audit", label: "Error Audit", icon: ShieldAlert },
 ];
 
 /* ------------------------------------------------------------------ */

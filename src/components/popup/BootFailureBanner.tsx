@@ -80,7 +80,7 @@ export function BootFailureBanner({ bootStep, bootError, bootErrorStack, bootErr
     try {
       const saved = localStorage.getItem("marco_support_report_mode");
       return saved === "short" ? "short" : "full";
-    } catch {
+    } catch { // allow-swallow: localStorage may be denied; safe default is "full"
       return "full";
     }
   });
@@ -119,8 +119,7 @@ export function BootFailureBanner({ bootStep, bootError, bootErrorStack, bootErr
       await navigator.clipboard.writeText(buildCurrentReport());
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard may be denied; ignore — the textarea fallback below stays visible.
+    } catch { // allow-swallow: clipboard denied; textarea fallback stays visible
     }
   };
 
@@ -130,8 +129,7 @@ export function BootFailureBanner({ bootStep, bootError, bootErrorStack, bootErr
       await navigator.clipboard.writeText(ctx.sql);
       setSqlCopied(true);
       setTimeout(() => setSqlCopied(false), 2000);
-    } catch {
-      // Ignore — the snippet stays visible for manual copy.
+    } catch { // allow-swallow: clipboard denied; snippet stays visible for manual copy
     }
   };
 
@@ -159,8 +157,7 @@ export function BootFailureBanner({ bootStep, bootError, bootErrorStack, bootErr
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       setDownloaded(true);
       setTimeout(() => setDownloaded(false), 2000);
-    } catch {
-      // Blob/URL may be unavailable in unusual sandboxes — Copy report still works.
+    } catch { // allow-swallow: Blob/URL unavailable in sandbox; Copy report still works
     }
   };
 

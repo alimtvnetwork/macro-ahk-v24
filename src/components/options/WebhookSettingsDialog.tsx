@@ -18,7 +18,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ChevronDown, Copy, Plus, RefreshCw, Send, Trash2, Webhook, Wrench } from "lucide-react";
+import { ChevronDown, Copy, Plus, RefreshCw, Search, Send, Trash2, Webhook, Wrench, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -223,6 +223,7 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
     const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
     const [payloadOpenIdx, setPayloadOpenIdx] = useState<number | null>(null);
     const [statusFilter, setStatusFilter] = useState<"all" | "success" | "skipped" | "failure">("all");
+    const [searchQuery, setSearchQuery] = useState("");
     const [repairConfirmOpen, setRepairConfirmOpen] = useState(false);
     const [repairBusy, setRepairBusy] = useState(false);
 
@@ -248,13 +249,18 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
     }, [log]);
 
     const filteredLog = useMemo(() => {
-        if (statusFilter === "all") return log;
+        const query = searchQuery.trim().toLowerCase();
         return log.filter((entry) => {
-            if (statusFilter === "skipped") return isWebhookSkipped(entry);
-            if (statusFilter === "success") return isWebhookSuccess(entry);
-            return !isWebhookSkipped(entry) && !isWebhookSuccess(entry);
+            if (statusFilter === "skipped" && !isWebhookSkipped(entry)) return false;
+            if (statusFilter === "success" && !isWebhookSuccess(entry)) return false;
+            if (statusFilter === "failure" && (isWebhookSkipped(entry) || isWebhookSuccess(entry))) return false;
+            if (query.length === 0) return true;
+            const event = entry.Event?.toLowerCase() ?? "";
+            const emitted = entry.EmittedAt?.toLowerCase() ?? "";
+            const status = entry.Status === null || entry.Status === undefined ? "" : String(entry.Status);
+            return event.includes(query) || emitted.includes(query) || status.includes(query);
         });
-    }, [log, statusFilter]);
+    }, [log, statusFilter, searchQuery]);
 
     const toggleEvent = (kind: WebhookEventKind, on: boolean) => {
         setDraft((prev) => {

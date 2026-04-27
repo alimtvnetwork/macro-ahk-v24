@@ -933,7 +933,49 @@ export async function mergePromptsFromSqliteZip(file: File): Promise<{ promptCou
   return { promptCount: prompts.length };
 }
 
-function triggerDownload(blob: Blob, filename: string): void {
+/**
+ * Verifies that `blob` is a real ZIP container (PKZIP local-file-header
+ * signature `50 4B 03 04`) and not, e.g., a JSON payload mistakenly
+ * routed through the download path. Empty / spanned / encrypted-only
+ * archives (`PK 05 06`, `PK 07 08`) are rejected too — every export in
+ * this codebase always writes at least one file entry, so seeing those
+ * markers means the build pipeline broke upstream.
+ *
+ * Throws a clear, user-facing Error on mismatch so the caller can
+ * surface it via toast instead of silently producing a corrupt download.
+ */
+async function assertIsZipBlob(blob: Blob, context: string): Promise<void> {
+  // sql.js + JSZip never produce blobs smaller than the 30-byte local
+  // file header, so anything tiny is automatically suspect.
+  if (blob.size < 4) {
+    throw new Error(
+      `${context}: produced blob is ${blob.size} bytes — too small to be a valid ZIP. `
+      + `Expected PKZIP signature 'PK\\x03\\x04'. Aborting download to avoid a corrupt file.`,
+    );
+  }
+
+  const header = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+  const isLocalFileHeader = header[0] === 0x50 && header[1] === 0x4b
+    && header[2] === 0x03 && header[3] === 0x04;
+  if (isLocalFileHeader) return;
+
+  // Helpful classification for the most common failure mode: a JSON-shaped
+  // payload accidentally piped through the ZIP path.
+  const looksLikeJson = header[0] === 0x7b /* { */ || header[0] === 0x5b /* [ */;
+  const hex = Array.from(header)
+    .map((b) => b.toString(16).padStart(2, "0").toUpperCase())
+    .join(" ");
+  const hint = looksLikeJson
+    ? "Payload looks like JSON, not a ZIP — the export was likely routed through the wrong serializer."
+    : "First 4 bytes do not match the PKZIP local-file-header signature (50 4B 03 04).";
+  throw new Error(
+    `${context}: produced blob is not a valid ZIP. First bytes: [${hex}]. ${hint}`,
+  );
+}
+
+async function triggerDownload(blob: Blob, filename: string): Promise<void> {
+  await assertIsZipBlob(blob, `Export "${filename}"`);
+
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;

@@ -378,7 +378,7 @@ function persistSequence(input: SequenceRenameInput): void {
     }
 }
 
-function BulkRenameSequenceDialog(props: BulkRenameSequenceDialogProps): JSX.Element {
+export function BulkRenameSequenceDialog(props: BulkRenameSequenceDialogProps): JSX.Element {
     const { open, onOpenChange, selectedEvents, allEvents, onApply } = props;
     const [input, setInput] = useState<SequenceRenameInput>(loadPersistedSequence);
 

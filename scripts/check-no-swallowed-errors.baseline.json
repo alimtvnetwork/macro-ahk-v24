@@ -1,53 +1,25 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Allow-list of pre-existing swallowed-error sites. Each entry is matched on file + kind + snippet (line-agnostic). NEVER use this to silence new violations — fix the catch block, then run --update-baseline to drop the entry.",
-  "generatedAt": "2026-04-27T22:29:25.315Z",
+  "generatedAt": "2026-04-27T22:31:18.554Z",
   "entries": [
     {
       "file": "src/background/auth-health-handler.ts",
-      "line": 83,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/auth-health-handler.ts",
-      "line": 133,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/auth-health-handler.ts",
-      "line": 141,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/auth-health-handler.ts",
-      "line": 162,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/auth-health-handler.ts",
-      "line": 268,
+      "line": 167,
       "kind": "empty-catch",
       "snippet": "catch {",
       "reason": "TODO: explain why this catch silently swallows, or fix it."
     },
     {
       "file": "src/background/bg-logger.ts",
-      "line": 120,
+      "line": 122,
       "kind": "empty-catch",
       "snippet": "catch {",
       "reason": "TODO: explain why this catch silently swallows, or fix it."
     },
     {
       "file": "src/background/bg-logger.ts",
-      "line": 117,
+      "line": 119,
       "kind": "promise-catch-noop",
       "snippet": ".catch(() => { })",
       "reason": "TODO: explain why this catch silently swallows, or fix it."
@@ -75,14 +47,7 @@
     },
     {
       "file": "src/background/context-menu-handler.ts",
-      "line": 131,
-      "kind": "empty-catch",
-      "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/context-menu-handler.ts",
-      "line": 281,
+      "line": 287,
       "kind": "empty-catch",
       "snippet": "catch {",
       "reason": "TODO: explain why this catch silently swallows, or fix it."

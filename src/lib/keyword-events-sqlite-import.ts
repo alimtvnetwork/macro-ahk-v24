@@ -34,6 +34,18 @@ import {
 const DB_FILENAME = "keyword-events.db";
 const WASM_URL = "https://sql.js.org/dist/sql-wasm.wasm";
 
+/** Tables that MUST be present in a valid keyword-events bundle. Missing
+ *  any one of these means the .db is either a different bundle kind
+ *  (e.g. full-backup, prompts) or a corrupted export. */
+const REQUIRED_TABLES = ["Meta", "KeywordEvents"] as const;
+
+/** Columns that MUST exist on KeywordEvents for the importer's SELECT * to
+ *  return a usable row. Forward-compat: extras are allowed, only these are
+ *  required. */
+const REQUIRED_KEYWORD_EVENTS_COLUMNS = [
+    "Uid", "Keyword", "Steps", "SortOrder",
+] as const;
+
 /* ------------------------------------------------------------------ */
 /*  Public types                                                       */
 /* ------------------------------------------------------------------ */
@@ -131,6 +143,72 @@ function readMeta(db: Database, key: string): string | null {
     }
 }
 
+/** Returns the set of user-table names defined in the SQLite database. */
+function listTables(db: Database): Set<string> {
+    const tables = new Set<string>();
+    const stmt = db.prepare(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`,
+    );
+    try {
+        while (stmt.step()) {
+            const name = stmt.get()[0];
+            if (typeof name === "string") tables.add(name);
+        }
+    } finally {
+        stmt.free();
+    }
+    return tables;
+}
+
+/** Returns the set of column names declared on `tableName`. Empty set when
+ *  the table does not exist (caller should already have rejected that). */
+function listColumns(db: Database, tableName: string): Set<string> {
+    const cols = new Set<string>();
+    // PRAGMA table_info doesn't accept bound parameters in sql.js; tableName
+    // comes from a server-controlled allow-list so direct interpolation is
+    // safe here.
+    const stmt = db.prepare(`PRAGMA table_info(${tableName})`);
+    try {
+        while (stmt.step()) {
+            const row = stmt.getAsObject() as Record<string, unknown>;
+            if (typeof row.name === "string") cols.add(row.name);
+        }
+    } finally {
+        stmt.free();
+    }
+    return cols;
+}
+
+/**
+ * Asserts the SQLite database matches the keyword-events bundle shape:
+ * required tables present and KeywordEvents has the required columns.
+ * Throws a clear, user-facing Error on the first mismatch.
+ */
+function assertKeywordEventsSchema(db: Database): void {
+    const tables = listTables(db);
+    const missingTables = REQUIRED_TABLES.filter((t) => !tables.has(t));
+    if (missingTables.length > 0) {
+        throw new Error(
+            `Invalid keyword-events bundle: missing required table(s) `
+            + `[${missingTables.join(", ")}]. Found tables: `
+            + `[${[...tables].join(", ") || "none"}]. `
+            + `Expected a ZIP produced by Export selected as ZIP `
+            + `(file: ${DB_FILENAME}).`,
+        );
+    }
+
+    const cols = listColumns(db, "KeywordEvents");
+    const missingCols = REQUIRED_KEYWORD_EVENTS_COLUMNS.filter((c) => !cols.has(c));
+    if (missingCols.length > 0) {
+        throw new Error(
+            `Invalid keyword-events bundle: KeywordEvents table is missing `
+            + `column(s) [${missingCols.join(", ")}]. Found columns: `
+            + `[${[...cols].join(", ") || "none"}]. The export format may `
+            + `be from an incompatible version.`,
+        );
+    }
+}
+
 function readKeywordEvents(db: Database): ImportedKeywordEvent[] {
     const stmt = db.prepare(`SELECT * FROM KeywordEvents ORDER BY SortOrder ASC, Id ASC`);
     const rows: ImportedKeywordEvent[] = [];
@@ -160,10 +238,18 @@ export async function readKeywordEventsSqliteDb(
 ): Promise<KeywordEventsImportResult> {
     const db = await initDb(data);
     try {
+        // Structural check first — gives a more actionable error than the
+        // bundle_kind probe below when the .db is from a different exporter
+        // (or when Meta itself is missing).
+        assertKeywordEventsSchema(db);
+
         const bundleKind = readMeta(db, "bundle_kind");
         if (bundleKind !== KEYWORD_EVENTS_BUNDLE_KIND) {
             throw new Error(
-                `Not a keyword-events bundle (Meta.bundle_kind = ${bundleKind ?? "null"})`,
+                `Not a keyword-events bundle: Meta.bundle_kind = `
+                + `${bundleKind ?? "null"} (expected `
+                + `'${KEYWORD_EVENTS_BUNDLE_KIND}'). The schema matches but `
+                + `this file was tagged as a different export type.`,
             );
         }
         return {
@@ -189,8 +275,11 @@ export async function readKeywordEventsZip(
     const zip = await JSZipCtor.loadAsync(file);
     const entry = zip.file(DB_FILENAME);
     if (!entry) {
+        const present = Object.keys(zip.files);
         throw new Error(
-            `Missing ${DB_FILENAME} in ZIP — expected a keyword-events bundle produced by Export selected as ZIP`,
+            `Missing ${DB_FILENAME} in ZIP — expected a keyword-events `
+            + `bundle produced by Export selected as ZIP. ZIP contents: `
+            + `[${present.join(", ") || "empty"}].`,
         );
     }
     const bytes = await entry.async("uint8array");

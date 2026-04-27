@@ -428,7 +428,10 @@ function AuditSummaryPanel({ state, onReload }: { state: LoadState; onReload: ()
         });
     }, []);
 
-    const items: ReadonlyArray<AuditItem> = state.kind === "ok" ? state.report.Items : [];
+    const items = useMemo<ReadonlyArray<AuditItem>>(
+        () => (state.kind === "ok" ? state.report.Items : []),
+        [state],
+    );
     const counts = useMemo(() => {
         const c = { P0: 0, P1: 0, P2: 0 };
         for (const it of items) c[it.Severity] += 1;

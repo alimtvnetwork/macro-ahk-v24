@@ -34,11 +34,13 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertOctagon, AlertTriangle, FileWarning, RefreshCw, Info, ExternalLink } from "lucide-react";
+import { AlertOctagon, AlertTriangle, FileWarning, RefreshCw, Info, ExternalLink, Play, Terminal, Copy, Check } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+
+const AUDIT_CLI_COMMAND = "node scripts/audit-error-swallow.mjs";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */

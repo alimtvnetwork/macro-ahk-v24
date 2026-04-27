@@ -24,10 +24,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Pencil, Copy, Trash2, Upload, Download, Database, Loader2, FileText, Settings2, FolderOpen, Merge } from "lucide-react";
+import { Plus, Pencil, Copy, Trash2, Upload, Download, Database, Loader2, FileText, Settings2, FolderOpen, Merge, ListChecks } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { StoredProject } from "@/hooks/use-projects-scripts";
-import { exportAllAsSqliteZip, exportProjectAsSqliteZip, importFromSqliteZip, mergeFromSqliteZip, previewSqliteZip, type BundlePreview, type DiffItem } from "@/lib/sqlite-bundle";
+import { exportAllAsSqliteZip, exportProjectAsSqliteZip, exportProjectsAsSqliteZip, importFromSqliteZip, mergeFromSqliteZip, previewSqliteZip, type BundlePreview, type DiffItem } from "@/lib/sqlite-bundle";
 import { exportProject } from "@/lib/project-exporter";
 import { toast } from "sonner";
 

@@ -248,6 +248,8 @@ function KeywordEventsEditor(): JSX.Element {
                 onCancel={handleCancelChain}
             />
 
+            <ChainTimelineLog timeline={timeline} running={chainRunning} />
+
             <Separator />
 
             <ScrollArea className="h-[380px] pr-3">

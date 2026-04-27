@@ -68,6 +68,13 @@ import {
     type SequenceRenameInput,
 } from "@/lib/keyword-event-bulk-actions";
 import { downloadKeywordEventsZip } from "@/lib/keyword-events-sqlite-export";
+import {
+    buildPatchFromImport,
+    planImportMatches,
+    readKeywordEventsZip,
+    type ImportMatchPlan,
+    type KeywordEventsImportResult,
+} from "@/lib/keyword-events-sqlite-import";
 import type { KeywordEvent } from "@/hooks/use-keyword-events";
 
 export interface KeywordEventBulkContextMenuProps {

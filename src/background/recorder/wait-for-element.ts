@@ -1,25 +1,31 @@
 /**
- * Marco Extension — Wait-For-Element Gate
+ * Marco Extension — Wait-For-Element Gate (Spec 19.2 unified)
  *
- * Pure polling helper used by the replay executor to pause AFTER an
- * actuating step (Click / Type / Select) until a backend-controlled UI
- * element appears in the live DOM. Mirrors Playwright's `waitForSelector`
- * but without any chrome.* / messaging dependencies so it's unit-testable
- * under jsdom and reusable from the content script.
+ * Thin adapter around {@link waitForCondition} that preserves the legacy
+ * `WaitForSpec` shape used by `live-dom-replay.ts` and any external SDK
+ * calls. All appearance polling now flows through the single canonical
+ * primitive in `condition-evaluator.ts`, so behaviour, telemetry, and
+ * failure diagnostics are unified per spec 19 §2.
  *
- * The selector dialect is the same minimal trio used elsewhere in the
- * recorder: XPath (default — auto-detected by leading `/` or `(`), CSS,
- * or Aria-as-CSS. See {@link ResolvedSelector} in `replay-resolver.ts`
- * for the full grammar.
+ * The legacy contract returned `{ Ok, ResolvedKind, Reason: "Timeout" |
+ * "InvalidSelector", Detail }`. We map `waitForCondition`'s richer
+ * outcome (`ConditionTimeout` / `InvalidSelector` + `LastEvaluation`)
+ * back to that shape for callers that have not yet migrated.
  *
- * Per `mem://standards/verbose-logging-and-failure-diagnostics`, the
- * caller is responsible for wrapping a timeout into a structured
- * failure report — this module only returns a discriminated outcome.
- *
- * @see ./live-dom-replay.ts  — Caller that gates Click/Type/Select on this.
+ * @see ./condition-evaluator.ts  — Canonical poll loop.
+ * @see ./live-dom-replay.ts      — Primary caller (post-actuation gate).
+ * @see spec/31-macro-recorder/19-url-tabs-appearance-waits-conditions.md §2
  */
 
+import {
+    resolveSelectorKind,
+    waitForCondition,
+    type Condition,
+    type Predicate,
+} from "./condition-evaluator";
+
 export type WaitForKind = "Auto" | "XPath" | "Css";
+export type WaitForPredicate = "Exists" | "Visible";
 
 export interface WaitForSpec {
     /** Selector expression — XPath or CSS. */
@@ -30,6 +36,11 @@ export interface WaitForSpec {
     readonly TimeoutMs: number;
     /** Poll interval in ms. Defaults to 50 when omitted. */
     readonly PollMs?: number;
+    /**
+     * Predicate dialect — defaults to `Exists` for legacy `WaitFor` rows.
+     * Per spec 19 §2.3, callers that need visibility MUST opt in.
+     */
+    readonly Predicate?: WaitForPredicate;
 }
 
 export type WaitForOutcome =
@@ -43,68 +54,52 @@ export interface WaitForOptions {
 }
 
 /**
- * Poll the document until `spec.Expression` resolves to an `HTMLElement`
- * or the timeout elapses. Pure — no DOM mutation, no event dispatch.
+ * Poll the document until `spec.Expression` resolves to an element or the
+ * timeout elapses. Pure adapter — delegates to {@link waitForCondition}.
  */
 export async function waitForElement(
     spec: WaitForSpec,
     options: WaitForOptions,
 ): Promise<WaitForOutcome> {
-    const sleep   = options.Sleep ?? defaultSleep;
-    const now     = options.Now   ?? defaultNow;
-    const pollMs  = Math.max(1, spec.PollMs ?? 50);
-    const kind    = resolveKind(spec.Kind ?? "Auto", spec.Expression);
-    const started = now();
-    const deadline = started + Math.max(0, spec.TimeoutMs);
+    const condition = synthesizeCondition(spec);
+    const resolvedKind = resolveSelectorKind(spec.Kind ?? "Auto", spec.Expression);
 
-    for (;;) {
-        let found: HTMLElement | null;
-        try {
-            found = locate(spec.Expression, kind, options.Doc);
-        } catch (err) {
-            return {
-                Ok: false,
-                DurationMs: now() - started,
-                Reason: "InvalidSelector",
-                Detail: err instanceof Error ? err.message : String(err),
-            };
-        }
-        if (found !== null) {
-            return { Ok: true, DurationMs: now() - started, ResolvedKind: kind };
-        }
-        if (now() >= deadline) {
-            return {
-                Ok: false,
-                DurationMs: now() - started,
-                Reason: "Timeout",
-                Detail: `WaitFor '${spec.Expression}' timed out after ${spec.TimeoutMs}ms`,
-            };
-        }
-        await sleep(pollMs);
+    const result = await waitForCondition(condition, {
+        Doc: options.Doc,
+        TimeoutMs: spec.TimeoutMs,
+        PollMs: spec.PollMs,
+        Sleep: options.Sleep,
+        Now: options.Now,
+    });
+
+    if (result.Ok) {
+        return { Ok: true, DurationMs: result.DurationMs, ResolvedKind: resolvedKind };
     }
+    return mapFailure(result.Reason, result.Detail, result.DurationMs, spec);
 }
 
-function resolveKind(kind: WaitForKind, expression: string): "XPath" | "Css" {
-    if (kind === "XPath") { return "XPath"; }
-    if (kind === "Css")   { return "Css"; }
-    const trimmed = expression.trimStart();
-    return (trimmed.startsWith("/") || trimmed.startsWith("(")) ? "XPath" : "Css";
+function synthesizeCondition(spec: WaitForSpec): Condition {
+    const predicate: Predicate = {
+        Selector: spec.Expression,
+        SelectorKind: spec.Kind ?? "Auto",
+        Matcher: { Kind: spec.Predicate === "Visible" ? "Visible" : "Exists" },
+    };
+    return predicate;
 }
 
-function locate(expression: string, kind: "XPath" | "Css", doc: Document): HTMLElement | null {
-    if (kind === "XPath") {
-        const r = doc.evaluate(expression, doc, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-        const node = r.singleNodeValue;
-        return node instanceof HTMLElement ? node : null;
+function mapFailure(
+    reason: "ConditionTimeout" | "InvalidSelector",
+    detail: string,
+    durationMs: number,
+    spec: WaitForSpec,
+): WaitForOutcome {
+    if (reason === "InvalidSelector") {
+        return { Ok: false, DurationMs: durationMs, Reason: "InvalidSelector", Detail: detail };
     }
-    const el = doc.querySelector(expression);
-    return el instanceof HTMLElement ? el : null;
-}
-
-function defaultSleep(ms: number): Promise<void> {
-    return new Promise((r) => setTimeout(r, ms));
-}
-
-function defaultNow(): number {
-    return Date.now();
+    return {
+        Ok: false,
+        DurationMs: durationMs,
+        Reason: "Timeout",
+        Detail: `WaitFor '${spec.Expression}' timed out after ${spec.TimeoutMs}ms`,
+    };
 }

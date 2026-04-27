@@ -61,12 +61,51 @@ export function parseCombo(combo: string): ParsedCombo {
     return { Key, Ctrl, Shift, Alt, Meta };
 }
 
-function resolveTarget(target?: EventTarget | null): EventTarget {
-    if (target) return target;
-    if (typeof document !== "undefined") {
-        return document.activeElement ?? document.body ?? document;
+/**
+ * Resolve a {@link KeywordEventTarget} to a concrete `EventTarget` against
+ * the live DOM. Pure helper exported so the panel UI can reuse the same
+ * logic to preview which element will receive playback.
+ *
+ * Falls back to `document.body` (then `document`) when a Selector matches
+ * nothing — playback never silently no-ops, and tests can detect the
+ * fallback by checking the returned node identity.
+ */
+export function resolveEventTarget(
+    cfg: KeywordEventTarget | undefined,
+    doc?: Document,
+): EventTarget {
+    const d: Document | undefined = doc ?? (typeof document !== "undefined" ? document : undefined);
+    if (d === undefined) {
+        throw new Error("No DOM target available for keyboard playback");
     }
-    throw new Error("No DOM target available for keyboard playback");
+    const fallback: EventTarget = d.body ?? d;
+    const target = cfg ?? DEFAULT_KEYWORD_EVENT_TARGET;
+    switch (target.Kind) {
+        case "ActiveElement":
+            return d.activeElement ?? fallback;
+        case "Body":
+            return fallback;
+        case "Selector": {
+            const sel = target.Selector.trim();
+            if (sel === "") { return fallback; }
+            try {
+                const node = d.querySelector(sel);
+                return node ?? fallback;
+            } catch {
+                // Invalid CSS selector — surface a fallback rather than throw
+                // so a typo in the panel doesn't crash playback.
+                return fallback;
+            }
+        }
+    }
+}
+
+function resolveTarget(
+    explicit: EventTarget | null | undefined,
+    eventCfg: KeywordEventTarget | undefined,
+): EventTarget {
+    if (explicit) { return explicit; }
+    return resolveEventTarget(eventCfg);
 }
 
 function dispatchKey(target: EventTarget, type: "keydown" | "keyup", parsed: ParsedCombo): void {

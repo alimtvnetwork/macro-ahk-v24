@@ -263,6 +263,17 @@ export const ProjectsListView = forwardRef<HTMLDivElement, Props>(function Proje
         <Button
           variant="outline"
           className="gap-2 hover:bg-primary/10 hover:text-primary transition-all duration-200"
+          onClick={() => setSelectExportOpen(true)}
+          disabled={exporting || projects.length === 0}
+          data-testid="projects-export-selected-open"
+        >
+          <ListChecks className="h-4 w-4" />
+          Export Selected…
+        </Button>
+
+        <Button
+          variant="outline"
+          className="gap-2 hover:bg-primary/10 hover:text-primary transition-all duration-200"
           onClick={handleExportBundle}
           disabled={exporting}
         >
@@ -279,6 +290,13 @@ export const ProjectsListView = forwardRef<HTMLDivElement, Props>(function Proje
         onConfirm={handleConfirmImport}
         onMerge={handleMergeImport}
         onCancel={handleCancelPreview}
+      />
+
+      {/* Export selected projects picker */}
+      <SelectProjectsExportDialog
+        open={selectExportOpen}
+        projects={projects}
+        onOpenChange={setSelectExportOpen}
       />
     </div>
   );

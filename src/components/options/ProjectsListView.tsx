@@ -79,10 +79,13 @@ function buildImportSummary(preview: BundlePreview, mode: "merge" | "replace"): 
   const projects = countCategory(preview.projectItems, preview.existingProjectCount, mode);
   const scripts = countCategory(preview.scriptItems, preview.existingScriptCount, mode);
   const configs = countCategory(preview.configItems, preview.existingConfigCount, mode);
+  const totalMatched = projects.matched + scripts.matched + configs.matched;
+  const totalUnmatched = projects.unmatched + scripts.unmatched + configs.unmatched;
   return [
     formatCategoryLine("Projects", projects),
     formatCategoryLine("Scripts", scripts),
     formatCategoryLine("Configs", configs),
+    `Total: ${totalMatched} matched, ${totalUnmatched} new`,
   ].join("\n");
 }
 

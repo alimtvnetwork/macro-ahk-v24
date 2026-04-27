@@ -464,9 +464,9 @@ export async function listSessionsWithTimestamps(): Promise<SessionInfo[]> {
                         const fh = await dir.getFileHandle(fname);
                         const file = await fh.getFile();
                         if (file.lastModified > latestMs) latestMs = file.lastModified;
-                    } catch { /* file may not exist */ }
+                    } catch { /* file may not exist */ } // allow-swallow: missing log file is expected
                 }
-            } catch { /* dir unreadable */ }
+            } catch { /* dir unreadable */ } // allow-swallow: unreadable session dir is skipped
 
             results.push({
                 id: sid,
@@ -546,13 +546,13 @@ export async function browseOpfsSessions(): Promise<{
                         });
                     }
                 }
-            } catch {
+            } catch { // allow-swallow: directory exists but can't be read; report empty file list
                 // Directory exists but can't be read
             }
 
             sessions.push({ sessionId: sid, absolutePath: absoluteDirPath, files, totalSizeBytes });
         }
-    } catch {
+    } catch { // allow-swallow: OPFS root or session-logs dir doesn't exist
         // OPFS root or session-logs dir doesn't exist
     }
 

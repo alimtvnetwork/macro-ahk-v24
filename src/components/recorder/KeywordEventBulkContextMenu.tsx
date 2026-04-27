@@ -498,7 +498,15 @@ function persistSequence(input: SequenceRenameInput): void {
     }
 }
 
-export function BulkRenameSequenceDialog(props: BulkRenameSequenceDialogProps): JSX.Element {
+function clearPersistedSequence(): void {
+    if (typeof localStorage === "undefined") return;
+    try {
+        localStorage.removeItem(SEQUENCE_RENAME_STORAGE_KEY);
+        localStorage.removeItem(LEGACY_SEQUENCE_KEY_V1);
+    } catch {
+        // Best-effort; reset still applies to the in-memory state.
+    }
+}
     const { open, onOpenChange, selectedEvents, allEvents, onApply } = props;
     const [input, setInput] = useState<SequenceRenameInput>(loadPersistedSequence);
 

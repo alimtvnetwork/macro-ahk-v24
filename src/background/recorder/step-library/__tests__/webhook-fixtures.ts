@@ -67,6 +67,7 @@ export function makeWebhookSkipped(
     overrides: Partial<WebhookDeliverySkipped> = {},
 ): WebhookDeliverySkipped {
     return {
+        SchemaVersion: WEBHOOK_RESULT_SCHEMA_VERSION,
         Kind: "skipped",
         Ok: true,
         Skipped: true,

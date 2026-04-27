@@ -152,6 +152,19 @@ function handleNonAuthError(resp: SdkApiResponse): void {
   });
 }
 
+function schedulePostParseEnrichment(): void {
+  // Fire-and-forget — pro_0 rows refresh asynchronously and trigger a UI update on completion.
+  applyProZeroEnrichment()
+    .then(function (mutated: number): void {
+      if (mutated === 0) return;
+      syncCreditStateFromApi();
+      mc().updateUI();
+    })
+    .catch(function (err: unknown): void {
+      logError('credit-fetch', 'pro_0 enrichment failed', err);
+    });
+}
+
 async function processSuccessData(
   data: Record<string, unknown>,
   autoDetectFn?: (token: string) => Promise<void>,
@@ -168,6 +181,7 @@ async function processSuccessData(
     mc().updateUI();
     log('Credit API: display updated (workspace detected)', 'success');
     nsCallTyped('_internal.updateAuthDiag');
+    schedulePostParseEnrichment();
 
     return;
   }
@@ -175,6 +189,7 @@ async function processSuccessData(
   syncCreditStateFromApi();
   mc().updateUI();
   nsCallTyped('_internal.updateAuthDiag');
+  schedulePostParseEnrichment();
 }
 
 // ============================================

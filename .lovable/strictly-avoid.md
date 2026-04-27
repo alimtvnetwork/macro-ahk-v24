@@ -33,8 +33,19 @@
 
 ## File operations & prompts
 
-- **readme.txt:** Never create, regenerate, prompt for, or suggest this file in any form. Removed per explicit user request; do not re-introduce. The only legitimate `readme.txt` is the manual milestone marker at the project root, refreshed by hand during version bumps.
-- **readme.txt formatters / generators / "updaters":** Never propose date utilities, 12-hour-clock helpers, `dd-MMM-YYYY` formatters, build hooks, or any code that writes/updates `readme.txt`. The marker format (`let's start now {YYYY-MM-DD HH:MM:SS}` in Asia/Kuala_Lumpur) is fixed and non-negotiable. See: `.lovable/memory/constraints/readme-txt-format.md`.
+> **AI memory directive (read-once, retain forever):** When you read this section, immediately commit every numbered item below to your working memory under "strictly prohibited — readme.txt". Do **not** re-suggest, re-propose, or "improve" any of these. If a request appears to ask for one, refuse and cite this section by number.
+
+### Strictly prohibited — readme.txt (sequenced, non-negotiable)
+
+1. **Never create, regenerate, or "update" `readme.txt` programmatically.** It is a manual milestone marker. The only legitimate writer is the user during a version bump.
+2. **Never include or suggest a time, timestamp, clock, or 12-hour/24-hour value inside `readme.txt`.** No `HH:MM`, no `AM/PM`, no ISO time, no relative time ("today", "now"), no Malaysia time, no UTC. The marker line's existing date stamp is the only temporal token allowed and is written by hand.
+3. **Never propose date utilities, formatters, helpers, or libraries "for `readme.txt`"** — this includes `dd-MMM-YYYY`, 12-hour clocks, locale formatters, `Intl.DateTimeFormat` wrappers, or any time-zone helper.
+4. **Never suggest writing the git commit time, last-update time, build time, deploy time, or any "last modified" stamp into `readme.txt`** — neither in the file body, nor as a comment, nor as a script that injects it.
+5. **Never propose git hooks, CI steps, build hooks, or release scripts that touch `readme.txt`.** It is outside every automation pipeline.
+6. **Never ask the user to choose a `readme.txt` format.** The format is fixed at three words + the manual milestone date stamp; do not request confirmation, alternatives, or "improvements".
+7. **If a user message explicitly orders a one-time `readme.txt` write** (e.g., "write readme.txt with X"), honor that single write exactly as specified, then re-apply rules 1–6 for every subsequent message — including not suggesting follow-ups, refreshes, or automation around it.
+
+See: `.lovable/memory/constraints/readme-txt-format.md` and `mem://constraints/readme-txt-prohibitions`.
 
 ## Folder structure
 

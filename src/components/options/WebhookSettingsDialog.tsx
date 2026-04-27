@@ -18,7 +18,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ChevronDown, Copy, Plus, RefreshCw, Send, Trash2, Webhook } from "lucide-react";
+import { ChevronDown, Copy, Plus, RefreshCw, Send, Trash2, Webhook, Wrench } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +35,16 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import {
     ALL_WEBHOOK_EVENTS,
@@ -43,6 +53,7 @@ import {
     dispatchWebhook,
     getDeliveryLog,
     loadWebhookConfig,
+    repairDeliveryLog,
     saveWebhookConfig,
     type WebhookConfig,
     type WebhookEventKind,
@@ -55,6 +66,19 @@ import {
     isWebhookSkipped,
     isWebhookSuccess,
 } from "@/background/recorder/step-library/result-webhook";
+
+/**
+ * A delivery-log entry is a "corrupt placeholder" when the loader could not
+ * validate the original row and substituted a synthetic failure (see
+ * `buildCorruptPlaceholder` in `result-webhook.ts`). We detect them by the
+ * stable error-message prefix so the Repair button can show an accurate count
+ * without leaking a brittle Kind discriminator.
+ */
+const CORRUPT_PLACEHOLDER_PREFIX = "Corrupt webhook log entry";
+
+function isCorruptPlaceholder(entry: WebhookDeliveryResult): boolean {
+    return isWebhookFailure(entry) && entry.Error.startsWith(CORRUPT_PLACEHOLDER_PREFIX);
+}
 
 interface Props {
     readonly open: boolean;
@@ -199,6 +223,8 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
     const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
     const [payloadOpenIdx, setPayloadOpenIdx] = useState<number | null>(null);
     const [statusFilter, setStatusFilter] = useState<"all" | "success" | "skipped" | "failure">("all");
+    const [repairConfirmOpen, setRepairConfirmOpen] = useState(false);
+    const [repairBusy, setRepairBusy] = useState(false);
 
     useEffect(() => {
         if (open) {
@@ -312,7 +338,39 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
         setLog(getDeliveryLog());
     };
 
+    const corruptCount = useMemo(
+        () => log.reduce((acc, entry) => acc + (isCorruptPlaceholder(entry) ? 1 : 0), 0),
+        [log],
+    );
+
+    const handleRepair = () => {
+        setRepairBusy(true);
+        try {
+            const report = repairDeliveryLog();
+            setLog(getDeliveryLog());
+            setExpandedIdx(null);
+            setPayloadOpenIdx(null);
+
+            if (report.Removed === 0 && report.Errors.length === 0) {
+                toast.success("No corrupted entries found — log is clean");
+            } else if (report.Removed === 0 && report.Errors.length > 0) {
+                // Storage-level corruption (unparsable JSON / wrong shape) — key was reset
+                toast.success(`Reset corrupted webhook log storage (${report.Errors[0]})`);
+            } else {
+                toast.success(
+                    `Repaired webhook log — removed ${report.Removed} corrupted entr${report.Removed === 1 ? "y" : "ies"}, kept ${report.Kept}`,
+                );
+            }
+        } catch (err) {
+            toast.error(`Repair failed: ${err instanceof Error ? err.message : String(err)}`);
+        } finally {
+            setRepairBusy(false);
+            setRepairConfirmOpen(false);
+        }
+    };
+
     return (
+        <>
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-2xl">
                 <DialogHeader>
@@ -455,6 +513,19 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                         <Send className="mr-1 h-3.5 w-3.5" />
                                         {busy ? "Sending…" : "Send test ping"}
                                     </Button>
+                                    {corruptCount > 0 && (
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => setRepairConfirmOpen(true)}
+                                            disabled={repairBusy}
+                                            title={`Remove ${corruptCount} corrupted entr${corruptCount === 1 ? "y" : "ies"} from the log`}
+                                            className="border-destructive/60 text-destructive hover:bg-destructive/10"
+                                        >
+                                            <Wrench className="mr-1 h-3.5 w-3.5" />
+                                            {repairBusy ? "Repairing…" : `Repair (${corruptCount})`}
+                                        </Button>
+                                    )}
                                     {log.length > 0 && (
                                         <Button size="sm" variant="ghost" onClick={handleClearLog}>
                                             Clear
@@ -652,5 +723,47 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        <AlertDialog open={repairConfirmOpen} onOpenChange={setRepairConfirmOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                        <Wrench className="h-4 w-4 text-destructive" />
+                        Repair corrupted webhook log?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription asChild>
+                        <div className="space-y-2 text-sm">
+                            <p>
+                                This will scan the locally stored webhook delivery log and
+                                permanently remove every entry that fails validation
+                                (missing/wrong fields, unparsable JSON, or wrong shape).
+                            </p>
+                            <p>
+                                <span className="font-semibold text-destructive">{corruptCount}</span>{" "}
+                                corrupted entr{corruptCount === 1 ? "y" : "ies"} will be removed.
+                                Valid history is preserved.
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                This action cannot be undone.
+                            </p>
+                        </div>
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel disabled={repairBusy}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                        onClick={(e) => {
+                            e.preventDefault();
+                            handleRepair();
+                        }}
+                        disabled={repairBusy}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                        {repairBusy ? "Repairing…" : "Repair log"}
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+        </>
     );
 }

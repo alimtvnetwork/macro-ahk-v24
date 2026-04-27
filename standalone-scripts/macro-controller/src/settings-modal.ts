@@ -264,6 +264,7 @@ export function showSettingsModal(): void {
       next = {
         expiryGracePeriodDays: parseInput(state.graceInput, 'Expiry Grace Period'),
         refillWarningThresholdDays: parseInput(state.refillInput, 'Refill Warning Threshold'),
+        proZeroCreditBalanceCacheTtlMinutes: parseInput(state.proZeroTtlInput, 'Pro_0 Cache TTL'),
       };
     } catch (err: unknown) {
       state = { ...state, error: err instanceof Error ? err.message : String(err) };

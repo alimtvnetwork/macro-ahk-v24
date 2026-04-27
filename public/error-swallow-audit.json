@@ -1,38 +1,11 @@
 {
-  "GeneratedAt": "2026-04-27T22:57:31.715Z",
+  "GeneratedAt": "2026-04-27T23:23:34.193Z",
   "Items": [
     {
       "Id": "f91a4d4d688a",
       "Severity": "P0",
       "File": "src/background/auth-health-handler.ts",
       "Line": 167,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
-    {
-      "Id": "90c88c03b0f3",
-      "Severity": "P0",
-      "File": "src/background/boot.ts",
-      "Line": 198,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
-    {
-      "Id": "a556236c68f8",
-      "Severity": "P0",
-      "File": "src/background/boot.ts",
-      "Line": 259,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
-    {
-      "Id": "a3057cc36772",
-      "Severity": "P0",
-      "File": "src/background/boot.ts",
-      "Line": 264,
       "Rule": "no-empty-catch",
       "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
       "Snippet": "catch {"
@@ -843,6 +816,15 @@
       "Severity": "P2",
       "File": "src/components/recorder/KeywordEventStepContextMenu.tsx",
       "Line": 111,
+      "Rule": "no-empty-catch",
+      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
+      "Snippet": "catch {"
+    },
+    {
+      "Id": "8af5fd458480",
+      "Severity": "P2",
+      "File": "src/components/webhook/CopyLogButton.tsx",
+      "Line": 23,
       "Rule": "no-empty-catch",
       "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
       "Snippet": "catch {"

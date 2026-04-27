@@ -97,7 +97,10 @@ const missingImporters = KNOWN_IMPORTERS.filter((rel) => !existsSync(join(ROOT, 
 if (missingImporters.length > 0) {
     fail(
         `Known importer file(s) missing — update KNOWN_IMPORTERS in this script if files were intentionally removed.\n` +
-        `   Missing paths : ${missingImporters.map((p) => join(ROOT, p)).join("\n                   ")}\n` +
+        `   Working dir   : ${process.cwd()}\n` +
+        `   Repo root     : ${ROOT}\n` +
+        `   Search glob   : ${ROOT}/{${KNOWN_IMPORTERS.join(",")}}\n` +
+        `   Missing paths :\n${missingImporters.map((p) => `      - ${join(ROOT, p)}`).join("\n")}\n` +
         `   Reason        : The guard tracks importers explicitly so silent drift cannot mask a broken import graph.`
     );
 }

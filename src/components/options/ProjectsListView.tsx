@@ -148,12 +148,35 @@ export const ProjectsListView = forwardRef<HTMLDivElement, Props>(function Proje
 
     setImporting(true);
     try {
+      // Compute preview up-front so we can attach a per-category breakdown
+      // (matched / new / untouched) to the success toast — same shape as
+      // the preview-dialog flow uses for both replace and merge modes.
+      let breakdown: string | null = null;
+      try {
+        const pv = await previewSqliteZip(file);
+        breakdown = buildImportSummary(pv, importMode);
+      } catch (previewErr) {
+        // Preview is best-effort; fall back to the headline counts only.
+        const msg = previewErr instanceof Error ? previewErr.message : String(previewErr);
+        console.warn("[ProjectsListView] preview for toast breakdown failed:", msg);
+      }
+
+      const description = breakdown
+        ? { description: <span style={{ whiteSpace: "pre-line" }}>{breakdown}</span> }
+        : undefined;
+
       if (importMode === "replace") {
         const result = await importFromSqliteZip(file);
-        toast.success(`Replaced with ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs, ${result.promptCount} prompts`);
+        toast.success(
+          `Replaced with ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs, ${result.promptCount} prompts`,
+          description,
+        );
       } else {
         const result = await mergeFromSqliteZip(file);
-        toast.success(`Merged ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs, ${result.promptCount} prompts`);
+        toast.success(
+          `Merged ${result.projectCount} projects, ${result.scriptCount} scripts, ${result.configCount} configs, ${result.promptCount} prompts`,
+          description,
+        );
       }
       window.location.reload();
     } catch (err) {

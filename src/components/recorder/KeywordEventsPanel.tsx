@@ -390,6 +390,15 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                 </Button>
             </div>
 
+            {isRunning && currentStepIndex !== null && currentStepIndex >= 0 && currentStepIndex < event.Steps.length && (
+                <LiveDispatchPreview
+                    eventId={event.Id}
+                    step={event.Steps[currentStepIndex]}
+                    stepIndex={currentStepIndex}
+                    totalSteps={event.Steps.length}
+                />
+            )}
+
             <Input
                 value={event.Description}
                 onChange={e => onUpdate({ Description: e.target.value })}

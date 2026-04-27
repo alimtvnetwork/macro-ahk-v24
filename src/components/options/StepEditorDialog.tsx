@@ -312,6 +312,32 @@ export default function StepEditorDialog(props: StepEditorDialogProps): JSX.Elem
                                 </SelectContent>
                             </Select>
                         </div>
+                    ) : kind === StepKindId.Hotkey ? (
+                        <div className="space-y-3">
+                            <div className="space-y-1">
+                                <Label htmlFor="hotkey-capture">Key combinations</Label>
+                                <HotkeyChordCapture
+                                    id="hotkey-capture"
+                                    value={hotkeyChords}
+                                    onChange={setHotkeyChords}
+                                />
+                                <p className="text-[11px] text-muted-foreground">
+                                    Each chord is dispatched in order during playback (AutoHotkey-style).
+                                    Backspace removes the last chord; Esc stops listening.
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                <Label htmlFor="hotkey-wait">Wait after (ms, optional)</Label>
+                                <Input
+                                    id="hotkey-wait"
+                                    type="number"
+                                    min={0}
+                                    value={hotkeyWaitMs}
+                                    placeholder="e.g. 500"
+                                    onChange={(e) => setHotkeyWaitMs(e.target.value)}
+                                />
+                            </div>
+                        </div>
                     ) : (
                         <div className="space-y-1">
                             <Label htmlFor="step-payload">Payload JSON</Label>

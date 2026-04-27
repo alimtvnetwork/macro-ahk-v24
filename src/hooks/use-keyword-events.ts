@@ -45,6 +45,15 @@ export interface KeywordEvent {
      * so existing data keeps working.
      */
     readonly Target?: KeywordEventTarget;
+    /**
+     * Optional per-event override for the inter-event pause used by
+     * `runKeywordEventChain`. When set to a finite, non-negative number,
+     * this value replaces the chain's global `PauseMs` for the gap
+     * *after* this event finishes. When undefined, the chain's global
+     * pause applies. Clamped to `[0, 60_000]` ms by the chain runner
+     * before being honored.
+     */
+    readonly PauseAfterMs?: number;
 }
 
 export interface UseKeywordEventsApi {

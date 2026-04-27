@@ -183,3 +183,116 @@ describe("runKeywordEventChain", () => {
         expect(runner).not.toHaveBeenCalled();
     });
 });
+
+/* ------------------------------------------------------------------ */
+/*  Per-event PauseAfterMs override                                    */
+/* ------------------------------------------------------------------ */
+
+describe("runKeywordEventChain — per-event PauseAfterMs override", () => {
+    it("uses the per-event override instead of the global pause", async () => {
+        vi.useFakeTimers();
+        const runner = vi.fn(async (): Promise<PlaybackResult> => mkResult());
+        const events: KeywordEvent[] = [
+            { ...mkEvent("a"), PauseAfterMs: 100 },
+            mkEvent("b"),
+        ];
+        const promise = runKeywordEventChain(events, { pauseMs: 5_000, runner });
+
+        await vi.advanceTimersByTimeAsync(0);
+        expect(runner).toHaveBeenCalledTimes(1);
+
+        // Just past the override (100ms) — second event must fire,
+        // proving we did NOT wait the 5_000 global pause.
+        await vi.advanceTimersByTimeAsync(101);
+        expect(runner).toHaveBeenCalledTimes(2);
+
+        await promise;
+        vi.useRealTimers();
+    });
+
+    it("falls back to the global pause when the override is undefined", async () => {
+        vi.useFakeTimers();
+        const runner = vi.fn(async (): Promise<PlaybackResult> => mkResult());
+        const promise = runKeywordEventChain(
+            [mkEvent("a"), mkEvent("b")],
+            { pauseMs: 200, runner },
+        );
+
+        await vi.advanceTimersByTimeAsync(0);
+        expect(runner).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(150);
+        expect(runner).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(60);
+        expect(runner).toHaveBeenCalledTimes(2);
+
+        await promise;
+        vi.useRealTimers();
+    });
+
+    it("treats an override of 0 as 'no pause'", async () => {
+        vi.useFakeTimers();
+        const runner = vi.fn(async (): Promise<PlaybackResult> => mkResult());
+        const events: KeywordEvent[] = [
+            { ...mkEvent("a"), PauseAfterMs: 0 },
+            mkEvent("b"),
+        ];
+        const promise = runKeywordEventChain(events, { pauseMs: 10_000, runner });
+        await vi.advanceTimersByTimeAsync(0);
+        expect(runner).toHaveBeenCalledTimes(2);
+        await promise;
+        vi.useRealTimers();
+    });
+
+    it("clamps an over-large override to the runner's max (60_000)", async () => {
+        vi.useFakeTimers();
+        const runner = vi.fn(async (): Promise<PlaybackResult> => mkResult());
+        const events: KeywordEvent[] = [
+            { ...mkEvent("a"), PauseAfterMs: 9_999_999 },
+            mkEvent("b"),
+        ];
+        const promise = runKeywordEventChain(events, { pauseMs: 0, runner });
+        await vi.advanceTimersByTimeAsync(0);
+        expect(runner).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(60_001);
+        expect(runner).toHaveBeenCalledTimes(2);
+        await promise;
+        vi.useRealTimers();
+    });
+
+    it("ignores negative / non-finite overrides and uses the global pause", async () => {
+        vi.useFakeTimers();
+        const runner = vi.fn(async (): Promise<PlaybackResult> => mkResult());
+        const events: KeywordEvent[] = [
+            { ...mkEvent("a"), PauseAfterMs: -50 },
+            { ...mkEvent("b"), PauseAfterMs: Number.NaN },
+            mkEvent("c"),
+        ];
+        const promise = runKeywordEventChain(events, { pauseMs: 100, runner });
+
+        await vi.advanceTimersByTimeAsync(0);
+        expect(runner).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(101);
+        expect(runner).toHaveBeenCalledTimes(2);
+        await vi.advanceTimersByTimeAsync(101);
+        expect(runner).toHaveBeenCalledTimes(3);
+
+        await promise;
+        vi.useRealTimers();
+    });
+
+    it("does not pause after the final event regardless of override", async () => {
+        vi.useFakeTimers();
+        const runner = vi.fn(async (): Promise<PlaybackResult> => mkResult());
+        const events: KeywordEvent[] = [
+            mkEvent("a"),
+            { ...mkEvent("b"), PauseAfterMs: 30_000 },
+        ];
+        const promise = runKeywordEventChain(events, { pauseMs: 0, runner });
+        await vi.advanceTimersByTimeAsync(0);
+        const r = await promise;
+        expect(r.EventsCompleted).toBe(2);
+        expect(vi.getTimerCount()).toBe(0);
+        vi.useRealTimers();
+    });
+});
+

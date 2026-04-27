@@ -255,6 +255,13 @@ export function FloatingController(props: FloatingControllerProps): JSX.Element 
                     </div>
                     <div className="flex items-center gap-1 pt-1">
                         <ToolToggle
+                            active={showActions}
+                            onClick={() => setShowActions((p) => !p)}
+                            icon={<Activity className="h-3 w-3" />}
+                            label="Actions"
+                            testid="controller-toggle-actions"
+                        />
+                        <ToolToggle
                             active={showTree}
                             onClick={() => setShowTree((p) => !p)}
                             icon={<Layers className="h-3 w-3" />}
@@ -269,6 +276,7 @@ export function FloatingController(props: FloatingControllerProps): JSX.Element 
                             testid="controller-toggle-hotkey"
                         />
                     </div>
+                    {showActions ? <LiveRecordedActionsTree /> : null}
                     {showHotkey ? <HotkeyQuickAdd onClose={() => setShowHotkey(false)} /> : null}
                     {showTree ? <RecorderLiveTreePanel /> : null}
                 </>

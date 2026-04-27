@@ -202,6 +202,7 @@ export function KeywordEventBulkContextMenu(
                 open={dialog === "rename"}
                 onOpenChange={(o) => setDialog(o ? "rename" : null)}
                 selectedEvents={selectedEvents}
+                allEvents={allEvents}
                 onApply={(input) => {
                     selectedEvents.forEach((ev, i) => {
                         onUpdateEvent(ev.Id, { Keyword: renderSequenceName(input, i) });

@@ -27,6 +27,12 @@ import type {
     SelectorDraft,
     StepDraft,
 } from "./step-persistence";
+import {
+    deriveGlobPattern,
+    shouldRecordAsUrlTabClick,
+    type CaptureClickContext,
+    type UrlTabClickParams,
+} from "./url-tab-click";
 
 /** Subset of the Phase 06 `XPATH_CAPTURED` payload the bridge consumes. */
 export interface XPathCapturePayload {
@@ -36,6 +42,12 @@ export interface XPathCapturePayload {
     readonly SuggestedVariableName: string;
     readonly TagName: string;
     readonly Text: string;
+    /**
+     * Optional UrlTabClick hints from the capture engine (Spec 19.1.4).
+     * When supplied AND `shouldRecordAsUrlTabClick` returns true, the bridge
+     * persists the step as `StepKindId.UrlTabClick` instead of plain `Click`.
+     */
+    readonly UrlTabClickHint?: CaptureClickContext;
 }
 
 /* ------------------------------------------------------------------ */
@@ -140,12 +152,45 @@ export function buildStepDraftFromCapture(
         });
     }
 
+    const urlTabParams = deriveUrlTabClickParams(payload);
+
     return {
-        StepKindId: inferStepKind(payload.TagName),
+        StepKindId: urlTabParams === null
+            ? inferStepKind(payload.TagName)
+            : StepKindId.UrlTabClick,
         VariableName: payload.SuggestedVariableName,
         Label: buildLabel(payload),
         InlineJs: null,
+        ParamsJson: urlTabParams === null ? null : JSON.stringify(urlTabParams),
         IsBreakpoint: false,
         Selectors: selectors,
+    };
+}
+
+/* ------------------------------------------------------------------ */
+/*  UrlTabClick capture-time derivation (Spec 19.1.4)                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Returns `UrlTabClickParams` when the capture qualifies as a navigating
+ * click per `shouldRecordAsUrlTabClick`, else `null` so the caller falls
+ * back to the standard `Click`/`Type`/`Select` path.
+ */
+export function deriveUrlTabClickParams(
+    payload: XPathCapturePayload,
+): UrlTabClickParams | null {
+    const hint = payload.UrlTabClickHint;
+    if (hint === undefined) return null;
+    if (!shouldRecordAsUrlTabClick(hint)) return null;
+
+    const observedUrl = hint.OpenedTabUrl ?? hint.Href ?? "";
+    if (observedUrl === "") return null;
+
+    return {
+        UrlPattern: deriveGlobPattern(observedUrl),
+        UrlMatch: "Glob",
+        Mode: "OpenNew",
+        Selector: payload.XPathFull,
+        SelectorKind: "XPath",
     };
 }

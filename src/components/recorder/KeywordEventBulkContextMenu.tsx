@@ -91,7 +91,7 @@ export interface KeywordEventBulkContextMenuProps {
     readonly onClearSelection: () => void;
 }
 
-type DialogKind = null | "tags-add" | "tags-remove" | "category" | "rename" | "export";
+type DialogKind = null | "tags-add" | "tags-remove" | "category" | "rename" | "export" | "delete";
 
 export function KeywordEventBulkContextMenu(
     props: KeywordEventBulkContextMenuProps,
@@ -112,9 +112,10 @@ export function KeywordEventBulkContextMenu(
         for (const ev of selectedEvents) onUpdateEvent(ev.Id, { Enabled: enabled });
     };
 
-    const handleDelete = (): void => {
+    const handleDeleteConfirmed = (): void => {
         for (const ev of selectedEvents) onRemoveEvent(ev.Id);
         onClearSelection();
+        setDialog(null);
     };
 
     return (
@@ -175,10 +176,10 @@ export function KeywordEventBulkContextMenu(
                     <ContextMenuSeparator />
                     <ContextMenuItem
                         className="text-destructive focus:text-destructive"
-                        onSelect={handleDelete}
+                        onSelect={() => setDialog("delete")}
                         data-testid="keyword-events-context-delete"
                     >
-                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete…
                     </ContextMenuItem>
                 </ContextMenuContent>
             </ContextMenu>
@@ -230,6 +231,12 @@ export function KeywordEventBulkContextMenu(
                 open={dialog === "export"}
                 onOpenChange={(o) => setDialog(o ? "export" : null)}
                 selectedEvents={selectedEvents}
+            />
+            <BulkDeleteConfirmDialog
+                open={dialog === "delete"}
+                onOpenChange={(o) => setDialog(o ? "delete" : null)}
+                selectedEvents={selectedEvents}
+                onConfirm={handleDeleteConfirmed}
             />
         </>
     );
@@ -754,6 +761,87 @@ function BulkExportDialog(props: BulkExportDialogProps): JSX.Element {
                         data-testid="keyword-events-bulk-export-apply"
                     >
                         {busy ? "Building…" : "Download .zip"}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Delete confirm dialog                                              */
+/* ------------------------------------------------------------------ */
+
+interface BulkDeleteConfirmDialogProps {
+    readonly open: boolean;
+    readonly onOpenChange: (open: boolean) => void;
+    readonly selectedEvents: ReadonlyArray<KeywordEvent>;
+    readonly onConfirm: () => void;
+}
+
+function BulkDeleteConfirmDialog(props: BulkDeleteConfirmDialogProps): JSX.Element {
+    const { open, onOpenChange, selectedEvents, onConfirm } = props;
+    const count = selectedEvents.length;
+    const previewRows = selectedEvents.slice(0, 5);
+    const remainder = Math.max(0, count - previewRows.length);
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="max-w-md"
+                onKeyDown={(e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                        e.preventDefault();
+                        onConfirm();
+                    }
+                }}
+                data-testid="keyword-events-bulk-delete-dialog"
+            >
+                <DialogHeader>
+                    <DialogTitle>
+                        Delete {count} event{count === 1 ? "" : "s"}?
+                    </DialogTitle>
+                    <DialogDescription>
+                        This permanently removes the selected keyword event
+                        {count === 1 ? "" : "s"} and all of their steps. This
+                        action cannot be undone.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="rounded border border-border/60 bg-muted/30 p-2 text-xs">
+                    <ul className="space-y-0.5 font-mono">
+                        {previewRows.map((ev) => (
+                            <li
+                                key={ev.Id}
+                                data-testid={`keyword-events-bulk-delete-row-${ev.Id}`}
+                                className="truncate"
+                            >
+                                {ev.Keyword || <span className="italic opacity-70">(unnamed)</span>}
+                            </li>
+                        ))}
+                        {remainder > 0 && (
+                            <li className="italic text-muted-foreground">
+                                … and {remainder} more
+                            </li>
+                        )}
+                    </ul>
+                </div>
+
+                <DialogFooter>
+                    <Button
+                        variant="ghost"
+                        onClick={() => onOpenChange(false)}
+                        data-testid="keyword-events-bulk-delete-cancel"
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="destructive"
+                        onClick={onConfirm}
+                        disabled={count === 0}
+                        data-testid="keyword-events-bulk-delete-confirm"
+                    >
+                        Delete {count} event{count === 1 ? "" : "s"}
                     </Button>
                 </DialogFooter>
             </DialogContent>

@@ -1151,7 +1151,7 @@ function BulkImportDialog(props: BulkImportDialogProps): JSX.Element {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
-                className="max-w-md"
+                className="max-w-2xl"
                 data-testid="keyword-events-bulk-import-dialog"
             >
                 <DialogHeader>

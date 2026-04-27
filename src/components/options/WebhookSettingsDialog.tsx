@@ -85,23 +85,31 @@ function formatPayloadJson(entry: WebhookDeliveryResult): string | null {
     }
 }
 
+function describeSuccess(entry: WebhookDeliverySuccess): string {
+    return `Status: OK (HTTP ${entry.Status})`;
+}
+
+function describeSkipped(entry: WebhookDeliverySkipped): string {
+    return `Status: Skipped\nSkip reason: ${entry.SkipReason}`;
+}
+
+function describeFailure(entry: WebhookDeliveryFailure): string {
+    const httpPart = entry.Status !== null ? ` (HTTP ${entry.Status})` : "";
+    return `Status: Failed${httpPart}\nError: ${entry.Error}`;
+}
+
 function buildLogClipboardText(entry: WebhookDeliveryResult): string {
-    const skipped = isWebhookSkipped(entry);
-    const success = isWebhookSuccess(entry);
     const lines: string[] = [
         `Event: ${entry.Event}`,
         `Emitted: ${entry.EmittedAt}`,
         `Duration: ${entry.DurationMs} ms`,
     ];
-    if (skipped) {
-        lines.push("Status: Skipped");
-        lines.push(`Skip reason: ${entry.SkipReason}`);
-    } else if (success) {
-        lines.push(`Status: OK (HTTP ${entry.Status})`);
-    } else {
-        const httpPart = entry.Status !== undefined && entry.Status !== null ? ` (HTTP ${entry.Status})` : "";
-        lines.push(`Status: Failed${httpPart}`);
-        lines.push(`Error: ${entry.Error}`);
+    if (isWebhookSkipped(entry)) {
+        lines.push(describeSkipped(entry));
+    } else if (isWebhookSuccess(entry)) {
+        lines.push(describeSuccess(entry));
+    } else if (isWebhookFailure(entry)) {
+        lines.push(describeFailure(entry));
     }
     const payloadJson = formatPayloadJson(entry);
     if (payloadJson !== null) {

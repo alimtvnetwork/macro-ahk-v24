@@ -50,7 +50,7 @@ async function persistLogEntry(
             projectId: context.projectId,
             configId: context.configId,
         } as MessageRequest);
-    } catch {
+    } catch { // allow-swallow: diagnostics must never break injection paths
         // Diagnostics must never break injection paths.
     }
 }
@@ -80,7 +80,7 @@ export async function persistInjectionError(
             configId: context.configId,
             scriptFile: context.scriptFile,
         } as MessageRequest);
-    } catch {
+    } catch { // allow-swallow: diagnostics must never break injection paths
         // Diagnostics must never break injection paths.
     }
 }
@@ -108,7 +108,7 @@ export async function mirrorDiagnosticToTab(
             },
             args: [message, level],
         });
-    } catch {
+    } catch { // allow-swallow: tab console mirroring is best-effort only
         // Tab console mirroring is best-effort only.
     }
 }
@@ -172,7 +172,7 @@ export async function mirrorPipelineLogsToTab(
             },
             args: [lines, groupTitle],
         });
-    } catch {
+    } catch { // allow-swallow: tab pipeline mirroring is best-effort only
         // Best-effort only.
     }
 }

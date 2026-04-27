@@ -55,7 +55,7 @@ export function recordTrail(entry: Omit<ClickTrailEntry, "at">): void {
             ? next.slice(next.length - MAX_ENTRIES)
             : next;
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
-    } catch {
+    } catch { // allow-swallow: sessionStorage may be unavailable (private mode/quota)
         // sessionStorage may be unavailable (private mode, quota); silently drop.
     }
 }
@@ -117,7 +117,7 @@ export function clearFrozenClickTrails(): void {
             }
         }
         keysToRemove.forEach((k) => sessionStorage.removeItem(k));
-    } catch {
+    } catch { // allow-swallow: clearing frozen trails is best-effort
         // ignore
     }
 }
@@ -137,7 +137,7 @@ function evictOldFrozenSnapshots(keepKey: string): void {
             .filter((k) => k !== keepKey)
             .slice(0, frozenKeys.length - MAX_FROZEN_SNAPSHOTS);
         toRemove.forEach((k) => sessionStorage.removeItem(k));
-    } catch {
+    } catch { // allow-swallow: snapshot eviction is best-effort
         // ignore
     }
 }

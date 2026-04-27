@@ -48,14 +48,13 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
     DEFAULT_SEQUENCE_RENAME,
-    buildExportFilename,
-    buildExportPayload,
     mergeTags,
     parseTagInput,
     removeTags,
     renderSequenceName,
     type SequenceRenameInput,
 } from "@/lib/keyword-event-bulk-actions";
+import { downloadKeywordEventsZip } from "@/lib/keyword-events-sqlite-export";
 import type { KeywordEvent } from "@/hooks/use-keyword-events";
 
 export interface KeywordEventBulkContextMenuProps {
@@ -424,22 +423,12 @@ function BulkExportDialog(props: BulkExportDialogProps): JSX.Element {
         setBusy(true);
         setError(null);
         try {
-            const payload = buildExportPayload(selectedEvents);
-            // Lazy-load JSZip — it's already on the dep list and shared with
-            // the SQLite bundle pipeline, so this stays out of the main chunk.
-            const mod = await import("jszip");
-            const JSZipCtor = mod.default;
-            const zip = new JSZipCtor();
-            zip.file("keyword-events.json", JSON.stringify(payload, null, 2));
-            const blob = await zip.generateAsync({ type: "blob" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = buildExportFilename();
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
+            // Real SQLite DB inside the .zip — same PascalCase + Uid + Meta
+            // conventions as `marco-backup.zip`, with a `bundle_kind` marker
+            // so a future importer can branch between full backups and
+            // partial keyword-event bundles. A JSON snapshot ships alongside
+            // for diff-friendly review and JSON-only re-import.
+            await downloadKeywordEventsZip(selectedEvents);
             onOpenChange(false);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Export failed");
@@ -455,7 +444,10 @@ function BulkExportDialog(props: BulkExportDialogProps): JSX.Element {
                     <DialogTitle>Export selected as ZIP</DialogTitle>
                     <DialogDescription>
                         Bundles {selectedEvents.length} event{selectedEvents.length === 1 ? "" : "s"} into a
-                        downloadable .zip containing <code>keyword-events.json</code>.
+                        downloadable .zip containing a real SQLite database
+                        (<code>keyword-events.db</code>) plus a
+                        readable <code>keyword-events.json</code> snapshot —
+                        the same export format the app uses elsewhere.
                     </DialogDescription>
                 </DialogHeader>
                 {error && (

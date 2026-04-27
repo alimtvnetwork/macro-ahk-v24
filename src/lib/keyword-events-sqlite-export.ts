@@ -1,0 +1,217 @@
+/**
+ * Marco Extension — Keyword Events SQLite Bundle Export
+ *
+ * Packages a selected subset of {@link KeywordEvent}s into a real SQLite
+ * database file (`keyword-events.db`) wrapped in a ZIP, using the same
+ * conventions as the full `marco-backup.zip` pipeline:
+ *
+ *   • PascalCase table + column names.
+ *   • `Id INTEGER PRIMARY KEY AUTOINCREMENT` with the runtime UUID stored
+ *     in a separate `Uid TEXT` column for diff/merge.
+ *   • A `Meta` table carrying `format_version`, `exported_at`, and a
+ *     `bundle_kind = 'keyword-events'` marker so a future importer can
+ *     distinguish a partial keyword-events export from a full bundle.
+ *   • Steps and Tags are persisted as JSON columns on the parent row to
+ *     keep the schema flat and the bundle trivially round-trippable
+ *     (Steps are an ordered, type-tagged list; Tags is a flat string
+ *     array — both already match the runtime shape).
+ *
+ * The full-backup contract in `sqlite-bundle-contract.ts` is unchanged on
+ * purpose: that contract guards `marco-backup.zip` (Projects/Scripts/
+ * Configs/Prompts/Meta). Partial keyword-event bundles are a separate
+ * shape identified by `Meta.bundle_kind`.
+ *
+ * Companion JSON snapshot (`keyword-events.json`) is also included in the
+ * ZIP so the bundle remains readable without sql.js — useful for diffs,
+ * code review, and the existing JSON importer roadmap item.
+ */
+
+import initSqlJs, { type Database } from "sql.js";
+import type JSZipType from "jszip";
+
+import type { KeywordEvent } from "@/hooks/use-keyword-events";
+import {
+    buildExportFilename,
+    buildExportPayload,
+} from "@/lib/keyword-event-bulk-actions";
+
+/* ------------------------------------------------------------------ */
+/*  Constants                                                          */
+/* ------------------------------------------------------------------ */
+
+const DB_FILENAME = "keyword-events.db";
+const JSON_FILENAME = "keyword-events.json";
+const WASM_URL = "https://sql.js.org/dist/sql-wasm.wasm";
+/** Format version for the keyword-events partial bundle. Bumped only when the
+ *  on-disk shape (table list, column names) changes in a non-additive way. */
+export const KEYWORD_EVENTS_FORMAT_VERSION = "1" as const;
+/** Marker stored in `Meta.bundle_kind` so a future importer can branch
+ *  between full backups and partial keyword-event bundles. */
+export const KEYWORD_EVENTS_BUNDLE_KIND = "keyword-events" as const;
+
+/* ------------------------------------------------------------------ */
+/*  Schema                                                             */
+/* ------------------------------------------------------------------ */
+
+const CREATE_KEYWORD_EVENTS_TABLE = `
+  CREATE TABLE IF NOT EXISTS KeywordEvents (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    Uid TEXT NOT NULL,
+    Keyword TEXT NOT NULL,
+    Description TEXT,
+    Enabled INTEGER NOT NULL DEFAULT 1,
+    Steps TEXT NOT NULL,
+    Target TEXT,
+    Tags TEXT,
+    PauseAfterMs INTEGER,
+    SortOrder INTEGER NOT NULL DEFAULT 0,
+    CreatedAt TEXT NOT NULL,
+    UpdatedAt TEXT NOT NULL
+  );
+`;
+
+const CREATE_META_TABLE = `
+  CREATE TABLE IF NOT EXISTS Meta (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    Key TEXT UNIQUE NOT NULL,
+    Value TEXT
+  );
+`;
+
+/* ------------------------------------------------------------------ */
+/*  sql.js plumbing                                                    */
+/* ------------------------------------------------------------------ */
+
+async function initDb(): Promise<Database> {
+    const SQL = await initSqlJs({ locateFile: () => WASM_URL });
+    return new SQL.Database();
+}
+
+/** Lazy JSZip loader — keeps the ~95 kB out of the recorder chunk. */
+async function loadJSZip(): Promise<typeof JSZipType> {
+    const mod = await import("jszip");
+    return mod.default;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Builders                                                           */
+/* ------------------------------------------------------------------ */
+
+function insertKeywordEvents(
+    db: Database,
+    events: ReadonlyArray<KeywordEvent>,
+    now: string,
+): void {
+    const stmt = db.prepare(`
+        INSERT INTO KeywordEvents
+            (Uid, Keyword, Description, Enabled, Steps, Target, Tags,
+             PauseAfterMs, SortOrder, CreatedAt, UpdatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    events.forEach((ev, i) => {
+        stmt.run([
+            ev.Id,
+            ev.Keyword ?? "",
+            ev.Description ?? null,
+            ev.Enabled ? 1 : 0,
+            JSON.stringify(ev.Steps ?? []),
+            ev.Target === undefined ? null : JSON.stringify(ev.Target),
+            ev.Tags === undefined ? null : JSON.stringify(ev.Tags),
+            typeof ev.PauseAfterMs === "number" ? ev.PauseAfterMs : null,
+            i,
+            now,
+            now,
+        ]);
+    });
+
+    stmt.free();
+}
+
+function insertMeta(db: Database, count: number, now: string): void {
+    db.run(`INSERT INTO Meta (Key, Value) VALUES ('format_version', ?)`, [
+        KEYWORD_EVENTS_FORMAT_VERSION,
+    ]);
+    db.run(`INSERT INTO Meta (Key, Value) VALUES ('bundle_kind', ?)`, [
+        KEYWORD_EVENTS_BUNDLE_KIND,
+    ]);
+    db.run(`INSERT INTO Meta (Key, Value) VALUES ('exported_at', ?)`, [now]);
+    db.run(`INSERT INTO Meta (Key, Value) VALUES ('event_count', ?)`, [String(count)]);
+}
+
+/**
+ * Builds an in-memory SQLite database carrying the selected keyword events.
+ * Exported separately from the zip pipeline so unit tests can assert on
+ * the on-disk schema without touching the DOM/Blob layer.
+ */
+export async function buildKeywordEventsSqliteDb(
+    events: ReadonlyArray<KeywordEvent>,
+): Promise<Uint8Array> {
+    const db = await initDb();
+    const now = new Date().toISOString();
+    try {
+        db.run(CREATE_KEYWORD_EVENTS_TABLE);
+        db.run(CREATE_META_TABLE);
+        insertKeywordEvents(db, events, now);
+        insertMeta(db, events.length, now);
+        return db.export();
+    } finally {
+        db.close();
+    }
+}
+
+export interface KeywordEventsZipResult {
+    readonly blob: Blob;
+    readonly filename: string;
+}
+
+/**
+ * Builds a ZIP containing both the SQLite DB and a human-readable JSON
+ * snapshot of the selected events. Returns the blob + suggested filename
+ * so the caller controls when/how to trigger the download.
+ */
+export async function buildKeywordEventsZip(
+    events: ReadonlyArray<KeywordEvent>,
+): Promise<KeywordEventsZipResult> {
+    const [dbData, JSZipCtor] = await Promise.all([
+        buildKeywordEventsSqliteDb(events),
+        loadJSZip(),
+    ]);
+
+    const zip = new JSZipCtor();
+    zip.file(DB_FILENAME, dbData);
+    zip.file(
+        JSON_FILENAME,
+        JSON.stringify(buildExportPayload(events), null, 2),
+    );
+
+    const blob = await zip.generateAsync({
+        type: "blob",
+        compression: "DEFLATE",
+    });
+    return { blob, filename: buildExportFilename() };
+}
+
+/**
+ * Convenience wrapper: builds the zip and triggers a browser download.
+ * Returns the blob + filename so callers can also surface the result
+ * (e.g. to a toast or post-export confirmation).
+ */
+export async function downloadKeywordEventsZip(
+    events: ReadonlyArray<KeywordEvent>,
+): Promise<KeywordEventsZipResult> {
+    const result = await buildKeywordEventsZip(events);
+    triggerDownload(result.blob, result.filename);
+    return result;
+}
+
+function triggerDownload(blob: Blob, filename: string): void {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+}

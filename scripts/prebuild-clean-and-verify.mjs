@@ -14,7 +14,7 @@
 
 import { existsSync, rmSync, statSync, readdirSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 

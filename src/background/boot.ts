@@ -34,7 +34,7 @@ import { configureUserScriptWorld } from "./csp-fallback";
 import { markInitialized, drainBuffer } from "./message-buffer";
 import { cacheScriptCode, getCachedScriptCode, purgeStaleEntries, syncCacheWithBuildId, invalidateCacheOnDeploy } from "./injection-cache";
 import { invalidateNamespaceCache } from "./namespace-cache";
-import { logCaughtError, BgLogTag} from "./bg-logger";
+import { logCaughtError, logBgWarnError, BgLogTag} from "./bg-logger";
 
 const BUILD_META_URL = "build-meta.json";
 
@@ -277,7 +277,9 @@ function bindAllHandlers(manager: DbManager): void {
     bindFileStorageDbManager(manager);
     // Wire file-change → namespace cache invalidation without circular import.
     onFileStorageChange((projectId) => {
-        invalidateNamespaceCache(projectId).catch(() => {});
+        invalidateNamespaceCache(projectId).catch((err) => {
+            logBgWarnError(BgLogTag.NS_CACHE, `invalidateNamespaceCache failed for project ${projectId} after file-storage change — cache may be stale until next rebuild`, err);
+        });
     });
     bindStorageBrowserDbManager(manager);
     bindUpdaterDbManager(manager);

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Allow-list of pre-existing swallowed-error sites. Each entry is matched on file + kind + snippet (line-agnostic). NEVER use this to silence new violations — fix the catch block, then run --update-baseline to drop the entry.",
-  "generatedAt": "2026-04-27T22:27:29.849Z",
+  "generatedAt": "2026-04-27T22:29:25.315Z",
   "entries": [
     {
       "file": "src/background/auth-health-handler.ts",
@@ -71,13 +71,6 @@
       "line": 264,
       "kind": "empty-catch",
       "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/boot.ts",
-      "line": 280,
-      "kind": "promise-catch-noop",
-      "snippet": ".catch(() => {})",
       "reason": "TODO: explain why this catch silently swallows, or fix it."
     },
     {
@@ -173,79 +166,23 @@
     },
     {
       "file": "src/background/handlers/injection-handler.ts",
-      "line": 503,
+      "line": 505,
       "kind": "empty-catch",
       "snippet": "catch {",
       "reason": "TODO: explain why this catch silently swallows, or fix it."
     },
     {
       "file": "src/background/handlers/injection-handler.ts",
-      "line": 616,
+      "line": 624,
       "kind": "empty-catch",
       "snippet": "catch {",
       "reason": "TODO: explain why this catch silently swallows, or fix it."
     },
     {
       "file": "src/background/handlers/injection-handler.ts",
-      "line": 296,
-      "kind": "promise-catch-noop",
-      "snippet": ".catch(() => {})",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/injection-handler.ts",
-      "line": 526,
-      "kind": "promise-catch-noop",
-      "snippet": ".catch(() => {})",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/injection-handler.ts",
-      "line": 532,
-      "kind": "promise-catch-noop",
-      "snippet": ".catch(() => {})",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/injection-handler.ts",
-      "line": 536,
-      "kind": "promise-catch-noop",
-      "snippet": ".catch(() => {})",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/injection-handler.ts",
-      "line": 627,
-      "kind": "promise-catch-noop",
-      "snippet": ".catch(() => {})",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/injection-handler.ts",
-      "line": 632,
-      "kind": "promise-catch-noop",
-      "snippet": ".catch(() => {})",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/injection-handler.ts",
-      "line": 715,
+      "line": 727,
       "kind": "promise-catch-noop",
       "snippet": ".catch(() => { })",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/injection-handler.ts",
-      "line": 735,
-      "kind": "promise-catch-noop",
-      "snippet": ".catch(() => {})",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/injection-handler.ts",
-      "line": 877,
-      "kind": "promise-catch-noop",
-      "snippet": ".catch(() => {})",
       "reason": "TODO: explain why this catch silently swallows, or fix it."
     },
     {
@@ -260,13 +197,6 @@
       "line": 280,
       "kind": "empty-catch",
       "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/handlers/project-handler.ts",
-      "line": 205,
-      "kind": "promise-catch-noop",
-      "snippet": ".catch(() => {})",
       "reason": "TODO: explain why this catch silently swallows, or fix it."
     },
     {
@@ -529,20 +459,6 @@
       "reason": "TODO: explain why this catch silently swallows, or fix it."
     },
     {
-      "file": "src/background/script-resolver.ts",
-      "line": 105,
-      "kind": "promise-catch-noop",
-      "snippet": ".catch(() => {})",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/background/script-resolver.ts",
-      "line": 108,
-      "kind": "promise-catch-noop",
-      "snippet": ".catch(() => {})",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
       "file": "src/background/service-worker-main.ts",
       "line": 39,
       "kind": "empty-catch",
@@ -764,13 +680,6 @@
       "line": 31,
       "kind": "empty-catch",
       "snippet": "catch {",
-      "reason": "TODO: explain why this catch silently swallows, or fix it."
-    },
-    {
-      "file": "src/components/popup/PopupFooter.tsx",
-      "line": 178,
-      "kind": "promise-catch-noop",
-      "snippet": ".catch(() => {})",
       "reason": "TODO: explain why this catch silently swallows, or fix it."
     },
     {

@@ -202,7 +202,9 @@ export async function handleSaveProject(
     await writeAllProjects(projects);
 
     // ✅ 15.8: Rebuild namespace cache on save (fire-and-forget)
-    rebuildNamespaceCache(saved).catch(() => {});
+    rebuildNamespaceCache(saved).catch((err) =>
+        logCaughtError(BgLogTag.NS_CACHE, `rebuildNamespaceCache failed for project "${saved.id}" after save — namespace cache may be stale until next rebuild`, err),
+    );
 
     // ✅ Seed bound configs into project SQLite DB (moved off injection hot path)
     seedBoundConfigs(saved).catch((e) =>

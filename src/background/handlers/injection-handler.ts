@@ -293,7 +293,9 @@ export async function handleInjectScripts(
     // Show loading spinner toast at start of injection
     const toastEnabledEarly = await isInjectionToastEnabled();
     if (toastEnabledEarly) {
-        void showInjectionLoadingToast(msg.tabId, msg.scripts.length).catch(() => {});
+        void showInjectionLoadingToast(msg.tabId, msg.scripts.length).catch((toastErr) => {
+            logBgWarnError(BgLogTag.INJECTION, `showInjectionLoadingToast failed (tab ${msg.tabId}, ${msg.scripts.length} scripts) — UI cosmetic only, pipeline continues`, toastErr);
+        });
     }
 
     // ── Force Run: clear cached payload before proceeding ──
@@ -523,17 +525,23 @@ export async function handleInjectScripts(
 
     // ── Post-injection verification — confirm globals actually landed in MAIN world ──
     if (successCount > 0) {
-        void verifyPostInjectionGlobals(msg.tabId).catch(() => {});
+        void verifyPostInjectionGlobals(msg.tabId).catch((verifyErr) => {
+            logBgWarnError(BgLogTag.INJECTION, `verifyPostInjectionGlobals scheduling failed (tab ${msg.tabId}) — verification skipped, pipeline already succeeded`, verifyErr);
+        });
     }
 
     // ── Show injection toasts if enabled ──
     const toastEnabled = await isInjectionToastEnabled();
     if (toastEnabled && successCount > 0) {
-        void showInjectionToastInTab(msg.tabId, successCount, execResults.length, totalMs).catch(() => {});
+        void showInjectionToastInTab(msg.tabId, successCount, execResults.length, totalMs).catch((toastErr) => {
+            logBgWarnError(BgLogTag.INJECTION, `showInjectionToastInTab (success) failed (tab ${msg.tabId}) — UI cosmetic only`, toastErr);
+        });
     }
     if (toastEnabled && failCount > 0) {
         const failedNames = execResults.filter(r => !r.isSuccess).map(r => r.scriptName ?? r.scriptId);
-        void showInjectionFailureToastInTab(msg.tabId, failedNames, failCount, execResults.length, totalMs).catch(() => {});
+        void showInjectionFailureToastInTab(msg.tabId, failedNames, failCount, execResults.length, totalMs).catch((toastErr) => {
+            logBgWarnError(BgLogTag.INJECTION, `showInjectionFailureToastInTab failed (tab ${msg.tabId}, ${failCount} failed scripts) — UI cosmetic only`, toastErr);
+        });
     }
 
     return { results, inlineSyntaxErrorDetected: hasInlineSyntaxError };
@@ -624,12 +632,16 @@ async function executeCachedPayload(
     recordInjection(tabId, scripts, execResult.path, execResult.domTarget, totalMs, budgetMs);
 
     if (successCount > 0) {
-        void verifyPostInjectionGlobals(tabId).catch(() => {});
+        void verifyPostInjectionGlobals(tabId).catch((verifyErr) => {
+            logBgWarnError(BgLogTag.INJECTION, `verifyPostInjectionGlobals (cached path) scheduling failed (tab ${tabId}) — verification skipped`, verifyErr);
+        });
     }
 
     const toastEnabled = await isInjectionToastEnabled();
     if (toastEnabled && successCount > 0) {
-        void showInjectionToastInTab(tabId, successCount, results.length, totalMs).catch(() => {});
+        void showInjectionToastInTab(tabId, successCount, results.length, totalMs).catch((toastErr) => {
+            logBgWarnError(BgLogTag.INJECTION, `showInjectionToastInTab (cached path success) failed (tab ${tabId}) — UI cosmetic only`, toastErr);
+        });
     }
 
     // Cached path skips the syntax preflight entirely (only reachable when
@@ -732,7 +744,9 @@ async function injectAllScripts(
                     matchedScript.injectable,
                     projectId,
                     matchedScript.codeSource,
-                ).catch(() => {});
+                ).catch((logErr) => {
+                    logBgWarnError(BgLogTag.INJECTION, `logInjectionSuccess self-failed for "${matchedScript.injectable.name ?? matchedScript.injectable.id}" (batch path) — telemetry suppressed but injection succeeded`, logErr);
+                });
             }
 
             console.log("[injection] 4/4 EXECUTE  — batch ✅ %d scripts via %s in %dms",
@@ -874,7 +888,9 @@ async function injectSingleScript(
             script.name, execResult.path, execResult.domTarget, performance.now() - execStart, tabId);
 
         // Fire-and-forget: don't block injection for logging
-        logInjectionSuccess(script, projectId, resolvedCodeSource).catch(() => {});
+        logInjectionSuccess(script, projectId, resolvedCodeSource).catch((logErr) => {
+            logBgWarnError(BgLogTag.INJECTION, `logInjectionSuccess self-failed for "${script.name}" (single-script path) — telemetry suppressed but injection succeeded`, logErr);
+        });
         return buildSuccessResult(script.id, startTime, execResult.path, execResult.domTarget);
     } catch (injectionError) {
         logCaughtError(BgLogTag.INJECTION, `4/4 EXECUTE — "${script.name}" failed`, injectionError);

@@ -50,11 +50,13 @@ import { Badge } from "@/components/ui/badge";
 import {
     DEFAULT_SEQUENCE_RENAME,
     collectCategories,
+    computeSequencePreview,
     mergeTags,
     normaliseCategory,
     parseTagInput,
     removeTags,
     renderSequenceName,
+    type SequencePreviewIssue,
     type SequenceRenameInput,
 } from "@/lib/keyword-event-bulk-actions";
 import { downloadKeywordEventsZip } from "@/lib/keyword-events-sqlite-export";
@@ -65,6 +67,10 @@ export interface KeywordEventBulkContextMenuProps {
     readonly children: React.ReactNode;
     /** Events that are currently part of the selection set. */
     readonly selectedEvents: ReadonlyArray<KeywordEvent>;
+    /** Every event in the panel — used by Rename-in-sequence to detect
+     *  collisions with rows the user did NOT select. Optional; when omitted
+     *  collision detection is skipped. */
+    readonly allEvents?: ReadonlyArray<KeywordEvent>;
     /** Called when the user right-clicks a row that isn't yet selected — the
      *  parent should add it to the selection so the menu acts on it. */
     readonly onContextOpenForUnselected?: () => void;

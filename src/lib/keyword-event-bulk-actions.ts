@@ -95,7 +95,17 @@ export function computeSequencePreview(
     outsideKeywords: ReadonlyArray<string>,
 ): SequencePreviewSummary {
     const norm = (s: string): string => s.trim().toLowerCase();
-    const outside = new Set(outsideKeywords.map(norm).filter(k => k.length > 0));
+    // Build a map: normalised key → list of original-cased outside keywords
+    // sharing that key. Lets the UI surface "Login 01 collides with Login 01,
+    // login 01" when casing differs in the existing list.
+    const outsideByKey = new Map<string, string[]>();
+    for (const raw of outsideKeywords) {
+        const key = norm(raw);
+        if (key.length === 0) continue;
+        const bucket = outsideByKey.get(key);
+        if (bucket) bucket.push(raw);
+        else outsideByKey.set(key, [raw]);
+    }
 
     const proposed = selectedEvents.map((ev, i) => ({
         Id: ev.Id,
@@ -132,11 +142,18 @@ export function computeSequencePreview(
             issues.push("duplicate");
             duplicateCount += 1;
         }
-        if (key.length > 0 && outside.has(key)) {
+        const collidesWith = key.length > 0 ? (outsideByKey.get(key) ?? []) : [];
+        if (collidesWith.length > 0) {
             issues.push("collision");
             collisionCount += 1;
         }
-        return { Id: p.Id, Old: p.Old, Next: p.Next, Issues: issues };
+        return {
+            Id: p.Id,
+            Old: p.Old,
+            Next: p.Next,
+            Issues: issues,
+            CollidesWith: collidesWith,
+        };
     });
 
     return {

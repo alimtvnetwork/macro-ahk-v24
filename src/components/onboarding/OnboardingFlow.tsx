@@ -17,6 +17,7 @@ import {
   Lock,
 } from "lucide-react";
 import { toast } from "sonner";
+import { logError } from "@/components/options/options-logger";
 
 interface OnboardingFlowProps {
   onComplete: () => void;

@@ -34,11 +34,13 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertOctagon, AlertTriangle, FileWarning, RefreshCw, Info, ExternalLink } from "lucide-react";
+import { AlertOctagon, AlertTriangle, FileWarning, RefreshCw, Info, ExternalLink, Play, Terminal, Copy, Check } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+
+const AUDIT_CLI_COMMAND = "node scripts/audit-error-swallow.mjs";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -215,11 +217,13 @@ export default function ErrorSwallowAuditView() {
                         Each item links to its source file and line.
                     </p>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => void load()} disabled={state.kind === "loading"}>
-                    <RefreshCw className={`mr-1 h-3.5 w-3.5 ${state.kind === "loading" ? "animate-spin" : ""}`} />
-                    Reload
+                <Button size="sm" variant="default" onClick={() => void load()} disabled={state.kind === "loading"}>
+                    <Play className={`mr-1 h-3.5 w-3.5 ${state.kind === "loading" ? "animate-pulse" : ""}`} />
+                    Run audit
                 </Button>
             </div>
+
+            <AuditSummaryPanel state={state} onReload={() => void load()} />
 
             {state.kind === "ok" && state.report.Items.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter audit items by severity">
@@ -383,6 +387,135 @@ function MissingReportEmptyState() {
                     </pre>
                 </div>
             </div>
+        </div>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Summary panel                                                      */
+/* ------------------------------------------------------------------ */
+
+function computeTopFiles(items: ReadonlyArray<AuditItem>, limit: number): Array<{ file: string; count: number }> {
+    const tally = new Map<string, number>();
+    for (const item of items) {
+        tally.set(item.File, (tally.get(item.File) ?? 0) + 1);
+    }
+    return Array.from(tally.entries())
+        .map(([file, count]) => ({ file, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, limit);
+}
+
+function computeTopRules(items: ReadonlyArray<AuditItem>, limit: number): Array<{ rule: string; count: number }> {
+    const tally = new Map<string, number>();
+    for (const item of items) {
+        tally.set(item.Rule, (tally.get(item.Rule) ?? 0) + 1);
+    }
+    return Array.from(tally.entries())
+        .map(([rule, count]) => ({ rule, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, limit);
+}
+
+// eslint-disable-next-line max-lines-per-function
+function AuditSummaryPanel({ state, onReload }: { state: LoadState; onReload: () => void }) {
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = useCallback(() => {
+        void navigator.clipboard.writeText(AUDIT_CLI_COMMAND).then(() => {
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 1500);
+        });
+    }, []);
+
+    const items = useMemo<ReadonlyArray<AuditItem>>(
+        () => (state.kind === "ok" ? state.report.Items : []),
+        [state],
+    );
+    const counts = useMemo(() => {
+        const c = { P0: 0, P1: 0, P2: 0 };
+        for (const it of items) c[it.Severity] += 1;
+        return c;
+    }, [items]);
+    const topFiles = useMemo(() => computeTopFiles(items, 5), [items]);
+    const topRules = useMemo(() => computeTopRules(items, 3), [items]);
+    const total = items.length;
+
+    return (
+        <section className="rounded-md border border-border bg-muted/10 p-3 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                    <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+                        <Terminal className="h-3.5 w-3.5" aria-hidden />
+                        Audit summary
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground">
+                        {state.kind === "ok"
+                            ? `${total} item(s) — generated ${formatTimestamp(state.report.GeneratedAt)}`
+                            : "Run the CLI command below, then click Run audit to refresh."}
+                    </p>
+                </div>
+                <Button size="sm" variant="outline" onClick={onReload} disabled={state.kind === "loading"}>
+                    <RefreshCw className={`mr-1 h-3.5 w-3.5 ${state.kind === "loading" ? "animate-spin" : ""}`} />
+                    Refresh
+                </Button>
+            </div>
+
+            <div className="grid grid-cols-4 gap-2 text-center">
+                <StatTile label="Total"  value={total}     tone="default" />
+                <StatTile label="P0"     value={counts.P0} tone="destructive" />
+                <StatTile label="P1"     value={counts.P1} tone="warn" />
+                <StatTile label="P2"     value={counts.P2} tone="muted" />
+            </div>
+
+            <div className="rounded-md border border-border/60 bg-background/40 p-2 flex items-center justify-between gap-2">
+                <code className="text-[11px] font-mono text-foreground/90 break-all">{AUDIT_CLI_COMMAND}</code>
+                <Button size="sm" variant="ghost" onClick={handleCopy} className="h-6 px-2 shrink-0">
+                    {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    <span className="ml-1 text-[11px]">{copied ? "Copied" : "Copy"}</span>
+                </Button>
+            </div>
+
+            {state.kind === "ok" && total > 0 && (
+                <div className="grid gap-3 md:grid-cols-2">
+                    <div>
+                        <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Top files</h4>
+                        <ul className="space-y-1">
+                            {topFiles.map(({ file, count }) => (
+                                <li key={file} className="flex items-center justify-between gap-2 text-[11px] font-mono">
+                                    <span className="truncate text-foreground/90" title={file}>{file}</span>
+                                    <Badge variant="outline" className="shrink-0">{count}</Badge>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Top rules</h4>
+                        <ul className="space-y-1">
+                            {topRules.map(({ rule, count }) => (
+                                <li key={rule} className="flex items-center justify-between gap-2 text-[11px] font-mono">
+                                    <span className="truncate text-foreground/90" title={rule}>{rule}</span>
+                                    <Badge variant="outline" className="shrink-0">{count}</Badge>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+            )}
+        </section>
+    );
+}
+
+function StatTile({ label, value, tone }: { label: string; value: number; tone: "default" | "destructive" | "warn" | "muted" }) {
+    const toneClass =
+        tone === "destructive" ? "border-destructive/60 bg-destructive/10 text-destructive"
+        : tone === "warn"      ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
+        : tone === "muted"     ? "border-muted-foreground/30 bg-muted/30 text-muted-foreground"
+        :                        "border-border bg-background/40 text-foreground";
+    return (
+        <div className={`rounded-md border px-2 py-1.5 ${toneClass}`}>
+            <div className="text-base font-bold leading-none">{value}</div>
+            <div className="text-[10px] uppercase tracking-wide mt-0.5">{label}</div>
         </div>
     );
 }

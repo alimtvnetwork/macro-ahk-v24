@@ -27,3 +27,4 @@ file so the user can review and override later.
 - [07 — Post-step wait-for-selector condition](./07-wait-for-selector.md) — per-step, three conditions (Appears/Disappears/Visible), auto-detect XPath vs CSS, default 5 s timeout.
 - [08 — Webhook retry queue (DECLINED — kept fail-fast per spec #05)](./08-webhook-retry-queue.md) — chose Option A (decline).
 - [09 — Bulk labels vs categories conflict with prior flat-tags decision](./09-bulk-labels-vs-categories.md) — chose Option B (tags unchanged + add single optional `Category` field, mirroring `Prompts.Category`).
+- [10 — Step list bulk context-menu shape (Enabled + Label fields)](./10-step-bulk-context-menu-shape.md) — chose A1 + B1: add optional `Enabled?` and `Label?` to `KeywordEventStep` (additive, default-safe).

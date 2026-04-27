@@ -54,6 +54,7 @@ import {
 import { useKeywordEventPlayback } from "@/hooks/use-keyword-event-playback";
 import { useRecordingSession } from "@/hooks/use-recording-session";
 import { useAutoRunChainAfterRecording } from "@/hooks/use-auto-run-chain-after-recording";
+import { KeywordEventStepContextMenu } from "./KeywordEventStepContextMenu";
 import {
     DEFAULT_CHAIN_SETTINGS,
     loadChainSettings,
@@ -396,6 +397,9 @@ function KeywordEventsEditor(): JSX.Element {
                                                     onAddStep={step => api.addStep(ev.Id, step)}
                                                     onRemoveStep={sid => api.removeStep(ev.Id, sid)}
                                                     onMoveStep={(sid, dir) => api.moveStep(ev.Id, sid, dir)}
+                                                    onRemoveSteps={(eid, sids) => api.removeSteps(eid, sids)}
+                                                    onSetStepsEnabled={(eid, sids, en) => api.setStepsEnabled(eid, sids, en)}
+                                                    onRelabelSteps={(eid, sids, labels) => api.relabelSteps(eid, sids, labels)}
                                                 />
                                             </div>
                                         </KeywordEventBulkContextMenu>
@@ -723,6 +727,10 @@ interface KeywordEventCardProps {
     readonly onAddStep: (step: Omit<import("@/hooks/use-keyword-events").KeywordEventStep, "Id">) => void;
     readonly onRemoveStep: (stepId: string) => void;
     readonly onMoveStep: (stepId: string, dir: "up" | "down") => void;
+    /** Bulk step actions invoked by the per-step right-click context menu. */
+    readonly onRemoveSteps: (eventId: string, stepIds: readonly string[]) => void;
+    readonly onSetStepsEnabled: (eventId: string, stepIds: readonly string[], enabled: boolean) => void;
+    readonly onRelabelSteps: (eventId: string, stepIds: readonly string[], labels: readonly string[]) => void;
     /**
      * Optional drag-handle element rendered at the start of the card header.
      * The sortable wrapper supplies a `<button>` bound to dnd-kit listeners;
@@ -742,6 +750,7 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
     const {
         event, isRunning, currentStepIndex,
         onPlay, onCancel, onRemove, onUpdate, onAddStep, onRemoveStep, onMoveStep,
+        onRemoveSteps, onSetStepsEnabled, onRelabelSteps,
         dragHandle, selected, onRowClick, onToggleSelect,
     } = props;
     const [keyCombo, setKeyCombo] = useState("");
@@ -903,21 +912,34 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                         </Button>
                     </div>
                 )}
+                {/* eslint-disable-next-line max-lines-per-function -- step row + context-menu wrapper kept inline for selection scope */}
                 {event.Steps.map((s, i) => {
                     const issue = issuesByIndex.get(i);
                     const stepSelected = stepSelection.isSelected(s.Id);
+                    const stepDisabled = s.Enabled === false;
                     return (
-                        <div
+                        <KeywordEventStepContextMenu
                             key={s.Id}
+                            step={s}
+                            event={event}
+                            selectedStepIds={stepSelection.selected}
+                            onSetEnabled={onSetStepsEnabled}
+                            onRemove={onRemoveSteps}
+                            onRelabel={onRelabelSteps}
+                            onAfterRemove={() => stepSelection.clear()}
+                        >
+                        <div
                             className={cn(
                                 "flex flex-col gap-0.5 rounded bg-muted/40 px-2 py-1.5 text-xs transition-colors cursor-pointer",
                                 currentStepIndex === i && "bg-primary/15 ring-1 ring-primary/40",
                                 issue && "bg-destructive/10 ring-1 ring-destructive/40",
                                 stepSelected && "bg-primary/20 ring-1 ring-primary/60",
+                                stepDisabled && "opacity-60",
                             )}
                             data-testid={`keyword-event-step-${event.Id}-${i}`}
                             data-invalid={issue ? "true" : undefined}
                             data-selected={stepSelected ? "true" : undefined}
+                            data-step-disabled={stepDisabled ? "true" : undefined}
                             onClick={(e) => { e.stopPropagation(); handleStepRowClick(s.Id, e); }}
                         >
                             <div className="flex items-center gap-2">
@@ -937,6 +959,15 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                                     className="h-3.5 w-3.5"
                                 />
                                 <Badge variant="outline" className="text-[10px] w-6 justify-center">{i + 1}</Badge>
+                                {s.Label && (
+                                    <Badge
+                                        variant="secondary"
+                                        className="text-[10px] px-1.5"
+                                        data-testid={`keyword-event-step-label-${event.Id}-${i}`}
+                                    >
+                                        {s.Label}
+                                    </Badge>
+                                )}
                                 {s.Kind === "Key" ? (
                                     <>
                                         <Keyboard className={cn("h-3.5 w-3.5", issue ? "text-destructive" : "text-primary")} />
@@ -964,6 +995,7 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                                 <p className="text-[10px] text-destructive pl-8">{issue.Message}</p>
                             )}
                         </div>
+                        </KeywordEventStepContextMenu>
                     );
                 })}
             </div>

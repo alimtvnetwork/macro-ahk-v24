@@ -13,9 +13,23 @@ import { useCallback, useEffect, useState } from "react";
 
 const STORAGE_KEY = "marco-keyword-events-v1";
 
+/**
+ * Per-step optional flags. Both default to "absent = on/no-label" so older
+ * persisted events without these fields keep their current behaviour:
+ *   • `Enabled` — `false` skips the step at playback time. Absent / `true`
+ *     runs as before. Set in bulk by the step-row right-click context menu.
+ *   • `Label`   — free-form display name shown next to the step's
+ *     Combo/Wait summary. Used by the "Rename in sequence" bulk action so
+ *     selected steps can be relabelled to "Login 01", "Login 02", … without
+ *     touching the underlying Combo (which carries real keystroke data).
+ */
+export interface KeywordEventStepCommon {
+    readonly Enabled?: boolean;
+    readonly Label?: string;
+}
 export type KeywordEventStep =
-    | { readonly Kind: "Key"; readonly Id: string; readonly Combo: string }
-    | { readonly Kind: "Wait"; readonly Id: string; readonly DurationMs: number };
+    | (KeywordEventStepCommon & { readonly Kind: "Key"; readonly Id: string; readonly Combo: string })
+    | (KeywordEventStepCommon & { readonly Kind: "Wait"; readonly Id: string; readonly DurationMs: number });
 
 /**
  * Where the synthetic key events should be dispatched.
@@ -80,6 +94,25 @@ export interface UseKeywordEventsApi {
     readonly removeStep: (eventId: string, stepId: string) => void;
     readonly moveStep: (eventId: string, stepId: string, direction: "up" | "down") => void;
     /**
+     * Bulk delete a set of steps inside a single event. No-op when the id list
+     * is empty or none of the ids resolve. Kept event-scoped so the right-click
+     * menu can never accidentally drop steps from a sibling event.
+     */
+    readonly removeSteps: (eventId: string, stepIds: readonly string[]) => void;
+    /**
+     * Bulk set the `Enabled` flag on a set of steps. Pass `true` to enable
+     * (clears the field — absent means enabled), `false` to mark them
+     * skipped at playback time.
+     */
+    readonly setStepsEnabled: (eventId: string, stepIds: readonly string[], enabled: boolean) => void;
+    /**
+     * Bulk overwrite each step's `Label` with the provided ordered list. The
+     * caller is responsible for matching `labels[i]` to `stepIds[i]`. Skips
+     * any id that does not resolve in the event so a stale selection cannot
+     * corrupt the list.
+     */
+    readonly relabelSteps: (eventId: string, stepIds: readonly string[], labels: readonly string[]) => void;
+    /**
      * Reorder the persisted events list. `fromId` is the event being dragged,
      * `toId` is the event it was dropped onto. Both ids must reference
      * existing events; otherwise the call is a no-op so a stale drag from a
@@ -111,6 +144,7 @@ function save(events: readonly KeywordEvent[]): void {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(events)); } catch { /* quota / SSR */ }
 }
 
+// eslint-disable-next-line max-lines-per-function -- single hook owns the full event+step API surface
 export function useKeywordEvents(): UseKeywordEventsApi {
     const [events, setEvents] = useState<readonly KeywordEvent[]>(() => load());
 
@@ -165,6 +199,65 @@ export function useKeywordEvents(): UseKeywordEventsApi {
         }));
     }, []);
 
+    const removeSteps = useCallback((eventId: string, stepIds: readonly string[]) => {
+        if (stepIds.length === 0) return;
+        const drop = new Set(stepIds);
+        setEvents(prev => prev.map(e =>
+            e.Id === eventId ? { ...e, Steps: e.Steps.filter(s => !drop.has(s.Id)) } : e,
+        ));
+    }, []);
+
+    const setStepsEnabled = useCallback(
+        (eventId: string, stepIds: readonly string[], enabled: boolean) => {
+            if (stepIds.length === 0) return;
+            const target = new Set(stepIds);
+            setEvents(prev => prev.map(e => {
+                if (e.Id !== eventId) return e;
+                return {
+                    ...e,
+                    Steps: e.Steps.map(s => {
+                        if (!target.has(s.Id)) return s;
+                        // `Enabled === undefined` already means enabled, so when
+                        // enabling we strip the field to keep persisted JSON tidy.
+                        if (enabled) {
+                            const { Enabled: _drop, ...rest } = s as KeywordEventStep & { Enabled?: boolean };
+                            void _drop;
+                            return rest as KeywordEventStep;
+                        }
+                        return { ...s, Enabled: false } as KeywordEventStep;
+                    }),
+                };
+            }));
+        },
+        [],
+    );
+
+    const relabelSteps = useCallback(
+        (eventId: string, stepIds: readonly string[], labels: readonly string[]) => {
+            if (stepIds.length === 0) return;
+            const labelById = new Map<string, string>();
+            stepIds.forEach((id, i) => { labelById.set(id, labels[i] ?? ""); });
+            setEvents(prev => prev.map(e => {
+                if (e.Id !== eventId) return e;
+                return {
+                    ...e,
+                    Steps: e.Steps.map(s => {
+                        const next = labelById.get(s.Id);
+                        if (next === undefined) return s;
+                        const trimmed = next.trim();
+                        if (trimmed.length === 0) {
+                            const { Label: _drop, ...rest } = s as KeywordEventStep & { Label?: string };
+                            void _drop;
+                            return rest as KeywordEventStep;
+                        }
+                        return { ...s, Label: trimmed } as KeywordEventStep;
+                    }),
+                };
+            }));
+        },
+        [],
+    );
+
     const reorderEvents = useCallback((fromId: string, toId: string) => {
         if (fromId === toId) { return; }
         setEvents(prev => {
@@ -178,5 +271,10 @@ export function useKeywordEvents(): UseKeywordEventsApi {
         });
     }, []);
 
-    return { events, addEvent, removeEvent, updateEvent, addStep, removeStep, moveStep, reorderEvents };
+    return {
+        events, addEvent, removeEvent, updateEvent,
+        addStep, removeStep, moveStep,
+        removeSteps, setStepsEnabled, relabelSteps,
+        reorderEvents,
+    };
 }

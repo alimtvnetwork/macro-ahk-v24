@@ -464,6 +464,12 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                 onChange={(next) => onUpdate({ Target: next })}
             />
 
+            <PauseAfterRow
+                eventId={event.Id}
+                value={event.PauseAfterMs}
+                onChange={(next) => onUpdate({ PauseAfterMs: next })}
+            />
+
             {stepIssues.length > 0 && (
                 <p
                     className="text-[10px] text-destructive"

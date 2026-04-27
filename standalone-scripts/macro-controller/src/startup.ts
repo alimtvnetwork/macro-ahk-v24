@@ -17,6 +17,7 @@ import { getCachedWorkspaceName, cacheWorkspaceName } from './workspace-cache';
 import { timingStart, timingEnd, logTimingSummary } from './startup-timing';
 import { nsWrite, nsReadTyped } from './api-namespace';
 import { registerTokenBroadcastListener } from './token-broadcast-listener';
+import { registerPageWorkspaceResponder } from './page-workspace-responder';
 import { showToast, dismissAllToasts } from './toast';
 import { updateStartupToast } from './startup-toast';
 import { toErrorMessage , logError } from './error-utils';
@@ -105,6 +106,10 @@ export function bootstrap(deps: {
 
   // v7.41: Register proactive token broadcast listener
   registerTokenBroadcastListener();
+
+  // Register page-side responder for background-initiated workspace probes
+  // (consumed by the "Open Lovable Tabs" panel in the macro controller).
+  registerPageWorkspaceResponder();
 
   // ── Phase 01 V2: UI creation deferred until data loaded ──
   // Set a hard 5s timeout fallback — if API hasn't resolved, create UI anyway

@@ -17,7 +17,7 @@
 
 import type { Database as SqlJsDatabase } from "sql.js";
 import type { DbManager } from "../db-manager";
-import { logCaughtError, BgLogTag} from "../bg-logger";
+import { logCaughtError, logSampledDebug, BgLogTag} from "../bg-logger";
 import { bindOpt, missingFieldError, requireField, type HandlerErrorResponse } from "./handler-guards";
 
 const LEGACY_STORAGE_KEY = "marco_custom_prompts";
@@ -172,8 +172,14 @@ function queryAllPromptsViaView(): PromptEntry[] {
         }
         stmt.free();
         return results;
-    } catch {
+    } catch (viewErr) {
         // View may not exist yet — fall back to direct query
+        logSampledDebug(
+            BgLogTag.PROMPTS,
+            "queryAllPromptsViaView",
+            "PromptsDetails view missing — falling back to direct Prompts table query",
+            viewErr instanceof Error ? viewErr : String(viewErr),
+        );
         return queryAllPromptsDirect();
     }
 }
@@ -430,14 +436,16 @@ export async function loadBundledDefaultPrompts(): Promise<PromptEntry[] | null>
         if (defaults.length === 0) return null;
         bundledDefaultsCache = defaults;
         return defaults;
-    } catch {
+    } catch (defaultsErr) {
+        logSampledDebug(
+            BgLogTag.PROMPTS,
+            "loadBundledDefaults",
+            "Failed to load bundled default prompts JSON — caller will fall back to seeded DB rows",
+            defaultsErr instanceof Error ? defaultsErr : String(defaultsErr),
+        );
         return null;
     }
 }
-
-/* ------------------------------------------------------------------ */
-/*  Public Handlers                                                    */
-/* ------------------------------------------------------------------ */
 
 export async function handleGetPrompts(): Promise<{ prompts: PromptEntry[] }> {
     await migrateFromStorageIfNeeded();

@@ -16,6 +16,7 @@ import type { DbManager } from "../db-manager";
 import type { Database as SqlJsDatabase } from "sql.js";
 import { collectRows } from "./logging-queries";
 import { reseedPrompts } from "./prompt-handler";
+import { logSampledDebug, BgLogTag } from "../bg-logger";
 
 /* ------------------------------------------------------------------ */
 /*  DbManager binding                                                  */
@@ -117,7 +118,13 @@ export async function handleStorageListTables(): Promise<{
                 ? (result[0].values[0][0] as number)
                 : 0;
             tables.push({ name, rowCount, primaryKeys: PRIMARY_KEYS[name] ?? ["id"], isView: false });
-        } catch {
+        } catch (countErr) {
+            logSampledDebug(
+                BgLogTag.STATUS_HANDLER,
+                `listTables:count:${name}`,
+                `Table introspection probe failed for "${name}" — reporting rowCount=0 (table may not be created yet or DB not bound)`,
+                countErr instanceof Error ? countErr : String(countErr),
+            );
             tables.push({ name, rowCount: 0, primaryKeys: PRIMARY_KEYS[name] ?? ["id"], isView: false });
         }
     }
@@ -130,7 +137,13 @@ export async function handleStorageListTables(): Promise<{
                 ? (result[0].values[0][0] as number)
                 : 0;
             tables.push({ name, rowCount, primaryKeys: [], isView: true });
-        } catch {
+        } catch (countErr) {
+            logSampledDebug(
+                BgLogTag.STATUS_HANDLER,
+                `listTables:count:view:${name}`,
+                `View introspection probe failed for "${name}" — reporting rowCount=0 (view may not be created yet)`,
+                countErr instanceof Error ? countErr : String(countErr),
+            );
             tables.push({ name, rowCount: 0, primaryKeys: [], isView: true });
         }
     }

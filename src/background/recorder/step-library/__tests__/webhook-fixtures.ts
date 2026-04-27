@@ -49,6 +49,7 @@ export function makeWebhookSuccess(
     overrides: Partial<WebhookDeliverySuccess> = {},
 ): WebhookDeliverySuccess {
     return {
+        SchemaVersion: WEBHOOK_RESULT_SCHEMA_VERSION,
         Kind: "success",
         Ok: true,
         Skipped: false,

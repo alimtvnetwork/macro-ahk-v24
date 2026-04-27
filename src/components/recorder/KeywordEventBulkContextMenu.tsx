@@ -560,6 +560,8 @@ export function BulkRenameSequenceDialog(props: BulkRenameSequenceDialogProps): 
                         </div>
                     </div>
 
+                    <SequenceFormulaExample start={input.Start} padding={input.Padding} />
+
                     <PreviewSummaryBanner summary={summary} />
 
                     <div className="mt-2 rounded-md border border-border bg-muted/30 p-2 text-xs">

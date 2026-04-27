@@ -70,6 +70,10 @@ export interface KeywordEventStepContextMenuProps {
     /** Called after a destructive bulk action (Remove) so the parent can
      *  drop the now-stale selection. Optional. */
     readonly onAfterRemove?: () => void;
+    /** Fired when the menu opens on a row that is NOT in the current
+     *  selection — parent should replace the selection with just this row
+     *  so the visible state matches the menu's operand list. */
+    readonly onContextOpenForUnselected?: () => void;
 }
 
 /* ------------------------------------------------------------------ */

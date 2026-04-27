@@ -188,7 +188,7 @@ function writeJwtToLocalStorage(
         localStorage.setItem(sessionKey, jwt);
         localStorage.setItem(sessionCookieKey, jwt);
         localStorage.setItem(marcoBearerKey, jwt);
-    } catch {
+    } catch { // allow-swallow: localStorage unavailable on this origin; seeding is best-effort
         // localStorage may be unavailable — fail silently
     }
 }
@@ -260,7 +260,7 @@ function scanSupabaseLocalStorageForJwt(): string | null {
                 }
             }
         }
-    } catch {
+    } catch { // allow-swallow: localStorage unavailable; caller falls back to null
         // localStorage unavailable
     }
     return null;
@@ -494,7 +494,7 @@ function extractProjectIdFromTabUrl(url: string | null): string | null {
         // Pattern 4: bare UUID subdomain: {uuid}.lovableproject.com
         const bareUuidLabelMatch = firstLabel.match(/^([a-f0-9-]{36})$/i);
         if (bareUuidLabelMatch) return bareUuidLabelMatch[1];
-    } catch {
+    } catch { // allow-swallow: malformed URL; fallback regex checks below handle the parse failure
         // Ignore malformed URLs and continue with fallback regex checks.
     }
 

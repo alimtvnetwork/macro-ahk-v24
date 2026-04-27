@@ -16,6 +16,7 @@ function makeGroup(id: number, name: string, parent: number | null = null): Step
         Name: name,
         Description: null,
         OrderIndex: id,
+        IsArchived: false,
         CreatedAt: "2026-04-27T00:00:00.000Z",
         UpdatedAt: "2026-04-27T00:00:00.000Z",
     };
@@ -28,9 +29,9 @@ function makeStep(id: number, groupId: number, label: string | null, kind: StepK
         OrderIndex: id,
         StepKindId: kind,
         Label: label,
-        VariableName: null,
         PayloadJson: "{}",
         TargetStepGroupId: null,
+        IsDisabled: false,
         CreatedAt: "2026-04-27T00:00:00.000Z",
         UpdatedAt: "2026-04-27T00:00:00.000Z",
     };

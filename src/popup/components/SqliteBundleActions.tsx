@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useRef } from "react";
-import { getPlatform } from "../../platform";
+import { exportAllAsSqliteZip, importFromZip } from "../../lib/sqlite-bundle";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */

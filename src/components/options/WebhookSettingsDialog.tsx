@@ -72,6 +72,15 @@ function formatTime(iso: string): string {
     }
 }
 
+function formatPayloadJson(entry: WebhookDeliveryResult): string | null {
+    if (entry.Payload === null || entry.Payload === undefined) return null;
+    try {
+        return JSON.stringify(entry.Payload, null, 2);
+    } catch (err) {
+        return `// Failed to serialise payload: ${err instanceof Error ? err.message : String(err)}`;
+    }
+}
+
 function buildLogClipboardText(entry: WebhookDeliveryResult): string {
     const skipped = isWebhookSkipped(entry);
     const success = isWebhookSuccess(entry);
@@ -89,6 +98,11 @@ function buildLogClipboardText(entry: WebhookDeliveryResult): string {
         const httpPart = entry.Status !== undefined && entry.Status !== null ? ` (HTTP ${entry.Status})` : "";
         lines.push(`Status: Failed${httpPart}`);
         lines.push(`Error: ${entry.Error}`);
+    }
+    const payloadJson = formatPayloadJson(entry);
+    if (payloadJson !== null) {
+        lines.push("Payload:");
+        lines.push(payloadJson);
     }
     return lines.join("\n");
 }
@@ -108,6 +122,7 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
     const [log, setLog] = useState<ReadonlyArray<WebhookDeliveryResult>>([]);
     const [busy, setBusy] = useState(false);
     const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+    const [payloadOpenIdx, setPayloadOpenIdx] = useState<number | null>(null);
 
     useEffect(() => {
         if (open) {
@@ -193,6 +208,7 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
         clearDeliveryLog();
         setLog([]);
         setExpandedIdx(null);
+        setPayloadOpenIdx(null);
     };
 
     const refreshLog = () => {
@@ -368,7 +384,8 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                         const detail = skipReason ?? errorText;
                                         const hasDetail = typeof detail === "string" && detail.length > 0;
                                         const hasStatus = statusValue !== undefined && statusValue !== null;
-                                        const isExpandable = hasDetail || hasStatus;
+                                        const hasPayload = entry.Payload !== null && entry.Payload !== undefined;
+                                        const isExpandable = hasDetail || hasStatus || hasPayload;
                                         const isOpen = expandedIdx === i;
                                         const statusLabel = skipped
                                             ? "Skipped"
@@ -443,16 +460,47 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                                                 </>
                                                             )}
                                                         </dl>
-                                                        <div className="mt-2 flex justify-end">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => void copyLogEntry(entry)}
-                                                            >
-                                                                <Copy className="mr-1 h-3.5 w-3.5" />
-                                                                Copy details
-                                                            </Button>
-                                                        </div>
+                                                        {(() => {
+                                                            const payloadJson = formatPayloadJson(entry);
+                                                            const payloadOpen = payloadOpenIdx === i;
+                                                            return (
+                                                                <div className="mt-2 space-y-2">
+                                                                    <div className="flex items-center justify-between gap-2">
+                                                                        <button
+                                                                            type="button"
+                                                                            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50"
+                                                                            onClick={() => setPayloadOpenIdx(payloadOpen ? null : i)}
+                                                                            disabled={payloadJson === null}
+                                                                            aria-expanded={payloadOpen}
+                                                                            aria-controls={`hook-log-payload-${i}`}
+                                                                        >
+                                                                            <ChevronDown
+                                                                                className={`h-3 w-3 transition-transform ${payloadOpen ? "rotate-180" : ""}`}
+                                                                            />
+                                                                            {payloadJson === null
+                                                                                ? "Raw JSON payload (not captured)"
+                                                                                : payloadOpen ? "Hide raw JSON payload" : "Show raw JSON payload"}
+                                                                        </button>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="outline"
+                                                                            onClick={() => void copyLogEntry(entry)}
+                                                                        >
+                                                                            <Copy className="mr-1 h-3.5 w-3.5" />
+                                                                            Copy details
+                                                                        </Button>
+                                                                    </div>
+                                                                    {payloadOpen && payloadJson !== null && (
+                                                                        <pre
+                                                                            id={`hook-log-payload-${i}`}
+                                                                            className="max-h-64 overflow-auto rounded-md border bg-background/60 p-2 text-[11px] font-mono whitespace-pre-wrap break-words"
+                                                                        >
+                                                                            {payloadJson}
+                                                                        </pre>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 )}
                                             </li>

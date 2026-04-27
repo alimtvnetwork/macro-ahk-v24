@@ -38,6 +38,7 @@ const ActivityLogTimeline = lazy(() => import("@/components/options/ActivityLogT
 const LibraryView = lazy(() => import("@/components/options/LibraryView"));
 const StepGroupLibraryPanel = lazy(() => import("@/components/options/StepGroupLibraryPanel"));
 const StepGroupListPanel = lazy(() => import("@/components/options/StepGroupListPanel"));
+const ErrorSwallowAuditView = lazy(() => import("@/components/options/ErrorSwallowAuditView"));
 
 function LazyFallback() {
   return (

@@ -8,7 +8,7 @@
  */
 
 import { useState } from "react";
-import { ArrowDown, ArrowUp, Clock, Keyboard, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Clock, Keyboard, Play, Plus, Square, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useKeywordEvents } from "@/hooks/use-keyword-events";
+import { useKeywordEventPlayback } from "@/hooks/use-keyword-event-playback";
 import { cn } from "@/lib/utils";
 
 export interface KeywordEventsPanelProps {
@@ -60,6 +61,7 @@ export function KeywordEventsPanel(props: KeywordEventsPanelProps): JSX.Element 
 
 function KeywordEventsEditor(): JSX.Element {
     const api = useKeywordEvents();
+    const playback = useKeywordEventPlayback();
     const [newKeyword, setNewKeyword] = useState("");
 
     const handleAdd = () => {
@@ -98,6 +100,10 @@ function KeywordEventsEditor(): JSX.Element {
                             <KeywordEventCard
                                 key={ev.Id}
                                 event={ev}
+                                isRunning={playback.isRunning(ev.Id)}
+                                currentStepIndex={playback.isRunning(ev.Id) ? playback.currentStepIndex : null}
+                                onPlay={() => { void playback.play(ev); }}
+                                onCancel={playback.cancel}
                                 onRemove={() => api.removeEvent(ev.Id)}
                                 onUpdate={patch => api.updateEvent(ev.Id, patch)}
                                 onAddStep={step => api.addStep(ev.Id, step)}
@@ -114,6 +120,10 @@ function KeywordEventsEditor(): JSX.Element {
 
 interface KeywordEventCardProps {
     readonly event: import("@/hooks/use-keyword-events").KeywordEvent;
+    readonly isRunning: boolean;
+    readonly currentStepIndex: number | null;
+    readonly onPlay: () => void;
+    readonly onCancel: () => void;
     readonly onRemove: () => void;
     readonly onUpdate: (patch: Partial<Omit<import("@/hooks/use-keyword-events").KeywordEvent, "Id">>) => void;
     readonly onAddStep: (step: Omit<import("@/hooks/use-keyword-events").KeywordEventStep, "Id">) => void;
@@ -122,12 +132,18 @@ interface KeywordEventCardProps {
 }
 
 function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
-    const { event, onRemove, onUpdate, onAddStep, onRemoveStep, onMoveStep } = props;
+    const { event, isRunning, currentStepIndex, onPlay, onCancel, onRemove, onUpdate, onAddStep, onRemoveStep, onMoveStep } = props;
     const [keyCombo, setKeyCombo] = useState("");
     const [waitMs, setWaitMs] = useState("500");
 
     return (
-        <div className="rounded-md border border-border bg-card/60 p-3 space-y-3" data-testid={`keyword-event-${event.Id}`}>
+        <div
+            className={cn(
+                "rounded-md border border-border bg-card/60 p-3 space-y-3 transition-shadow",
+                isRunning && "ring-2 ring-primary shadow-[0_0_0_1px_hsl(var(--primary)/0.3)]",
+            )}
+            data-testid={`keyword-event-${event.Id}`}
+        >
             <div className="flex items-center gap-2">
                 <Input
                     value={event.Keyword}
@@ -143,6 +159,30 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                     />
                     <Label className="text-xs text-muted-foreground">{event.Enabled ? "On" : "Off"}</Label>
                 </div>
+                {isRunning ? (
+                    <Button
+                        size="sm"
+                        variant="destructive"
+                        className="h-8"
+                        onClick={onCancel}
+                        data-testid={`keyword-event-stop-${event.Id}`}
+                        aria-label="Stop keyword event playback"
+                    >
+                        <Square className="h-3.5 w-3.5 mr-1" /> Stop
+                    </Button>
+                ) : (
+                    <Button
+                        size="sm"
+                        variant="secondary"
+                        className="h-8"
+                        onClick={onPlay}
+                        disabled={!event.Enabled || event.Steps.length === 0}
+                        data-testid={`keyword-event-play-${event.Id}`}
+                        aria-label="Run keyword event"
+                    >
+                        <Play className="h-3.5 w-3.5 mr-1" /> Run
+                    </Button>
+                )}
                 <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={onRemove} aria-label="Remove keyword event">
                     <Trash2 className="h-4 w-4" />
                 </Button>
@@ -160,7 +200,13 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                     <p className="text-xs text-muted-foreground italic">No steps yet — add a key press or wait below.</p>
                 )}
                 {event.Steps.map((s, i) => (
-                    <div key={s.Id} className="flex items-center gap-2 rounded bg-muted/40 px-2 py-1.5 text-xs">
+                    <div
+                        key={s.Id}
+                        className={cn(
+                            "flex items-center gap-2 rounded bg-muted/40 px-2 py-1.5 text-xs transition-colors",
+                            currentStepIndex === i && "bg-primary/15 ring-1 ring-primary/40",
+                        )}
+                    >
                         <Badge variant="outline" className="text-[10px] w-6 justify-center">{i + 1}</Badge>
                         {s.Kind === "Key" ? (
                             <>

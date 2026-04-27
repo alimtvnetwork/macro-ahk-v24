@@ -935,22 +935,27 @@ function BulkExportDialog(props: BulkExportDialogProps): JSX.Element {
     const { open, onOpenChange, selectedEvents } = props;
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [progress, setProgress] = useState<KeywordEventsExportProgress | null>(null);
 
     const handleExport = async (): Promise<void> => {
         setBusy(true);
         setError(null);
+        setProgress(null);
         try {
             // Real SQLite DB inside the .zip — same PascalCase + Uid + Meta
             // conventions as `marco-backup.zip`, with a `bundle_kind` marker
             // so a future importer can branch between full backups and
             // partial keyword-event bundles. A JSON snapshot ships alongside
             // for diff-friendly review and JSON-only re-import.
-            await downloadKeywordEventsZip(selectedEvents);
+            await downloadKeywordEventsZip(selectedEvents, (p) => {
+                setProgress(p);
+            });
             onOpenChange(false);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Export failed");
         } finally {
             setBusy(false);
+            setProgress(null);
         }
     };
 
@@ -967,6 +972,22 @@ function BulkExportDialog(props: BulkExportDialogProps): JSX.Element {
                         the same export format the app uses elsewhere.
                     </DialogDescription>
                 </DialogHeader>
+                {progress && (
+                    <div
+                        className="space-y-1.5"
+                        role="status"
+                        aria-live="polite"
+                        data-testid="keyword-events-bulk-export-progress"
+                    >
+                        <Progress value={Math.round(progress.fraction * 100)} />
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>{progress.label}…</span>
+                            <span className="font-mono">
+                                {Math.round(progress.fraction * 100)}%
+                            </span>
+                        </div>
+                    </div>
+                )}
                 {error && (
                     <p className="text-xs text-destructive" role="alert">{error}</p>
                 )}
@@ -977,7 +998,7 @@ function BulkExportDialog(props: BulkExportDialogProps): JSX.Element {
                         disabled={busy || selectedEvents.length === 0}
                         data-testid="keyword-events-bulk-export-apply"
                     >
-                        {busy ? "Building…" : "Download .zip"}
+                        {busy ? (progress?.label ?? "Building") + "…" : "Download .zip"}
                     </Button>
                 </DialogFooter>
             </DialogContent>

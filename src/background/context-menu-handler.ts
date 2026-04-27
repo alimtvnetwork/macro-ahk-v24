@@ -284,7 +284,17 @@ async function handleReinjectScripts(tabId: number): Promise<void> {
                 }
             },
         });
-    } catch { /* tab may not be injectable */ }
+    } catch (markerCleanupErr) {
+        // Tab may be a restricted scheme (chrome://, devtools://, web store) where
+        // chrome.scripting.executeScript is denied — log at warn level so repeated
+        // failures surface, then continue to handleRunScripts() which will retry
+        // injection through the standard guarded path.
+        logCaughtError(
+            BgLogTag.CONTEXT_MENU,
+            `Marker cleanup executeScript failed for tabId=${tabId}; tab likely on a restricted scheme (chrome://, devtools://, Web Store) — proceeding to handleRunScripts() anyway`,
+            markerCleanupErr instanceof Error ? markerCleanupErr : new Error(String(markerCleanupErr)),
+        );
+    }
 
     await handleRunScripts(tabId);
 }

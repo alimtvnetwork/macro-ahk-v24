@@ -208,6 +208,7 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
         clearDeliveryLog();
         setLog([]);
         setExpandedIdx(null);
+        setPayloadOpenIdx(null);
     };
 
     const refreshLog = () => {

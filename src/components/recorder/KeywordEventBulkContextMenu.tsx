@@ -419,6 +419,29 @@ export function BulkRenameSequenceDialog(props: BulkRenameSequenceDialogProps): 
         if (open) setInput(loadPersistedSequence());
     }, [open]);
 
+    // Cross-tab live sync: when another tab writes to the same localStorage key,
+    // refresh this dialog's fields immediately so all open Batch Rename dialogs
+    // stay in lockstep. The `storage` event only fires in OTHER tabs, never the
+    // one that wrote it, so we never clobber the user's in-progress edits here.
+    useEffect(() => {
+        if (!open) return;
+        if (typeof window === "undefined") return;
+        const handler = (e: StorageEvent): void => {
+            if (e.key !== SEQUENCE_RENAME_STORAGE_KEY) return;
+            setInput(loadPersistedSequence());
+        };
+        window.addEventListener("storage", handler);
+        return () => window.removeEventListener("storage", handler);
+    }, [open]);
+
+    // Persist edits live (debounced via React's batching) so other open tabs
+    // receive the `storage` event and mirror the changes immediately. Skipped
+    // while the dialog is closed to avoid writing default values on mount.
+    useEffect(() => {
+        if (!open) return;
+        persistSequence(input);
+    }, [open, input]);
+
     // Build the set of "outside" keywords once per (allEvents, selection) change.
     // Selected events are excluded so renaming an event back to its own name
     // doesn't falsely flag a collision.

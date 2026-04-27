@@ -451,3 +451,14 @@ consumes `public/error-swallow-audit.json`. The file is not yet generated;
 build a scanner that emits the documented JSON contract (see the page's
 empty-state). Suggested location: `scripts/audit-error-swallow.mjs`,
 classifying findings into P0/P1/P2 per `mem://standards/error-logging-requirements.md`.
+
+### Follow-up: shrink the swallowed-errors baseline (177 entries)
+
+`scripts/check-no-swallowed-errors.baseline.json` allow-lists 177
+pre-existing empty-catch / promise-noop sites so the new
+`check:no-swallowed-errors` guard can run green in CI from day 1.
+Each entry has a `"reason": "TODO: ..."` placeholder. Sweep these
+in priority order (P0/P1 from the error-swallowing audit page,
+once the scanner from the previous follow-up lands) and remove
+entries from the baseline as fixes ship. Final goal: empty
+`entries: []` array and pass `npm run check:no-swallowed-errors:strict`.

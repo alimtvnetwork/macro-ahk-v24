@@ -24,10 +24,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Pencil, Copy, Trash2, Upload, Download, Database, Loader2, FileText, Settings2, FolderOpen, Merge } from "lucide-react";
+import { Plus, Pencil, Copy, Trash2, Upload, Download, Database, Loader2, FileText, Settings2, FolderOpen, Merge, ListChecks } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { StoredProject } from "@/hooks/use-projects-scripts";
-import { exportAllAsSqliteZip, exportProjectAsSqliteZip, importFromSqliteZip, mergeFromSqliteZip, previewSqliteZip, type BundlePreview, type DiffItem } from "@/lib/sqlite-bundle";
+import { exportAllAsSqliteZip, exportProjectAsSqliteZip, exportProjectsAsSqliteZip, importFromSqliteZip, mergeFromSqliteZip, previewSqliteZip, type BundlePreview, type DiffItem } from "@/lib/sqlite-bundle";
 import { exportProject } from "@/lib/project-exporter";
 import { toast } from "sonner";
 
@@ -66,6 +67,7 @@ export const ProjectsListView = forwardRef<HTMLDivElement, Props>(function Proje
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [importMode, setImportMode] = useState<"merge" | "replace">("replace");
+  const [selectExportOpen, setSelectExportOpen] = useState(false);
 
   const handleImportClick = () => fileRef.current?.click();
   const handleSqliteImportClick = () => {
@@ -261,6 +263,17 @@ export const ProjectsListView = forwardRef<HTMLDivElement, Props>(function Proje
         <Button
           variant="outline"
           className="gap-2 hover:bg-primary/10 hover:text-primary transition-all duration-200"
+          onClick={() => setSelectExportOpen(true)}
+          disabled={exporting || projects.length === 0}
+          data-testid="projects-export-selected-open"
+        >
+          <ListChecks className="h-4 w-4" />
+          Export Selected…
+        </Button>
+
+        <Button
+          variant="outline"
+          className="gap-2 hover:bg-primary/10 hover:text-primary transition-all duration-200"
           onClick={handleExportBundle}
           disabled={exporting}
         >
@@ -277,6 +290,13 @@ export const ProjectsListView = forwardRef<HTMLDivElement, Props>(function Proje
         onConfirm={handleConfirmImport}
         onMerge={handleMergeImport}
         onCancel={handleCancelPreview}
+      />
+
+      {/* Export selected projects picker */}
+      <SelectProjectsExportDialog
+        open={selectExportOpen}
+        projects={projects}
+        onOpenChange={setSelectExportOpen}
       />
     </div>
   );
@@ -600,5 +620,134 @@ function DeleteButton({ projectName, onDelete }: DeleteButtonProps) {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Select-projects export dialog                                      */
+/* ------------------------------------------------------------------ */
+
+interface SelectProjectsExportDialogProps {
+  open: boolean;
+  projects: StoredProject[];
+  onOpenChange: (open: boolean) => void;
+}
+
+function SelectProjectsExportDialog({
+  open,
+  projects,
+  onOpenChange,
+}: SelectProjectsExportDialogProps) {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+
+  // Reset selection whenever the dialog opens so re-opens start clean.
+  const handleOpenChange = (next: boolean) => {
+    if (!next) setSelectedIds(new Set());
+    onOpenChange(next);
+  };
+
+  const toggle = (id: string, on: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id); else next.delete(id);
+      return next;
+    });
+  };
+
+  const allChecked = projects.length > 0 && selectedIds.size === projects.length;
+  const someChecked = selectedIds.size > 0 && selectedIds.size < projects.length;
+  const toggleAll = (on: boolean) => {
+    setSelectedIds(on ? new Set(projects.map((p) => p.id)) : new Set());
+  };
+
+  const handleExport = async () => {
+    const chosen = projects.filter((p) => selectedIds.has(p.id));
+    if (chosen.length === 0) {
+      toast.error("Pick at least one project to export");
+      return;
+    }
+    setBusy(true);
+    try {
+      // Multi-select uses the same real-SQLite-in-ZIP format as the full
+      // bundle / single-project exporters — only the row set differs.
+      await exportProjectsAsSqliteZip(chosen);
+      toast.success(
+        chosen.length === 1
+          ? `Exported "${chosen[0].name}" as SQLite bundle`
+          : `Exported ${chosen.length} projects as SQLite bundle`,
+      );
+      handleOpenChange(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Export failed";
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-md" data-testid="projects-export-selected-dialog">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ListChecks className="h-5 w-5 text-primary" />
+            Export selected projects
+          </DialogTitle>
+          <DialogDescription>
+            Pick which projects to bundle. The export uses the same
+            SQLite-in-ZIP format as <em>Export SQLite Bundle</em> and includes
+            each project's referenced scripts and configs.
+          </DialogDescription>
+        </DialogHeader>
+
+        <label className="flex items-center gap-2 border-b border-border pb-2 text-sm font-medium">
+          <Checkbox
+            checked={allChecked ? true : someChecked ? "indeterminate" : false}
+            onCheckedChange={(v) => toggleAll(v === true)}
+            aria-label="Select all projects"
+          />
+          <span className="flex-1">Select all</span>
+          <span className="text-xs text-muted-foreground">
+            {selectedIds.size}/{projects.length}
+          </span>
+        </label>
+
+        <ScrollArea className="max-h-[40vh] pr-3">
+          <ul className="space-y-1.5">
+            {projects.map((p) => {
+              const checked = selectedIds.has(p.id);
+              return (
+                <li key={p.id}>
+                  <label className="flex cursor-pointer items-center gap-2 rounded-md border border-transparent px-2 py-1.5 text-sm hover:border-border hover:bg-muted/40">
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(v) => toggle(p.id, v === true)}
+                    />
+                    <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {p.scripts.length} scripts · {p.configs?.length ?? 0} configs
+                    </span>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        </ScrollArea>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => handleOpenChange(false)} disabled={busy}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => { void handleExport(); }}
+            disabled={busy || selectedIds.size === 0}
+            data-testid="projects-export-selected-apply"
+          >
+            {busy ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Building…</>) : "Download .zip"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

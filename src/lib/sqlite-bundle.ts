@@ -377,6 +377,91 @@ export async function exportProjectAsSqliteZip(project: StoredProject): Promise<
   triggerDownload(blob, `${safeName}-backup.zip`);
 }
 
+/**
+ * Exports a user-chosen subset of projects (with each project's related
+ * scripts and configs, plus any inline-script synthesis) into the same
+ * real-SQLite-in-ZIP format used by `exportAllAsSqliteZip` /
+ * `exportProjectAsSqliteZip`. Filename is derived from the count.
+ *
+ * Throws when `projects` is empty so callers don't accidentally produce
+ * an empty bundle.
+ */
+// eslint-disable-next-line max-lines-per-function
+export async function exportProjectsAsSqliteZip(
+  projects: ReadonlyArray<StoredProject>,
+): Promise<void> {
+  if (projects.length === 0) {
+    throw new Error("No projects selected — pick at least one project to export.");
+  }
+
+  const [scriptsRes, configsRes] = await Promise.all([
+    sendMessage<{ scripts: StoredScript[] }>({ type: "GET_ALL_SCRIPTS" }),
+    sendMessage<{ configs: StoredConfig[] }>({ type: "GET_ALL_CONFIGS" }),
+  ]);
+
+  // Union of all script + config paths referenced by the selected projects.
+  const allScriptPaths = new Set<string>();
+  const allConfigPaths = new Set<string>();
+  for (const p of projects) {
+    for (const s of p.scripts ?? []) allScriptPaths.add(s.path);
+    for (const c of p.configs ?? []) allConfigPaths.add(c.path);
+  }
+
+  const relatedScripts = scriptsRes.scripts.filter(
+    (s) => allScriptPaths.has(s.id) || allScriptPaths.has(s.name),
+  );
+  const relatedConfigs = configsRes.configs.filter(
+    (c) => allConfigPaths.has(c.id) || allConfigPaths.has(c.name),
+  );
+
+  // Synthesize inline-only scripts (mirrors single-project exporter).
+  const matchedIds = new Set(relatedScripts.map((s) => s.name));
+  const matchedNames = new Set(relatedScripts.map((s) => s.id));
+  const now = new Date().toISOString();
+  for (const project of projects) {
+    for (const entry of project.scripts ?? []) {
+      const alreadyMatched = matchedIds.has(entry.path) || matchedNames.has(entry.path);
+      if (!alreadyMatched && entry.code) {
+        relatedScripts.push({
+          id: `inline_${entry.path.replace(/[^a-zA-Z0-9]/g, "_")}`,
+          name: entry.path,
+          code: entry.code,
+          order: entry.order,
+          runAt: entry.runAt,
+          configBinding: entry.configBinding,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+    }
+  }
+
+  const db = await initDb();
+  db.run(CREATE_PROJECTS_TABLE);
+  db.run(CREATE_SCRIPTS_TABLE);
+  db.run(CREATE_CONFIGS_TABLE);
+  db.run(CREATE_PROMPTS_TABLE);
+  db.run(CREATE_META_TABLE);
+
+  insertProjects(db, [...projects]);
+  insertScripts(db, relatedScripts);
+  insertConfigs(db, relatedConfigs);
+  insertMeta(db);
+
+  const dbData = db.export();
+  db.close();
+
+  const JSZipCtor = await loadJSZip();
+  const zip = new JSZipCtor();
+  zip.file(DB_FILENAME, dbData);
+
+  const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+  const filename = projects.length === 1
+    ? `${projects[0].name.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase()}-backup.zip`
+    : `projects-${projects.length}-backup.zip`;
+  triggerDownload(blob, filename);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Import                                                             */
 /* ------------------------------------------------------------------ */

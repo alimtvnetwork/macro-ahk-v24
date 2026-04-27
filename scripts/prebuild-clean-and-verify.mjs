@@ -14,7 +14,7 @@
 
 import { existsSync, rmSync, statSync, readdirSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -95,12 +95,40 @@ function verifyStepLibrary() {
     const present = new Set(readdirSync(dirAbs));
     const missing = EXPECTED_FILES.filter((f) => !present.has(f));
     if (missing.length > 0) {
+        // Per-file forensic dump so the failure log shows EXACTLY which
+        // filesystem checks were performed for each missing item.
+        const probeReports = missing.map((name) => {
+            const abs = join(dirAbs, name);
+            const lines = ["   • " + name];
+            lines.push("       checked path        : " + abs);
+            lines.push("       file:// URL         : " + pathToFileURL(abs).href);
+            lines.push("       existsSync()        : " + existsSync(abs));
+            try {
+                const s = statSync(abs);
+                lines.push("       statSync.isFile     : " + s.isFile());
+                lines.push("       statSync.size       : " + s.size + " bytes");
+                lines.push("       statSync.mtime      : " + s.mtime.toISOString());
+            } catch (err) {
+                lines.push("       statSync()          : threw " + (err?.code ?? "ERR") + " — " + (err?.message ?? "unknown"));
+                lines.push("       size                : n/a (no stat)");
+                lines.push("       mtime               : n/a (no stat)");
+            }
+            // Sibling listing so it's obvious whether a rename/typo happened
+            const siblings = present.size > 0
+                ? Array.from(present).sort().join(", ")
+                : "(directory empty)";
+            lines.push("       siblings in dir     : " + siblings);
+            return lines.join("\n");
+        }).join("\n");
+
         fail(
             "Required step-library file(s) missing.\n" +
             "   Directory     : " + dirAbs + "\n" +
+            "   Directory URL : " + pathToFileURL(dirAbs).href + "\n" +
             "   Missing items : " + missing.join(", ") + "\n" +
             "   Reason        : These modules are imported by the build graph; absent files trigger ENOENT inside Rollup.\n" +
-            "   Fix           : Restore from git history, or update EXPECTED_FILES in scripts/prebuild-clean-and-verify.mjs if removal was intentional."
+            "   Fix           : Restore from git history, or update EXPECTED_FILES in scripts/prebuild-clean-and-verify.mjs if removal was intentional.\n" +
+            "\n   Per-file checks performed:\n" + probeReports
         );
     }
 

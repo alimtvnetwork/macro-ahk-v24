@@ -85,6 +85,7 @@ export function makeWebhookFailure(
     overrides: Partial<WebhookDeliveryFailure> = {},
 ): WebhookDeliveryFailure {
     return {
+        SchemaVersion: WEBHOOK_RESULT_SCHEMA_VERSION,
         Kind: "failure",
         Ok: false,
         Skipped: false,

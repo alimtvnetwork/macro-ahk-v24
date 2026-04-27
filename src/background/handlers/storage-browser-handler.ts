@@ -146,11 +146,17 @@ function computeDbSize(): number {
     try {
         const logsData = getDb().export();
         totalBytes += logsData.byteLength;
-    } catch { /* ignore */ }
+    } catch (logsErr) {
+        // logs DB may not be open yet during boot. Debug — totalBytes stays accurate.
+        console.debug("[storage-browser] computeDbSize: logs DB export skipped:", logsErr);
+    }
     try {
         const errorsData = getErrorsDb().export();
         totalBytes += errorsData.byteLength;
-    } catch { /* ignore */ }
+    } catch (errorsErr) {
+        // errors DB may not be open yet during boot.
+        console.debug("[storage-browser] computeDbSize: errors DB export skipped:", errorsErr);
+    }
     return totalBytes;
 }
 
@@ -312,8 +318,10 @@ export async function handleStorageClearAll(): Promise<{ isOk: true; cleared: st
             const db = getDbForTable(table);
             db.run(`DELETE FROM ${table}`);
             cleared.push(table);
-        } catch {
-            // Table may not exist
+        } catch (tableErr) {
+            // Table may not exist in this schema version. Debug-only because
+            // BROWSABLE_TABLES intentionally lists tables across multiple DBs.
+            console.debug(`[storage-browser] handleStorageClearAll: DELETE FROM "${table}" skipped (table missing or DB closed):`, tableErr);
         }
     }
 

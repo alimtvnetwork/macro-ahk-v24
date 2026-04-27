@@ -101,11 +101,11 @@ function ensurePromptsTable(): void {
         )
     `);
     // Migration: add Version column if missing
-    try { db.run("ALTER TABLE Prompts ADD COLUMN Version TEXT DEFAULT '1.0.0'"); } catch { /* already exists */ }
+    try { db.run("ALTER TABLE Prompts ADD COLUMN Version TEXT DEFAULT '1.0.0'"); } catch (e) { console.debug("[prompts] ALTER ADD Version skipped (already exists):", e); }
     // Migration: add Slug column if missing (UNIQUE cannot be in ALTER TABLE ADD COLUMN in SQLite)
-    try { db.run("ALTER TABLE Prompts ADD COLUMN Slug TEXT"); } catch { /* already exists */ }
+    try { db.run("ALTER TABLE Prompts ADD COLUMN Slug TEXT"); } catch (e) { console.debug("[prompts] ALTER ADD Slug skipped (already exists):", e); }
     // Ensure unique index on Slug (safe to call repeatedly)
-    try { db.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_prompts_slug ON Prompts(Slug)"); } catch { /* already exists */ }
+    try { db.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_prompts_slug ON Prompts(Slug)"); } catch (e) { console.debug("[prompts] CREATE INDEX idx_prompts_slug skipped:", e); }
 }
 
 /** Ensures a category exists and returns its ID (INTEGER AUTOINCREMENT). */
@@ -137,8 +137,10 @@ function linkPromptToCategory(promptId: string, categoryId: string): void {
             "INSERT OR IGNORE INTO PromptsToCategory (PromptId, CategoryId) VALUES (?, ?)",
             [Number(promptId), Number(categoryId)],
         );
-    } catch {
-        // Already linked — safe to ignore
+    } catch (linkErr) {
+        // Already linked — INSERT OR IGNORE should prevent this, but log debug
+        // so unexpected SQL failures (FK violation, schema drift) are recoverable.
+        console.debug(`[prompts] linkPromptToCategory(${promptId} → ${categoryId}) skipped:`, linkErr);
     }
 }
 
@@ -233,8 +235,10 @@ async function migrateFromStorageIfNeeded(): Promise<void> {
                 markDirty();
                 return;
             }
-        } catch {
-            // sync unavailable
+        } catch (syncErr) {
+            // chrome.storage.sync may be unavailable (rare in MV3, but possible
+            // when sync is disabled at the browser level). Migration falls through.
+            console.debug("[prompts] chrome.storage.sync legacy migration unavailable:", syncErr);
         }
 
         for (const prompt of legacyPrompts) {

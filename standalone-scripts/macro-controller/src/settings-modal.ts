@@ -53,14 +53,6 @@ function readJsonConfigValue(key: 'expiryGracePeriodDays' | 'refillWarningThresh
   return typeof v === 'number' ? v : undefined;
 }
 
-function readJsonConfigValue(key: 'expiryGracePeriodDays' | 'refillWarningThresholdDays'): number | undefined {
-  const cfg = (window.__MARCO_CONFIG__ || {}) as Record<string, unknown>;
-  const credit = (cfg.creditStatus || {}) as Record<string, unknown>;
-  const lifecycle = (credit.lifecycle || {}) as Record<string, unknown>;
-  const v = lifecycle[key];
-  return typeof v === 'number' ? v : undefined;
-}
-
 function buildField(args: {
   label: string; help: string; valueEl: string;
   effective: number; jsonValue: number | undefined; defaultValue: number;

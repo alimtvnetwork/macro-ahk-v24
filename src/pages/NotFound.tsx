@@ -1,11 +1,15 @@
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
+import { logError } from "@/components/options/options-logger";
 
 const NotFound = () => {
   const location = useLocation();
 
   useEffect(() => {
-    console.error("404 Error: User attempted to access non-existent route:", location.pathname);
+    logError(
+      "NotFound",
+      `404 Error\n  Path: react-router location.pathname="${location.pathname}"\n  Missing: Matching <Route> in App.tsx router\n  Reason: User navigated to a non-existent route — fell through to <NotFound /> catch-all`,
+    );
   }, [location.pathname]);
 
   return (

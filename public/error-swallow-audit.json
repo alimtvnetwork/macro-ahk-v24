@@ -1,33 +1,6 @@
 {
-  "GeneratedAt": "2026-04-27T23:34:06.666Z",
+  "GeneratedAt": "2026-04-27T23:46:02.928Z",
   "Items": [
-    {
-      "Id": "7b3f74e8f781",
-      "Severity": "P0",
-      "File": "src/background/handlers/injection-handler.ts",
-      "Line": 505,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
-    {
-      "Id": "9d61adade904",
-      "Severity": "P0",
-      "File": "src/background/handlers/injection-handler.ts",
-      "Line": 624,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
-    {
-      "Id": "1464e0932669",
-      "Severity": "P0",
-      "File": "src/background/handlers/injection-handler.ts",
-      "Line": 727,
-      "Rule": "no-noop-promise-catch",
-      "Message": "Promise .catch() handler is a no-op — rejection is silently swallowed.",
-      "Snippet": ".catch(() => { })"
-    },
     {
       "Id": "a2e58908054f",
       "Severity": "P0",
@@ -146,33 +119,6 @@
       "Snippet": "catch {"
     },
     {
-      "Id": "818a393402e5",
-      "Severity": "P1",
-      "File": "src/background/handlers/token-seeder.ts",
-      "Line": 191,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
-    {
-      "Id": "178b125e617b",
-      "Severity": "P1",
-      "File": "src/background/handlers/token-seeder.ts",
-      "Line": 263,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
-    {
-      "Id": "9feb86e90ac8",
-      "Severity": "P1",
-      "File": "src/background/handlers/token-seeder.ts",
-      "Line": 497,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
-    {
       "Id": "4a1a6ba3e603",
       "Severity": "P1",
       "File": "src/background/handlers/updater-handler.ts",
@@ -285,33 +231,6 @@
       "Severity": "P1",
       "File": "src/background/status-handler.ts",
       "Line": 60,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
-    {
-      "Id": "dd31f5cd5417",
-      "Severity": "P1",
-      "File": "src/content-scripts/network-reporter.ts",
-      "Line": 76,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
-    {
-      "Id": "d72b5119d927",
-      "Severity": "P1",
-      "File": "src/content-scripts/network-reporter.ts",
-      "Line": 252,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
-    {
-      "Id": "131ed964ab2e",
-      "Severity": "P1",
-      "File": "src/content-scripts/network-reporter.ts",
-      "Line": 323,
       "Rule": "no-empty-catch",
       "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
       "Snippet": "catch {"
@@ -569,60 +488,6 @@
       "Snippet": "catch {"
     },
     {
-      "Id": "3c7a01562ac5",
-      "Severity": "P2",
-      "File": "src/components/popup/BootFailureBanner.tsx",
-      "Line": 122,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
-    {
-      "Id": "fe7df2850559",
-      "Severity": "P2",
-      "File": "src/components/popup/BootFailureBanner.tsx",
-      "Line": 133,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
-    {
-      "Id": "60ce403da4e9",
-      "Severity": "P2",
-      "File": "src/components/popup/BootFailureBanner.tsx",
-      "Line": 162,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
-    {
-      "Id": "4c483b2235d5",
-      "Severity": "P2",
-      "File": "src/components/popup/InjectionCopyButton.tsx",
-      "Line": 212,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
-    {
-      "Id": "8ade3210c0d8",
-      "Severity": "P2",
-      "File": "src/components/popup/InjectionCopyButton.tsx",
-      "Line": 233,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
-    {
-      "Id": "7ee335d1edd2",
-      "Severity": "P2",
-      "File": "src/components/popup/InjectionCopyButton.tsx",
-      "Line": 259,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
-    {
       "Id": "c3294e044d72",
       "Severity": "P2",
       "File": "src/components/popup/InjectionModeToggle.tsx",
@@ -711,33 +576,6 @@
       "Rule": "no-noop-promise-catch",
       "Message": "Promise .catch() handler is a no-op — rejection is silently swallowed.",
       "Snippet": ".catch(() => { })"
-    },
-    {
-      "Id": "70b27d6606a7",
-      "Severity": "P2",
-      "File": "src/hooks/use-draggable.ts",
-      "Line": 52,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
-    {
-      "Id": "7cbfbd0ac344",
-      "Severity": "P2",
-      "File": "src/hooks/use-draggable.ts",
-      "Line": 58,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
-    {
-      "Id": "95ccd6c3d11b",
-      "Severity": "P2",
-      "File": "src/hooks/use-draggable.ts",
-      "Line": 160,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
     },
     {
       "Id": "4bc1e9b86ef7",

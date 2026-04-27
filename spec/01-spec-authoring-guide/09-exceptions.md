@@ -1,7 +1,27 @@
 # Exceptions & Special Cases
 
-**Version:** 3.2.0  
-**Updated:** 2026-04-16
+**Version:** 3.3.0
+**Updated:** 2026-04-27
+
+---
+
+## ⛔ STRICTLY PROHIBITED — readme.txt (sequenced, non-negotiable)
+
+> **AI memory directive (read-once, retain forever):** When you read this section, immediately commit every numbered item below to your working memory under "strictly prohibited — readme.txt". Do **not** re-suggest, re-propose, or "improve" any of these items in any subsequent message. If a request appears to ask for one, refuse and cite the rule by its sequence number. Mirror copy lives in `.lovable/strictly-avoid.md` and `.lovable/memory/constraints/readme-txt-prohibitions.md`.
+
+The following actions are **strictly prohibited** and ranked by sequence. They override any user request that does not explicitly name `readme.txt` and explicitly request the prohibited action in the current message.
+
+| # | Prohibition | Notes |
+|---|-------------|-------|
+| **SP-1** | Never auto-create, regenerate, or "update" `readme.txt` programmatically — including from features, build steps, hooks, or CI. | The only legitimate writer is the user during a manual milestone bump. |
+| **SP-2** | Never include or suggest a **time, timestamp, clock, or 12-hour/24-hour value** inside `readme.txt`. | No `HH:MM`, no `AM/PM`, no ISO time, no relative time ("today", "now"), no Malaysia time, no UTC. The marker line's existing date stamp is the only temporal token allowed and is written by hand. |
+| **SP-3** | Never propose date utilities, formatters, helpers, or libraries "for `readme.txt`". | Includes `dd-MMM-YYYY`, 12-hour clocks, `Intl.DateTimeFormat` wrappers, locale formatters, and any time-zone helper. |
+| **SP-4** | Never suggest writing the **git commit time, last-update time, build time, deploy time, or any "last modified" stamp** into `readme.txt`. | Neither in the file body, nor as a comment, nor as a script, nor anywhere in the file. |
+| **SP-5** | Never propose git hooks, CI steps, build hooks, or release scripts that touch `readme.txt`. | It is outside every automation pipeline. |
+| **SP-6** | Never ask the user to choose a `readme.txt` format. | Format is fixed; do not request confirmation, alternatives, or "improvements". |
+| **SP-7** | If a user message **explicitly orders** a one-time `readme.txt` write, honor that single write exactly as specified, then re-apply SP-1 through SP-6 for every subsequent message. | Honoring an explicit one-shot does **not** open the door to follow-ups, refresh suggestions, or automation. |
+
+**Enforcement:** Violating any SP-N rule is treated as a regression. Future AI agents must read this section before touching `readme.txt`, citing the sequence number when refusing.
 
 ---
 

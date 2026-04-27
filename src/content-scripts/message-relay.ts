@@ -384,9 +384,10 @@ initMessageRelay();
 /* ------------------------------------------------------------------ */
 
 import { bootHomeScreen } from "./home-screen";
+import { logError as logHomeScreenError } from "./home-screen/logger";
 
 try {
     bootHomeScreen();
 } catch (caught) {
-    console.error("[Marco] HomeScreen boot failed", caught);
+    logHomeScreenError("boot", "HomeScreen boot failed — bootHomeScreen() threw before URL guard or after; feature disabled for this navigation", caught);
 }

@@ -159,6 +159,20 @@ function KeywordEventsEditor(): JSX.Element {
         chainCtrlRef.current = null;
     };
 
+    // Drag-and-drop sensors. Pointer needs an 8px activation distance so
+    // ordinary clicks on the card body (Run, Stop, inputs) don't initiate a
+    // drag. Keyboard sensor enables ↑/↓/Space reordering for accessibility.
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    );
+
+    const handleDragEnd = (e: DragEndEvent): void => {
+        const { active, over } = e;
+        if (!over || active.id === over.id) { return; }
+        api.reorderEvents(String(active.id), String(over.id));
+    };
+
     return (
         <div className="space-y-3" data-testid="keyword-events-panel">
             <div className="flex items-center gap-2">

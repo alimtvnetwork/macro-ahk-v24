@@ -42,7 +42,7 @@
  *   node scripts/check-no-swallowed-errors.mjs --root=<d> # test isolation
  */
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, existsSync, writeFileSync } from "node:fs";
 import { resolve, dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 

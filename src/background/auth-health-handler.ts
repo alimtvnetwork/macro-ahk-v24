@@ -164,8 +164,15 @@ export async function buildAuthHealthResponse(): Promise<AuthHealthResponse> {
             if (typeof token === "string" && token.startsWith("eyJ") && token.split(".").length === 3) {
                 return { success: true, detail: "JWT found in active URL" };
             }
-        } catch {
-            // Ignore malformed URLs.
+        } catch (urlErr) {
+            // Malformed tab URL — strategy result already returns success=false below;
+            // log at warn level so a recurring pattern surfaces in diagnostics without
+            // promoting a single bad URL to an error.
+            logBgWarnError(
+                BgLogTag.AUTH_HEALTH,
+                `Strategy 3 — new URL("${tabUrl}") parse failed; skipping URL-token scan and falling through to "No signed URL token found"`,
+                urlErr instanceof Error ? urlErr : new Error(String(urlErr)),
+            );
         }
 
         return { success: false, detail: "No signed URL token found" };

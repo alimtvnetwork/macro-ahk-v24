@@ -109,10 +109,23 @@ export function LiveRecordedActionsTree(props: LiveRecordedActionsTreeProps): JS
                     />
                     <span>Live actions</span>
                 </div>
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                    {steps.length}
-                </Badge>
-            </div>
+                <div className="flex items-center gap-1">
+                    <Badge
+                        variant="outline"
+                        className={cn(
+                            "text-[9px] px-1 py-0 font-mono",
+                            transport === "chrome.storage" && "border-emerald-400/40 text-emerald-400",
+                            transport === "memory" && "border-amber-400/40 text-amber-400",
+                        )}
+                        title={`Live transport: ${transport}`}
+                        data-testid="live-actions-transport"
+                    >
+                        {transport === "chrome.storage" ? "ext" : transport === "localStorage" ? "preview" : "mem"}
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                        {steps.length}
+                    </Badge>
+                </div>
 
             <ScrollArea className="h-[180px]">
                 <div ref={scrollRef} className="pr-2">

@@ -6,6 +6,36 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased] — Webhook delivery result types
+
+### Changed
+- **`WebhookDeliveryResult` is now a discriminated union** keyed by the `Kind` field (`"success" | "skipped" | "failure"`). Each variant is exported from `src/background/recorder/step-library/result-webhook.ts` as `WebhookDeliverySuccess`, `WebhookDeliverySkipped`, and `WebhookDeliveryFailure`.
+- Added runtime validator `validateWebhookDeliveryResult(raw)` — corrupt/legacy log entries are now surfaced as a synthetic `WebhookDeliveryFailure` with a clear `Corrupt webhook log entry — …` message instead of rendering `undefined` in the UI.
+
+### Migration note
+
+Do **not** access variant-specific fields directly on a `WebhookDeliveryResult` value. Narrow with the exported guards first:
+
+```ts
+import {
+  isWebhookSuccess,
+  isWebhookSkipped,
+  isWebhookFailure,
+  type WebhookDeliveryResult,
+} from "@/background/recorder/step-library/result-webhook";
+
+function describe(entry: WebhookDeliveryResult): string {
+  if (isWebhookSuccess(entry)) return `OK ${entry.Status}`;          // Status: number
+  if (isWebhookSkipped(entry)) return `Skipped: ${entry.SkipReason}`; // SkipReason: string
+  if (isWebhookFailure(entry)) return `Failed: ${entry.Error}`;       // Error: string, Status: number | null
+  return "Unknown";
+}
+```
+
+Guards are mutually exclusive and provide full TypeScript narrowing. Reading `entry.SkipReason` / `entry.Error` / `entry.Status` without first calling the matching guard is a type error.
+
+---
+
 ## [v2.141.0] — 2026-04-15
 
 ### Fixed

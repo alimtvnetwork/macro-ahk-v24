@@ -21,7 +21,7 @@ import { nsWrite, nsCallTyped } from './api-namespace';
 import { MacroController } from './core/MacroController';
 
 import { CREDIT_API_BASE, loopCreditState } from './shared-state';
-import { parseLoopApiResponse, syncCreditStateFromApi } from './credit-parser';
+import { parseLoopApiResponse, syncCreditStateFromApi, applyProZeroEnrichment } from './credit-parser';
 import { logError } from './error-utils';
 import { ApiPath } from './types';
 

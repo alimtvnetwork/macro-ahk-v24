@@ -35,6 +35,7 @@
 | 13 | Capture-to-Step Bridge | ✅ | `recorder/capture-to-step-bridge.ts` (pure XPATH_CAPTURED → StepDraft + `findAnchorSelectorId` lookup) + `handlers/recorder-capture-handler.ts` + new `RECORDER_CAPTURE_PERSIST` MessageType wired in `message-registry.ts`. 13 unit tests (102/102 across recorder suite). Spec at `13-capture-to-step-bridge.md`. Content-script producer rename deferred with Shadow-Root toolbar. |
 | 19.4 | Spec 19.4 — `StepKind 9 = UrlTabClick` seeded | ✅ 2026-04-27 (`recorder-db-schema.ts` + enum mirror; tests 10/10) |
 | 19.1 | Spec 19.1 — UrlTabClick capture branch wired | ✅ 2026-04-27 (`deriveUrlTabClickParams` in bridge; `Step.ParamsJson` + idempotent `applyParamsJsonMigration`; replay primitive `executeUrlTabClick` already present; 18/18 bridge tests + 23/23 url-tab-click tests) |
+| 19.2 | Spec 19.2 — Element-appearance waits unified behind `waitForCondition` | ✅ 2026-04-27 (`wait-for-element.ts` refactored as a thin adapter that synthesizes a `Predicate{Matcher:Exists\|Visible}` and delegates to `waitForCondition`; `WaitForSpec` gained optional `Predicate?: "Exists"\|"Visible"` per spec §2.3 — default Exists for legacy `WaitFor` rows; outcome shape preserved (`Reason: "Timeout"\|"InvalidSelector"`, `ResolvedKind`, `Detail`) so `live-dom-replay.ts` is untouched; **27/27 wait+condition tests pass, 683/683 recorder suite green**; pre-existing step-library `applySchema` test corrected from 6→7 to reflect Hotkey StepKind already in seed) |
 
 ---
 

@@ -34,6 +34,18 @@ import {
 const DB_FILENAME = "keyword-events.db";
 const WASM_URL = "https://sql.js.org/dist/sql-wasm.wasm";
 
+/** Tables that MUST be present in a valid keyword-events bundle. Missing
+ *  any one of these means the .db is either a different bundle kind
+ *  (e.g. full-backup, prompts) or a corrupted export. */
+const REQUIRED_TABLES = ["Meta", "KeywordEvents"] as const;
+
+/** Columns that MUST exist on KeywordEvents for the importer's SELECT * to
+ *  return a usable row. Forward-compat: extras are allowed, only these are
+ *  required. */
+const REQUIRED_KEYWORD_EVENTS_COLUMNS = [
+    "Uid", "Keyword", "Steps", "SortOrder",
+] as const;
+
 /* ------------------------------------------------------------------ */
 /*  Public types                                                       */
 /* ------------------------------------------------------------------ */

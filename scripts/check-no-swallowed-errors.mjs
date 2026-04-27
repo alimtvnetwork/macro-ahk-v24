@@ -268,6 +268,54 @@ function scanFile(absPath) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Baseline (allow-list) — line-agnostic so reformatting won't break  */
+/*  the allow-list. Match key: file + kind + snippet.                  */
+/* ------------------------------------------------------------------ */
+
+function findingKey(f) {
+    return `${f.file}|${f.kind}|${f.snippet}`;
+}
+
+function loadBaseline() {
+    if (!existsSync(BASELINE_PATH)) return { entries: [] };
+    try {
+        const parsed = JSON.parse(readFileSync(BASELINE_PATH, "utf8"));
+        const entries = Array.isArray(parsed.entries) ? parsed.entries : [];
+        return { entries };
+    } catch (err) {
+        console.error("");
+        console.error("CODE RED: baseline file is invalid JSON");
+        console.error(`  Path:    ${BASELINE_PATH}`);
+        console.error(`  Missing: parseable JSON object with an "entries" array`);
+        console.error(`  Reason:  ${err instanceof Error ? err.message : String(err)}`);
+        console.error(`           Fix the file by hand, or regenerate it via:`);
+        console.error(`             npm run check:no-swallowed-errors -- --update-baseline`);
+        process.exit(1);
+        return { entries: [] };
+    }
+}
+
+function writeBaseline(currentFindings) {
+    const payload = {
+        $schema: "https://json-schema.org/draft/2020-12/schema",
+        description:
+            "Allow-list of pre-existing swallowed-error sites. Each entry is matched on "
+            + "file + kind + snippet (line-agnostic). NEVER use this to silence new "
+            + "violations — fix the catch block, then run --update-baseline to drop the entry.",
+        generatedAt: new Date().toISOString(),
+        entries: currentFindings.map((f) => ({
+            file: f.file,
+            line: f.line,
+            kind: f.kind,
+            snippet: f.snippet,
+            reason: "TODO: explain why this catch silently swallows, or fix it.",
+        })),
+    };
+    writeFileSync(BASELINE_PATH, JSON.stringify(payload, null, 2) + "\n", "utf8");
+    console.log(`[OK] Wrote ${currentFindings.length} entries to ${BASELINE_LABEL}`);
+}
+
+/* ------------------------------------------------------------------ */
 /*  Main                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -278,35 +326,74 @@ function main() {
         for (const hit of scanFile(f)) findings.push(hit);
     }
 
+    if (FLAG_UPDATE_BASELINE) {
+        writeBaseline(findings);
+        process.exit(0);
+        return;
+    }
+
+    const baseline = FLAG_STRICT ? { entries: [] } : loadBaseline();
+    const baselineKeys = new Set(baseline.entries.map(findingKey));
+    const currentKeys = new Set(findings.map(findingKey));
+    const allowed = [];
+    const blocking = [];
+    for (const f of findings) {
+        if (baselineKeys.has(findingKey(f))) allowed.push(f);
+        else blocking.push(f);
+    }
+    const stale = baseline.entries.filter((e) => !currentKeys.has(findingKey(e)));
+
     if (jsonMode) {
         process.stdout.write(JSON.stringify({
             Root: ROOT,
             ScannedFiles: files.length,
             FindingCount: findings.length,
+            BlockingCount: blocking.length,
+            AllowedCount: allowed.length,
+            StaleBaselineCount: stale.length,
             Findings: findings,
+            Blocking: blocking,
+            StaleBaseline: stale,
         }, null, 2) + "\n");
-        process.exit(findings.length === 0 ? 0 : 1);
+        process.exit(blocking.length === 0 && stale.length === 0 ? 0 : 1);
         return;
     }
 
-    if (findings.length === 0) {
-        console.log(`✓ check:no-swallowed-errors — scanned ${files.length} files, no swallowed errors found.`);
+    if (blocking.length === 0 && stale.length === 0) {
+        if (allowed.length > 0) {
+            console.log(
+                `✓ check:no-swallowed-errors — ${files.length} files scanned, `
+                + `${allowed.length} pre-existing site(s) allow-listed via ${BASELINE_LABEL}.`,
+            );
+            console.log(`  Refactor these and shrink the baseline whenever possible.`);
+        } else {
+            console.log(`✓ check:no-swallowed-errors — ${files.length} files scanned, no swallowed errors found.`);
+        }
         process.exit(0);
         return;
     }
 
-    console.error(`✗ check:no-swallowed-errors — ${findings.length} swallowed error(s) found:\n`);
-    for (const f of findings) {
-        console.error(`  ${f.file}:${f.line}  [${f.kind}]  ${f.snippet}`);
+    if (blocking.length > 0) {
+        console.error(`✗ check:no-swallowed-errors — ${blocking.length} NEW swallowed error(s):\n`);
+        for (const f of blocking) {
+            console.error(`  ${f.file}:${f.line}  [${f.kind}]  ${f.snippet}`);
+        }
+        console.error(
+            `\nEvery caught error MUST either be re-thrown, logged via Logger.error()/console.error,`
+            + `\nor explicitly waived with a trailing comment:`
+            + `\n    } catch (err) { // allow-swallow: <reason>`
+            + `\n    .catch(() => {}) // allow-swallow: <reason>`
+            + `\nSee: mem://standards/error-logging-requirements`,
+        );
     }
-    console.error(
-        `\nEvery caught error MUST either be re-thrown, logged via Logger.error()/console.error,`
-        + `\nor explicitly waived with a trailing comment:`
-        + `\n    } catch (err) { // allow-swallow: <reason>`
-        + `\n    .catch(() => {}) // allow-swallow: <reason>`
-        + `\nSee: mem://standards/error-logging-requirements`,
-    );
+    if (stale.length > 0) {
+        console.error(`\n⚠ Baseline drift: ${stale.length} entr${stale.length === 1 ? "y is" : "ies are"} no longer present.`);
+        console.error(`  Remove from ${BASELINE_LABEL} or regenerate via:`);
+        console.error(`    npm run check:no-swallowed-errors -- --update-baseline`);
+        for (const e of stale) console.error(`    • ${e.file}:${e.line}  [${e.kind}]  ${e.snippet}`);
+    }
     process.exit(1);
 }
 
 main();
+

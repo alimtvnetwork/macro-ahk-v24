@@ -152,8 +152,8 @@ function presentSuccess(entry: WebhookDeliverySuccess): VariantPresentation {
         badgeExtraClass: "",
         rowClass: ROW_SUCCESS,
         hoverClass: "hover:bg-emerald-500/10",
-        summaryDetail: null,
-        summaryDetailClass: "",
+        summaryDetail: `HTTP ${entry.Status}`,
+        summaryDetailClass: "text-emerald-300/90",
         eventClass: "",
     };
 }
@@ -165,7 +165,7 @@ function presentSkipped(entry: WebhookDeliverySkipped): VariantPresentation {
         badgeExtraClass: "",
         rowClass: ROW_SKIPPED,
         hoverClass: "hover:bg-muted/30",
-        summaryDetail: entry.SkipReason,
+        summaryDetail: entry.SkipReason && entry.SkipReason.length > 0 ? entry.SkipReason : "(no reason recorded)",
         summaryDetailClass: "text-muted-foreground",
         eventClass: "",
     };
@@ -173,13 +173,15 @@ function presentSkipped(entry: WebhookDeliverySkipped): VariantPresentation {
 
 function presentFailure(entry: WebhookDeliveryFailure): VariantPresentation {
     const statusSuffix = entry.Status !== null ? ` ${entry.Status}` : "";
+    const errorText = entry.Error && entry.Error.length > 0 ? entry.Error : "(no error message)";
+    const httpPrefix = entry.Status !== null ? `HTTP ${entry.Status} — ` : "";
     return {
         badgeLabel: `Failed${statusSuffix}`,
         badgeVariant: "destructive",
         badgeExtraClass: "uppercase tracking-wide font-bold ring-1 ring-destructive/60 shadow-sm",
         rowClass: ROW_FAILED,
         hoverClass: "hover:bg-destructive/15",
-        summaryDetail: entry.Error,
+        summaryDetail: `${httpPrefix}${errorText}`,
         summaryDetailClass: "text-destructive/90 font-medium",
         eventClass: "text-destructive font-semibold",
     };
@@ -749,9 +751,11 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                 <ul className="space-y-1.5">
                                     {filteredLog.map((entry, i) => {
                                         const presentation = presentVariant(entry);
-                                        const hasPayload = entry.Payload !== null && entry.Payload !== undefined;
                                         const hasSummaryDetail = presentation.summaryDetail !== null;
-                                        const isExpandable = hasSummaryDetail || hasPayload || isWebhookSuccess(entry);
+                                        // Every entry has at least Event/Emitted/Duration + a status block
+                                        // (HTTP status for success, SkipReason for skipped, Error for failure),
+                                        // so all rows are clickable to reveal the detail panel.
+                                        const isExpandable = true;
                                         const isOpen = expandedIdx === i;
                                         return (
                                             <li

@@ -61,7 +61,7 @@ describe("RECORDER_DB_SCHEMA", () => {
         const db = freshDb();
         expect(rowCount(db, "DataSourceKind")).toBe(2);
         expect(rowCount(db, "SelectorKind")).toBe(4);
-        expect(rowCount(db, "StepKind")).toBe(5);
+        expect(rowCount(db, "StepKind")).toBe(6);
         expect(rowCount(db, "StepStatus")).toBe(3);
     });
 
@@ -70,7 +70,14 @@ describe("RECORDER_DB_SCHEMA", () => {
         db.run(RECORDER_DB_SCHEMA);
         db.run(RECORDER_DB_SCHEMA);
         expect(rowCount(db, "SelectorKind")).toBe(4);
-        expect(rowCount(db, "StepKind")).toBe(5);
+        expect(rowCount(db, "StepKind")).toBe(6);
+    });
+
+    it("seeds StepKind 9 = UrlTabClick (Spec 19.4)", () => {
+        const db = freshDb();
+        const r = db.exec("SELECT Name FROM StepKind WHERE StepKindId = 9");
+        expect(r[0].values[0][0]).toBe("UrlTabClick");
+        expect(StepKindId.UrlTabClick).toBe(9);
     });
 
     it("code enums match seeded lookup IDs", () => {

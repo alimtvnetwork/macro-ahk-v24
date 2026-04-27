@@ -162,7 +162,7 @@ if (folderForm.length > 0 || unresolved.length > 0) {
         console.error("   ⚠ FOLDER-FORM IMPORT");
         console.error("     File         : " + relative(ROOT, f.file) + ":" + f.line);
         console.error("     Specifier    : " + f.specifier);
-        console.error("     Resolved to  : " + relative(ROOT, f.resolved.absPath) + " (directory)");
+        console.error("     Reason cause : " + (f.resolved.trailingSlash ? "trailing slash forces directory resolution" : (f.resolved.kind === "dir" ? "specifier resolves to a directory" : "specifier ends in /index")));
         console.error("     Missing item : a single-file import target — folder-form has no index.ts and breaks Vite vite:load-fallback");
         console.error("     Reason       : `result-webhook` is a single file (" + MODULE_FILE_REL + "), not a barrel. Folder-form imports trigger ENOENT during bundling.");
         console.error("     Fix          : Replace with `@/background/recorder/step-library/result-webhook` (no trailing slash, no /index).\n");

@@ -231,6 +231,7 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
         if (open) {
             setDraft(loadWebhookConfig());
             setLog(getDeliveryLog());
+            setSearchQuery("");
         }
     }, [open]);
 

@@ -12,6 +12,7 @@
 import {
     readCookieValueFromCandidates,
 } from "./cookie-helpers";
+import { logBgWarnError, BgLogTag } from "./bg-logger";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -80,7 +81,9 @@ export async function buildAuthHealthResponse(): Promise<AuthHealthResponse> {
         const [tab] = await _chrome.tabs!.query({ active: true, currentWindow: true });
         tabUrl = tab?.url ?? null;
         projectId = extractProjectId(tabUrl);
-    } catch { /* ignore */ }
+    } catch (queryErr) {
+        logBgWarnError(BgLogTag.AUTH_HEALTH, "chrome.tabs.query({active,currentWindow}) failed — proceeding with tabUrl=null and projectId=null; downstream strategies will skip URL-dependent checks", queryErr);
+    }
 
     // ── Strategy 1: Cookie presence check ──
     const s1 = await timedStrategy("Cookie presence", 1, async () => {
@@ -130,7 +133,11 @@ export async function buildAuthHealthResponse(): Promise<AuthHealthResponse> {
                                     }
                                 }
                             }
-                        } catch { /* ignore */ }
+                        } catch (parseErr) {
+                            // localStorage value not JSON / not the expected shape — try next key.
+                            // Returns null below; debug-only inside MAIN-world func (no logger access).
+                            console.debug("[auth-health] localStorage JWT parse skipped for key:", parseErr);
+                        }
                         return null;
                     },
                 });
@@ -138,7 +145,9 @@ export async function buildAuthHealthResponse(): Promise<AuthHealthResponse> {
                 if (typeof val === "string" && val.startsWith("found:")) {
                     return { success: true, detail: `JWT in ${val.slice(6)} (tabId=${tab.id})` };
                 }
-            } catch { /* tab access failed */ }
+            } catch (tabErr) {
+                logBgWarnError(BgLogTag.AUTH_HEALTH, `chrome.scripting.executeScript JWT scan failed for tabId=${tab.id} (url=${tab.url ?? "?"}) — tab may be discarded, restricted (chrome://, devtools), or closed mid-scan`, tabErr);
+            }
         }
         return { success: false, detail: `Scanned ${tabs.length} tab(s) — no JWT found` };
     });
@@ -265,7 +274,9 @@ async function getActivePlatformTabs(): Promise<PlatformTab[]> {
         try {
             const tabs = await _chrome.tabs!.query({ url: pattern });
             if (Array.isArray(tabs)) results.push(...tabs);
-        } catch { /* ignore */ }
+        } catch (queryErr) {
+            logBgWarnError(BgLogTag.AUTH_HEALTH, `chrome.tabs.query({url:"${pattern}"}) failed — pattern skipped, other platform tabs (if any) still scanned`, queryErr);
+        }
     }
     // Dedupe by tab ID
     const seen = new Set<number>();

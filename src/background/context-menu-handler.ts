@@ -128,7 +128,13 @@ async function rebuildProjectSubmenu(): Promise<void> {
     // Remove old project items
     const existingMenuIds = await getProjectMenuIds();
     for (const menuId of existingMenuIds) {
-        try { chrome.contextMenus.remove(menuId); } catch { /* ignore */ }
+        try {
+            chrome.contextMenus.remove(menuId);
+        } catch (removeErr) {
+            // Removing a stale menu id mid-rebuild is best-effort. If Chrome already
+            // GC'd it (e.g. SW restart), we'd rather continue the rebuild than abort.
+            logCaughtError(BgLogTag.CONTEXT_MENU, `chrome.contextMenus.remove("${menuId}") failed during submenu rebuild — continuing with other ids; user-visible regression possible if menu count diverges`, removeErr);
+        }
     }
 
     const dummySender = {} as chrome.runtime.MessageSender;

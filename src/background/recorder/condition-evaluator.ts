@@ -80,27 +80,52 @@ export interface WaitOptions {
 
 export function validateCondition(c: Condition): void {
     let predicateCount = 0;
-    walk(c, 0);
+    walk(c, 0, "");
 
-    function walk(node: Condition, depth: number): void {
+    function walk(node: Condition, depth: number, path: string): void {
         if (depth > MAX_CONDITION_DEPTH) {
-            throw new Error(`InvalidSelector: condition tree exceeds depth ${MAX_CONDITION_DEPTH}`);
+            throw new Error(
+                `InvalidSelector: condition tree exceeds depth ${MAX_CONDITION_DEPTH} at ${path || "<root>"}`,
+            );
         }
-        if ("All" in node) { for (const child of node.All) walk(child, depth + 1); return; }
-        if ("Any" in node) { for (const child of node.Any) walk(child, depth + 1); return; }
-        if ("Not" in node) { walk(node.Not, depth + 1); return; }
+        if ("All" in node) {
+            node.All.forEach((child, i) => walk(child, depth + 1, joinPath(path, `All[${i}]`)));
+            return;
+        }
+        if ("Any" in node) {
+            node.Any.forEach((child, i) => walk(child, depth + 1, joinPath(path, `Any[${i}]`)));
+            return;
+        }
+        if ("Not" in node) { walk(node.Not, depth + 1, joinPath(path, "Not")); return; }
         predicateCount++;
         if (predicateCount > MAX_PREDICATE_COUNT) {
-            throw new Error(`InvalidSelector: condition exceeds ${MAX_PREDICATE_COUNT} predicates`);
+            throw new Error(
+                `InvalidSelector: condition exceeds ${MAX_PREDICATE_COUNT} predicates at ${joinPath(path, node.Matcher.Kind)}`,
+            );
         }
-        const m = node.Matcher;
-        if (m.Kind === "TextRegex") {
-            try { new RegExp(m.Pattern, m.Flags ?? ""); }
-            catch (err) {
-                const msg = err instanceof Error ? err.message : String(err);
-                throw new Error(`InvalidSelector: bad regex /${m.Pattern}/ — ${msg}`);
-            }
+        validateMatcher(node, joinPath(path, node.Matcher.Kind));
+    }
+}
+
+function joinPath(prefix: string, segment: string): string {
+    return prefix.length === 0 ? segment : `${prefix}.${segment}`;
+}
+
+function validateMatcher(p: Predicate, path: string): void {
+    const m = p.Matcher;
+    if (m.Kind === "TextRegex") {
+        try { new RegExp(m.Pattern, m.Flags ?? ""); }
+        catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            throw new Error(`InvalidSelector: bad regex /${m.Pattern}/ at ${path} — ${msg}`);
         }
+        return;
+    }
+    if ((m.Kind === "AttrEquals" || m.Kind === "AttrContains") && m.Name.length === 0) {
+        throw new Error(`InvalidSelector: ${m.Kind} requires non-empty Name at ${path}`);
+    }
+    if (m.Kind === "Count" && m.N < 0) {
+        throw new Error(`InvalidSelector: Count.N must be >= 0 at ${path} (got ${m.N})`);
     }
 }
 

@@ -20,6 +20,7 @@ import {
     Download,
     Eye,
     EyeOff,
+    FolderTree,
     Pencil,
     Tag,
     TagsIcon,
@@ -48,7 +49,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
     DEFAULT_SEQUENCE_RENAME,
+    collectCategories,
     mergeTags,
+    normaliseCategory,
     parseTagInput,
     removeTags,
     renderSequenceName,

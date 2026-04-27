@@ -378,11 +378,15 @@ function FloatingShell(props: {
                 "rounded-lg border border-border bg-card/95 backdrop-blur",
                 "shadow-lg shadow-black/30 text-card-foreground",
                 "p-2 flex flex-col gap-1",
-                mode === "mini" ? "w-auto" : "min-w-[260px]",
+                // Smooth size + position transitions when toggling modes.
+                "transition-[width,min-width,max-width,padding,box-shadow] duration-300 ease-out",
+                "will-change-[width,transform]",
+                mode === "mini" ? "w-auto min-w-0 max-w-[160px]" : "min-w-[260px] max-w-[340px]",
             )}
             role="region"
             aria-label="Floating recorder controller"
             data-testid={testid}
+            data-mode={mode}
         >
             <div className="flex items-center justify-between gap-2">
                 <span className="text-[10px] uppercase tracking-widest text-muted-foreground px-1">
@@ -390,7 +394,15 @@ function FloatingShell(props: {
                 </span>
                 <ModeSwitcher mode={mode} onModeChange={onModeChange} />
             </div>
-            {children}
+            {/* Re-key on mode swap so the body fades+scales in via the
+                shared `enter` keyframe combo. */}
+            <div
+                key={mode}
+                className="animate-enter flex flex-col gap-1"
+                data-testid="floating-controller-body"
+            >
+                {children}
+            </div>
         </div>
     );
 }
@@ -407,11 +419,11 @@ function ModeSwitcher(props: { mode: ControllerMode; onModeChange: (m: Controlle
         <button
             type="button"
             onClick={() => onModeChange(next[mode])}
-            className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
+            className="text-muted-foreground hover:text-foreground transition-all duration-200 p-1 rounded hover-scale"
             aria-label={`Switch to ${next[mode]} mode`}
             data-testid="controller-mode-switch"
         >
-            <Icon className="h-3 w-3" />
+            <Icon key={mode} className="h-3 w-3 animate-scale-in" />
         </button>
     );
 }

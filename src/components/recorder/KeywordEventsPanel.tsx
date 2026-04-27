@@ -355,6 +355,12 @@ interface KeywordEventCardProps {
     readonly onAddStep: (step: Omit<import("@/hooks/use-keyword-events").KeywordEventStep, "Id">) => void;
     readonly onRemoveStep: (stepId: string) => void;
     readonly onMoveStep: (stepId: string, dir: "up" | "down") => void;
+    /**
+     * Optional drag-handle element rendered at the start of the card header.
+     * The sortable wrapper supplies a `<button>` bound to dnd-kit listeners;
+     * leaving it `undefined` makes the card non-draggable (used by tests).
+     */
+    readonly dragHandle?: React.ReactNode;
 }
 
 function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {

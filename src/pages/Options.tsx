@@ -12,6 +12,7 @@ import { ProjectCreateForm } from "@/components/options/ProjectCreateForm";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { DraggableOverlay } from "@/components/overlay/DraggableOverlay";
 import { ErrorDrawer } from "@/components/options/ErrorDrawer";
+import { FloatingControllerHost } from "@/components/recorder/FloatingControllerHost";
 import { useProjects, useScripts, useConfigs, type StoredProject } from "@/hooks/use-projects-scripts";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
@@ -340,6 +341,7 @@ const OptionsPage = () => {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <Toaster />
+        <FloatingControllerHost />
         <OptionsSidebar selection={selection} onSelect={handleSidebarSelect} onErrorDrawerOpen={() => setErrorDrawerOpen(true)} />
 
         <div className="flex-1 flex flex-col">

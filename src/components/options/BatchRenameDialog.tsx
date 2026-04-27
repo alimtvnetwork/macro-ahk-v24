@@ -2,11 +2,16 @@
  * Marco Extension — Batch Rename Dialog
  *
  * Lets the user rename every selected step group at once via one of
- * three composable transforms:
+ * four composable transforms:
  *
  *   • **Find & replace** — case-sensitive substring swap
  *   • **Add prefix**     — prepend a fixed string
  *   • **Add suffix**     — append a fixed string
+ *   • **Sequence**       — rename every selected row to "{Base}{N}" with
+ *                          a configurable start number and zero-padding
+ *                          width. If the Base contains the literal token
+ *                          `{n}` the number is substituted there; otherwise
+ *                          it is appended after a separator.
  *
  * The dialog renders a live preview row for every selected group:
  * "OldName  →  NewName", with badges for `unchanged`, `invalid`
@@ -80,7 +85,7 @@ export interface BatchRenameDialogProps {
 /*  Transforms                                                         */
 /* ------------------------------------------------------------------ */
 
-type Mode = "replace" | "prefix" | "suffix";
+type Mode = "replace" | "prefix" | "suffix" | "sequence";
 
 interface TransformInput {
     readonly Mode: Mode;
@@ -88,9 +93,35 @@ interface TransformInput {
     readonly Replace: string;
     readonly Prefix: string;
     readonly Suffix: string;
+    /** Sequence base name. May contain `{n}` as the substitution token. */
+    readonly SequenceBase: string;
+    /** Sequence start number (defaults to 1). Negative values clamp to 0. */
+    readonly SequenceStart: number;
+    /** Zero-padding width (1 → "1", 2 → "01", 3 → "001"). Clamped to 1..6. */
+    readonly SequencePadding: number;
+    /** Separator between base and number when `{n}` is absent. */
+    readonly SequenceSeparator: string;
 }
 
-function applyTransform(name: string, t: TransformInput): string {
+const SEQUENCE_TOKEN = "{n}";
+
+function formatSequenceNumber(n: number, padding: number): string {
+    const width = Math.max(1, Math.min(6, Math.floor(padding)));
+    return String(Math.max(0, Math.floor(n))).padStart(width, "0");
+}
+
+/** Builds the new name for the `index`-th selected target (0-based). */
+function applySequence(t: TransformInput, index: number): string {
+    const n = formatSequenceNumber(t.SequenceStart + index, t.SequencePadding);
+    if (t.SequenceBase.includes(SEQUENCE_TOKEN)) {
+        return t.SequenceBase.split(SEQUENCE_TOKEN).join(n);
+    }
+    const base = t.SequenceBase.trim();
+    if (base.length === 0) return n;
+    return `${base}${t.SequenceSeparator}${n}`;
+}
+
+function applyTransform(name: string, t: TransformInput, index: number): string {
     switch (t.Mode) {
         case "replace":
             // Empty Find = identity. Splitting on empty string would
@@ -101,6 +132,8 @@ function applyTransform(name: string, t: TransformInput): string {
             return `${t.Prefix}${name}`;
         case "suffix":
             return `${name}${t.Suffix}`;
+        case "sequence":
+            return applySequence(t, index);
     }
 }
 
@@ -141,8 +174,8 @@ function buildPreview(
     // the batch are also surfaced (two groups both renamed to "Foo").
     const newNamesByParent = new Map<number | null, Map<string, number>>();
 
-    const rows: PreviewRow[] = targets.map((g) => {
-        const newName = applyTransform(g.Name, transform);
+    const rows: PreviewRow[] = targets.map((g, i) => {
+        const newName = applyTransform(g.Name, transform, i);
         const trimmed = newName.trim();
         const parent = g.ParentStepGroupId ?? null;
         const externals = externalSiblingsByParent.get(parent) ?? [];
@@ -199,13 +232,28 @@ export default function BatchRenameDialog({
     const [replace, setReplace] = useState("");
     const [prefix, setPrefix] = useState("");
     const [suffix, setSuffix] = useState("");
+    const [sequenceBase, setSequenceBase] = useState("");
+    const [sequenceStart, setSequenceStart] = useState(1);
+    const [sequencePadding, setSequencePadding] = useState(1);
+    const [sequenceSeparator, setSequenceSeparator] = useState(" ");
 
-    const transform: TransformInput = { Mode: mode, Find: find, Replace: replace, Prefix: prefix, Suffix: suffix };
+    const transform: TransformInput = {
+        Mode: mode,
+        Find: find,
+        Replace: replace,
+        Prefix: prefix,
+        Suffix: suffix,
+        SequenceBase: sequenceBase,
+        SequenceStart: sequenceStart,
+        SequencePadding: sequencePadding,
+        SequenceSeparator: sequenceSeparator,
+    };
     const preview = useMemo(
         () => buildPreview(targets, allGroups, transform),
         // `transform` is stable enough — recompute whenever any input changes.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [targets, allGroups, mode, find, replace, prefix, suffix],
+        [targets, allGroups, mode, find, replace, prefix, suffix,
+         sequenceBase, sequenceStart, sequencePadding, sequenceSeparator],
     );
 
     const changedCount = preview.filter((r) => r.Changed).length;
@@ -236,10 +284,11 @@ export default function BatchRenameDialog({
                 </DialogHeader>
 
                 <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
-                    <TabsList className="grid w-full grid-cols-3">
+                    <TabsList className="grid w-full grid-cols-4">
                         <TabsTrigger value="replace">Find &amp; replace</TabsTrigger>
                         <TabsTrigger value="prefix">Add prefix</TabsTrigger>
                         <TabsTrigger value="suffix">Add suffix</TabsTrigger>
+                        <TabsTrigger value="sequence">Sequence</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="replace" className="space-y-2 pt-3">
@@ -290,6 +339,66 @@ export default function BatchRenameDialog({
                             placeholder="e.g.  (v2)"
                             maxLength={STEP_GROUP_NAME_MAX_LEN}
                         />
+                    </TabsContent>
+
+                    <TabsContent value="sequence" className="space-y-2 pt-3">
+                        <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2">
+                            <div>
+                                <Label htmlFor="batch-seq-base" className="text-xs">
+                                    Base name
+                                </Label>
+                                <Input
+                                    id="batch-seq-base"
+                                    value={sequenceBase}
+                                    onChange={(e) => setSequenceBase(e.target.value)}
+                                    placeholder="e.g. Login {n}"
+                                    maxLength={STEP_GROUP_NAME_MAX_LEN}
+                                />
+                            </div>
+                            <div className="w-20">
+                                <Label htmlFor="batch-seq-start" className="text-xs">Start</Label>
+                                <Input
+                                    id="batch-seq-start"
+                                    type="number"
+                                    min={0}
+                                    value={sequenceStart}
+                                    onChange={(e) => setSequenceStart(Number(e.target.value) || 0)}
+                                />
+                            </div>
+                            <div className="w-20">
+                                <Label htmlFor="batch-seq-padding" className="text-xs">Padding</Label>
+                                <Input
+                                    id="batch-seq-padding"
+                                    type="number"
+                                    min={1}
+                                    max={6}
+                                    value={sequencePadding}
+                                    onChange={(e) =>
+                                        setSequencePadding(
+                                            Math.max(1, Math.min(6, Number(e.target.value) || 1)),
+                                        )
+                                    }
+                                />
+                            </div>
+                            <div className="w-16">
+                                <Label htmlFor="batch-seq-sep" className="text-xs">Sep</Label>
+                                <Input
+                                    id="batch-seq-sep"
+                                    value={sequenceSeparator}
+                                    onChange={(e) => setSequenceSeparator(e.target.value)}
+                                    placeholder=" "
+                                    maxLength={4}
+                                />
+                            </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Use <code className="rounded bg-muted px-1">{"{n}"}</code> in the
+                            base name to control where the number goes
+                            (e.g. <code className="rounded bg-muted px-1">Step {"{n}"} — login</code>).
+                            Without it, the number is appended after the separator.
+                            Padding 2 → <code className="rounded bg-muted px-1">01</code>,
+                            3 → <code className="rounded bg-muted px-1">001</code>.
+                        </p>
                     </TabsContent>
                 </Tabs>
 

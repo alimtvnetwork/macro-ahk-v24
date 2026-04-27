@@ -103,51 +103,49 @@ function getDbForTable(table: string): SqlJsDatabase {
 /*  Handlers                                                           */
 /* ------------------------------------------------------------------ */
 
+interface TableEntry {
+    name: string;
+    rowCount: number;
+    primaryKeys: string[];
+    isView: boolean;
+}
+
+/**
+ * Probes a single table/view for its row count, returning an entry with
+ * `rowCount: 0` and a sampled-debug breadcrumb on failure (table may not
+ * exist in the current schema version, or DB may not be bound yet).
+ */
+function probeTableEntry(name: string, isView: boolean): TableEntry {
+    const primaryKeys = isView ? [] : (PRIMARY_KEYS[name] ?? ["id"]);
+    try {
+        const db = getDbForTable(name);
+        const result = db.exec(`SELECT COUNT(*) as cnt FROM ${name}`);
+        const rowCount = result.length > 0 && result[0].values.length > 0
+            ? (result[0].values[0][0] as number)
+            : 0;
+        return { name, rowCount, primaryKeys, isView };
+    } catch (countErr) {
+        const subject = isView ? "View" : "Table";
+        const keyPrefix = isView ? "listTables:count:view" : "listTables:count";
+        logSampledDebug(
+            BgLogTag.STATUS_HANDLER,
+            `${keyPrefix}:${name}`,
+            `${subject} introspection probe failed for "${name}" — reporting rowCount=0 (${subject.toLowerCase()} may not be created yet or DB not bound)`,
+            countErr instanceof Error ? countErr : String(countErr),
+        );
+        return { name, rowCount: 0, primaryKeys, isView };
+    }
+}
+
 /** Lists all browsable tables and views with row counts, plus total DB size. */
 export async function handleStorageListTables(): Promise<{
-    tables: Array<{ name: string; rowCount: number; primaryKeys: string[]; isView: boolean }>;
+    tables: TableEntry[];
     dbSizeBytes: number;
 }> {
-    const tables: Array<{ name: string; rowCount: number; primaryKeys: string[]; isView: boolean }> = [];
-
-    for (const name of BROWSABLE_TABLES) {
-        try {
-            const db = getDbForTable(name);
-            const result = db.exec(`SELECT COUNT(*) as cnt FROM ${name}`);
-            const rowCount = result.length > 0 && result[0].values.length > 0
-                ? (result[0].values[0][0] as number)
-                : 0;
-            tables.push({ name, rowCount, primaryKeys: PRIMARY_KEYS[name] ?? ["id"], isView: false });
-        } catch (countErr) {
-            logSampledDebug(
-                BgLogTag.STATUS_HANDLER,
-                `listTables:count:${name}`,
-                `Table introspection probe failed for "${name}" — reporting rowCount=0 (table may not be created yet or DB not bound)`,
-                countErr instanceof Error ? countErr : String(countErr),
-            );
-            tables.push({ name, rowCount: 0, primaryKeys: PRIMARY_KEYS[name] ?? ["id"], isView: false });
-        }
-    }
-
-    for (const name of BROWSABLE_VIEWS) {
-        try {
-            const db = getDbForTable(name);
-            const result = db.exec(`SELECT COUNT(*) as cnt FROM ${name}`);
-            const rowCount = result.length > 0 && result[0].values.length > 0
-                ? (result[0].values[0][0] as number)
-                : 0;
-            tables.push({ name, rowCount, primaryKeys: [], isView: true });
-        } catch (countErr) {
-            logSampledDebug(
-                BgLogTag.STATUS_HANDLER,
-                `listTables:count:view:${name}`,
-                `View introspection probe failed for "${name}" — reporting rowCount=0 (view may not be created yet)`,
-                countErr instanceof Error ? countErr : String(countErr),
-            );
-            tables.push({ name, rowCount: 0, primaryKeys: [], isView: true });
-        }
-    }
-
+    const tables: TableEntry[] = [
+        ...BROWSABLE_TABLES.map((name) => probeTableEntry(name, false)),
+        ...BROWSABLE_VIEWS.map((name) => probeTableEntry(name, true)),
+    ];
     const dbSizeBytes = computeDbSize();
 
     return { tables, dbSizeBytes };

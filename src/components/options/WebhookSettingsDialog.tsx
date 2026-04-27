@@ -370,6 +370,7 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
     };
 
     return (
+        <>
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-2xl">
                 <DialogHeader>
@@ -722,5 +723,47 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        <AlertDialog open={repairConfirmOpen} onOpenChange={setRepairConfirmOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                        <Wrench className="h-4 w-4 text-destructive" />
+                        Repair corrupted webhook log?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription asChild>
+                        <div className="space-y-2 text-sm">
+                            <p>
+                                This will scan the locally stored webhook delivery log and
+                                permanently remove every entry that fails validation
+                                (missing/wrong fields, unparsable JSON, or wrong shape).
+                            </p>
+                            <p>
+                                <span className="font-semibold text-destructive">{corruptCount}</span>{" "}
+                                corrupted entr{corruptCount === 1 ? "y" : "ies"} will be removed.
+                                Valid history is preserved.
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                This action cannot be undone.
+                            </p>
+                        </div>
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel disabled={repairBusy}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                        onClick={(e) => {
+                            e.preventDefault();
+                            handleRepair();
+                        }}
+                        disabled={repairBusy}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                        {repairBusy ? "Repairing…" : "Repair log"}
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+        </>
     );
 }

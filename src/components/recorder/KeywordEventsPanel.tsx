@@ -38,6 +38,12 @@ import {
     saveChainSettings,
     type KeywordEventChainSettings,
 } from "@/lib/keyword-event-chain";
+import {
+    isEventRunnable,
+    validateCombo,
+    validateEventSteps,
+    validateWait,
+} from "@/lib/keyword-event-validation";
 import { cn } from "@/lib/utils";
 
 export interface KeywordEventsPanelProps {

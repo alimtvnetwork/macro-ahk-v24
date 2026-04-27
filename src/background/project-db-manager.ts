@@ -157,7 +157,7 @@ function ensureDefaultDatabases(db: SqlJsDatabase, slug: string): void { // esli
                     [def.databaseName, def.databaseKindId, def.description],
                 );
             }
-        } catch {
+        } catch { // allow-swallow: ProjectDatabases table may not exist yet if MetaTables schema hasn't run
             // ProjectDatabases table may not exist yet if MetaTables schema hasn't run
         }
     }
@@ -192,7 +192,7 @@ async function tryLoadDb(sql: SqlJs, slug: string, schema: string): Promise<SqlJ
         persistenceMode = "opfs";
         console.log(`[project-db] OPFS: ${slug}`);
         return db;
-    } catch {
+    } catch { // allow-swallow: OPFS unavailable, falls through to chrome.storage
         // OPFS unavailable
     }
 
@@ -202,7 +202,7 @@ async function tryLoadDb(sql: SqlJs, slug: string, schema: string): Promise<SqlJ
         persistenceMode = "storage";
         console.log(`[project-db] storage: ${slug}`);
         return db;
-    } catch {
+    } catch { // allow-swallow: storage failed, falls through to in-memory db
         // storage failed
     }
 
@@ -278,7 +278,7 @@ export async function dropProjectDb(slug: string): Promise<void> {
         try {
             const root = await navigator.storage.getDirectory();
             await root.removeEntry(dbFileName(slug));
-        } catch { /* file may not exist */ }
+        } catch { /* file may not exist */ } // allow-swallow: removeEntry is best-effort cleanup
     } else if (persistenceMode === "storage") {
         await chrome.storage.local.remove(storageKey(slug));
     }

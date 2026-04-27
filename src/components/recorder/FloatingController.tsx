@@ -56,6 +56,7 @@ export interface FloatingControllerProps {
     readonly session: RecordingSession;
     readonly activeStepGroupName?: string | null;
     readonly activeSubGroupName?: string | null;
+    readonly onStart?: () => void | Promise<void>;
     readonly onPause: () => void | Promise<void>;
     readonly onResume: () => void | Promise<void>;
     readonly onStop: () => void | Promise<void>;

@@ -24,8 +24,10 @@ Updated: just now
 - **Write-Memory Protocol**: Current = `.lovable/prompts/03-write-memory.md` (v3.0). Adds CI/CD folder + verbatim-spec capture.
 - **Pre-Write Check**: Read `mem://standards/pre-write-check` and the relevant standards index entries before creating/rewriting any file under `standalone-scripts/`, `src/`, `chrome-extension/`, or `scripts/`.
 - **PascalCase Instruction Keys**: Every key in `instruction.ts`, `instruction.json`, `seed-manifest.json`, and runtime reads of those files MUST be PascalCase. Case-only rename — values, string-literal unions, and Chrome API contracts are unchanged. Boundary exemptions: Chrome APIs, `ProjectManifest` user-export schema, `StoredScript`/`StoredProject` storage rows. Enforced by `scripts/check-pascalcase-instruction-migration.mjs` (preflight CI job + `build-extension` `needs:`). Full mapping in `mem://standards/pascalcase-json-keys`.
+- **⛔ readme.txt (SP-1..SP-7)**: STRICTLY PROHIBITED to suggest, format, auto-write, or include ANY time/clock/timestamp/AM-PM/git-commit-time/last-update/build-time value in `readme.txt` — in body, comments, scripts, or chat. Honor only explicit one-shot user writes; never propose follow-ups, formatters, hooks, CI, or "remember to update". On read of `mem://constraints/readme-txt-prohibitions`, commit SP-1..SP-7 to working memory and never re-suggest. Mirror copies: `.lovable/strictly-avoid.md` + `spec/01-spec-authoring-guide/09-exceptions.md`.
 
 ## Memories
+- [⛔ readme.txt prohibitions (SP-1..SP-7)](mem://constraints/readme-txt-prohibitions) — Sequenced hard ban; honor one-shot explicit writes only; mirrors strictly-avoid.md and spec/01-spec-authoring-guide/09-exceptions.md
 - [Timezone](mem://localization/timezone) — Asia/Kuala_Lumpur for local timezone formatting
 - [Versioning policy](mem://workflow/versioning-policy) — Unified versioning across manifest, constants.ts, scripts
 - [Planning roadmap](mem://workflow/planning-roadmap) — plan.md as authoritative prioritized backlog

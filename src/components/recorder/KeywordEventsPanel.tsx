@@ -338,6 +338,8 @@ function KeywordEventsEditor(): JSX.Element {
                     </button>
                 )}
             </div>
+
+            <ChainSettingsRow
                 settings={chain}
                 onChange={setChain}
                 enabledCount={enabledCount}

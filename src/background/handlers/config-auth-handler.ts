@@ -670,6 +670,8 @@ function extractSignedUrlTokenFromUrl(url: string | null | undefined): string | 
         return null;
     }
 }
+
+async function resolveSignedUrlTokenCandidate(
     tabUrlHint?: string,
     primaryUrl?: string,
 ): Promise<string | null> {

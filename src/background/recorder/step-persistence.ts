@@ -302,16 +302,19 @@ function lastInsertId(db: SqlJsDatabase): number {
     return result[0].values[0][0] as number;
 }
 
-function readStep(db: SqlJsDatabase, stepId: number): PersistedStep {
+/**
+ * Reads a single Step row by id. Exported so the Phase 14 chain helpers in
+ * `step-chain-persistence.ts` can return the canonical PersistedStep shape
+ * after a meta/link patch instead of duplicating column lists.
+ */
+export function readStepRow(db: SqlJsDatabase, stepId: number): PersistedStep {
     const result = db.exec(
-        `SELECT StepId, StepKindId, StepStatusId, OrderIndex, VariableName,
-                Label, InlineJs, ParamsJson, IsBreakpoint, CapturedAt, UpdatedAt
-         FROM Step WHERE StepId = ?`,
+        `SELECT ${STEP_SELECT_COLUMNS} FROM Step WHERE StepId = ?`,
         [stepId],
     );
     const row = result[0]?.values[0];
     if (row === undefined) {
-        throw new Error(`Step row missing for StepId ${stepId} after insert`);
+        throw new Error(`Step row missing for StepId ${stepId}`);
     }
     return rowToStep(row);
 }
@@ -337,11 +340,17 @@ function rowToStep(row: ReadonlyArray<unknown>): PersistedStep {
         OrderIndex: row[3] as number,
         VariableName: row[4] as string,
         Label: row[5] as string,
-        InlineJs: (row[6] as string | null) ?? null,
-        ParamsJson: (row[7] as string | null) ?? null,
-        IsBreakpoint: row[8] as number,
-        CapturedAt: row[9] as string,
-        UpdatedAt: row[10] as string,
+        Description: (row[6] as string | null) ?? null,
+        InlineJs: (row[7] as string | null) ?? null,
+        ParamsJson: (row[8] as string | null) ?? null,
+        IsBreakpoint: row[9] as number,
+        IsDisabled: row[10] as number,
+        RetryCount: row[11] as number,
+        TimeoutMs: (row[12] as number | null) ?? null,
+        OnSuccessProjectId: (row[13] as string | null) ?? null,
+        OnFailureProjectId: (row[14] as string | null) ?? null,
+        CapturedAt: row[15] as string,
+        UpdatedAt: row[16] as string,
     };
 }
 

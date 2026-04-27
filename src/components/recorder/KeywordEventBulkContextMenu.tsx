@@ -26,6 +26,7 @@ import {
     Tag,
     TagsIcon,
     Trash2,
+    Upload,
 } from "lucide-react";
 import {
     Tooltip,

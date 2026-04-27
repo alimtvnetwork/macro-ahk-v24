@@ -150,7 +150,7 @@ export function KeywordEventStepContextMenu(
 
     return (
         <>
-            <ContextMenu>
+            <ContextMenu onOpenChange={handleOpenChange}>
                 <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
                 <ContextMenuContent
                     className="w-56"

@@ -669,8 +669,25 @@ function PreviewSummaryBanner({ summary }: { readonly summary: ReturnType<typeof
     );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Category dialog                                                    */
+function SequenceFormulaExample({ start, padding }: { readonly start: number; readonly padding: number }): JSX.Element {
+    const example: SequenceRenameInput = {
+        Base: "Login {n}",
+        Start: start,
+        Padding: padding,
+        Separator: "",
+    };
+    const samples = [0, 1, 2].map(i => renderSequenceName(example, i));
+    return (
+        <p
+            className="mt-2 text-[11px] text-muted-foreground"
+            data-testid="keyword-events-bulk-rename-formula-example"
+        >
+            Example with current Start ({start}) &amp; Padding ({padding}):{" "}
+            <code className="rounded bg-muted px-1 py-0.5">Login {"{n}"}</code> →{" "}
+            <code className="rounded bg-muted px-1 py-0.5">{samples.join(", ")}</code>
+        </p>
+    );
+}
 /* ------------------------------------------------------------------ */
 
 interface BulkCategoryDialogProps {

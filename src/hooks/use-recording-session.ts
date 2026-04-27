@@ -135,9 +135,16 @@ export interface UseRecordingSessionResult {
     readonly session: RecordingSession | null;
     /** True while the initial storage read is in flight. */
     readonly loading: boolean;
+    readonly start: (projectSlug?: string) => Promise<void>;
     readonly pause: () => Promise<void>;
     readonly resume: () => Promise<void>;
     readonly stop: () => Promise<void>;
+}
+
+function newSessionId(): string {
+    const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+    if (c?.randomUUID !== undefined) { return c.randomUUID(); }
+    return `sess-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function useRecordingSession(): UseRecordingSessionResult {
@@ -200,9 +207,29 @@ export function useRecordingSession(): UseRecordingSessionResult {
         setSession(next.Phase === "Idle" ? null : next);
     }, []);
 
+    const start = useCallback(async (projectSlug?: string) => {
+        const current = await readFromStorage();
+        if (current !== null && current.Phase !== "Idle") { return; }
+        const seed: RecordingSession = {
+            SessionId: "",
+            ProjectSlug: projectSlug ?? "default",
+            StartedAt: "",
+            Phase: "Idle",
+            Steps: [],
+        };
+        const next = recorderReducer(seed, {
+            Kind: "Start",
+            ProjectSlug: projectSlug ?? "default",
+            SessionId: newSessionId(),
+            StartedAt: new Date().toISOString(),
+        });
+        await writeToStorage(next);
+        setSession(next);
+    }, []);
+
     const pause = useCallback(() => dispatch({ Kind: "Pause" }), [dispatch]);
     const resume = useCallback(() => dispatch({ Kind: "Resume" }), [dispatch]);
     const stop = useCallback(() => dispatch({ Kind: "Stop" }), [dispatch]);
 
-    return { session, loading, pause, resume, stop };
+    return { session, loading, start, pause, resume, stop };
 }

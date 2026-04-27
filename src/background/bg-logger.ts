@@ -24,12 +24,14 @@ import { handleLogError } from "./handlers/logging-handler";
 
 /** Canonical log tags — eliminates magic strings across all background modules. */
 export const enum BgLogTag {
+    AUTH_HEALTH = "[auth-health]",
     BOOT = "[boot]",
     BUILTIN_GUARD = "[builtin-guard]",
     BUILTIN_GUARD_FALLBACK = "[builtin-guard:fallback]",
     CACHE_WARMER = "[cache-warmer]",
     CONFIG_AUTH = "[config-auth]",
     CONFIG_SEEDER = "[config-seeder]",
+    CONTEXT_MENU = "[context-menu]",
     COOKIE_WATCHER = "[cookie-watcher]",
     CSP_FALLBACK = "[csp-fallback]",
     DATA_BRIDGE = "[data-bridge]",

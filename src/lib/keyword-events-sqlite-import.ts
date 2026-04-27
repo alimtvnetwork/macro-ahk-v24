@@ -282,7 +282,7 @@ export function planImportMatches(
 export function buildPatchFromImport(
     src: ImportedKeywordEvent,
 ): Partial<Omit<KeywordEvent, "Id">> {
-    const patch: Partial<Omit<KeywordEvent, "Id">> = {};
+    const patch: { -readonly [K in keyof Omit<KeywordEvent, "Id">]?: KeywordEvent[K] } = {};
     patch.Keyword = src.Keyword;
     if (src.Description !== undefined) patch.Description = src.Description;
     if (src.Enabled !== undefined) patch.Enabled = src.Enabled;

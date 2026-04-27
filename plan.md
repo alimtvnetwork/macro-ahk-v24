@@ -12,7 +12,30 @@
 
 ---
 
+## 🆕 2026-04-27 — Open Lovable Tabs → Workspace Mapping (Draft)
+
+**Trigger**: User asked for a Macro Controller panel that lists all open Lovable tabs and shows which workspace each tab is bound to, then asked for automatic per-tab workspace detection via the existing message bus.
+**Status**: Implementation landed (page responder + content-script bridge + background probe + UI fallback). Spec drafted at `spec/22-app-issues/111-open-tabs-workspace-mapping.md`. Awaiting `next` to harden + document in memory.
+**Memory**: `mem://features/macro-controller/open-tabs-workspace-mapping` (TO-DO — not yet written).
+**Files touched**:
+- `src/background/handlers/open-tabs-handler.ts` — added per-tab `PROBE_DETECTED_WORKSPACE` round-trip with parallel `Promise.all`, fail-fast.
+- `src/content-scripts/message-relay.ts` — new background→page probe bridge with 600 ms hard timeout (no retry).
+- `standalone-scripts/macro-controller/src/page-workspace-responder.ts` — MAIN-world responder (read-only snapshot of `state.workspaceName` + cached ID + `extractProjectIdFromUrl`).
+- `standalone-scripts/macro-controller/src/startup.ts` — registers responder during boot.
+- `standalone-scripts/macro-controller/src/ui/section-open-tabs.ts` — three-tier label (stored project ▸ probe-detected ▸ failure reason).
+
+### Next steps (queued, do later — apply only on `next`)
+
+1. Write `mem://features/macro-controller/open-tabs-workspace-mapping.md` capturing the contract from §4 of the spec.
+2. Add a unit test for the page-side responder (`page-workspace-responder.test.ts`) covering: (a) success snapshot, (b) snapshot when `state.workspaceName` is empty but cache has a value, (c) error path via thrown `extractProjectIdFromUrl`.
+3. Add a content-script relay test that asserts the 600 ms timeout returns `{ isOk: false, errorMessage: 'probe timeout — controller not responding' }` exactly once (no retry).
+4. Mirror `LOVABLE_TAB_PATTERNS` constant into a shared module so auto-injector / cookie-watcher / open-tabs-handler import a single source of truth (currently duplicated by convention only).
+5. Per LOG-1: ensure the handler emits a `Reason` + `ReasonDetail` log line for every probe failure, not just the in-row `probeError` string.
+
+---
+
 ## 🆕 2026-04-25 — Idle Loop Audit Round 2 (recorded — no code changes yet)
+
 
 **Trigger**: User asked to re-sweep the codebase for background loops/timers/intervals/observers running idly that could harm performance. Previous sweep yielded PERF-1..PERF-8, all fixed and verified in source.
 **Status**: All PERF-1..8 fixes confirmed still present (hot-reload prod gate ✅, error-badge self-clearing interval ✅, auth-diag self-clearing interval ✅, redock generation token ✅, network-reporter re-injection guard + pagehide teardown ✅, popup visibility-pause ✅, toast queue SDK-miss bailout ✅).

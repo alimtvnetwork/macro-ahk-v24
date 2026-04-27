@@ -28,45 +28,53 @@ export interface CspInjectionResult {
 /*  Shared helpers                                                     */
 /* ------------------------------------------------------------------ */
 
-function appendNodeToTarget(target: Element, node: Node): boolean {
+/**
+ * Single-step DOM-append attempt with sampled-debug breadcrumb on failure.
+ * Returns true on success, false on caught exception. The breadcrumb keys
+ * are stable per-strategy so repeated DOM-hostility issues collapse into
+ * a handful of debug lines per SW lifetime.
+ */
+function tryAppendStrategy(
+    label: string,
+    fallbackHint: string,
+    operation: () => void,
+): boolean {
     try {
-        Node.prototype.appendChild.call(target, node);
+        operation();
         return true;
-    } catch (appendErr) {
+    } catch (err) {
         logSampledDebug(
             BgLogTag.CSP_FALLBACK,
-            "appendNodeToTarget:appendChild",
-            "appendChild failed — trying insertBefore (DOM patched by host page)",
-            appendErr instanceof Error ? appendErr : String(appendErr),
+            `appendNodeToTarget:${label}`,
+            `${label} failed — ${fallbackHint}`,
+            err instanceof Error ? err : String(err),
         );
-        try {
-            Node.prototype.insertBefore.call(target, node, null);
-            return true;
-        } catch (insertErr) {
-            logSampledDebug(
-                BgLogTag.CSP_FALLBACK,
-                "appendNodeToTarget:insertBefore",
-                "insertBefore failed — trying insertAdjacentElement",
-                insertErr instanceof Error ? insertErr : String(insertErr),
-            );
-            if (node.nodeType === Node.ELEMENT_NODE) {
-                try {
-                    Element.prototype.insertAdjacentElement.call(target, "beforeend", node as Element);
-                    return true;
-                } catch (adjacentErr) {
-                    logSampledDebug(
-                        BgLogTag.CSP_FALLBACK,
-                        "appendNodeToTarget:insertAdjacent",
-                        "insertAdjacentElement failed — DOM is hostile, giving up",
-                        adjacentErr instanceof Error ? adjacentErr : String(adjacentErr),
-                    );
-                    return false;
-                }
-            }
-            return false;
-        }
+        return false;
     }
 }
+
+function appendNodeToTarget(target: Element, node: Node): boolean {
+    if (tryAppendStrategy(
+        "appendChild",
+        "trying insertBefore (DOM patched by host page)",
+        () => { Node.prototype.appendChild.call(target, node); },
+    )) return true;
+
+    if (tryAppendStrategy(
+        "insertBefore",
+        "trying insertAdjacentElement",
+        () => { Node.prototype.insertBefore.call(target, node, null); },
+    )) return true;
+
+    if (node.nodeType !== Node.ELEMENT_NODE) return false;
+
+    return tryAppendStrategy(
+        "insertAdjacent",
+        "DOM is hostile, giving up",
+        () => { Element.prototype.insertAdjacentElement.call(target, "beforeend", node as Element); },
+    );
+}
+
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */

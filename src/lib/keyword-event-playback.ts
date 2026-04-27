@@ -158,7 +158,11 @@ export async function runKeywordEvent(
                 return { Completed: false, StepsRun: stepsRun, Aborted: true };
             }
             const step = event.Steps[i];
+            // Per-step Enabled flag: undefined / true = run, false = skip.
+            // The onStep notification still fires so UIs that highlight the
+            // currently-running index stay in sync with the visible list.
             options.onStep?.(step, i);
+            if (step.Enabled === false) continue;
 
             if (step.Kind === "Key") {
                 const parsed = parseCombo(step.Combo);

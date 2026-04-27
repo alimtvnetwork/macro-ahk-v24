@@ -681,6 +681,9 @@ export async function previewSqliteZip(file: File): Promise<BundlePreview> {
     projectItems,
     scriptItems,
     configItems,
+    existingProjectCount: existingProjects.projects.length,
+    existingScriptCount: existingScripts.scripts.length,
+    existingConfigCount: existingConfigs.configs.length,
     exportedAt,
   };
 }
@@ -700,6 +703,10 @@ export interface BundlePreview {
   projectItems: DiffItem[];
   scriptItems: DiffItem[];
   configItems: DiffItem[];
+  /** Counts of items currently in workspace (before import) — for matched/unmatched/untouched summaries. */
+  existingProjectCount: number;
+  existingScriptCount: number;
+  existingConfigCount: number;
   exportedAt?: string;
 }
 

@@ -187,7 +187,10 @@ function KeywordEventsEditor(): JSX.Element {
     // not across hidden rows. Selection set itself is preserved across
     // filter changes (see useShiftClickSelection — it prunes only on actual
     // id removal, not on pool changes).
-    const eventIds = visibleEvents.map(e => e.Id);
+    // Pass the FULL id list (not just visible) so selection persists across
+    // search filtering — typing in the search box must not silently drop a
+    // selected event that scrolled out of view.
+    const eventIds = api.events.map(e => e.Id);
     const eventSelection = useShiftClickSelection(eventIds);
     const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform);
     const handleEventRowClick = (id: string, ev: React.MouseEvent): void => {

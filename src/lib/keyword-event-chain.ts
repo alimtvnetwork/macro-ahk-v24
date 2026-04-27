@@ -32,11 +32,21 @@ export interface KeywordEventChainSettings {
     readonly Enabled: boolean;
     /** Pause inserted *between* successive events (clamped 0–60000). */
     readonly PauseMs: number;
+    /**
+     * When true, the chain auto-runs immediately after the recorder
+     * finishes a session (transition from `Recording`/`Paused` to Idle).
+     * Independent from `Enabled` so users can manually run the chain
+     * without arming the post-recording hook, and vice-versa. Defaults
+     * to `false` so existing setups don't surprise users with a chain
+     * firing the first time they stop a recording.
+     */
+    readonly RunAfterRecording: boolean;
 }
 
 export const DEFAULT_CHAIN_SETTINGS: KeywordEventChainSettings = {
     Enabled: false,
     PauseMs: 250,
+    RunAfterRecording: false,
 };
 
 const STORAGE_KEY = "marco-keyword-event-chain-v1";

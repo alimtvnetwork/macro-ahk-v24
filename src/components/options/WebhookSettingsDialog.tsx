@@ -338,6 +338,37 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
         setLog(getDeliveryLog());
     };
 
+    const corruptCount = useMemo(
+        () => log.reduce((acc, entry) => acc + (isCorruptPlaceholder(entry) ? 1 : 0), 0),
+        [log],
+    );
+
+    const handleRepair = () => {
+        setRepairBusy(true);
+        try {
+            const report = repairDeliveryLog();
+            setLog(getDeliveryLog());
+            setExpandedIdx(null);
+            setPayloadOpenIdx(null);
+
+            if (report.Removed === 0 && report.Errors.length === 0) {
+                toast.success("No corrupted entries found — log is clean");
+            } else if (report.Removed === 0 && report.Errors.length > 0) {
+                // Storage-level corruption (unparsable JSON / wrong shape) — key was reset
+                toast.success(`Reset corrupted webhook log storage (${report.Errors[0]})`);
+            } else {
+                toast.success(
+                    `Repaired webhook log — removed ${report.Removed} corrupted entr${report.Removed === 1 ? "y" : "ies"}, kept ${report.Kept}`,
+                );
+            }
+        } catch (err) {
+            toast.error(`Repair failed: ${err instanceof Error ? err.message : String(err)}`);
+        } finally {
+            setRepairBusy(false);
+            setRepairConfirmOpen(false);
+        }
+    };
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-2xl">

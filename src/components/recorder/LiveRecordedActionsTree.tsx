@@ -11,9 +11,18 @@
  * shows the *persisted* Step Group library. This component shows the
  * *transient* draft of the active session — the actions the user is
  * recording right now.
+ *
+ * ## Selection scroll/highlight contract
+ *
+ * Selection can be either internal (user clicks a row) or external (the
+ * Options page drives `selectedStepId` from the URL / detail panel).
+ * Whenever the active selection changes, the matching row is scrolled
+ * into view via `scrollIntoView({ block: "nearest" })` and pulses a
+ * highlight ring for ~1.2s so the user can locate it without manually
+ * scrolling the long action list.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
     Clock,
     FileCode2,
@@ -52,13 +61,22 @@ const KIND_META: Record<RecordedStepKind, KindMeta> = {
     JsInline: { Icon: FileCode2,         Label: "JS",     Tone: "text-pink-400" },
 };
 
+const HIGHLIGHT_PULSE_MS = 1200;
+
 export interface LiveRecordedActionsTreeProps {
     readonly className?: string;
     readonly onStepClick?: (step: RecordedStep) => void;
+    /**
+     * Controlled selection. When provided, the tree treats this StepId as the
+     * active selection (Options page passes the StepId currently shown in the
+     * detail panel). Internal click selection is still honored when this is
+     * `null` or `undefined`.
+     */
+    readonly selectedStepId?: string | null;
 }
 
 export function LiveRecordedActionsTree(props: LiveRecordedActionsTreeProps): JSX.Element {
-    const { className, onStepClick } = props;
+    const { className, onStepClick, selectedStepId: controlledStepId } = props;
 
     // Subscribe directly to the shared backend transport so this tree
     // stays in lockstep with the active session even if no parent
@@ -71,19 +89,55 @@ export function LiveRecordedActionsTree(props: LiveRecordedActionsTreeProps): JS
     }, []);
 
     const steps = session?.Steps ?? [];
-    const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
+    const [internalStepId, setInternalStepId] = useState<string | null>(null);
+
+    // Controlled selection wins over internal clicks so the Options page can
+    // drive which row is highlighted without extra plumbing.
+    const activeStepId = useMemo<string | null>(() => {
+        if (controlledStepId !== undefined && controlledStepId !== null) { return controlledStepId; }
+        return internalStepId;
+    }, [controlledStepId, internalStepId]);
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Refs: one per row so we can scroll the matching row into view.
+    // The map is rebuilt each render via the callback ref pattern; rows that
+    // unmount remove themselves automatically.
+    // ─────────────────────────────────────────────────────────────────────
+    const scrollRef = useRef<HTMLDivElement | null>(null);
+    const rowRefs = useRef<Map<string, HTMLLIElement>>(new Map());
+    const setRowRef = (stepId: string) => (node: HTMLLIElement | null): void => {
+        if (node === null) { rowRefs.current.delete(stepId); return; }
+        rowRefs.current.set(stepId, node);
+    };
 
     // Auto-scroll to the latest step when a new one arrives so the user
-    // always sees the most recent action without manual scrolling.
-    const scrollRef = useRef<HTMLDivElement | null>(null);
+    // always sees the most recent action without manual scrolling. Only fires
+    // when the user has not pinned a specific selection; otherwise the
+    // selection-scroll effect below takes precedence.
     const lastCountRef = useRef<number>(0);
     useEffect(() => {
-        if (steps.length > lastCountRef.current) {
+        if (activeStepId === null && steps.length > lastCountRef.current) {
             const node = scrollRef.current;
             if (node !== null) { node.scrollTop = node.scrollHeight; }
         }
         lastCountRef.current = steps.length;
-    }, [steps.length]);
+    }, [steps.length, activeStepId]);
+
+    // Selection scroll + highlight pulse. Runs whenever the active selection
+    // changes (internal click OR controlled prop change) so the matching row
+    // is always visible regardless of how it was selected.
+    const [pulseStepId, setPulseStepId] = useState<string | null>(null);
+    useEffect(() => {
+        if (activeStepId === null) { return; }
+        const node = rowRefs.current.get(activeStepId);
+        if (node === undefined) { return; }
+        // `block: "nearest"` keeps the row visible without jumping if it's
+        // already in view, which avoids jitter when the user clicks a visible row.
+        node.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        setPulseStepId(activeStepId);
+        const timer = window.setTimeout(() => { setPulseStepId(null); }, HIGHLIGHT_PULSE_MS);
+        return () => { window.clearTimeout(timer); };
+    }, [activeStepId]);
 
     const isRecording = session?.Phase === "Recording";
     const isPaused = session?.Phase === "Paused";
@@ -141,10 +195,12 @@ export function LiveRecordedActionsTree(props: LiveRecordedActionsTreeProps): JS
                             {steps.map((step) => (
                                 <ActionRow
                                     key={step.StepId}
+                                    rowRef={setRowRef(step.StepId)}
                                     step={step}
-                                    selected={selectedStepId === step.StepId}
+                                    selected={activeStepId === step.StepId}
+                                    pulsing={pulseStepId === step.StepId}
                                     onClick={() => {
-                                        setSelectedStepId(step.StepId);
+                                        setInternalStepId(step.StepId);
                                         onStepClick?.(step);
                                     }}
                                 />
@@ -160,17 +216,25 @@ export function LiveRecordedActionsTree(props: LiveRecordedActionsTreeProps): JS
 interface ActionRowProps {
     readonly step: RecordedStep;
     readonly selected: boolean;
+    readonly pulsing: boolean;
     readonly onClick: () => void;
+    readonly rowRef: (node: HTMLLIElement | null) => void;
 }
 
 function ActionRow(props: ActionRowProps): JSX.Element {
-    const { step, selected, onClick } = props;
+    const { step, selected, pulsing, onClick, rowRef } = props;
     const meta = KIND_META[step.Kind];
     const Icon = meta.Icon;
     const selectorPreview = step.Selector?.XPathRelative ?? step.Selector?.XPathFull ?? "";
 
     return (
-        <li role="treeitem" aria-selected={selected}>
+        <li
+            ref={rowRef}
+            role="treeitem"
+            aria-selected={selected}
+            data-step-id={step.StepId}
+            data-pulsing={pulsing ? "true" : undefined}
+        >
             <button
                 type="button"
                 onClick={onClick}
@@ -178,6 +242,7 @@ function ActionRow(props: ActionRowProps): JSX.Element {
                     "w-full text-left flex items-start gap-2 rounded px-1.5 py-1 text-[11px]",
                     "hover:bg-primary/10 transition-colors",
                     selected && "bg-primary/15 ring-1 ring-primary/40",
+                    pulsing && "ring-2 ring-primary animate-pulse",
                 )}
                 data-testid={`live-action-${step.StepId}`}
                 title={selectorPreview}

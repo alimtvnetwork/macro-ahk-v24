@@ -95,7 +95,11 @@ export async function handleGetOpenLovableTabs(): Promise<OpenLovableTabsRespons
 
     const projects: StoredProject[] = projectsResult[STORAGE_KEY_ALL_PROJECTS] ?? [];
     const projectNameById = new Map<string, string>();
-    for (const p of projects) projectNameById.set(p.id, p.name);
+    const projectById = new Map<string, StoredProject>();
+    for (const p of projects) {
+        projectNameById.set(p.id, p.name);
+        projectById.set(p.id, p);
+    }
 
     const injections = getTabInjections();
 
@@ -119,6 +123,12 @@ export async function handleGetOpenLovableTabs(): Promise<OpenLovableTabsRespons
         }
 
         const projectName = projectId !== null ? (projectNameById.get(projectId) ?? null) : null;
+        const matchedRule = resolveMatchedRule({
+            url: t.url ?? "",
+            projectId,
+            project: projectId !== null ? (projectById.get(projectId) ?? null) : null,
+            injectionMatchedRuleId: record?.matchedRuleId ?? null,
+        });
 
         return {
             tabId,
@@ -133,10 +143,56 @@ export async function handleGetOpenLovableTabs(): Promise<OpenLovableTabsRespons
             detectedWorkspaceId: probePayload?.workspaceId?.trim() || null,
             detectedWorkspaceSource: probePayload?.source ?? null,
             probeError: probe.error,
+            matchedRule,
         };
     });
 
     return { tabs: out, capturedAt: new Date().toISOString() };
+}
+
+/**
+ * Identify which UrlRule on the bound project caused this tab to bind.
+ *
+ * Strategy:
+ *   1. If the live injection record carries a `matchedRuleId`
+ *      ("<projectId>:<pattern>", per project-matcher.ts), parse the pattern
+ *      out of it and look up its matchType on the project — origin = "injection-record".
+ *   2. Else evaluate every targetUrls rule of the project against the tab URL
+ *      via `isUrlMatch()` and return the first hit — origin = "evaluated".
+ *   3. Else null.
+ */
+function resolveMatchedRule(args: {
+    url: string;
+    projectId: string | null;
+    project: StoredProject | null;
+    injectionMatchedRuleId: string | null;
+}): MatchedRuleInfo | null {
+    const { url, projectId, project, injectionMatchedRuleId } = args;
+    if (project === null || projectId === null) return null;
+
+    if (injectionMatchedRuleId !== null && injectionMatchedRuleId.startsWith(projectId + ":")) {
+        const pattern = injectionMatchedRuleId.slice(projectId.length + 1);
+        const rule = project.targetUrls.find((r) => r.pattern === pattern);
+        return {
+            pattern,
+            matchType: rule?.matchType ?? "glob",
+            origin: "injection-record",
+        };
+    }
+
+    if (url !== "") {
+        for (const rule of project.targetUrls) {
+            if (isUrlMatch(url, rule)) {
+                return {
+                    pattern: rule.pattern,
+                    matchType: rule.matchType,
+                    origin: "evaluated",
+                };
+            }
+        }
+    }
+
+    return null;
 }
 
 async function safeGetFocusedWindowId(): Promise<number | null> {

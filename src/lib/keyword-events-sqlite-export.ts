@@ -142,6 +142,65 @@ function insertMeta(db: Database, count: number, now: string): void {
 }
 
 /**
+ * Progress stages reported during a keyword-events export. Linear, in
+ * fire order — UIs can render a 4-step indicator without branching:
+ *   1. discovery     — gathering selected events (caller-side)
+ *   2. sqlite-build  — creating tables + INSERTing rows
+ *   3. zip-bundle    — DEFLATE-compressing the .db + .json blob
+ *   4. download      — Object URL created, anchor click dispatched
+ *   5. done          — final terminal stage; UI can dismiss
+ */
+export type KeywordEventsExportStage =
+    | "discovery"
+    | "sqlite-build"
+    | "zip-bundle"
+    | "download"
+    | "done";
+
+export interface KeywordEventsExportProgress {
+    readonly stage: KeywordEventsExportStage;
+    /** 0..1 monotonically non-decreasing across the whole pipeline. */
+    readonly fraction: number;
+    /** Human-readable, ready to show in a toast or progress label. */
+    readonly label: string;
+    /** Total events being exported — included on every event so a UI
+     *  can render "Building SQLite (12 events)…" without extra plumbing. */
+    readonly eventCount: number;
+}
+
+export type KeywordEventsExportProgressFn = (p: KeywordEventsExportProgress) => void;
+
+const STAGE_FRACTION: Record<KeywordEventsExportStage, number> = {
+    "discovery": 0.05,
+    "sqlite-build": 0.35,
+    "zip-bundle": 0.75,
+    "download": 0.95,
+    "done": 1,
+};
+
+const STAGE_LABEL: Record<KeywordEventsExportStage, string> = {
+    "discovery": "Collecting selected events",
+    "sqlite-build": "Building SQLite database",
+    "zip-bundle": "Compressing ZIP bundle",
+    "download": "Starting download",
+    "done": "Export complete",
+};
+
+function emitProgress(
+    onProgress: KeywordEventsExportProgressFn | undefined,
+    stage: KeywordEventsExportStage,
+    eventCount: number,
+): void {
+    if (!onProgress) return;
+    onProgress({
+        stage,
+        fraction: STAGE_FRACTION[stage],
+        label: STAGE_LABEL[stage],
+        eventCount,
+    });
+}
+
+/**
  * Builds an in-memory SQLite database carrying the selected keyword events.
  * Exported separately from the zip pipeline so unit tests can assert on
  * the on-disk schema without touching the DOM/Blob layer.
@@ -171,15 +230,24 @@ export interface KeywordEventsZipResult {
  * Builds a ZIP containing both the SQLite DB and a human-readable JSON
  * snapshot of the selected events. Returns the blob + suggested filename
  * so the caller controls when/how to trigger the download.
+ *
+ * Optional {@link onProgress} fires synchronously between stages —
+ * `discovery` → `sqlite-build` → `zip-bundle` (then `download`/`done`
+ * are emitted by {@link downloadKeywordEventsZip}).
  */
 export async function buildKeywordEventsZip(
     events: ReadonlyArray<KeywordEvent>,
+    onProgress?: KeywordEventsExportProgressFn,
 ): Promise<KeywordEventsZipResult> {
+    emitProgress(onProgress, "discovery", events.length);
+
+    emitProgress(onProgress, "sqlite-build", events.length);
     const [dbData, JSZipCtor] = await Promise.all([
         buildKeywordEventsSqliteDb(events),
         loadJSZip(),
     ]);
 
+    emitProgress(onProgress, "zip-bundle", events.length);
     const zip = new JSZipCtor();
     zip.file(DB_FILENAME, dbData);
     zip.file(
@@ -198,12 +266,17 @@ export async function buildKeywordEventsZip(
  * Convenience wrapper: builds the zip and triggers a browser download.
  * Returns the blob + filename so callers can also surface the result
  * (e.g. to a toast or post-export confirmation).
+ *
+ * Reports progress through all 5 stages when {@link onProgress} given.
  */
 export async function downloadKeywordEventsZip(
     events: ReadonlyArray<KeywordEvent>,
+    onProgress?: KeywordEventsExportProgressFn,
 ): Promise<KeywordEventsZipResult> {
-    const result = await buildKeywordEventsZip(events);
+    const result = await buildKeywordEventsZip(events, onProgress);
+    emitProgress(onProgress, "download", events.length);
     triggerDownload(result.blob, result.filename);
+    emitProgress(onProgress, "done", events.length);
     return result;
 }
 

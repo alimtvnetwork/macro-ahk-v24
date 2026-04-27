@@ -11,6 +11,7 @@ import { calcTotalCredits, calcAvailableCredits } from './credit-api';
 import { loopCreditState, state } from './shared-state';
 import { getEffectiveStatus, shouldApplyCanceledOverride, applyCanceledCreditOverride } from './workspace-status';
 import { getWorkspaceLifecycleConfig } from './workspace-lifecycle-config';
+import { enrichProZeroWorkspaces } from './pro-zero/pro-zero-enrichment';
 
 // ============================================
 // Workspace Tier Enum

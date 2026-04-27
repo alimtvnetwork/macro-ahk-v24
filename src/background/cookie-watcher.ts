@@ -201,8 +201,10 @@ async function reseedAllTargetTabs(): Promise<void> {
             if (tab.id !== undefined) {
                 try {
                     await seedTokensIntoTab(tab.id);
-                } catch {
-                    // Tab may not be ready — skip silently
+                } catch (seedErr) {
+                    // Tab may not be ready (no content script, navigating, discarded).
+                    // Debug-only because reseed runs on every cookie change and can fan out.
+                    console.debug(`[cookie-watcher] seedTokensIntoTab(${tab.id}) skipped — tab not ready:`, seedErr);
                 }
             }
         }
@@ -240,8 +242,10 @@ async function broadcastToTargetTabs(
             if (hasTabId) {
                 try {
                     await chrome.tabs.sendMessage(tab.id!, message);
-                } catch {
-                    // Tab may not have a content script — ignore silently
+                } catch (sendErr) {
+                    // Tab may not have a content script (chrome://, fresh tab, etc.).
+                    // Debug-only because broadcast targets every platform tab.
+                    console.debug(`[cookie-watcher] sendMessage(${type}) to tab ${tab.id} dropped — no content script:`, sendErr);
                 }
             }
         }

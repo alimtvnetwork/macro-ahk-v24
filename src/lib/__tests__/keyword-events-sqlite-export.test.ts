@@ -4,11 +4,49 @@
  * Builds the partial bundle with real sql.js, then re-opens the resulting
  * blob to assert table shape, row content, and Meta markers — the same
  * round-trip strategy used by the full `marco-backup.zip` tests.
+ *
+ * jsdom can't fetch the hosted WASM, so we mirror the technique used by
+ * `sqlite-bundle-roundtrip.test.ts`: mock `sql.js` to override
+ * `locateFile` to point at the in-package WASM on the local filesystem.
  */
 
-import { describe, expect, it } from "vitest";
-import initSqlJs from "sql.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve as resolvePath } from "node:path";
 
+vi.mock("sql.js", async () => {
+    const real = await vi.importActual<typeof import("sql.js")>("sql.js");
+    const realInit = real.default;
+    const wasmDir = resolvePath(__dirname, "../../../node_modules/sql.js/dist");
+    const localInit: typeof realInit = ((cfg) =>
+        realInit({
+            ...(cfg ?? {}),
+            locateFile: (file: string) => resolvePath(wasmDir, file),
+        })) as typeof realInit;
+    return { ...real, default: localInit };
+});
+
+beforeEach(() => {
+    vi.stubGlobal(
+        "fetch",
+        vi.fn(async (input: string) => {
+            const path = String(input);
+            if (path.endsWith(".wasm")) {
+                const buf = readFileSync(
+                    resolvePath(__dirname, "../../../node_modules/sql.js/dist/sql-wasm.wasm"),
+                );
+                return new Response(buf, { status: 200 });
+            }
+            throw new Error(`Unexpected fetch in test: ${path}`);
+        }),
+    );
+});
+
+afterEach(() => {
+    vi.unstubAllGlobals();
+});
+
+import initSqlJs from "sql.js";
 import {
     KEYWORD_EVENTS_BUNDLE_KIND,
     KEYWORD_EVENTS_FORMAT_VERSION,
@@ -41,7 +79,7 @@ const sample: KeywordEvent[] = [
 ];
 
 async function openDb(data: Uint8Array) {
-    const SQL = await initSqlJs({ locateFile: () => "node_modules/sql.js/dist/sql-wasm.wasm" });
+    const SQL = await initSqlJs();
     return new SQL.Database(data);
 }
 

@@ -726,6 +726,10 @@ interface KeywordEventCardProps {
     readonly onAddStep: (step: Omit<import("@/hooks/use-keyword-events").KeywordEventStep, "Id">) => void;
     readonly onRemoveStep: (stepId: string) => void;
     readonly onMoveStep: (stepId: string, dir: "up" | "down") => void;
+    /** Bulk step actions invoked by the per-step right-click context menu. */
+    readonly onRemoveSteps: (eventId: string, stepIds: readonly string[]) => void;
+    readonly onSetStepsEnabled: (eventId: string, stepIds: readonly string[], enabled: boolean) => void;
+    readonly onRelabelSteps: (eventId: string, stepIds: readonly string[], labels: readonly string[]) => void;
     /**
      * Optional drag-handle element rendered at the start of the card header.
      * The sortable wrapper supplies a `<button>` bound to dnd-kit listeners;
@@ -745,6 +749,7 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
     const {
         event, isRunning, currentStepIndex,
         onPlay, onCancel, onRemove, onUpdate, onAddStep, onRemoveStep, onMoveStep,
+        onRemoveSteps, onSetStepsEnabled, onRelabelSteps,
         dragHandle, selected, onRowClick, onToggleSelect,
     } = props;
     const [keyCombo, setKeyCombo] = useState("");

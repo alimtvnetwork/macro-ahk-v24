@@ -22,7 +22,7 @@ import type { CreditBalanceResponseTyped } from './credit-balance-response-typed
 import type { CreditBalanceFetchResult } from './credit-balance-fetch-result';
 
 export type ProZeroSummaryOutcome =
-    | { isOk: true; summary: MacroCreditSummary }
+    | { isOk: true; summary: MacroCreditSummary; balance: CreditBalanceResponseTyped }
     | { isOk: false; failure: CreditBalanceFetchResult };
 
 function buildSummary(balance: CreditBalanceResponseTyped): MacroCreditSummary {
@@ -53,7 +53,7 @@ export async function buildProZeroCreditSummary(workspace: WorkspaceInfoTyped): 
     if (result.status !== CreditBalanceFetchStatus.SUCCESS) return { isOk: false, failure: result };
     persistOnSuccess(workspace, result.data);
 
-    return { isOk: true, summary: buildSummary(result.data) };
+    return { isOk: true, summary: buildSummary(result.data), balance: result.data };
 }
 
 function skippedFailure(_plan: WorkspacePlan): ProZeroSummaryOutcome {

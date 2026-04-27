@@ -21,6 +21,8 @@ import { cPanelBg, cPanelFg, cPanelBorder, cPrimary, cPrimaryLight, lDropdownRad
 import { getSettingsOverrides, saveSettingsOverrides, clearSettingsOverrides, type SettingsOverrides } from './settings-store';
 import { getWorkspaceLifecycleConfig } from './workspace-lifecycle-config';
 import { DEFAULT_EXPIRY_GRACE_PERIOD_DAYS, DEFAULT_REFILL_WARNING_THRESHOLD_DAYS } from './constants';
+import { PRO_ZERO_CACHE_TTL_DEFAULT_MIN } from './pro-zero/pro-zero-constants';
+import { getProZeroCacheTtlMinutes } from './pro-zero/pro-zero-cache-ttl';
 import { showToast } from './toast';
 import { logError } from './error-utils';
 import { log } from './logging';
@@ -35,6 +37,8 @@ interface ModalState {
   /** Empty string = "use JSON / default". */
   graceInput: string;
   refillInput: string;
+  /** pro_0 IndexedDB cache TTL (minutes). Empty string = use default. */
+  proZeroTtlInput: string;
 }
 
 interface ModalHandlerStore {
@@ -112,6 +116,14 @@ function buildHtml(state: ModalState): string {
           effective: cfg.refillWarningThresholdDays,
           jsonValue: readJsonConfigValue('refillWarningThresholdDays'),
           defaultValue: DEFAULT_REFILL_WARNING_THRESHOLD_DAYS,
+        })
+    +   buildField({
+          label: 'Pro_0 Credit-Balance Cache TTL (minutes)',
+          help: 'How long to cache /credit-balance results in IndexedDB before refetching for pro_0 plan workspaces.',
+          valueEl: inputHtml('proZeroTtl', state.proZeroTtlInput, submittingDisabled),
+          effective: getProZeroCacheTtlMinutes(),
+          jsonValue: undefined,
+          defaultValue: PRO_ZERO_CACHE_TTL_DEFAULT_MIN,
         })
     +   errorHtml
     + '</div>'
@@ -205,13 +217,17 @@ export function showSettingsModal(): void {
     error: '',
     graceInput: typeof current.expiryGracePeriodDays === 'number' ? String(current.expiryGracePeriodDays) : '',
     refillInput: typeof current.refillWarningThresholdDays === 'number' ? String(current.refillWarningThresholdDays) : '',
+    proZeroTtlInput: typeof current.proZeroCreditBalanceCacheTtlMinutes === 'number'
+      ? String(current.proZeroCreditBalanceCacheTtlMinutes) : '',
   };
 
   function snapshotInputs(): void {
     const g = el.querySelector<HTMLInputElement>('[data-marco-el="grace"]');
     const r = el.querySelector<HTMLInputElement>('[data-marco-el="refill"]');
+    const p = el.querySelector<HTMLInputElement>('[data-marco-el="proZeroTtl"]');
     if (g) state.graceInput = g.value;
     if (r) state.refillInput = r.value;
+    if (p) state.proZeroTtlInput = p.value;
   }
 
   function rerender(): void {
@@ -240,6 +256,7 @@ export function showSettingsModal(): void {
       next = {
         expiryGracePeriodDays: parseInput(state.graceInput, 'Expiry Grace Period'),
         refillWarningThresholdDays: parseInput(state.refillInput, 'Refill Warning Threshold'),
+        proZeroCreditBalanceCacheTtlMinutes: parseInput(state.proZeroTtlInput, 'Pro_0 Cache TTL'),
       };
     } catch (err: unknown) {
       state = { ...state, error: err instanceof Error ? err.message : String(err) };

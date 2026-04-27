@@ -21,7 +21,7 @@ import { nsWrite, nsCallTyped } from './api-namespace';
 import { MacroController } from './core/MacroController';
 
 import { CREDIT_API_BASE, loopCreditState } from './shared-state';
-import { parseLoopApiResponse, syncCreditStateFromApi } from './credit-parser';
+import { parseLoopApiResponse, syncCreditStateFromApi, applyProZeroEnrichment } from './credit-parser';
 import { logError } from './error-utils';
 import { ApiPath } from './types';
 
@@ -152,6 +152,19 @@ function handleNonAuthError(resp: SdkApiResponse): void {
   });
 }
 
+function schedulePostParseEnrichment(): void {
+  // Fire-and-forget — pro_0 rows refresh asynchronously and trigger a UI update on completion.
+  applyProZeroEnrichment()
+    .then(function (mutated: number): void {
+      if (mutated === 0) return;
+      syncCreditStateFromApi();
+      mc().updateUI();
+    })
+    .catch(function (err: unknown): void {
+      logError('credit-fetch', 'pro_0 enrichment failed', err);
+    });
+}
+
 async function processSuccessData(
   data: Record<string, unknown>,
   autoDetectFn?: (token: string) => Promise<void>,
@@ -168,6 +181,7 @@ async function processSuccessData(
     mc().updateUI();
     log('Credit API: display updated (workspace detected)', 'success');
     nsCallTyped('_internal.updateAuthDiag');
+    schedulePostParseEnrichment();
 
     return;
   }
@@ -175,6 +189,7 @@ async function processSuccessData(
   syncCreditStateFromApi();
   mc().updateUI();
   nsCallTyped('_internal.updateAuthDiag');
+  schedulePostParseEnrichment();
 }
 
 // ============================================
@@ -313,12 +328,19 @@ async function doFetchLoopCreditsAsync(isRetry?: boolean): Promise<void> {
   const data = resp.data as Record<string, unknown>;
   parseLoopApiResponse(data);
   log('Credit API (async): parsed ' + (loopCreditState.perWorkspace || []).length + ' workspaces', 'success');
+  // Pro_0 enrichment runs in the background; awaited here so async callers
+  // (e.g. loop-cycle) see authoritative numbers before continuing.
+  const mutated = await applyProZeroEnrichment().catch(function (err: unknown): number {
+    logError('credit-fetch-async', 'pro_0 enrichment failed', err);
+    return 0;
+  });
+  if (mutated > 0) { syncCreditStateFromApi(); mc().updateUI(); }
 }
 
 // ============================================
 // Barrel re-exports from credit-parser
 // ============================================
-export { parseLoopApiResponse, syncCreditStateFromApi, resolveWsTier, WsTier, WS_TIER_LABELS, isExpiredWs, expiredDays, formatExpiryStartDate, formatExpiredDuration } from './credit-parser';
+export { parseLoopApiResponse, syncCreditStateFromApi, applyProZeroEnrichment, resolveWsTier, WsTier, WS_TIER_LABELS, isExpiredWs, expiredDays, formatExpiryStartDate, formatExpiredDuration } from './credit-parser';
 export {
   getEffectiveStatus,
   applyCanceledCreditOverride,

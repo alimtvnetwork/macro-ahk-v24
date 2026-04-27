@@ -64,7 +64,7 @@ export function recordTrail(entry: Omit<ClickTrailEntry, "at">): void {
 export function clearClickTrail(): void {
     try {
         sessionStorage.removeItem(STORAGE_KEY);
-    } catch {
+    } catch { // allow-swallow: clearing diagnostic trail is best-effort
         // ignore
     }
 }

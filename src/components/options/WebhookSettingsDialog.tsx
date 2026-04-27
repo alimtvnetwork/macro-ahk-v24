@@ -72,6 +72,15 @@ function formatTime(iso: string): string {
     }
 }
 
+function formatPayloadJson(entry: WebhookDeliveryResult): string | null {
+    if (entry.Payload === null || entry.Payload === undefined) return null;
+    try {
+        return JSON.stringify(entry.Payload, null, 2);
+    } catch (err) {
+        return `// Failed to serialise payload: ${err instanceof Error ? err.message : String(err)}`;
+    }
+}
+
 function buildLogClipboardText(entry: WebhookDeliveryResult): string {
     const skipped = isWebhookSkipped(entry);
     const success = isWebhookSuccess(entry);
@@ -89,6 +98,11 @@ function buildLogClipboardText(entry: WebhookDeliveryResult): string {
         const httpPart = entry.Status !== undefined && entry.Status !== null ? ` (HTTP ${entry.Status})` : "";
         lines.push(`Status: Failed${httpPart}`);
         lines.push(`Error: ${entry.Error}`);
+    }
+    const payloadJson = formatPayloadJson(entry);
+    if (payloadJson !== null) {
+        lines.push("Payload:");
+        lines.push(payloadJson);
     }
     return lines.join("\n");
 }

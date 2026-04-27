@@ -7,8 +7,8 @@
  * surface via a Dialog trigger.
  */
 
-import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, CheckCircle2, Circle, Clock, Crosshair, GripVertical, Keyboard, Link2, ListOrdered, Play, Plus, Square, Target, Trash2, XCircle } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, CheckCircle2, Circle, Clock, Crosshair, GripVertical, Keyboard, Link2, ListOrdered, Play, Plus, Search, Square, Target, Trash2, X, XCircle } from "lucide-react";
 import {
     DndContext,
     KeyboardSensor,
@@ -54,6 +54,7 @@ import {
 import { useKeywordEventPlayback } from "@/hooks/use-keyword-event-playback";
 import { useRecordingSession } from "@/hooks/use-recording-session";
 import { useAutoRunChainAfterRecording } from "@/hooks/use-auto-run-chain-after-recording";
+import { filterKeywordEvents } from "@/lib/keyword-event-search";
 import { KeywordEventStepContextMenu } from "./KeywordEventStepContextMenu";
 import {
     DEFAULT_CHAIN_SETTINGS,
@@ -132,6 +133,19 @@ function KeywordEventsEditor(): JSX.Element {
     const api = useKeywordEvents();
     const playback = useKeywordEventPlayback();
     const [newKeyword, setNewKeyword] = useState("");
+    const [search, setSearch] = useState("");
+
+    // Filter the event list by keyword/description/tags (case-insensitive
+    // substring). Selection is keyed by Id, so events that drop out of the
+    // visible list stay selected — the toolbar count reflects the full
+    // selection, not just what's on screen. Drag-reorder is disabled while
+    // a filter is active because reordering a sparse subset would corrupt
+    // the persisted order of hidden rows.
+    const visibleEvents = useMemo(
+        () => filterKeywordEvents(api.events, search),
+        [api.events, search],
+    );
+    const isFiltering = search.trim().length > 0;
 
     // Chain settings — persisted in localStorage so the recorder can read
     // them without prop drilling. We keep a local mirror so the form stays
@@ -168,8 +182,14 @@ function KeywordEventsEditor(): JSX.Element {
     const enabledCount = api.events.filter((e) => isEventRunnable(e)).length;
 
     // Gmail-style multi-select for the events list. Plain click selects one,
-    // Shift-click extends from anchor, Ctrl/Cmd-click toggles. The set is
-    // pruned automatically when events are deleted/reordered.
+    // Shift-click extends from anchor, Ctrl/Cmd-click toggles. Anchor pool is
+    // the *visible* list so Shift-click extends along what the user sees,
+    // not across hidden rows. Selection set itself is preserved across
+    // filter changes (see useShiftClickSelection — it prunes only on actual
+    // id removal, not on pool changes).
+    // Pass the FULL id list (not just visible) so selection persists across
+    // search filtering — typing in the search box must not silently drop a
+    // selected event that scrolled out of view.
     const eventIds = api.events.map(e => e.Id);
     const eventSelection = useShiftClickSelection(eventIds);
     const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform);
@@ -296,6 +316,29 @@ function KeywordEventsEditor(): JSX.Element {
                 </Button>
             </div>
 
+            <div className="relative" data-testid="keyword-events-search-row">
+                <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search by keyword, description, or tag…"
+                    aria-label="Search keyword events"
+                    className="h-8 pl-7 pr-7 text-xs"
+                    data-testid="keyword-events-search-input"
+                />
+                {isFiltering && (
+                    <button
+                        type="button"
+                        onClick={() => setSearch("")}
+                        aria-label="Clear search"
+                        className="absolute right-1.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                        data-testid="keyword-events-search-clear"
+                    >
+                        <X className="h-3 w-3" />
+                    </button>
+                )}
+            </div>
+
             <ChainSettingsRow
                 settings={chain}
                 onChange={setChain}
@@ -341,18 +384,25 @@ function KeywordEventsEditor(): JSX.Element {
                     <p className="text-sm text-muted-foreground text-center py-12">
                         No keyword events yet. Add one above to script key presses and waits.
                     </p>
+                ) : visibleEvents.length === 0 ? (
+                    <p
+                        className="text-sm text-muted-foreground text-center py-12"
+                        data-testid="keyword-events-search-empty"
+                    >
+                        No events match “{search.trim()}”.
+                    </p>
                 ) : (
                     <DndContext
                         sensors={sensors}
                         collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
+                        onDragEnd={isFiltering ? () => { /* drag-reorder disabled while filtering */ } : handleDragEnd}
                     >
                         <SortableContext
-                            items={api.events.map(e => e.Id)}
+                            items={visibleEvents.map(e => e.Id)}
                             strategy={verticalListSortingStrategy}
                         >
                             <div className="space-y-3" data-testid="keyword-events-sortable-list">
-                                {api.events.map(ev => {
+                                {visibleEvents.map(ev => {
                                     const isSelected = eventSelection.isSelected(ev.Id);
                                     // Right-click on a non-selected row should
                                     // act on that single row — promote it to

@@ -134,6 +134,27 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
 
     const eventSet = useMemo(() => new Set(draft.Events), [draft.Events]);
 
+    const logCounts = useMemo(() => {
+        let success = 0;
+        let skipped = 0;
+        let failure = 0;
+        for (const entry of log) {
+            if (isWebhookSkipped(entry)) skipped += 1;
+            else if (isWebhookSuccess(entry)) success += 1;
+            else failure += 1;
+        }
+        return { all: log.length, success, skipped, failure };
+    }, [log]);
+
+    const filteredLog = useMemo(() => {
+        if (statusFilter === "all") return log;
+        return log.filter((entry) => {
+            if (statusFilter === "skipped") return isWebhookSkipped(entry);
+            if (statusFilter === "success") return isWebhookSuccess(entry);
+            return !isWebhookSkipped(entry) && !isWebhookSuccess(entry);
+        });
+    }, [log, statusFilter]);
+
     const toggleEvent = (kind: WebhookEventKind, on: boolean) => {
         setDraft((prev) => {
             const next = new Set(prev.Events);

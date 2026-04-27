@@ -257,7 +257,8 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
             if (query.length === 0) return true;
             const event = entry.Event?.toLowerCase() ?? "";
             const emitted = entry.EmittedAt?.toLowerCase() ?? "";
-            const status = entry.Status === null || entry.Status === undefined ? "" : String(entry.Status);
+            const statusValue = isWebhookSkipped(entry) ? null : entry.Status;
+            const status = statusValue === null || statusValue === undefined ? "" : String(statusValue);
             return event.includes(query) || emitted.includes(query) || status.includes(query);
         });
     }, [log, statusFilter, searchQuery]);

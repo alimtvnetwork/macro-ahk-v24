@@ -316,11 +316,27 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
     const [keyCombo, setKeyCombo] = useState("");
     const [waitMs, setWaitMs] = useState("500");
 
+    // Live validation drives both inline messages and the disabled state of
+    // the Run button + the per-step Add buttons.
+    const comboValidation = validateCombo(keyCombo);
+    const waitValidation = validateWait(waitMs);
+    const stepIssues = validateEventSteps(event);
+    const issuesByIndex = new Map(stepIssues.map(i => [i.Index, i] as const));
+    const runnable = isEventRunnable(event);
+    const runDisabledReason: string | null = !event.Enabled
+        ? "Event is disabled"
+        : event.Steps.length === 0
+            ? "Add at least one step"
+            : stepIssues.length > 0
+                ? `${stepIssues.length} step${stepIssues.length === 1 ? "" : "s"} need${stepIssues.length === 1 ? "s" : ""} fixing`
+                : null;
+
     return (
         <div
             className={cn(
                 "rounded-md border border-border bg-card/60 p-3 space-y-3 transition-shadow",
                 isRunning && "ring-2 ring-primary shadow-[0_0_0_1px_hsl(var(--primary)/0.3)]",
+                stepIssues.length > 0 && !isRunning && "border-destructive/50",
             )}
             data-testid={`keyword-event-${event.Id}`}
         >
@@ -356,9 +372,10 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                         variant="secondary"
                         className="h-8"
                         onClick={onPlay}
-                        disabled={!event.Enabled || event.Steps.length === 0}
+                        disabled={!runnable}
                         data-testid={`keyword-event-play-${event.Id}`}
                         aria-label="Run keyword event"
+                        title={runDisabledReason ?? "Run this keyword event"}
                     >
                         <Play className="h-3.5 w-3.5 mr-1" /> Run
                     </Button>
@@ -381,87 +398,147 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                 onChange={(next) => onUpdate({ Target: next })}
             />
 
+            {stepIssues.length > 0 && (
+                <p
+                    className="text-[10px] text-destructive"
+                    role="status"
+                    data-testid={`keyword-event-issues-${event.Id}`}
+                >
+                    {stepIssues.length} step{stepIssues.length === 1 ? "" : "s"} need{stepIssues.length === 1 ? "s" : ""} fixing — Run is disabled until resolved.
+                </p>
+            )}
+
             <div className="space-y-1.5">
                 {event.Steps.length === 0 && (
                     <p className="text-xs text-muted-foreground italic">No steps yet — add a key press or wait below.</p>
                 )}
-                {event.Steps.map((s, i) => (
-                    <div
-                        key={s.Id}
-                        className={cn(
-                            "flex items-center gap-2 rounded bg-muted/40 px-2 py-1.5 text-xs transition-colors",
-                            currentStepIndex === i && "bg-primary/15 ring-1 ring-primary/40",
-                        )}
-                    >
-                        <Badge variant="outline" className="text-[10px] w-6 justify-center">{i + 1}</Badge>
-                        {s.Kind === "Key" ? (
-                            <>
-                                <Keyboard className="h-3.5 w-3.5 text-primary" />
-                                <code className="font-mono">{s.Combo}</code>
-                            </>
-                        ) : (
-                            <>
-                                <Clock className="h-3.5 w-3.5 text-primary" />
-                                <span>Wait <strong>{s.DurationMs}</strong> ms</span>
-                            </>
-                        )}
-                        <div className="ml-auto flex items-center gap-0.5">
-                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onMoveStep(s.Id, "up")} disabled={i === 0} aria-label="Move step up">
-                                <ArrowUp className="h-3 w-3" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onMoveStep(s.Id, "down")} disabled={i === event.Steps.length - 1} aria-label="Move step down">
-                                <ArrowDown className="h-3 w-3" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => onRemoveStep(s.Id)} aria-label="Remove step">
-                                <Trash2 className="h-3 w-3" />
-                            </Button>
+                {event.Steps.map((s, i) => {
+                    const issue = issuesByIndex.get(i);
+                    return (
+                        <div
+                            key={s.Id}
+                            className={cn(
+                                "flex flex-col gap-0.5 rounded bg-muted/40 px-2 py-1.5 text-xs transition-colors",
+                                currentStepIndex === i && "bg-primary/15 ring-1 ring-primary/40",
+                                issue && "bg-destructive/10 ring-1 ring-destructive/40",
+                            )}
+                            data-testid={`keyword-event-step-${event.Id}-${i}`}
+                            data-invalid={issue ? "true" : undefined}
+                        >
+                            <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-[10px] w-6 justify-center">{i + 1}</Badge>
+                                {s.Kind === "Key" ? (
+                                    <>
+                                        <Keyboard className={cn("h-3.5 w-3.5", issue ? "text-destructive" : "text-primary")} />
+                                        <code className="font-mono">{s.Combo || <span className="italic opacity-70">(empty)</span>}</code>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Clock className={cn("h-3.5 w-3.5", issue ? "text-destructive" : "text-primary")} />
+                                        <span>Wait <strong>{String(s.DurationMs)}</strong> ms</span>
+                                    </>
+                                )}
+                                <div className="ml-auto flex items-center gap-0.5">
+                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onMoveStep(s.Id, "up")} disabled={i === 0} aria-label="Move step up">
+                                        <ArrowUp className="h-3 w-3" />
+                                    </Button>
+                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onMoveStep(s.Id, "down")} disabled={i === event.Steps.length - 1} aria-label="Move step down">
+                                        <ArrowDown className="h-3 w-3" />
+                                    </Button>
+                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => onRemoveStep(s.Id)} aria-label="Remove step">
+                                        <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                </div>
+                            </div>
+                            {issue && (
+                                <p className="text-[10px] text-destructive pl-8">{issue.Message}</p>
+                            )}
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             <Separator />
 
             <div className="grid grid-cols-2 gap-2">
-                <div className="flex items-center gap-1.5">
-                    <Input
-                        value={keyCombo}
-                        onChange={e => setKeyCombo(e.target.value)}
-                        placeholder="Enter / Ctrl+Tab"
-                        className="h-8 text-xs"
-                        aria-label="Key combo"
-                    />
-                    <Button
-                        size="sm"
-                        variant="secondary"
-                        className="h-8 shrink-0"
-                        disabled={!keyCombo.trim()}
-                        onClick={() => { onAddStep({ Kind: "Key", Combo: keyCombo.trim() } as Omit<import("@/hooks/use-keyword-events").KeywordEventStep, "Id">); setKeyCombo(""); }}
-                    >
-                        <Plus className="h-3 w-3 mr-1" /> Key
-                    </Button>
+                <div className="space-y-1">
+                    <div className="flex items-center gap-1.5">
+                        <Input
+                            value={keyCombo}
+                            onChange={e => setKeyCombo(e.target.value)}
+                            placeholder="Enter / Ctrl+Tab"
+                            className={cn(
+                                "h-8 text-xs",
+                                keyCombo.length > 0 && !comboValidation.Valid && "border-destructive focus-visible:ring-destructive",
+                            )}
+                            aria-label="Key combo"
+                            aria-invalid={keyCombo.length > 0 && !comboValidation.Valid ? true : undefined}
+                            data-testid={`keyword-event-key-input-${event.Id}`}
+                        />
+                        <Button
+                            size="sm"
+                            variant="secondary"
+                            className="h-8 shrink-0"
+                            disabled={!comboValidation.Valid}
+                            onClick={() => {
+                                if (!comboValidation.Valid) { return; }
+                                onAddStep({ Kind: "Key", Combo: keyCombo.trim() } as Omit<import("@/hooks/use-keyword-events").KeywordEventStep, "Id">);
+                                setKeyCombo("");
+                            }}
+                            data-testid={`keyword-event-key-add-${event.Id}`}
+                            title={comboValidation.Valid ? "Add key step" : comboValidation.Message}
+                        >
+                            <Plus className="h-3 w-3 mr-1" /> Key
+                        </Button>
+                    </div>
+                    {keyCombo.length > 0 && !comboValidation.Valid && (
+                        <p
+                            className="text-[10px] text-destructive"
+                            data-testid={`keyword-event-key-error-${event.Id}`}
+                        >
+                            {comboValidation.Message}
+                        </p>
+                    )}
                 </div>
-                <div className="flex items-center gap-1.5">
-                    <Input
-                        type="number"
-                        min={0}
-                        value={waitMs}
-                        onChange={e => setWaitMs(e.target.value)}
-                        placeholder="ms"
-                        className="h-8 text-xs"
-                        aria-label="Wait duration in milliseconds"
-                    />
-                    <Button
-                        size="sm"
-                        variant="secondary"
-                        className="h-8 shrink-0"
-                        onClick={() => {
-                            const n = Math.max(0, Math.floor(Number(waitMs) || 0));
-                            onAddStep({ Kind: "Wait", DurationMs: n } as Omit<import("@/hooks/use-keyword-events").KeywordEventStep, "Id">);
-                        }}
-                    >
-                        <Plus className="h-3 w-3 mr-1" /> Wait
-                    </Button>
+                <div className="space-y-1">
+                    <div className="flex items-center gap-1.5">
+                        <Input
+                            type="number"
+                            min={0}
+                            value={waitMs}
+                            onChange={e => setWaitMs(e.target.value)}
+                            placeholder="ms"
+                            className={cn(
+                                "h-8 text-xs",
+                                !waitValidation.Valid && "border-destructive focus-visible:ring-destructive",
+                            )}
+                            aria-label="Wait duration in milliseconds"
+                            aria-invalid={!waitValidation.Valid ? true : undefined}
+                            data-testid={`keyword-event-wait-input-${event.Id}`}
+                        />
+                        <Button
+                            size="sm"
+                            variant="secondary"
+                            className="h-8 shrink-0"
+                            disabled={!waitValidation.Valid}
+                            onClick={() => {
+                                if (!waitValidation.Valid) { return; }
+                                onAddStep({ Kind: "Wait", DurationMs: waitValidation.Ms } as Omit<import("@/hooks/use-keyword-events").KeywordEventStep, "Id">);
+                            }}
+                            data-testid={`keyword-event-wait-add-${event.Id}`}
+                            title={waitValidation.Valid ? "Add wait step" : waitValidation.Message}
+                        >
+                            <Plus className="h-3 w-3 mr-1" /> Wait
+                        </Button>
+                    </div>
+                    {!waitValidation.Valid && (
+                        <p
+                            className="text-[10px] text-destructive"
+                            data-testid={`keyword-event-wait-error-${event.Id}`}
+                        >
+                            {waitValidation.Message}
+                        </p>
+                    )}
                 </div>
             </div>
         </div>

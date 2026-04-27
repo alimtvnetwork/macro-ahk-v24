@@ -61,6 +61,11 @@ export interface SequencePreviewRow {
     readonly Old: string;
     readonly Next: string;
     readonly Issues: readonly SequencePreviewIssue[];
+    /** Original-cased keywords from `outsideKeywords` whose normalised form
+     *  matches `Next`. Empty when there is no `collision` issue. Surfaced by
+     *  the rename dialog's "details" expander so the user can see which
+     *  existing event each proposed name would clash with. */
+    readonly CollidesWith: readonly string[];
 }
 
 export interface SequencePreviewSummary {

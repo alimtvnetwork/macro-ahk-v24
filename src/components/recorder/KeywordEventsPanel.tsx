@@ -44,6 +44,11 @@ import {
     validateEventSteps,
     validateWait,
 } from "@/lib/keyword-event-validation";
+import {
+    buildDispatchPreview,
+    previewToString,
+    type DispatchPreview,
+} from "@/lib/keyword-event-dispatch-preview";
 import { cn } from "@/lib/utils";
 
 export interface KeywordEventsPanelProps {
@@ -385,6 +390,15 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                 </Button>
             </div>
 
+            {isRunning && currentStepIndex !== null && currentStepIndex >= 0 && currentStepIndex < event.Steps.length && (
+                <LiveDispatchPreview
+                    eventId={event.Id}
+                    step={event.Steps[currentStepIndex]}
+                    stepIndex={currentStepIndex}
+                    totalSteps={event.Steps.length}
+                />
+            )}
+
             <Input
                 value={event.Description}
                 onChange={e => onUpdate({ Description: e.target.value })}
@@ -660,6 +674,99 @@ function TargetPickerRow(props: TargetPickerRowProps): JSX.Element {
                         : "Dispatches directly on document.body — useful for global hotkey listeners."}
                 </p>
             )}
+        </div>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Live dispatch preview                                              */
+/* ------------------------------------------------------------------ */
+
+interface LiveDispatchPreviewProps {
+    readonly eventId: string;
+    readonly step: import("@/hooks/use-keyword-events").KeywordEventStep;
+    readonly stepIndex: number;
+    readonly totalSteps: number;
+}
+
+/**
+ * Pill rendered beneath the card header while playback is running. Shows
+ * the modifiers + key currently being dispatched (or the wait duration when
+ * the active step is a Wait), plus a step counter so the user can correlate
+ * with the step list below.
+ */
+function LiveDispatchPreview(props: LiveDispatchPreviewProps): JSX.Element {
+    const { eventId, step, stepIndex, totalSteps } = props;
+    const preview: DispatchPreview = buildDispatchPreview(step);
+    const ariaLabel = `Now dispatching: ${previewToString(preview)}`;
+
+    return (
+        <div
+            className={cn(
+                "flex items-center gap-2 rounded-md border border-primary/40 bg-primary/10",
+                "px-2.5 py-1.5 text-xs animate-in fade-in slide-in-from-top-1",
+            )}
+            role="status"
+            aria-live="polite"
+            aria-label={ariaLabel}
+            data-testid={`keyword-event-live-preview-${eventId}`}
+            data-step-index={stepIndex}
+            data-step-kind={preview.Kind}
+        >
+            <span className="relative flex h-2 w-2 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+            </span>
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0">
+                Dispatching
+            </span>
+            {preview.Kind === "Key" ? (
+                <div
+                    className="flex items-center gap-1 flex-wrap"
+                    data-testid={`keyword-event-live-preview-keys-${eventId}`}
+                >
+                    {preview.Modifiers.map((mod) => (
+                        <kbd
+                            key={mod}
+                            className="px-1.5 py-0.5 rounded bg-background border border-border font-mono text-[10px] shadow-sm"
+                            data-testid={`keyword-event-live-preview-mod-${eventId}-${mod}`}
+                        >
+                            {mod}
+                        </kbd>
+                    ))}
+                    {preview.Modifiers.length > 0 && preview.HasKey && (
+                        <span className="text-muted-foreground text-[10px]">+</span>
+                    )}
+                    {preview.HasKey ? (
+                        <kbd
+                            className="px-1.5 py-0.5 rounded bg-primary/20 border border-primary/50 font-mono text-[10px] text-primary-foreground shadow-sm"
+                            data-testid={`keyword-event-live-preview-key-${eventId}`}
+                        >
+                            {preview.Key}
+                        </kbd>
+                    ) : (
+                        <span
+                            className="text-[10px] italic text-destructive"
+                            data-testid={`keyword-event-live-preview-empty-${eventId}`}
+                        >
+                            (no key)
+                        </span>
+                    )}
+                </div>
+            ) : (
+                <div
+                    className="flex items-center gap-1.5"
+                    data-testid={`keyword-event-live-preview-wait-${eventId}`}
+                >
+                    <Clock className="h-3 w-3 text-primary" />
+                    <span className="font-mono text-[11px]">
+                        Wait <strong>{preview.DurationMs}</strong> ms
+                    </span>
+                </div>
+            )}
+            <span className="ml-auto text-[10px] text-muted-foreground shrink-0">
+                Step {stepIndex + 1} / {totalSteps}
+            </span>
         </div>
     );
 }

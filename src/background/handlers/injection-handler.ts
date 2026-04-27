@@ -502,7 +502,7 @@ export async function handleInjectScripts(
     try {
         const { settings } = await handleGetSettings();
         budgetMs = settings.injectionBudgetMs ?? 500;
-    } catch { /* use default */ }
+    } catch { /* use default */ } // allow-swallow: settings load failure falls back to default budget
     if (totalMs > budgetMs) {
         logBgWarnError(
             BgLogTag.INJECTION,
@@ -621,7 +621,7 @@ async function executeCachedPayload(
     try {
         const { settings } = await handleGetSettings();
         budgetMs = settings.injectionBudgetMs ?? 500;
-    } catch { /* use default */ }
+    } catch { /* use default */ } // allow-swallow: settings load failure falls back to default budget
     if (totalMs > budgetMs) {
         logBgWarnError(BgLogTag.INJECTION, `PERFORMANCE BUDGET EXCEEDED (cached path) — ${totalMs}ms (budget: ${budgetMs}ms)`);
     }
@@ -724,7 +724,7 @@ async function injectAllScripts(
             // Store wrapped payload in IndexedDB cache for future runs
             void cacheSet(PIPELINE_CACHE_CATEGORY, { code: combinedCode, scriptMeta, requestFingerprint }, PIPELINE_CACHE_KEY)
                 .then(() => console.log("[injection] CACHE STORE — payload cached for version=%s, size=%d bytes", EXTENSION_VERSION, combinedCode.length))
-                .catch(() => { /* best-effort cache write */ });
+                .catch(() => { /* best-effort cache write */ }); // allow-swallow: best-effort IndexedDB cache write
 
             const execResult = await executeInTab(tabId, combinedCode);
             const durationMs = Date.now() - startTime;

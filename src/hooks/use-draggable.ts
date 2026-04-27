@@ -49,13 +49,13 @@ function loadPosition(): DragPosition | null {
         ) {
             return { x: (parsed as DragPosition).x, y: (parsed as DragPosition).y };
         }
-    } catch { /* ignore */ }
+    } catch { /* ignore */ } // allow-swallow: corrupt stored position falls back to default
     return null;
 }
 
 function savePosition(p: DragPosition): void {
     if (typeof window === "undefined") { return; }
-    try { window.localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(p)); } catch { /* ignore */ }
+    try { window.localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(p)); } catch { /* ignore */ } // allow-swallow: localStorage quota/denied; position is convenience-only
 }
 
 function clamp(p: DragPosition, width: number, height: number): DragPosition {
@@ -157,7 +157,7 @@ export function useDraggable(): UseDraggableResult {
     const reset = useCallback(() => {
         setPosition(null);
         if (typeof window !== "undefined") {
-            try { window.localStorage.removeItem(POSITION_STORAGE_KEY); } catch { /* ignore */ }
+            try { window.localStorage.removeItem(POSITION_STORAGE_KEY); } catch { /* ignore */ } // allow-swallow: localStorage denied; reset is best-effort
         }
     }, []);
 

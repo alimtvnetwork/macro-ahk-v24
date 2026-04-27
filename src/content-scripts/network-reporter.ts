@@ -73,7 +73,7 @@ function sendNetworkEntry(entry: CapturedEntry): void {
             type: MESSAGE_TYPE_NETWORK_REQUEST,
             entry,
         });
-    } catch {
+    } catch { // allow-swallow: extension context invalidated mid-flight; report is best-effort
         // Extension context invalidated — silently ignore
     }
 }
@@ -249,7 +249,7 @@ function reportNetworkStatus(isOnline: boolean): void {
             type: MESSAGE_TYPE_NETWORK_STATUS,
             isOnline,
         });
-    } catch {
+    } catch { // allow-swallow: extension context invalidated; status report is best-effort
         // Extension context invalidated
     }
 }
@@ -320,7 +320,7 @@ function initNetworkReporter(): void {
     // forgot keep the timer running indefinitely.
     const onPageHide = (): void => {
         // Final best-effort flush before tearing down.
-        try { flushBuffer(); } catch { /* ignore */ }
+        try { flushBuffer(); } catch { /* ignore */ } // allow-swallow: pagehide flush is best-effort
         stopNetworkReporter();
     };
     window.addEventListener("pagehide", onPageHide, { once: true });

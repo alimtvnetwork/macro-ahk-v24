@@ -165,12 +165,15 @@ export function insertSelectorsForStep(
     return inserted;
 }
 
+const STEP_SELECT_COLUMNS =
+    `StepId, StepKindId, StepStatusId, OrderIndex, VariableName,
+     Label, Description, InlineJs, ParamsJson, IsBreakpoint,
+     IsDisabled, RetryCount, TimeoutMs, OnSuccessProjectId, OnFailureProjectId,
+     CapturedAt, UpdatedAt`;
+
 export function listStepRows(db: SqlJsDatabase): ReadonlyArray<PersistedStep> {
     const result = db.exec(
-        `SELECT StepId, StepKindId, StepStatusId, OrderIndex, VariableName,
-                Label, InlineJs, ParamsJson, IsBreakpoint, CapturedAt, UpdatedAt
-         FROM Step
-         ORDER BY OrderIndex ASC`,
+        `SELECT ${STEP_SELECT_COLUMNS} FROM Step ORDER BY OrderIndex ASC`,
     );
     const values = result[0]?.values ?? [];
     return values.map(rowToStep);

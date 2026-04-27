@@ -22,6 +22,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
     Activity,
     Circle,
+    ExternalLink,
     Keyboard,
     Layers,
     Maximize2,
@@ -44,6 +45,7 @@ import { HotkeyChordCapture } from "./HotkeyChordCapture";
 import { useStepLibrary } from "@/hooks/use-step-library";
 import { useRecorderSelection } from "@/hooks/use-recorder-selection";
 import { useDraggable } from "@/hooks/use-draggable";
+import { openExtensionOptions } from "@/lib/open-extension-options";
 import { StepKindId } from "@/background/recorder/step-library/schema";
 
 /* ------------------------------------------------------------------ */

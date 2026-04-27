@@ -71,11 +71,52 @@ function KeywordEventsEditor(): JSX.Element {
     const playback = useKeywordEventPlayback();
     const [newKeyword, setNewKeyword] = useState("");
 
+    // Chain settings — persisted in localStorage so the recorder can read
+    // them without prop drilling. We keep a local mirror so the form stays
+    // responsive, and write through to storage on every change.
+    const [chain, setChain] = useState<KeywordEventChainSettings>(() => loadChainSettings());
+    useEffect(() => { saveChainSettings(chain); }, [chain]);
+
+    // Live chain runner state — separate from the per-event playback hook
+    // because the chain owns its own AbortController.
+    const chainCtrlRef = useRef<AbortController | null>(null);
+    const [chainRunning, setChainRunning] = useState(false);
+    const [chainProgress, setChainProgress] = useState<{ current: number; total: number } | null>(null);
+
+    useEffect(() => () => chainCtrlRef.current?.abort(), []);
+
+    const enabledCount = api.events.filter((e) => e.Enabled && e.Steps.length > 0).length;
+
     const handleAdd = () => {
         const k = newKeyword.trim();
         if (!k) return;
         api.addEvent(k);
         setNewKeyword("");
+    };
+
+    const handleRunChain = async (): Promise<void> => {
+        chainCtrlRef.current?.abort();
+        const ctrl = new AbortController();
+        chainCtrlRef.current = ctrl;
+        const runnable = api.events.filter((e) => e.Steps.length > 0);
+        setChainProgress({ current: 0, total: runnable.filter((e) => e.Enabled).length });
+        setChainRunning(true);
+        try {
+            await runKeywordEventChain(runnable, {
+                pauseMs: chain.PauseMs,
+                signal: ctrl.signal,
+                onEventStart: (_ev, i) => setChainProgress((p) => p === null ? p : { ...p, current: i + 1 }),
+            });
+        } finally {
+            if (chainCtrlRef.current === ctrl) { chainCtrlRef.current = null; }
+            setChainRunning(false);
+            setChainProgress(null);
+        }
+    };
+
+    const handleCancelChain = (): void => {
+        chainCtrlRef.current?.abort();
+        chainCtrlRef.current = null;
     };
 
     return (
@@ -94,9 +135,19 @@ function KeywordEventsEditor(): JSX.Element {
                 </Button>
             </div>
 
+            <ChainSettingsRow
+                settings={chain}
+                onChange={setChain}
+                enabledCount={enabledCount}
+                running={chainRunning}
+                progress={chainProgress}
+                onRun={() => { void handleRunChain(); }}
+                onCancel={handleCancelChain}
+            />
+
             <Separator />
 
-            <ScrollArea className="h-[420px] pr-3">
+            <ScrollArea className="h-[380px] pr-3">
                 {api.events.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-12">
                         No keyword events yet. Add one above to script key presses and waits.
@@ -121,6 +172,109 @@ function KeywordEventsEditor(): JSX.Element {
                     </div>
                 )}
             </ScrollArea>
+        </div>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Chain settings row                                                 */
+/* ------------------------------------------------------------------ */
+
+interface ChainSettingsRowProps {
+    readonly settings: KeywordEventChainSettings;
+    readonly onChange: (next: KeywordEventChainSettings) => void;
+    readonly enabledCount: number;
+    readonly running: boolean;
+    readonly progress: { current: number; total: number } | null;
+    readonly onRun: () => void;
+    readonly onCancel: () => void;
+}
+
+function ChainSettingsRow(props: ChainSettingsRowProps): JSX.Element {
+    const { settings, onChange, enabledCount, running, progress, onRun, onCancel } = props;
+    const pauseDraft = String(settings.PauseMs);
+    return (
+        <div
+            className={cn(
+                "rounded-md border border-border bg-muted/30 p-3 space-y-2",
+                settings.Enabled && "border-primary/50",
+            )}
+            data-testid="keyword-event-chain-row"
+        >
+            <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                    <Link2 className="h-4 w-4 text-primary" />
+                    <Label htmlFor="kev-chain-toggle" className="text-sm font-medium cursor-pointer">
+                        Auto-chain into recorder playback
+                    </Label>
+                </div>
+                <Switch
+                    id="kev-chain-toggle"
+                    checked={settings.Enabled}
+                    onCheckedChange={(v) => onChange({ ...settings, Enabled: v })}
+                    aria-label="Auto-chain keyword events into recorder playback"
+                    data-testid="keyword-event-chain-toggle"
+                />
+                <div className="ml-auto flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px]">
+                        {enabledCount} enabled
+                    </Badge>
+                    {running ? (
+                        <Button
+                            size="sm"
+                            variant="destructive"
+                            className="h-8"
+                            onClick={onCancel}
+                            data-testid="keyword-event-chain-cancel"
+                        >
+                            <Square className="h-3.5 w-3.5 mr-1" />
+                            Stop
+                            {progress !== null ? ` (${progress.current}/${progress.total})` : ""}
+                        </Button>
+                    ) : (
+                        <Button
+                            size="sm"
+                            variant="secondary"
+                            className="h-8"
+                            onClick={onRun}
+                            disabled={enabledCount === 0}
+                            data-testid="keyword-event-chain-run"
+                            title="Run all enabled keyword events sequentially"
+                        >
+                            <Play className="h-3.5 w-3.5 mr-1" />
+                            Run chain
+                        </Button>
+                    )}
+                </div>
+            </div>
+            <div className="flex items-center gap-3">
+                <Label htmlFor="kev-chain-pause" className="text-xs text-muted-foreground shrink-0">
+                    Pause between events
+                </Label>
+                <Input
+                    id="kev-chain-pause"
+                    type="number"
+                    min={0}
+                    max={60_000}
+                    step={50}
+                    value={pauseDraft}
+                    onChange={(e) => {
+                        const parsed = Number(e.target.value);
+                        const next = Number.isFinite(parsed) ? parsed : DEFAULT_CHAIN_SETTINGS.PauseMs;
+                        onChange({ ...settings, PauseMs: next });
+                    }}
+                    className="h-8 w-24 text-xs"
+                    aria-label="Pause between chained events in milliseconds"
+                    data-testid="keyword-event-chain-pause"
+                    disabled={running}
+                />
+                <span className="text-[10px] text-muted-foreground">ms</span>
+                <p className="text-[10px] text-muted-foreground ml-auto max-w-md text-right">
+                    {settings.Enabled
+                        ? "Recorder playback will run every enabled event in order with this pause between them."
+                        : "Off — keyword events only fire when run manually."}
+                </p>
+            </div>
         </div>
     );
 }

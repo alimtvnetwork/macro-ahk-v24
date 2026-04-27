@@ -298,6 +298,31 @@ export function parseLoopApiResponse(data: Record<string, unknown>): boolean {
   return true;
 }
 
+/**
+ * Run pro_0 enrichment over the current `perWorkspace` snapshot, then
+ * re-aggregate totals + rebuild indices so downstream consumers reflect the
+ * authoritative /credit-balance numbers.
+ *
+ * Spec: spec/22-app-issues/110-macro-controller-pro-zero-credit-balance.md §3, §8
+ *
+ * Returns the count of rows mutated. No-op (returns 0) when no rows match
+ * the PRO_ZERO branch.
+ */
+export async function applyProZeroEnrichment(): Promise<number> {
+  const perWs = loopCreditState.perWorkspace || [];
+  if (perWs.length === 0) return 0;
+  const mutated = await enrichProZeroWorkspaces(perWs);
+  if (mutated === 0) return 0;
+
+  // Re-run dependent passes so totals + currentWs reflect enriched values.
+  applyLifecycleOverrides(perWs);
+  aggregateCreditTotals(perWs);
+  matchCurrentWorkspace(perWs);
+  buildWsByIdIndex(perWs);
+  log('[ProZero] Enriched ' + mutated + ' workspace(s) — re-aggregated totals', 'success');
+  return mutated;
+}
+
 // ============================================
 // syncCreditStateFromApi — sync loop state from API data
 // ============================================

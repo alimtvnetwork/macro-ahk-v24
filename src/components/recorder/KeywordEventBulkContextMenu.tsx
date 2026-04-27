@@ -373,12 +373,6 @@ function BulkRenameSequenceDialog(props: BulkRenameSequenceDialogProps): JSX.Ele
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent data-testid="keyword-events-bulk-rename-dialog">
                 <DialogHeader>
-                    <DialogTitle>Rename in sequence</DialogTitle>
-                    <DialogDescription>
-                        Renames {selectedEvents.length} event{selectedEvents.length === 1 ? "" : "s"}.
-                        Use <code>{"{n}"}</code> in the base to control number placement.
-                    </DialogDescription>
-                <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         Rename in sequence
                         <TooltipProvider delayDuration={150}>

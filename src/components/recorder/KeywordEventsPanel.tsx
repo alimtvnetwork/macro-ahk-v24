@@ -277,7 +277,6 @@ interface ChainSettingsRowProps {
 function ChainSettingsRow(props: ChainSettingsRowProps): JSX.Element {
     const { settings, onChange, enabledCount, running, progress, autoRunActive, onRun, onCancel } = props;
     const pauseDraft = String(settings.PauseMs);
-    const showAutoRunBadge = autoRunActive === true;
     return (
         <div
             className={cn(

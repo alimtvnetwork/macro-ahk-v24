@@ -112,7 +112,7 @@ function useElapsedTicker(startedAt: string, isRunning: boolean): string {
 /* ------------------------------------------------------------------ */
 
 export function FloatingController(props: FloatingControllerProps): JSX.Element {
-    const { session, activeStepGroupName, activeSubGroupName, onPause, onResume, onStop, initialMode } = props;
+    const { session, activeStepGroupName, activeSubGroupName, onStart, onPause, onResume, onStop, initialMode } = props;
 
     const [mode, setMode] = useState<ControllerMode>(() => initialMode ?? loadMode());
     const [stopArmed, setStopArmed] = useState<boolean>(false);
@@ -128,10 +128,33 @@ export function FloatingController(props: FloatingControllerProps): JSX.Element 
     }, []);
 
     const isRecording = session.Phase === "Recording";
+    const isPaused = session.Phase === "Paused";
+    const isIdle = session.Phase === "Idle";
+    const isActive = !isIdle;
     const elapsed = useElapsedTicker(session.StartedAt, isRecording);
     const stepCount = session.Steps.length;
 
+    /* Auto-promote: when a recording starts while we're in mini mode,
+     * pop up to compact so the user can see step count + chips. We
+     * remember the previous mode so Stop returns the user to it. */
+    const prevPhaseRef = useRef(session.Phase);
+    const prePromoteModeRef = useRef<ControllerMode | null>(null);
+    useEffect(() => {
+        const prev = prevPhaseRef.current;
+        prevPhaseRef.current = session.Phase;
+        if (prev === "Idle" && session.Phase === "Recording" && mode === "mini") {
+            prePromoteModeRef.current = "mini";
+            setMode("compact");
+            return;
+        }
+        if (prev !== "Idle" && session.Phase === "Idle" && prePromoteModeRef.current !== null) {
+            setMode(prePromoteModeRef.current);
+            prePromoteModeRef.current = null;
+        }
+    }, [session.Phase, mode]);
+
     const handleStop = () => {
+        if (!isActive) { return; }
         if (!stopArmed) {
             setStopArmed(true);
             if (stopTimer.current !== null) { window.clearTimeout(stopTimer.current); }
@@ -144,7 +167,15 @@ export function FloatingController(props: FloatingControllerProps): JSX.Element 
         void onStop();
     };
 
-    const cyclePrimary = () => { void (isRecording ? onPause() : onResume()); };
+    const cyclePrimary = () => {
+        if (isIdle) { if (onStart !== undefined) { void onStart(); } return; }
+        void (isRecording ? onPause() : onResume());
+    };
+
+    const primaryAriaLabel = isIdle
+        ? "Start recording"
+        : isRecording ? "Pause recording" : "Resume recording";
+    const primaryDisabled = isIdle && onStart === undefined;
 
     /* ------------------------------------------------------------ */
     /*  Mini mode                                                    */
@@ -154,7 +185,7 @@ export function FloatingController(props: FloatingControllerProps): JSX.Element 
             <FloatingShell mode={mode} onModeChange={setMode} testid="floating-controller-mini">
                 <div className="flex items-center gap-2">
                     <RecordingDot isRecording={isRecording} />
-                    <StopButton armed={stopArmed} onClick={handleStop} compact />
+                    <StopButton armed={stopArmed} onClick={handleStop} compact disabled={!isActive} />
                 </div>
             </FloatingShell>
         );

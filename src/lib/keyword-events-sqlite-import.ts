@@ -275,8 +275,11 @@ export async function readKeywordEventsZip(
     const zip = await JSZipCtor.loadAsync(file);
     const entry = zip.file(DB_FILENAME);
     if (!entry) {
+        const present = Object.keys(zip.files);
         throw new Error(
-            `Missing ${DB_FILENAME} in ZIP — expected a keyword-events bundle produced by Export selected as ZIP`,
+            `Missing ${DB_FILENAME} in ZIP — expected a keyword-events `
+            + `bundle produced by Export selected as ZIP. ZIP contents: `
+            + `[${present.join(", ") || "empty"}].`,
         );
     }
     const bytes = await entry.async("uint8array");

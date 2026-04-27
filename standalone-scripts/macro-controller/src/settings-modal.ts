@@ -125,6 +125,14 @@ function buildHtml(state: ModalState): string {
           jsonValue: readJsonConfigValue('refillWarningThresholdDays'),
           defaultValue: DEFAULT_REFILL_WARNING_THRESHOLD_DAYS,
         })
+    +   buildField({
+          label: 'Pro_0 Credit-Balance Cache TTL (minutes)',
+          help: 'How long to cache /credit-balance results in IndexedDB before refetching for pro_0 plan workspaces.',
+          valueEl: inputHtml('proZeroTtl', state.proZeroTtlInput, submittingDisabled),
+          effective: getProZeroCacheTtlMinutes(),
+          jsonValue: undefined,
+          defaultValue: PRO_ZERO_CACHE_TTL_DEFAULT_MIN,
+        })
     +   errorHtml
     + '</div>'
     + '<div style="padding:10px 14px;border-top:1px solid ' + cPanelBorder + ';display:flex;justify-content:space-between;gap:8px;background:rgba(0,0,0,0.20);">'

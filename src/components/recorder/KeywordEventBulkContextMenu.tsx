@@ -1250,6 +1250,72 @@ function BulkImportDialog(props: BulkImportDialogProps): JSX.Element {
                                 )}
                             </div>
                         )}
+
+                        {plan && plan.matches.length > 0 && (
+                            <div
+                                className="rounded border border-border/60 bg-background/40 max-h-72 overflow-y-auto"
+                                data-testid="keyword-events-bulk-import-diff"
+                            >
+                                <div className="sticky top-0 bg-muted/60 backdrop-blur px-2 py-1 text-[11px] font-medium text-muted-foreground border-b border-border/60">
+                                    Field-by-field preview
+                                </div>
+                                <ul className="divide-y divide-border/40">
+                                    {plan.matches.map((m) => {
+                                        const diffs = diffMatchedFields(m.target, m.source);
+                                        return (
+                                            <li key={m.target.Id} className="p-2 space-y-1">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="text-xs font-medium truncate" title={m.target.Keyword}>
+                                                        {m.target.Keyword || <em className="text-muted-foreground">(no keyword)</em>}
+                                                    </span>
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                        <Badge variant="outline" className="text-[10px]">
+                                                            by {m.matchedBy}
+                                                        </Badge>
+                                                        <Badge
+                                                            variant={diffs.length === 0 ? "outline" : "secondary"}
+                                                            className="text-[10px]"
+                                                        >
+                                                            {diffs.length === 0 ? "no changes" : `${diffs.length} field${diffs.length === 1 ? "" : "s"}`}
+                                                        </Badge>
+                                                    </div>
+                                                </div>
+                                                {diffs.length > 0 && (
+                                                    <table className="w-full table-fixed text-[11px] border-collapse">
+                                                        <thead>
+                                                            <tr className="text-muted-foreground">
+                                                                <th className="text-left font-normal w-28 pr-2 pb-1">Field</th>
+                                                                <th className="text-left font-normal pr-2 pb-1">Before</th>
+                                                                <th className="text-left font-normal pl-2 pb-1 border-l border-border/40">After</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {diffs.map((d) => (
+                                                                <tr key={d.field} className="align-top">
+                                                                    <td className="pr-2 py-0.5 font-mono text-muted-foreground">{d.field}</td>
+                                                                    <td
+                                                                        className="pr-2 py-0.5 text-destructive/90 break-all whitespace-pre-wrap line-clamp-3"
+                                                                        title={d.before}
+                                                                    >
+                                                                        {d.before}
+                                                                    </td>
+                                                                    <td
+                                                                        className="pl-2 py-0.5 text-emerald-400 break-all whitespace-pre-wrap line-clamp-3 border-l border-border/40"
+                                                                        title={d.after}
+                                                                    >
+                                                                        {d.after}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                )}
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            </div>
+                        )}
                     </div>
                 )}
 

@@ -1193,6 +1193,28 @@ function BulkImportDialog(props: BulkImportDialogProps): JSX.Element {
                             )}
                         </div>
 
+                        <div className="flex items-start gap-2">
+                            <Checkbox
+                                id="kw-import-strict-uid"
+                                checked={strictUidOnly}
+                                onCheckedChange={(v) => setStrictUidOnly(v === true)}
+                                disabled={busy}
+                                data-testid="keyword-events-bulk-import-strict-uid"
+                            />
+                            <div className="grid gap-0.5 leading-tight">
+                                <Label
+                                    htmlFor="kw-import-strict-uid"
+                                    className="text-xs cursor-pointer"
+                                >
+                                    Match by Uid only (no keyword fallback)
+                                </Label>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Skip rows whose Uid isn&apos;t in your selection instead of
+                                    falling back to Keyword.
+                                </p>
+                            </div>
+                        </div>
+
                         {error && (
                             <p
                                 className="text-xs text-destructive"

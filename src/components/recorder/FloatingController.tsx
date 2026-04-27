@@ -202,13 +202,15 @@ export function FloatingController(props: FloatingControllerProps): JSX.Element 
                     size="sm"
                     variant="secondary"
                     onClick={cyclePrimary}
+                    disabled={primaryDisabled}
                     className="h-8 px-3"
                     data-testid="controller-primary"
-                    aria-label={isRecording ? "Pause recording" : "Resume recording"}
+                    data-phase={session.Phase}
+                    aria-label={primaryAriaLabel}
                 >
                     {isRecording ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                 </Button>
-                <StopButton armed={stopArmed} onClick={handleStop} />
+                <StopButton armed={stopArmed} onClick={handleStop} disabled={!isActive} />
                 <span
                     className="text-xs font-mono tabular-nums text-muted-foreground min-w-[3.5rem] text-right"
                     data-testid="controller-elapsed"

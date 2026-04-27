@@ -135,7 +135,7 @@ function resolveColors(): Record<string, ToastColors> {
             if (TToast.info.border) infoBorder = TToast.info.border;
             if (TToast.info.text) infoText = TToast.info.text;
         }
-    } catch { /* fallback defaults */ }
+    } catch { /* fallback defaults */ } // allow-swallow: missing theme tokens fall back to defaults
 
     return {
         error:   { bg: errorBg,   border: errorBorder,   icon: "\u274C", text: errorPale },
@@ -182,7 +182,7 @@ function ensureDedupCleanup(): void {
 function pushRecentError(entry: RecentError): void {
     _recentErrors.unshift(entry);
     if (_recentErrors.length > RECENT_MAX) _recentErrors.pop();
-    for (const cb of _errorListeners) { try { cb(entry); } catch { /* */ } }
+    for (const cb of _errorListeners) { try { cb(entry); } catch { /* */ } } // allow-swallow: listener errors must not break notify pipeline
 }
 
 function getOrCreateContainer(): HTMLElement {

@@ -284,10 +284,11 @@ export default function BatchRenameDialog({
                 </DialogHeader>
 
                 <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
-                    <TabsList className="grid w-full grid-cols-3">
+                    <TabsList className="grid w-full grid-cols-4">
                         <TabsTrigger value="replace">Find &amp; replace</TabsTrigger>
                         <TabsTrigger value="prefix">Add prefix</TabsTrigger>
                         <TabsTrigger value="suffix">Add suffix</TabsTrigger>
+                        <TabsTrigger value="sequence">Sequence</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="replace" className="space-y-2 pt-3">
@@ -338,6 +339,66 @@ export default function BatchRenameDialog({
                             placeholder="e.g.  (v2)"
                             maxLength={STEP_GROUP_NAME_MAX_LEN}
                         />
+                    </TabsContent>
+
+                    <TabsContent value="sequence" className="space-y-2 pt-3">
+                        <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2">
+                            <div>
+                                <Label htmlFor="batch-seq-base" className="text-xs">
+                                    Base name
+                                </Label>
+                                <Input
+                                    id="batch-seq-base"
+                                    value={sequenceBase}
+                                    onChange={(e) => setSequenceBase(e.target.value)}
+                                    placeholder="e.g. Login {n}"
+                                    maxLength={STEP_GROUP_NAME_MAX_LEN}
+                                />
+                            </div>
+                            <div className="w-20">
+                                <Label htmlFor="batch-seq-start" className="text-xs">Start</Label>
+                                <Input
+                                    id="batch-seq-start"
+                                    type="number"
+                                    min={0}
+                                    value={sequenceStart}
+                                    onChange={(e) => setSequenceStart(Number(e.target.value) || 0)}
+                                />
+                            </div>
+                            <div className="w-20">
+                                <Label htmlFor="batch-seq-padding" className="text-xs">Padding</Label>
+                                <Input
+                                    id="batch-seq-padding"
+                                    type="number"
+                                    min={1}
+                                    max={6}
+                                    value={sequencePadding}
+                                    onChange={(e) =>
+                                        setSequencePadding(
+                                            Math.max(1, Math.min(6, Number(e.target.value) || 1)),
+                                        )
+                                    }
+                                />
+                            </div>
+                            <div className="w-16">
+                                <Label htmlFor="batch-seq-sep" className="text-xs">Sep</Label>
+                                <Input
+                                    id="batch-seq-sep"
+                                    value={sequenceSeparator}
+                                    onChange={(e) => setSequenceSeparator(e.target.value)}
+                                    placeholder=" "
+                                    maxLength={4}
+                                />
+                            </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Use <code className="rounded bg-muted px-1">{"{n}"}</code> in the
+                            base name to control where the number goes
+                            (e.g. <code className="rounded bg-muted px-1">Step {"{n}"} — login</code>).
+                            Without it, the number is appended after the separator.
+                            Padding 2 → <code className="rounded bg-muted px-1">01</code>,
+                            3 → <code className="rounded bg-muted px-1">001</code>.
+                        </p>
                     </TabsContent>
                 </Tabs>
 

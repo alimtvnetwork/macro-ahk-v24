@@ -497,8 +497,8 @@ function RecordingDot(props: { isRecording: boolean }): JSX.Element {
     );
 }
 
-function StopButton(props: { armed: boolean; onClick: () => void; compact?: boolean; disabled?: boolean }): JSX.Element {
-    const { armed, onClick, compact, disabled } = props;
+function StopButton(props: { armed: boolean; onClick: () => void; compact?: boolean; disabled?: boolean; title?: string }): JSX.Element {
+    const { armed, onClick, compact, disabled, title } = props;
     return (
         <Button
             size="sm"
@@ -509,6 +509,7 @@ function StopButton(props: { armed: boolean; onClick: () => void; compact?: bool
             data-testid="controller-stop"
             data-armed={armed ? "true" : "false"}
             aria-label={armed ? "Confirm stop recording" : "Stop recording"}
+            title={title}
         >
             <Square className="h-3.5 w-3.5" />
             {!compact ? <span className="ml-1 text-xs">{armed ? "Confirm" : "Stop"}</span> : null}

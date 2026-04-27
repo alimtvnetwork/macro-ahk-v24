@@ -42,9 +42,15 @@ export interface PersistedStep {
     readonly OrderIndex: number;
     readonly VariableName: string;
     readonly Label: string;
+    readonly Description: string | null;
     readonly InlineJs: string | null;
     readonly ParamsJson: string | null;
     readonly IsBreakpoint: number;
+    readonly IsDisabled: number;
+    readonly RetryCount: number;
+    readonly TimeoutMs: number | null;
+    readonly OnSuccessProjectId: string | null;
+    readonly OnFailureProjectId: string | null;
     readonly CapturedAt: string;
     readonly UpdatedAt: string;
 }

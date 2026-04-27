@@ -48,6 +48,8 @@ import {
     type WebhookEventKind,
     type WebhookHeader,
     type WebhookDeliveryResult,
+    isWebhookSkipped,
+    isWebhookSuccess,
 } from "@/background/recorder/step-library/result-webhook";
 
 interface Props {

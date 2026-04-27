@@ -21,11 +21,18 @@ import {
     Eye,
     EyeOff,
     FolderTree,
+    HelpCircle,
     Pencil,
     Tag,
     TagsIcon,
     Trash2,
 } from "lucide-react";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import {
     ContextMenu,

@@ -204,7 +204,7 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                         variant="secondary"
                         className="h-8 shrink-0"
                         disabled={!keyCombo.trim()}
-                        onClick={() => { onAddStep({ Kind: "Key", Combo: keyCombo.trim() }); setKeyCombo(""); }}
+                        onClick={() => { onAddStep({ Kind: "Key", Combo: keyCombo.trim() } as Omit<import("@/hooks/use-keyword-events").KeywordEventStep, "Id">); setKeyCombo(""); }}
                     >
                         <Plus className="h-3 w-3 mr-1" /> Key
                     </Button>
@@ -225,7 +225,7 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                         className="h-8 shrink-0"
                         onClick={() => {
                             const n = Math.max(0, Math.floor(Number(waitMs) || 0));
-                            onAddStep({ Kind: "Wait", DurationMs: n });
+                            onAddStep({ Kind: "Wait", DurationMs: n } as Omit<import("@/hooks/use-keyword-events").KeywordEventStep, "Id">);
                         }}
                     >
                         <Plus className="h-3 w-3 mr-1" /> Wait

@@ -211,6 +211,7 @@ function KeywordEventsEditor(): JSX.Element {
                 enabledCount={enabledCount}
                 running={chainRunning}
                 progress={chainProgress}
+                autoRunActive={autoRunActive}
                 onRun={() => { void handleRunChain(); }}
                 onCancel={handleCancelChain}
             />

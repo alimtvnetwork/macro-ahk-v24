@@ -88,6 +88,7 @@ import {
     matchChainShortcut,
 } from "@/lib/keyword-event-chain-shortcuts";
 import { cn } from "@/lib/utils";
+import { KeywordEventBulkContextMenu } from "./KeywordEventBulkContextMenu";
 
 export interface KeywordEventsPanelProps {
     readonly trigger?: React.ReactNode;

@@ -381,10 +381,10 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                                             <dd className="font-mono">{entry.EmittedAt}</dd>
                                                             <dt className="text-muted-foreground">Duration</dt>
                                                             <dd className="font-mono">{entry.DurationMs} ms</dd>
-                                                            {entry.Status !== undefined && (
+                                                            {statusValue !== undefined && statusValue !== null && (
                                                                 <>
                                                                     <dt className="text-muted-foreground">HTTP</dt>
-                                                                    <dd className="font-mono">{entry.Status}</dd>
+                                                                    <dd className="font-mono">{statusValue}</dd>
                                                                 </>
                                                             )}
                                                             <dt className="text-muted-foreground">

@@ -11,6 +11,7 @@
  */
 import { createContext, useContext, useEffect } from "react";
 import { toast } from "sonner";
+import { logError } from "@/components/options/options-logger";
 
 type Theme = "dark";
 

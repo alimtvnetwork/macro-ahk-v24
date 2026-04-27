@@ -26,6 +26,8 @@ const STORAGE_KEY = 'marco_settings_overrides_v1';
 export interface SettingsOverrides {
   expiryGracePeriodDays?: number;
   refillWarningThresholdDays?: number;
+  /** pro_0 credit-balance IndexedDB cache TTL (minutes). Spec §9.1 / §11. */
+  proZeroCreditBalanceCacheTtlMinutes?: number;
 }
 
 type SettingsListener = (overrides: SettingsOverrides) => void;
@@ -51,6 +53,9 @@ function sanitize(raw: unknown): SettingsOverrides {
   }
   if (isFiniteNonNegative(r.refillWarningThresholdDays)) {
     out.refillWarningThresholdDays = Math.floor(r.refillWarningThresholdDays);
+  }
+  if (isFiniteNonNegative(r.proZeroCreditBalanceCacheTtlMinutes)) {
+    out.proZeroCreditBalanceCacheTtlMinutes = Math.floor(r.proZeroCreditBalanceCacheTtlMinutes);
   }
   return out;
 }

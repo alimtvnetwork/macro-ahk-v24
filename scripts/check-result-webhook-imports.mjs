@@ -84,12 +84,12 @@ function resolveSpecifier(specifier, fromFile) {
 
     // Try direct file (with and without extensions).
     if (existsSync(cleanPath) && statSync(cleanPath).isFile()) {
-        return { absPath: cleanPath, kind: "file" };
+        return { absPath: cleanPath, kind: "file", trailingSlash };
     }
     for (const ext of [".ts", ".tsx", ".js", ".jsx", ".mts", ".cts", ".mjs", ".cjs"]) {
         const candidate = cleanPath + ext;
         if (existsSync(candidate) && statSync(candidate).isFile()) {
-            return { absPath: candidate, kind: "file" };
+            return { absPath: candidate, kind: "file", trailingSlash };
         }
     }
 
@@ -98,7 +98,7 @@ function resolveSpecifier(specifier, fromFile) {
         return { absPath: cleanPath, kind: "dir", trailingSlash };
     }
 
-    return { absPath: cleanPath, kind: "unresolved" };
+    return { absPath: cleanPath, kind: "unresolved", trailingSlash };
 }
 
 function inspectFile(file) {

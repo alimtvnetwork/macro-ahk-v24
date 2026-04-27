@@ -125,6 +125,20 @@ function KeywordEventsEditor(): JSX.Element {
 
     useEffect(() => () => chainCtrlRef.current?.abort(), []);
 
+    // Auto-run on recorder stop. The hook keeps its own internal "previous
+    // session" ref, so it only fires on the actual stop transition. We
+    // surface a flag (`autoRunActive`) so the run-chain UI can show a
+    // muted indicator while the auto-run is in flight.
+    const { session: recordingSession } = useRecordingSession();
+    const [autoRunActive, setAutoRunActive] = useState<boolean>(false);
+    useAutoRunChainAfterRecording({
+        settings: chain,
+        events: api.events,
+        session: recordingSession,
+        onAutoRunStart: () => { setAutoRunActive(true); },
+        onAutoRunEnd: () => { setAutoRunActive(false); },
+    });
+
     const enabledCount = api.events.filter((e) => isEventRunnable(e)).length;
 
     const handleAdd = () => {

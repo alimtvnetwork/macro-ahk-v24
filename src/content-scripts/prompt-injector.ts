@@ -22,6 +22,8 @@
  *   processing every entry is robust to repeat injection and lost runs.
  */
 
+import { logError } from "./prompt-injector-logger";
+
 /* ------------------------------------------------------------------ */
 /*  Editor Discovery                                                   */
 /* ------------------------------------------------------------------ */
@@ -121,7 +123,11 @@ function appendToEditor(editor: HTMLElement, text: string): boolean {
         console.log(`[Marco] Prompt appended (${text.length} chars)`);
         return true;
     } catch (err) {
-        console.error(`[Marco] Prompt append failed\n  Path: DOM target element (contenteditable/textarea/ProseMirror)\n  Missing: Successful text insertion of ${text.length} chars\n  Reason: ${err instanceof Error ? err.message : String(err)} — DOM element may not be found or not editable`, err);
+        logError(
+            "appendToEditor",
+            `Prompt append failed\n  Path: DOM target element (contenteditable/textarea/ProseMirror)\n  Missing: Successful text insertion of ${text.length} chars\n  Reason: ${err instanceof Error ? err.message : String(err)} — DOM element may not be found or not editable`,
+            err,
+        );
         return false;
     }
 }
@@ -264,8 +270,9 @@ async function bootstrap(): Promise<void> {
         const stored = await chrome.storage.session.get(PROMPT_ARGS_KEY);
         pending = (stored[PROMPT_ARGS_KEY] as Record<string, PendingPromptArgs> | undefined) ?? {};
     } catch (err) {
-        console.error(
-            `[Marco] prompt-injector: failed to read session storage\n  Path: chrome.storage.session.${PROMPT_ARGS_KEY}\n  Missing: pending args object\n  Reason: ${err instanceof Error ? err.message : String(err)}`,
+        logError(
+            "bootstrap.readSession",
+            `Failed to read session storage\n  Path: chrome.storage.session.${PROMPT_ARGS_KEY}\n  Missing: pending args object\n  Reason: ${err instanceof Error ? err.message : String(err)}`,
             err,
         );
         return;
@@ -290,8 +297,9 @@ async function bootstrap(): Promise<void> {
                 verified: false,
                 submitted: false,
             };
-            console.error(
-                `[Marco] prompt-injector: injection threw\n  Path: injectPromptText(correlationId=${correlationId})\n  Missing: completed injection\n  Reason: ${err instanceof Error ? err.message : String(err)}`,
+            logError(
+                "bootstrap.injectPromptText",
+                `Injection threw\n  Path: injectPromptText(correlationId=${correlationId})\n  Missing: completed injection\n  Reason: ${err instanceof Error ? err.message : String(err)}`,
                 err,
             );
         }
@@ -304,8 +312,9 @@ async function bootstrap(): Promise<void> {
             });
         } catch (err) {
             // Background may have torn down — no recovery possible.
-            console.error(
-                `[Marco] prompt-injector: failed to post result\n  Path: chrome.runtime.sendMessage(PROMPT_INJECT_RESULT, correlationId=${correlationId})\n  Missing: result delivery to background\n  Reason: ${err instanceof Error ? err.message : String(err)}`,
+            logError(
+                "bootstrap.sendResult",
+                `Failed to post result\n  Path: chrome.runtime.sendMessage(PROMPT_INJECT_RESULT, correlationId=${correlationId})\n  Missing: result delivery to background\n  Reason: ${err instanceof Error ? err.message : String(err)}`,
                 err,
             );
         }

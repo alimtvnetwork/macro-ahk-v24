@@ -6,6 +6,7 @@ import { useState, useCallback, useRef } from "react";
 import { sendMessage } from "@/lib/message-client";
 import { getPlatform } from "@/platform";
 import { toast } from "sonner";
+import { logError } from "./popup-logger";
 import {
   exportAllAsSqliteZip,
   importFromSqliteZip,
@@ -70,7 +71,7 @@ export function usePopupActions() {
       console.log("[popup:handleRun] Active tab ID:", tabId);
 
       if (tabId === null) {
-        console.error("[popup:handleRun] No active tab found");
+        logError("handleRun", "No active tab found\n  Path: chrome.tabs.query(active)\n  Missing: active tab id\n  Reason: getActiveTabId() returned null");
         toast.error("No active tab found");
         return;
       }
@@ -83,7 +84,7 @@ export function usePopupActions() {
 
       const scripts = projRes?.activeProject?.scripts ?? [];
       if (!Array.isArray(scripts) || scripts.length === 0) {
-        console.error("[popup:handleRun] No scripts found in active project");
+        logError("handleRun", "No scripts found in active project\n  Path: GET_ACTIVE_PROJECT response.activeProject.scripts\n  Missing: at least one ScriptEntry\n  Reason: scripts array is empty or missing");
         toast.error("No scripts to run — check your active project");
         return;
       }
@@ -147,7 +148,7 @@ export function usePopupActions() {
         }
       }
     } catch (err) {
-      console.error("[popup:handleRun] Error:", err);
+      logError("handleRun", `Run failed\n  Path: usePopupActions.handleRun → INJECT_SCRIPTS\n  Missing: completed injection round-trip\n  Reason: ${err instanceof Error ? err.message : String(err)}`, err);
       const msg = err instanceof Error ? err.message : "Run failed";
       toast.error(msg);
     } finally {

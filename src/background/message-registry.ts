@@ -70,6 +70,8 @@ import {
     handleInjectScripts,
 } from "./handlers/injection-handler";
 
+import { handleGetOpenLovableTabs } from "./handlers/open-tabs-handler";
+
 import {
     handleGetLogDetail,
     handleGetStorageStats,

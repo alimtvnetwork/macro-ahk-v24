@@ -542,6 +542,29 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
                                 </div>
                             </div>
                             {log.length > 0 && (
+                                <div className="relative">
+                                    <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                                    <Input
+                                        type="search"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        placeholder="Filter by event, time, or status…"
+                                        aria-label="Filter webhook deliveries by event, emitted time, or status"
+                                        className="h-8 pl-7 pr-7 text-xs"
+                                    />
+                                    {searchQuery.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setSearchQuery("")}
+                                            aria-label="Clear search"
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
+                                        >
+                                            <X className="h-3.5 w-3.5" />
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                            {log.length > 0 && (
                                 <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter deliveries by status">
                                     {([
                                         { key: "all", label: "All", count: logCounts.all, activeClass: "bg-foreground text-background border-foreground" },

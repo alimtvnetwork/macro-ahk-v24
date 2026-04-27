@@ -91,7 +91,7 @@ export interface KeywordEventBulkContextMenuProps {
     readonly onClearSelection: () => void;
 }
 
-type DialogKind = null | "tags-add" | "tags-remove" | "category" | "rename" | "export";
+type DialogKind = null | "tags-add" | "tags-remove" | "category" | "rename" | "export" | "delete";
 
 export function KeywordEventBulkContextMenu(
     props: KeywordEventBulkContextMenuProps,

@@ -181,6 +181,6 @@ Documents three behaviours with full acceptance criteria (AC-19.1.x / AC-19.2.x 
 | 19.1 | `UrlTabClick` (StepKindId=9) capture + replay (Open/Focus/OpenOrFocus, pattern dialects Exact/Prefix/Glob/Regex) | 📋 Spec'd |
 | 19.2 | Unify all element-appearance waits behind `waitForCondition` (legacy `WaitFor` synthesised as `Exists` Gate) | 📋 Spec'd |
 | 19.3 | `validateCondition` save-time rules + structured `ConditionFailureRecord` shape (AC-19.3.1–10) | 📋 Spec'd |
-| 19.4 | Migration `005` — seed `StepKind (9, 'UrlTabClick')` | 📋 Spec'd |
+| 19.4 | Migration `005` — seed `StepKind (9, 'UrlTabClick')` | ✅ 2026-04-27 (`recorder-db-schema.ts` seed + `StepKindId.UrlTabClick = 9`; tests 10/10) |
 | 19.5 | Step inspector UI for `UrlTabClick` editor | 📋 Spec'd |
 | 19.6 | Append AC-19.* into `97-acceptance-criteria.md` + LlmGuide cookbook | 📋 Spec'd |

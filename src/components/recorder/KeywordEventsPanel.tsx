@@ -396,6 +396,9 @@ function KeywordEventsEditor(): JSX.Element {
                                                     onAddStep={step => api.addStep(ev.Id, step)}
                                                     onRemoveStep={sid => api.removeStep(ev.Id, sid)}
                                                     onMoveStep={(sid, dir) => api.moveStep(ev.Id, sid, dir)}
+                                                    onRemoveSteps={(eid, sids) => api.removeSteps(eid, sids)}
+                                                    onSetStepsEnabled={(eid, sids, en) => api.setStepsEnabled(eid, sids, en)}
+                                                    onRelabelSteps={(eid, sids, labels) => api.relabelSteps(eid, sids, labels)}
                                                 />
                                             </div>
                                         </KeywordEventBulkContextMenu>

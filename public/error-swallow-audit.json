@@ -1,15 +1,6 @@
 {
-  "GeneratedAt": "2026-04-27T23:23:34.193Z",
+  "GeneratedAt": "2026-04-27T23:24:39.474Z",
   "Items": [
-    {
-      "Id": "f91a4d4d688a",
-      "Severity": "P0",
-      "File": "src/background/auth-health-handler.ts",
-      "Line": 167,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
     {
       "Id": "7b3f74e8f781",
       "Severity": "P0",
@@ -87,15 +78,6 @@
       "Severity": "P1",
       "File": "src/background/bg-logger.ts",
       "Line": 122,
-      "Rule": "no-empty-catch",
-      "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
-      "Snippet": "catch {"
-    },
-    {
-      "Id": "f3fe2ef9f793",
-      "Severity": "P1",
-      "File": "src/background/context-menu-handler.ts",
-      "Line": 287,
       "Rule": "no-empty-catch",
       "Message": "Empty catch block — error is silently dropped, no Logger.error() call.",
       "Snippet": "catch {"

@@ -5,6 +5,7 @@ import { XPathValidationPanel } from "./XPathValidationPanel";
 import { AuthHealthPanel } from "./AuthHealthPanel";
 import { TokenSeederDiagnosticsPanel } from "./TokenSeederDiagnosticsPanel";
 import { OpfsSessionBrowserPanel } from "./OpfsSessionBrowserPanel";
+import { ReproBuildErrorPanel } from "./ReproBuildErrorPanel";
 
 export function GlobalDiagnosticsView() {
   return (
@@ -20,6 +21,7 @@ export function GlobalDiagnosticsView() {
       <OpfsSessionBrowserPanel />
       <XPathValidationPanel />
       <BootDiagnosticsPanel />
+      <ReproBuildErrorPanel />
     </div>
   );
 }

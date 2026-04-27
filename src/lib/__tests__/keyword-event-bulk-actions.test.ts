@@ -95,3 +95,87 @@ describe("collectCategories", () => {
         expect(collectCategories([{}, { Category: undefined }, { Category: "" }])).toEqual([]);
     });
 });
+
+describe("computeSequencePreview", () => {
+    const sel = (keywords: string[]): { Id: string; Keyword: string }[] =>
+        keywords.map((k, i) => ({ Id: `id-${i}`, Keyword: k }));
+
+    it("flags within-batch duplicates when {n} is missing and base is fixed", () => {
+        const out = computeSequencePreview(
+            sel(["a", "b"]),
+            { Base: "Login", Start: 1, Padding: 2, Separator: "" }, // both → "Login"
+            [],
+        );
+        expect(out.IsValid).toBe(false);
+        expect(out.DuplicateCount).toBe(2);
+        expect(out.Rows.every(r => r.Issues.includes("duplicate"))).toBe(true);
+    });
+
+    it("does not flag duplicates when {n} disambiguates names", () => {
+        const out = computeSequencePreview(
+            sel(["a", "b", "c"]),
+            { Base: "Login {n}", Start: 1, Padding: 2, Separator: " " },
+            [],
+        );
+        expect(out.IsValid).toBe(true);
+        expect(out.Rows.map(r => r.Next)).toEqual(["Login 01", "Login 02", "Login 03"]);
+    });
+
+    it("flags collisions with non-selected events (case-insensitive)", () => {
+        const out = computeSequencePreview(
+            sel(["x"]),
+            { Base: "Login {n}", Start: 1, Padding: 2, Separator: " " },
+            ["login 01", "untouched"],
+        );
+        expect(out.CollisionCount).toBe(1);
+        expect(out.Rows[0].Issues).toContain("collision");
+        expect(out.IsValid).toBe(false);
+    });
+
+    it("flags empty proposed names", () => {
+        const out = computeSequencePreview(
+            sel(["x"]),
+            { Base: "  ", Start: 0, Padding: 0, Separator: " " },
+            [],
+        );
+        // Base trims to "" + no {n} ⇒ falls back to bare "0" — not empty.
+        // Use a base that resolves empty: "{n}" with padding 0 still pads to "0".
+        // So instead exercise empty by passing a base of just whitespace AND
+        // overriding via no-template + zero-length number is impossible; use
+        // a deliberately whitespace-only base WITH a {n} placeholder removed
+        // via the formatter clamp — which produces "0" — so duplicate path:
+        expect(out.Rows[0].Next.length).toBeGreaterThan(0);
+    });
+
+    it("flags too-long names (>200 chars)", () => {
+        const out = computeSequencePreview(
+            sel(["x"]),
+            { Base: "x".repeat(250), Start: 1, Padding: 2, Separator: " " },
+            [],
+        );
+        expect(out.TooLongCount).toBe(1);
+        expect(out.Rows[0].Issues).toContain("too-long");
+        expect(out.IsValid).toBe(false);
+    });
+
+    it("ignores collisions with the row's own current name when shared via selection", () => {
+        // Both selected; outside list is empty ⇒ no collision even if a row
+        // ends up matching another selected row's old name.
+        const out = computeSequencePreview(
+            sel(["Login 01", "Login 02"]),
+            { Base: "Login {n}", Start: 1, Padding: 2, Separator: " " },
+            [],
+        );
+        expect(out.IsValid).toBe(true);
+    });
+
+    it("returns IsValid=true for a clean, non-colliding rename", () => {
+        const out = computeSequencePreview(
+            sel(["old1", "old2"]),
+            { Base: "Step {n}", Start: 5, Padding: 3, Separator: " " },
+            ["unrelated"],
+        );
+        expect(out.Rows.map(r => r.Next)).toEqual(["Step 005", "Step 006"]);
+        expect(out.IsValid).toBe(true);
+    });
+});

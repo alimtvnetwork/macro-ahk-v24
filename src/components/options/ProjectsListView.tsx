@@ -67,6 +67,7 @@ export const ProjectsListView = forwardRef<HTMLDivElement, Props>(function Proje
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [importMode, setImportMode] = useState<"merge" | "replace">("replace");
+  const [selectExportOpen, setSelectExportOpen] = useState(false);
 
   const handleImportClick = () => fileRef.current?.click();
   const handleSqliteImportClick = () => {

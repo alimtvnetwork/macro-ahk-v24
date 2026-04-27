@@ -502,7 +502,7 @@ export async function handleInjectScripts(
     try {
         const { settings } = await handleGetSettings();
         budgetMs = settings.injectionBudgetMs ?? 500;
-    } catch { /* use default */ }
+    } catch { /* use default */ } // allow-swallow: settings load failure falls back to default budget
     if (totalMs > budgetMs) {
         logBgWarnError(
             BgLogTag.INJECTION,

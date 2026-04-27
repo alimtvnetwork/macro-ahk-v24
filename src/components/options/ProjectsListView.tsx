@@ -515,6 +515,58 @@ function BundlePreviewDialog({ open, preview, importing, onConfirm, onMerge, onC
 }
 
 /* ------------------------------------------------------------------ */
+/*  Category Breakdown Table                                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Renders the matched / new / untouched counts per category for both
+ * Merge and Replace modes side-by-side, so the user sees exactly what
+ * each button will do before clicking.
+ */
+function CategoryBreakdownTable({ preview }: { preview: BundlePreview }) {
+  const rows = SUMMARY_CATEGORY_ORDER.map((entry) => {
+    const { items, existing } = entry.pick(preview);
+    return {
+      label: entry.label,
+      merge: countCategory(items, existing, "merge"),
+      replace: countCategory(items, existing, "replace"),
+    };
+  });
+
+  return (
+    <div className="rounded-md border border-border overflow-hidden">
+      <div className="grid grid-cols-7 gap-1 px-2 py-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground bg-muted/40">
+        <div className="col-span-1">Category</div>
+        <div className="col-span-3 text-center border-l border-border/60">Merge</div>
+        <div className="col-span-3 text-center border-l border-border/60">Replace</div>
+      </div>
+      <div className="grid grid-cols-7 gap-1 px-2 py-1 text-[10px] text-muted-foreground bg-muted/20">
+        <div className="col-span-1" />
+        <div className="text-center border-l border-border/60">match</div>
+        <div className="text-center">new</div>
+        <div className="text-center">keep</div>
+        <div className="text-center border-l border-border/60">match</div>
+        <div className="text-center">new</div>
+        <div className="text-center">delete</div>
+      </div>
+      {rows.map((row) => (
+        <div key={row.label} className="grid grid-cols-7 gap-1 px-2 py-1.5 text-xs border-t border-border/60">
+          <div className="col-span-1 font-medium">{row.label}</div>
+          <div className="text-center border-l border-border/60 text-amber-500">{row.merge.matched}</div>
+          <div className="text-center text-emerald-500">{row.merge.unmatched}</div>
+          <div className="text-center text-muted-foreground">{row.merge.untouched}</div>
+          <div className="text-center border-l border-border/60 text-amber-500">{row.replace.matched}</div>
+          <div className="text-center text-emerald-500">{row.replace.unmatched}</div>
+          <div className="text-center text-destructive">
+            {Math.max(0, row.merge.untouched)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Diff Section                                                       */
 /* ------------------------------------------------------------------ */
 

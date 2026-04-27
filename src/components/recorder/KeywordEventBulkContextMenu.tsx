@@ -67,7 +67,11 @@ import {
     type SequencePreviewIssue,
     type SequenceRenameInput,
 } from "@/lib/keyword-event-bulk-actions";
-import { downloadKeywordEventsZip } from "@/lib/keyword-events-sqlite-export";
+import {
+    downloadKeywordEventsZip,
+    type KeywordEventsExportProgress,
+} from "@/lib/keyword-events-sqlite-export";
+import { Progress } from "@/components/ui/progress";
 import {
     buildPatchFromImport,
     planImportMatches,

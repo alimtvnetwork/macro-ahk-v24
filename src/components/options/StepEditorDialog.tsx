@@ -185,6 +185,30 @@ export default function StepEditorDialog(props: StepEditorDialogProps): JSX.Elem
     }, [groups, mode]);
 
     const handleSubmit = (): void => {
+        // Hotkey kind has its own structured form — synthesise the
+        // PayloadJson from the captured chord list + WaitMs.
+        if (kind === StepKindId.Hotkey) {
+            if (hotkeyChords.length === 0) {
+                toast.error("Add at least one key combination for the Hotkey step.");
+                return;
+            }
+            const waitTrim = hotkeyWaitMs.trim();
+            const waitMs = waitTrim === "" ? undefined : Number(waitTrim);
+            if (waitMs !== undefined && (!Number.isFinite(waitMs) || waitMs < 0)) {
+                toast.error("Wait (ms) must be a non-negative number.");
+                return;
+            }
+            const payload = waitMs === undefined
+                ? { Keys: [...hotkeyChords] }
+                : { Keys: [...hotkeyChords], WaitMs: waitMs };
+            onSubmit({
+                StepKindId: kind,
+                Label: label.trim() === "" ? null : label.trim(),
+                PayloadJson: JSON.stringify(payload),
+                TargetStepGroupId: null,
+            });
+            return;
+        }
         // Light JSON validation when a payload was provided. We allow
         // a blank payload (some kinds don't need one), but reject
         // obvious typos before they round-trip through the DB.

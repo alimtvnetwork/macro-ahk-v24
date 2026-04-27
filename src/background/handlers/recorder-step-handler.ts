@@ -177,3 +177,62 @@ export async function handleRecorderStepRename(
     );
     return { isOk: true, step };
 }
+
+/* ------------------------------------------------------------------ */
+/*  Phase 14 — Meta patch / Tags / Cross-project link                  */
+/* ------------------------------------------------------------------ */
+
+interface UpdateMetaRequest {
+    projectSlug: string;
+    stepId: number;
+    patch: StepMetaPatch;
+}
+
+export async function handleRecorderStepUpdateMeta(
+    message: MessageRequest,
+): Promise<{ isOk: true; step: PersistedStep }> {
+    const req = message as unknown as UpdateMetaRequest;
+    if (!req.projectSlug || typeof req.stepId !== "number" || !req.patch) {
+        throw new Error("RECORDER_STEP_UPDATE_META requires projectSlug, stepId, patch");
+    }
+    const step = await updateStepMeta(req.projectSlug, req.stepId, req.patch);
+    return { isOk: true, step };
+}
+
+interface TagsSetRequest {
+    projectSlug: string;
+    stepId: number;
+    tags: ReadonlyArray<string>;
+}
+
+export async function handleRecorderStepTagsSet(
+    message: MessageRequest,
+): Promise<{ isOk: true; tags: ReadonlyArray<string> }> {
+    const req = message as unknown as TagsSetRequest;
+    if (!req.projectSlug || typeof req.stepId !== "number" || !Array.isArray(req.tags)) {
+        throw new Error("RECORDER_STEP_TAGS_SET requires projectSlug, stepId, tags[]");
+    }
+    const tags = await setStepTags(req.projectSlug, req.stepId, req.tags);
+    return { isOk: true, tags };
+}
+
+interface LinkSetRequest {
+    projectSlug: string;
+    stepId: number;
+    slot: StepLinkSlot;
+    targetProjectSlug: string | null;
+}
+
+export async function handleRecorderStepLinkSet(
+    message: MessageRequest,
+): Promise<{ isOk: true; step: PersistedStep }> {
+    const req = message as unknown as LinkSetRequest;
+    const okSlot = req.slot === "OnSuccessProjectId" || req.slot === "OnFailureProjectId";
+    if (!req.projectSlug || typeof req.stepId !== "number" || !okSlot) {
+        throw new Error(
+            "RECORDER_STEP_LINK_SET requires projectSlug, stepId, slot in {OnSuccessProjectId|OnFailureProjectId}",
+        );
+    }
+    const step = await setStepLink(req.projectSlug, req.stepId, req.slot, req.targetProjectSlug ?? null);
+    return { isOk: true, step };
+}

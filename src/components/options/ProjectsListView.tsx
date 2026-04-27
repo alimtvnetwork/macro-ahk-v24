@@ -588,7 +588,7 @@ interface ProjectCardProps {
 function ProjectCard({ project, index, onEdit, onDuplicate, onDelete }: ProjectCardProps) {
   const [exporting, setExporting] = useState(false);
   const urlCount = project.targetUrls?.length ?? 0;
-  const scriptCount = project.scripts.length;
+  const scriptCount = project.scripts?.length ?? 0;
   const configCount = project.configs?.length ?? 0;
 
   const handleExport = async () => {
@@ -818,7 +818,7 @@ function SelectProjectsExportDialog({
                     />
                     <span className="min-w-0 flex-1 truncate">{p.name}</span>
                     <span className="shrink-0 text-xs text-muted-foreground">
-                      {p.scripts.length} scripts · {p.configs?.length ?? 0} configs
+                      {p.scripts?.length ?? 0} scripts · {p.configs?.length ?? 0} configs
                     </span>
                   </label>
                 </li>

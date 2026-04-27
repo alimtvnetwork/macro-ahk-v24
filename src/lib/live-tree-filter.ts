@@ -74,22 +74,25 @@ export function filterLiveTree(
      * Recursive walker. Returns `null` when the node and its descendants
      * have no matches; otherwise returns a pruned clone with only the
      * branches that lead to a match.
+     *
+     * `inheritedMatch` is `true` when an ancestor's name matched — in that
+     * case the entire subtree is included verbatim (no per-node filtering)
+     * so the user sees the matched group's full content.
      */
-    function walk(node: LiveTreeNode): LiveTreeNode | null {
+    function walk(node: LiveTreeNode, inheritedMatch: boolean): LiveTreeNode | null {
         const groupNameMatch = node.Group.Name.toLowerCase().includes(q);
+        const effectiveMatch = inheritedMatch || groupNameMatch;
         const ownSteps = stepsByGroup.get(node.Group.StepGroupId) ?? [];
 
-        // If the group itself matches, include all of its steps unfiltered
-        // (so the user sees the group's full content, not a partial slice).
-        const matchedSteps = groupNameMatch
+        const matchedSteps = effectiveMatch
             ? ownSteps
             : ownSteps.filter((s) => stepMatches(s, q));
 
-        const children = node.Children.map(walk).filter(
-            (c): c is LiveTreeNode => c !== null,
-        );
+        const children = node.Children
+            .map((c) => walk(c, effectiveMatch))
+            .filter((c): c is LiveTreeNode => c !== null);
 
-        const hasOwnMatch = groupNameMatch || matchedSteps.length > 0;
+        const hasOwnMatch = effectiveMatch || matchedSteps.length > 0;
         if (!hasOwnMatch && children.length === 0) { return null; }
 
         if (groupNameMatch) { groupMatchCount += 1; }
@@ -105,7 +108,7 @@ export function filterLiveTree(
     }
 
     const filteredForest = forest
-        .map(walk)
+        .map((n) => walk(n, false))
         .filter((n): n is LiveTreeNode => n !== null);
 
     return {

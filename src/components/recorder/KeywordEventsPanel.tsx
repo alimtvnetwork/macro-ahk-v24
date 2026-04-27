@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Clock, Crosshair, GripVertical, Keyboard, Link2, Play, Plus, Square, Target, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, CheckCircle2, Circle, Clock, Crosshair, GripVertical, Keyboard, Link2, ListOrdered, Play, Plus, Square, Target, Trash2, XCircle } from "lucide-react";
 import {
     DndContext,
     KeyboardSensor,
@@ -67,6 +67,16 @@ import {
     previewToString,
     type DispatchPreview,
 } from "@/lib/keyword-event-dispatch-preview";
+import {
+    EMPTY_TIMELINE,
+    recordChainEnd,
+    recordEventEnd,
+    recordEventStart,
+    recordStep,
+    startTimeline,
+    type TimelineEntry,
+    type TimelineState,
+} from "@/lib/keyword-event-chain-timeline";
 import { cn } from "@/lib/utils";
 
 export interface KeywordEventsPanelProps {
@@ -122,6 +132,10 @@ function KeywordEventsEditor(): JSX.Element {
     const chainCtrlRef = useRef<AbortController | null>(null);
     const [chainRunning, setChainRunning] = useState(false);
     const [chainProgress, setChainProgress] = useState<{ current: number; total: number } | null>(null);
+    // Live timeline log — rebuilt from scratch on every chain run so users
+    // see only the current execution. Kept in component state so React
+    // re-renders as entries stream in via the chain runner's callbacks.
+    const [timeline, setTimeline] = useState<TimelineState>(EMPTY_TIMELINE);
 
     useEffect(() => () => chainCtrlRef.current?.abort(), []);
 
@@ -157,12 +171,30 @@ function KeywordEventsEditor(): JSX.Element {
         const runnable = api.events.filter((e) => isEventRunnable(e));
         setChainProgress({ current: 0, total: runnable.length });
         setChainRunning(true);
+        // Reset and start a fresh timeline. We capture the start time once
+        // here so every offset is anchored to the run, not to React's batch.
+        setTimeline(startTimeline());
+        const total = runnable.length;
         try {
-            await runKeywordEventChain(runnable, {
+            const result = await runKeywordEventChain(runnable, {
                 pauseMs: chain.PauseMs,
                 signal: ctrl.signal,
-                onEventStart: (_ev, i) => setChainProgress((p) => p === null ? p : { ...p, current: i + 1 }),
+                onEventStart: (ev, i) => {
+                    setChainProgress((p) => p === null ? p : { ...p, current: i + 1 });
+                    setTimeline((t) => recordEventStart(t, ev, i, total));
+                },
+                onStep: (step, stepIndex, ev) => {
+                    setTimeline((t) => recordStep(t, ev, step, stepIndex));
+                },
+                onEventEnd: (ev, _i, res) => {
+                    setTimeline((t) => recordEventEnd(t, ev, res));
+                },
             });
+            setTimeline((t) => recordChainEnd(t, {
+                Completed: result.EventsCompleted,
+                Attempted: result.EventsAttempted,
+                Aborted: result.Aborted,
+            }));
         } finally {
             if (chainCtrlRef.current === ctrl) { chainCtrlRef.current = null; }
             setChainRunning(false);
@@ -215,6 +247,8 @@ function KeywordEventsEditor(): JSX.Element {
                 onRun={() => { void handleRunChain(); }}
                 onCancel={handleCancelChain}
             />
+
+            <ChainTimelineLog timeline={timeline} running={chainRunning} />
 
             <Separator />
 
@@ -391,6 +425,143 @@ function ChainSettingsRow(props: ChainSettingsRowProps): JSX.Element {
                         : "Off — stopping a recording does nothing."}
                 </p>
             </div>
+        </div>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Live chain timeline log                                            */
+/* ------------------------------------------------------------------ */
+
+interface ChainTimelineLogProps {
+    readonly timeline: TimelineState;
+    readonly running: boolean;
+}
+
+/**
+ * Live progress log rendered between the chain controls and the editor
+ * list. Hidden when no chain has ever run so the panel stays compact.
+ * Auto-scrolls to the newest entry while a chain is running so users see
+ * the active step without manual scrolling.
+ */
+function ChainTimelineLog(props: ChainTimelineLogProps): JSX.Element | null {
+    const { timeline, running } = props;
+    const scrollerRef = useRef<HTMLDivElement | null>(null);
+
+    // Auto-scroll to the bottom whenever the entry count changes — but
+    // only while the chain is live, so users can scroll back through a
+    // finished log without being yanked to the end.
+    useEffect(() => {
+        if (!running) { return; }
+        const el = scrollerRef.current;
+        if (el === null) { return; }
+        el.scrollTop = el.scrollHeight;
+    }, [running, timeline.Entries.length]);
+
+    if (timeline.StartedAtMs === null && timeline.Entries.length === 0) {
+        return null;
+    }
+
+    return (
+        <div
+            className="rounded-md border border-border bg-muted/20 p-2 space-y-1.5"
+            data-testid="keyword-event-chain-timeline"
+        >
+            <div className="flex items-center gap-2 px-1">
+                <ListOrdered className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground">
+                    Chain timeline
+                </span>
+                {running && (
+                    <Badge
+                        variant="outline"
+                        className="text-[9px] border-primary/60 text-primary animate-pulse ml-1"
+                    >
+                        Live
+                    </Badge>
+                )}
+                <span className="ml-auto text-[10px] text-muted-foreground tabular-nums">
+                    {timeline.Entries.length} {timeline.Entries.length === 1 ? "entry" : "entries"}
+                </span>
+            </div>
+            <div
+                ref={scrollerRef}
+                className="max-h-32 overflow-y-auto rounded bg-background/50 px-2 py-1.5 font-mono text-[11px] leading-5"
+                data-testid="keyword-event-chain-timeline-scroll"
+            >
+                {timeline.Entries.map((e) => (
+                    <TimelineRow key={e.Id} entry={e} />
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function formatOffset(ms: number): string {
+    const total = Math.max(0, Math.floor(ms));
+    const seconds = Math.floor(total / 1000);
+    const remainder = total % 1000;
+    const padded = remainder.toString().padStart(3, "0");
+    return `${seconds.toString().padStart(2, "0")}.${padded}s`;
+}
+
+interface TimelineRowProps {
+    readonly entry: TimelineEntry;
+}
+
+function TimelineRow(props: TimelineRowProps): JSX.Element {
+    const { entry } = props;
+    const offset = formatOffset(entry.AtMs);
+
+    if (entry.Kind === "EventStart") {
+        return (
+            <div className="flex items-start gap-2 text-foreground" data-testid="timeline-event-start">
+                <span className="text-muted-foreground tabular-nums">{offset}</span>
+                <Play className="h-3 w-3 mt-0.5 text-primary shrink-0" />
+                <span className="truncate">
+                    <span className="text-muted-foreground">[{entry.Index + 1}/{entry.Total}]</span>{" "}
+                    <span className="font-semibold">{entry.Keyword}</span>
+                </span>
+            </div>
+        );
+    }
+    if (entry.Kind === "Step") {
+        return (
+            <div className="flex items-start gap-2 text-muted-foreground pl-3" data-testid="timeline-step">
+                <span className="tabular-nums">{offset}</span>
+                <Circle className="h-2.5 w-2.5 mt-1 text-muted-foreground/70 shrink-0" />
+                <span className="truncate">
+                    <span className="opacity-70">#{entry.StepIndex + 1}</span>{" "}
+                    {entry.Label}
+                </span>
+            </div>
+        );
+    }
+    if (entry.Kind === "EventEnd") {
+        const Icon = entry.Aborted ? XCircle : entry.Completed ? CheckCircle2 : XCircle;
+        const tone = entry.Aborted
+            ? "text-destructive"
+            : entry.Completed ? "text-emerald-500" : "text-destructive";
+        const label = entry.Aborted ? "aborted" : entry.Completed ? "done" : "failed";
+        return (
+            <div className="flex items-start gap-2" data-testid="timeline-event-end">
+                <span className="text-muted-foreground tabular-nums">{offset}</span>
+                <Icon className={cn("h-3 w-3 mt-0.5 shrink-0", tone)} />
+                <span className={cn("truncate", tone)}>
+                    <span className="font-semibold">{entry.Keyword}</span> {label}
+                </span>
+            </div>
+        );
+    }
+    // ChainEnd
+    const tone = entry.Aborted ? "text-destructive" : "text-emerald-500";
+    return (
+        <div className="flex items-start gap-2 mt-1" data-testid="timeline-chain-end">
+            <span className="text-muted-foreground tabular-nums">{offset}</span>
+            <Square className="h-3 w-3 mt-0.5 text-muted-foreground shrink-0" />
+            <span className={cn("truncate font-semibold", tone)}>
+                Chain {entry.Aborted ? "aborted" : "complete"} — {entry.Completed}/{entry.Attempted}
+            </span>
         </div>
     );
 }

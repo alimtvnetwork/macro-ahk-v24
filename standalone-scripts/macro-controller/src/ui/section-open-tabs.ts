@@ -69,6 +69,18 @@ export function createOpenTabsSection(): OpenTabsSectionResult {
     col.body.appendChild(panel);
     col.body.appendChild(refreshBtn);
 
+    // Event delegation: per-row "Copy URL" buttons emit data-copy-url.
+    panel.addEventListener('click', function (e: Event): void {
+        const target = e.target as HTMLElement | null;
+        if (!target) return;
+        const btn = target.closest('[data-copy-url]') as HTMLElement | null;
+        if (!btn) return;
+        e.stopPropagation();
+        const url = btn.getAttribute('data-copy-url') ?? '';
+        if (!url) return;
+        void copyToClipboard(url, btn);
+    });
+
     async function refresh(): Promise<void> {
         panel.innerHTML = renderEmpty('Loading…');
         try {

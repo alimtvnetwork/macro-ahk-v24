@@ -24,12 +24,13 @@
  *   const failed  = makeWebhookFailure({ Status: null, Error: "DNS" });
  */
 
-import type {
-    WebhookDeliveryFailure,
-    WebhookDeliveryResult,
-    WebhookDeliverySkipped,
-    WebhookDeliverySuccess,
-    WebhookEventKind,
+import {
+    WEBHOOK_RESULT_SCHEMA_VERSION,
+    type WebhookDeliveryFailure,
+    type WebhookDeliveryResult,
+    type WebhookDeliverySkipped,
+    type WebhookDeliverySuccess,
+    type WebhookEventKind,
 } from "../result-webhook";
 
 /* ------------------------------------------------------------------ */
@@ -48,6 +49,7 @@ export function makeWebhookSuccess(
     overrides: Partial<WebhookDeliverySuccess> = {},
 ): WebhookDeliverySuccess {
     return {
+        SchemaVersion: WEBHOOK_RESULT_SCHEMA_VERSION,
         Kind: "success",
         Ok: true,
         Skipped: false,
@@ -65,6 +67,7 @@ export function makeWebhookSkipped(
     overrides: Partial<WebhookDeliverySkipped> = {},
 ): WebhookDeliverySkipped {
     return {
+        SchemaVersion: WEBHOOK_RESULT_SCHEMA_VERSION,
         Kind: "skipped",
         Ok: true,
         Skipped: true,
@@ -82,6 +85,7 @@ export function makeWebhookFailure(
     overrides: Partial<WebhookDeliveryFailure> = {},
 ): WebhookDeliveryFailure {
     return {
+        SchemaVersion: WEBHOOK_RESULT_SCHEMA_VERSION,
         Kind: "failure",
         Ok: false,
         Skipped: false,

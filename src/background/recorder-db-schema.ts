@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS Step (
     VariableName   TEXT    NOT NULL,
     Label          TEXT    NOT NULL,
     InlineJs       TEXT,
+    ParamsJson     TEXT,
     IsBreakpoint   INTEGER NOT NULL DEFAULT 0,
     CapturedAt     TEXT    NOT NULL DEFAULT (datetime('now')),
     UpdatedAt      TEXT    NOT NULL DEFAULT (datetime('now')),

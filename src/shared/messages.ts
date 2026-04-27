@@ -48,6 +48,7 @@ export enum MessageType {
     INJECT_SCRIPTS = "INJECT_SCRIPTS",
     INJECTION_RESULT = "INJECTION_RESULT",
     GET_TAB_INJECTIONS = "GET_TAB_INJECTIONS",
+    GET_OPEN_LOVABLE_TABS = "GET_OPEN_LOVABLE_TABS",
 
     // ─── Health & Recovery (from Spec 09) ───
     GET_STATUS = "GET_STATUS",

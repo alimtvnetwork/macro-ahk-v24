@@ -24,13 +24,17 @@ import {
     FolderOpen,
     Folder,
     Layers,
+    Search,
+    X,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { stepKindLabel, useStepLibrary } from "@/hooks/use-step-library";
 import { useRecorderSelection } from "@/hooks/use-recorder-selection";
+import { filterLiveTree } from "@/lib/live-tree-filter";
 import type { StepGroupRow, StepRow } from "@/background/recorder/step-library/db";
 
 interface TreeNode {

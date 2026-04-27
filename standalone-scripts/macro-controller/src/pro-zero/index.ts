@@ -25,3 +25,5 @@ export { upsertWorkspacesRow } from './pro-zero-workspaces-store';
 export { buildProZeroCreditSummary } from './pro-zero-credit-summary';
 export type { ProZeroSummaryOutcome } from './pro-zero-credit-summary';
 export { getProZeroCacheTtlMinutes, getProZeroCacheTtlMs } from './pro-zero-cache-ttl';
+export { adaptWorkspaceInfoTyped } from './pro-zero-workspace-adapter';
+export { enrichProZeroWorkspaces, PRO_ZERO_BALANCE_JSON_FIELD, PRO_ZERO_SOURCE_FIELD } from './pro-zero-enrichment';

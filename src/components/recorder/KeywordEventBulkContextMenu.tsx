@@ -342,9 +342,51 @@ interface BulkRenameSequenceDialogProps {
     readonly onApply: (input: SequenceRenameInput) => void;
 }
 
+const SEQUENCE_RENAME_STORAGE_KEY = "marco.bulkRename.sequence.v1";
+
+function loadPersistedSequence(): SequenceRenameInput {
+    try {
+        const raw = typeof localStorage !== "undefined"
+            ? localStorage.getItem(SEQUENCE_RENAME_STORAGE_KEY)
+            : null;
+        if (!raw) return DEFAULT_SEQUENCE_RENAME;
+        const parsed = JSON.parse(raw) as Partial<SequenceRenameInput>;
+        return {
+            Base: typeof parsed.Base === "string" ? parsed.Base : DEFAULT_SEQUENCE_RENAME.Base,
+            Start: typeof parsed.Start === "number" && Number.isFinite(parsed.Start)
+                ? Math.max(0, Math.floor(parsed.Start))
+                : DEFAULT_SEQUENCE_RENAME.Start,
+            Padding: typeof parsed.Padding === "number" && Number.isFinite(parsed.Padding)
+                ? Math.max(1, Math.min(6, Math.floor(parsed.Padding)))
+                : DEFAULT_SEQUENCE_RENAME.Padding,
+            Separator: typeof parsed.Separator === "string"
+                ? parsed.Separator
+                : DEFAULT_SEQUENCE_RENAME.Separator,
+        };
+    } catch {
+        return DEFAULT_SEQUENCE_RENAME;
+    }
+}
+
+function persistSequence(input: SequenceRenameInput): void {
+    try {
+        if (typeof localStorage === "undefined") return;
+        localStorage.setItem(SEQUENCE_RENAME_STORAGE_KEY, JSON.stringify(input));
+    } catch {
+        // Storage may be unavailable (private mode, quota); silently ignore — the
+        // dialog still works, it just won't remember last used settings.
+    }
+}
+
 function BulkRenameSequenceDialog(props: BulkRenameSequenceDialogProps): JSX.Element {
     const { open, onOpenChange, selectedEvents, allEvents, onApply } = props;
-    const [input, setInput] = useState<SequenceRenameInput>(DEFAULT_SEQUENCE_RENAME);
+    const [input, setInput] = useState<SequenceRenameInput>(loadPersistedSequence);
+
+    // Re-hydrate from storage whenever the dialog is reopened so other surfaces
+    // that use the same key (or another tab) stay in sync.
+    useEffect(() => {
+        if (open) setInput(loadPersistedSequence());
+    }, [open]);
 
     // Build the set of "outside" keywords once per (allEvents, selection) change.
     // Selected events are excluded so renaming an event back to its own name
@@ -365,6 +407,7 @@ function BulkRenameSequenceDialog(props: BulkRenameSequenceDialogProps): JSX.Ele
 
     const handleApply = (): void => {
         if (!summary.IsValid) return;
+        persistSequence(input);
         onApply(input);
         onOpenChange(false);
     };

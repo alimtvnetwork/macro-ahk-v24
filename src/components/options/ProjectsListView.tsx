@@ -461,6 +461,11 @@ function BundlePreviewDialog({ open, preview, importing, onConfirm, onMerge, onC
             </Badge>
           </div>
 
+          {/* Per-category breakdown — shows what Merge vs Replace will do
+              before the user clicks. Mirrors the post-import toast format
+              so previews and confirmations stay in sync. */}
+          <CategoryBreakdownTable preview={preview} />
+
           {/* Detail lists with diff */}
           <ScrollArea className="max-h-48 rounded-md border border-border p-3">
             <div className="space-y-3">

@@ -46,6 +46,7 @@ import { useStepLibrary } from "@/hooks/use-step-library";
 import { useRecorderSelection } from "@/hooks/use-recorder-selection";
 import { useDraggable } from "@/hooks/use-draggable";
 import { openExtensionOptions } from "@/lib/open-extension-options";
+import { loadPanelToggles, savePanelToggles } from "@/lib/controller-panel-toggles";
 import { StepKindId } from "@/background/recorder/step-library/schema";
 
 /* ------------------------------------------------------------------ */
@@ -122,13 +123,39 @@ export function FloatingController(props: FloatingControllerProps): JSX.Element 
     const [mode, setMode] = useState<ControllerMode>(() => initialMode ?? loadMode());
     const [stopArmed, setStopArmed] = useState<boolean>(false);
     const stopTimer = useRef<number | null>(null);
-    /** Toggles for the two expanded-mode panels. Local state — does
-     *  not persist across reloads (cheap to re-open). */
-    const [showTree, setShowTree] = useState<boolean>(false);
-    const [showHotkey, setShowHotkey] = useState<boolean>(false);
-    /** Auto-on while a session is active so the user immediately sees
-     *  recorded actions stream in. The user can still toggle it off. */
-    const [showActions, setShowActions] = useState<boolean>(true);
+
+    /** Toggles for the three expanded-mode panels. Persisted per-SessionId
+     *  via {@link loadPanelToggles} / {@link savePanelToggles} so the user's
+     *  last layout (e.g. "Tree open + Actions open + Hotkey closed") survives
+     *  reloads while a session is active, and a fresh session starts from the
+     *  documented defaults instead of inheriting the previous one's UI. */
+    const initialToggles = useMemo(() => loadPanelToggles(session.SessionId), [session.SessionId]);
+    const [showActions, setShowActions] = useState<boolean>(initialToggles.Actions);
+    const [showTree, setShowTree] = useState<boolean>(initialToggles.Tree);
+    const [showHotkey, setShowHotkey] = useState<boolean>(initialToggles.Hotkey);
+
+    // When the active session changes (e.g. the user stopped one and started
+    // another), re-hydrate the panel state from storage so each session shows
+    // its own remembered layout.
+    const lastSessionIdRef = useRef<string>(session.SessionId);
+    useEffect(() => {
+        if (lastSessionIdRef.current === session.SessionId) { return; }
+        lastSessionIdRef.current = session.SessionId;
+        const next = loadPanelToggles(session.SessionId);
+        setShowActions(next.Actions);
+        setShowTree(next.Tree);
+        setShowHotkey(next.Hotkey);
+    }, [session.SessionId]);
+
+    // Persist any toggle change for the current session immediately so a
+    // page reload or controller remount restores the same layout.
+    useEffect(() => {
+        savePanelToggles(session.SessionId, {
+            Actions: showActions,
+            Tree: showTree,
+            Hotkey: showHotkey,
+        });
+    }, [session.SessionId, showActions, showTree, showHotkey]);
 
     useEffect(() => { saveMode(mode); }, [mode]);
     useEffect(() => () => {

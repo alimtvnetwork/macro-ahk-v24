@@ -498,6 +498,16 @@ function persistSequence(input: SequenceRenameInput): void {
     }
 }
 
+function clearPersistedSequence(): void {
+    if (typeof localStorage === "undefined") return;
+    try {
+        localStorage.removeItem(SEQUENCE_RENAME_STORAGE_KEY);
+        localStorage.removeItem(LEGACY_SEQUENCE_KEY_V1);
+    } catch {
+        // Best-effort; reset still applies to the in-memory state.
+    }
+}
+
 export function BulkRenameSequenceDialog(props: BulkRenameSequenceDialogProps): JSX.Element {
     const { open, onOpenChange, selectedEvents, allEvents, onApply } = props;
     const [input, setInput] = useState<SequenceRenameInput>(loadPersistedSequence);
@@ -711,16 +721,30 @@ export function BulkRenameSequenceDialog(props: BulkRenameSequenceDialogProps): 
                             )}
                         </ul>
                     </div>
-                    <DialogFooter className="mt-3">
-                        <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} tabIndex={6}>Cancel</Button>
+                    <DialogFooter className="mt-3 sm:justify-between">
                         <Button
-                            type="submit"
-                            disabled={!summary.IsValid || selectedEvents.length === 0}
-                            tabIndex={5}
-                            data-testid="keyword-events-bulk-rename-apply"
+                            type="button"
+                            variant="ghost"
+                            onClick={() => {
+                                clearPersistedSequence();
+                                setInput(DEFAULT_SEQUENCE_RENAME);
+                            }}
+                            tabIndex={7}
+                            data-testid="keyword-events-bulk-rename-reset"
                         >
-                            Rename
+                            Reset to defaults
                         </Button>
+                        <div className="flex gap-2">
+                            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} tabIndex={6}>Cancel</Button>
+                            <Button
+                                type="submit"
+                                disabled={!summary.IsValid || selectedEvents.length === 0}
+                                tabIndex={5}
+                                data-testid="keyword-events-bulk-rename-apply"
+                            >
+                                Rename
+                            </Button>
+                        </div>
                     </DialogFooter>
                 </form>
             </DialogContent>

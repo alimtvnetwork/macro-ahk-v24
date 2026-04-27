@@ -364,7 +364,11 @@ interface KeywordEventCardProps {
 }
 
 function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
-    const { event, isRunning, currentStepIndex, onPlay, onCancel, onRemove, onUpdate, onAddStep, onRemoveStep, onMoveStep } = props;
+    const {
+        event, isRunning, currentStepIndex,
+        onPlay, onCancel, onRemove, onUpdate, onAddStep, onRemoveStep, onMoveStep,
+        dragHandle,
+    } = props;
     const [keyCombo, setKeyCombo] = useState("");
     const [waitMs, setWaitMs] = useState("500");
 

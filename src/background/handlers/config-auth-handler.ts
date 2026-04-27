@@ -587,9 +587,7 @@ async function readSupabaseJwtFromPlatformTabs(tabUrlHint?: string): Promise<str
                                 const p2 = JSON.parse(val);
                                 const t2 = p2?.access_token ?? p2?.currentSession?.access_token ?? p2?.token;
                                 if (typeof t2 === "string" && t2.startsWith("eyJ") && t2.split(".").length === 3) return t2;
-                            } catch {
-                                if (val.startsWith("eyJ") && val.split(".").length === 3) return val;
-                            }
+                            } catch { if (val.startsWith("eyJ") && val.split(".").length === 3) return val; }
                         }
                     } catch (lsErr) { console.debug("[config-auth] localStorage scan unavailable:", lsErr); }
                     return null;

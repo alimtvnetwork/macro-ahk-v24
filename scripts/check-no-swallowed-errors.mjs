@@ -55,8 +55,12 @@ const REPO_ROOT_DEFAULT = resolve(__dirname, "..");
 
 const args = process.argv.slice(2);
 const jsonMode = args.includes("--json");
+const FLAG_UPDATE_BASELINE = args.includes("--update-baseline");
+const FLAG_STRICT = args.includes("--strict");
 const rootArg = args.find((a) => a.startsWith("--root="));
 const ROOT = rootArg ? resolve(rootArg.slice("--root=".length)) : REPO_ROOT_DEFAULT;
+const BASELINE_PATH = resolve(ROOT, "scripts/check-no-swallowed-errors.baseline.json");
+const BASELINE_LABEL = "scripts/check-no-swallowed-errors.baseline.json";
 
 /* ------------------------------------------------------------------ */
 /*  Configuration                                                      */

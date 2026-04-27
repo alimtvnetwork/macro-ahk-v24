@@ -168,7 +168,7 @@ const OptionsPage = () => {
     const validSections: SidebarSection[] = [
       "projects", "scripts", "prompts", "activity", "logging",
       "automation", "updaters", "timing", "data", "network",
-      "storage", "api", "library", "step-groups", "settings", "about",
+      "storage", "api", "library", "step-groups", "settings", "about", "audit",
     ];
     if (hash === "step-groups-list") {
       return { section: "step-groups", stepGroupView: "list" };

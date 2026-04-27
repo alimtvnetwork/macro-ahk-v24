@@ -178,7 +178,7 @@ Documents three behaviours with full acceptance criteria (AC-19.1.x / AC-19.2.x 
 
 | Task | Description | Status |
 |------|-------------|--------|
-| 19.1 | `UrlTabClick` (StepKindId=9) capture + replay (Open/Focus/OpenOrFocus, pattern dialects Exact/Prefix/Glob/Regex) | 📋 Spec'd |
+| 19.1 | `UrlTabClick` (StepKindId=9) capture + replay (Open/Focus/OpenOrFocus, pattern dialects Exact/Prefix/Glob/Regex) | ✅ 2026-04-27 (capture-time `deriveUrlTabClickParams` in `capture-to-step-bridge.ts`; `Step.ParamsJson` column added + idempotent `applyParamsJsonMigration` for legacy DBs; replay primitive `executeUrlTabClick` already in `url-tab-click.ts` (23 tests). New 4 bridge tests for ⇒ 18/18 capture-bridge + 51/51 combined. UI wire-up + e2e deferred to 19.5/19.6.) |
 | 19.2 | Unify all element-appearance waits behind `waitForCondition` (legacy `WaitFor` synthesised as `Exists` Gate) | 📋 Spec'd |
 | 19.3 | `validateCondition` save-time rules + structured `ConditionFailureRecord` shape (AC-19.3.1–10) | 📋 Spec'd |
 | 19.4 | Migration `005` — seed `StepKind (9, 'UrlTabClick')` | ✅ 2026-04-27 (`recorder-db-schema.ts` seed + `StepKindId.UrlTabClick = 9`; tests 10/10) |

@@ -147,10 +147,10 @@ export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
         );
         setBusy(false);
         setLog(getDeliveryLog());
-        if (result.Ok) {
-            toast.success(`Webhook reached endpoint (HTTP ${result.Status ?? "?"})`);
-        } else if (result.Skipped) {
+        if (result.Skipped) {
             toast.warning(`Skipped: ${result.SkipReason ?? "unknown reason"}`);
+        } else if (result.Ok) {
+            toast.success(`Webhook reached endpoint (HTTP ${result.Status ?? "?"})`);
         } else {
             toast.error(`Webhook failed: ${result.Error ?? "unknown error"}`);
         }

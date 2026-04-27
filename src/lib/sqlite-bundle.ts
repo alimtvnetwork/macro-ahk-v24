@@ -314,7 +314,7 @@ export async function exportAllAsSqliteZip(): Promise<void> {
   zip.file(DB_FILENAME, dbData);
 
   const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
-  triggerDownload(blob, ZIP_FILENAME);
+  await triggerDownload(blob, ZIP_FILENAME);
 }
 
 /** Exports a single project (with all related scripts & configs) as a SQLite zip. */
@@ -374,7 +374,7 @@ export async function exportProjectAsSqliteZip(project: StoredProject): Promise<
 
   const safeName = project.name.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase();
   const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
-  triggerDownload(blob, `${safeName}-backup.zip`);
+  await triggerDownload(blob, `${safeName}-backup.zip`);
 }
 
 /**
@@ -459,7 +459,7 @@ export async function exportProjectsAsSqliteZip(
   const filename = projects.length === 1
     ? `${projects[0].name.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase()}-backup.zip`
     : `projects-${projects.length}-backup.zip`;
-  triggerDownload(blob, filename);
+  await triggerDownload(blob, filename);
 }
 
 /* ------------------------------------------------------------------ */
@@ -881,7 +881,7 @@ export async function exportPromptsAsSqliteZip(): Promise<void> {
   const JSZipCtor = await loadJSZip(); const zip = new JSZipCtor();
   zip.file(DB_FILENAME, dbData);
   const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
-  triggerDownload(blob, "marco-prompts-backup.zip");
+  await triggerDownload(blob, "marco-prompts-backup.zip");
 }
 
 /** Shared extractor + strict validator for prompts-only bundles. */

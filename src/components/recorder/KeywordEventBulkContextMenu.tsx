@@ -252,21 +252,21 @@ function BulkTagsDialog(props: BulkTagsDialogProps): JSX.Element {
         onOpenChange(false);
     };
 
-    const title = mode === "add" ? "Add tags" : "Remove tags";
+    const title = mode === "add" ? "Add labels" : "Remove labels";
     const desc = mode === "add"
-        ? `Tag ${selectedEvents.length} selected event${selectedEvents.length === 1 ? "" : "s"}.`
-        : `Remove tags from ${selectedEvents.length} selected event${selectedEvents.length === 1 ? "" : "s"}.`;
+        ? `Label ${selectedEvents.length} selected event${selectedEvents.length === 1 ? "" : "s"}.`
+        : `Remove labels from ${selectedEvents.length} selected event${selectedEvents.length === 1 ? "" : "s"}.`;
 
     return (
         <Dialog open={open} onOpenChange={(o) => { if (!o) setRaw(""); onOpenChange(o); }}>
             <DialogContent data-testid={`keyword-events-bulk-tags-dialog-${mode}`}>
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>
-                    <DialogDescription>{desc} Separate tags with commas or spaces.</DialogDescription>
+                    <DialogDescription>{desc} Separate labels with commas or spaces.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-3">
                     <div className="space-y-1.5">
-                        <Label htmlFor="bulk-tags-input">Tags</Label>
+                        <Label htmlFor="bulk-tags-input">Labels</Label>
                         <Input
                             id="bulk-tags-input"
                             value={raw}
@@ -285,7 +285,7 @@ function BulkTagsDialog(props: BulkTagsDialogProps): JSX.Element {
                     )}
                     {mode === "remove" && existing.length > 0 && (
                         <div className="space-y-1">
-                            <p className="text-[11px] text-muted-foreground">Existing tags on selection:</p>
+                            <p className="text-[11px] text-muted-foreground">Existing labels on selection:</p>
                             <div className="flex flex-wrap gap-1">
                                 {existing.map(t => (
                                     <Badge

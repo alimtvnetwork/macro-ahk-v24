@@ -705,16 +705,34 @@ interface KeywordEventCardProps {
      * leaving it `undefined` makes the card non-draggable (used by tests).
      */
     readonly dragHandle?: React.ReactNode;
+    /** Whether this event is part of the current multi-selection. */
+    readonly selected?: boolean;
+    /** Click on the card chrome (not on inputs/buttons). Carries modifiers. */
+    readonly onRowClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
+    /** Toggle this event's checkbox. Receives the source mouse event so the
+     *  parent can honour Shift to extend a range from the anchor. */
+    readonly onToggleSelect?: (checked: boolean, mouseEvent?: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
     const {
         event, isRunning, currentStepIndex,
         onPlay, onCancel, onRemove, onUpdate, onAddStep, onRemoveStep, onMoveStep,
-        dragHandle,
+        dragHandle, selected, onRowClick, onToggleSelect,
     } = props;
     const [keyCombo, setKeyCombo] = useState("");
     const [waitMs, setWaitMs] = useState("500");
+
+    // Per-event step multi-selection. Scoped to this card so each event
+    // tracks its own anchor — selecting a step in one event must not
+    // change the selection in another.
+    const stepIds = event.Steps.map(s => s.Id);
+    const stepSelection = useShiftClickSelection(stepIds);
+    const isMacRow = typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform);
+    const handleStepRowClick = (sid: string, ev: React.MouseEvent): void => {
+        if ((ev.target as HTMLElement | null)?.closest("button,input,textarea,select,label")) return;
+        stepSelection.handleClick(sid, modifiersFromMouseEvent(ev.nativeEvent, isMacRow));
+    };
 
     // Live validation drives both inline messages and the disabled state of
     // the Run button + the per-step Add buttons.

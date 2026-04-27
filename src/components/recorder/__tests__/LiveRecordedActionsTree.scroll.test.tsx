@@ -62,7 +62,7 @@ describe("LiveRecordedActionsTree — selection scroll", () => {
         });
 
         const steps: RecordedStep[] = Array.from({ length: 8 }, (_, i) =>
-            makeStep({ StepId: `s-${i}`, Index: i }),
+            makeStep(`s-${i}`, i),
         );
         await writeSession(makeSession(steps));
     });

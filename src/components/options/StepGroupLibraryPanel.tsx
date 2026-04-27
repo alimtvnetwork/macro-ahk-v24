@@ -198,6 +198,27 @@ export default function StepGroupLibraryPanel() {
         new Set(),
         decodeNumberSet,
     );
+
+    /**
+     * Bi-directional selection sync with the in-page Floating
+     * Controller's live tree panel. When a user clicks a group in
+     * Options we broadcast it; when the controller clicks a node we
+     * adopt it. Echo suppression is handled inside the hook by
+     * tagging dispatches with `Source = "options"`.
+     */
+    const recorderSel = useRecorderSelection("options");
+    useEffect(() => {
+        recorderSel.select({ StepGroupId: activeGroupId, StepId: null });
+        // Only react to local activeGroupId changes — the hook's
+        // setter is stable and re-broadcasting on every render would
+        // ping-pong with the controller.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeGroupId]);
+    useEffect(() => {
+        if (recorderSel.selection.StepGroupId === activeGroupId) { return; }
+        setActiveGroupId(recorderSel.selection.StepGroupId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [recorderSel.selection.StepGroupId]);
     const [showArchived, setShowArchived] = useState(false);
     const [batchOpen, setBatchOpen] = useState(false);
     /**

@@ -50,11 +50,13 @@ import { Badge } from "@/components/ui/badge";
 import {
     DEFAULT_SEQUENCE_RENAME,
     collectCategories,
+    computeSequencePreview,
     mergeTags,
     normaliseCategory,
     parseTagInput,
     removeTags,
     renderSequenceName,
+    type SequencePreviewIssue,
     type SequenceRenameInput,
 } from "@/lib/keyword-event-bulk-actions";
 import { downloadKeywordEventsZip } from "@/lib/keyword-events-sqlite-export";
@@ -65,6 +67,10 @@ export interface KeywordEventBulkContextMenuProps {
     readonly children: React.ReactNode;
     /** Events that are currently part of the selection set. */
     readonly selectedEvents: ReadonlyArray<KeywordEvent>;
+    /** Every event in the panel — used by Rename-in-sequence to detect
+     *  collisions with rows the user did NOT select. Optional; when omitted
+     *  collision detection is skipped. */
+    readonly allEvents?: ReadonlyArray<KeywordEvent>;
     /** Called when the user right-clicks a row that isn't yet selected — the
      *  parent should add it to the selection so the menu acts on it. */
     readonly onContextOpenForUnselected?: () => void;
@@ -84,7 +90,7 @@ export function KeywordEventBulkContextMenu(
     props: KeywordEventBulkContextMenuProps,
 ): JSX.Element {
     const {
-        children, selectedEvents, isRowSelected, onContextOpenForUnselected,
+        children, selectedEvents, allEvents, isRowSelected, onContextOpenForUnselected,
         onUpdateEvent, onRemoveEvent, onClearSelection,
     } = props;
 
@@ -196,6 +202,7 @@ export function KeywordEventBulkContextMenu(
                 open={dialog === "rename"}
                 onOpenChange={(o) => setDialog(o ? "rename" : null)}
                 selectedEvents={selectedEvents}
+                allEvents={allEvents}
                 onApply={(input) => {
                     selectedEvents.forEach((ev, i) => {
                         onUpdateEvent(ev.Id, { Keyword: renderSequenceName(input, i) });
@@ -324,22 +331,33 @@ interface BulkRenameSequenceDialogProps {
     readonly open: boolean;
     readonly onOpenChange: (open: boolean) => void;
     readonly selectedEvents: ReadonlyArray<KeywordEvent>;
+    readonly allEvents?: ReadonlyArray<KeywordEvent>;
     readonly onApply: (input: SequenceRenameInput) => void;
 }
 
 function BulkRenameSequenceDialog(props: BulkRenameSequenceDialogProps): JSX.Element {
-    const { open, onOpenChange, selectedEvents, onApply } = props;
+    const { open, onOpenChange, selectedEvents, allEvents, onApply } = props;
     const [input, setInput] = useState<SequenceRenameInput>(DEFAULT_SEQUENCE_RENAME);
 
-    const previews = useMemo(
-        () => selectedEvents.slice(0, 5).map((ev, i) => ({
-            old: ev.Keyword,
-            next: renderSequenceName(input, i),
-        })),
-        [selectedEvents, input],
+    // Build the set of "outside" keywords once per (allEvents, selection) change.
+    // Selected events are excluded so renaming an event back to its own name
+    // doesn't falsely flag a collision.
+    const outsideKeywords = useMemo(() => {
+        if (!allEvents || allEvents.length === 0) return [];
+        const selectedIds = new Set(selectedEvents.map(e => e.Id));
+        return allEvents
+            .filter(e => !selectedIds.has(e.Id))
+            .map(e => e.Keyword);
+    }, [allEvents, selectedEvents]);
+
+    const summary = useMemo(
+        () => computeSequencePreview(selectedEvents, input, outsideKeywords),
+        [selectedEvents, input, outsideKeywords],
     );
+    const previewRows = summary.Rows.slice(0, 8);
 
     const handleApply = (): void => {
+        if (!summary.IsValid) return;
         onApply(input);
         onOpenChange(false);
     };
@@ -397,29 +415,83 @@ function BulkRenameSequenceDialog(props: BulkRenameSequenceDialogProps): JSX.Ele
                         />
                     </div>
                 </div>
+
+                <PreviewSummaryBanner summary={summary} />
+
                 <div className="rounded-md border border-border bg-muted/30 p-2 text-xs">
                     <p className="mb-1 font-medium text-muted-foreground">Preview</p>
-                    <ul className="space-y-0.5 font-mono">
-                        {previews.map((p, i) => (
-                            <li key={i} className="flex gap-2">
-                                <span className="truncate text-muted-foreground line-through">{p.old}</span>
-                                <span aria-hidden>→</span>
-                                <span className="truncate text-foreground">{p.next}</span>
-                            </li>
-                        ))}
-                        {selectedEvents.length > previews.length && (
-                            <li className="text-muted-foreground">…and {selectedEvents.length - previews.length} more</li>
+                    <ul className="space-y-0.5 font-mono" data-testid="keyword-events-bulk-rename-preview">
+                        {previewRows.map((row) => {
+                            const hasIssue = row.Issues.length > 0;
+                            const nextClass = hasIssue
+                                ? "truncate text-destructive font-semibold"
+                                : "truncate text-foreground";
+                            return (
+                                <li
+                                    key={row.Id}
+                                    className="flex items-center gap-2"
+                                    data-testid="keyword-events-bulk-rename-preview-row"
+                                    data-issues={row.Issues.join(",")}
+                                >
+                                    <span className="truncate text-muted-foreground line-through">{row.Old}</span>
+                                    <span aria-hidden>→</span>
+                                    <span className={nextClass}>{row.Next || "(empty)"}</span>
+                                    {row.Issues.map(issue => (
+                                        <Badge
+                                            key={issue}
+                                            variant="destructive"
+                                            className="h-4 px-1 text-[10px] uppercase tracking-wide"
+                                        >
+                                            {issueLabel(issue)}
+                                        </Badge>
+                                    ))}
+                                </li>
+                            );
+                        })}
+                        {summary.Rows.length > previewRows.length && (
+                            <li className="text-muted-foreground">…and {summary.Rows.length - previewRows.length} more</li>
                         )}
                     </ul>
                 </div>
                 <DialogFooter>
                     <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleApply} data-testid="keyword-events-bulk-rename-apply">
+                    <Button
+                        onClick={handleApply}
+                        disabled={!summary.IsValid || selectedEvents.length === 0}
+                        data-testid="keyword-events-bulk-rename-apply"
+                    >
                         Rename
                     </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+    );
+}
+
+function issueLabel(issue: SequencePreviewIssue): string {
+    switch (issue) {
+        case "duplicate": return "duplicate";
+        case "collision": return "collision";
+        case "empty":     return "empty";
+        case "too-long":  return "too long";
+    }
+}
+
+function PreviewSummaryBanner({ summary }: { readonly summary: ReturnType<typeof computeSequencePreview> }): JSX.Element | null {
+    if (summary.IsValid) return null;
+    const parts: string[] = [];
+    if (summary.DuplicateCount > 0) parts.push(`${summary.DuplicateCount} duplicate${summary.DuplicateCount === 1 ? "" : "s"}`);
+    if (summary.CollisionCount > 0) parts.push(`${summary.CollisionCount} collide with existing names`);
+    if (summary.EmptyCount > 0)     parts.push(`${summary.EmptyCount} empty`);
+    if (summary.TooLongCount > 0)   parts.push(`${summary.TooLongCount} too long`);
+    return (
+        <div
+            role="alert"
+            className="rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1.5 text-xs text-destructive"
+            data-testid="keyword-events-bulk-rename-issues"
+        >
+            Cannot apply: {parts.join(" · ")}.
+        </div>
     );
 }
 

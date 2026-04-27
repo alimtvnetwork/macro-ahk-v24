@@ -46,6 +46,104 @@ export function renderSequenceName(input: SequenceRenameInput, index: number): s
     return base.length === 0 ? num : `${base}${input.Separator}${num}`;
 }
 
+/* ------------------------------------------------------------------ */
+/*  Sequence rename validation                                         */
+/* ------------------------------------------------------------------ */
+
+export type SequencePreviewIssue =
+    | "empty"           // resolved name is empty / whitespace
+    | "too-long"        // > 200 chars; matches Keyword column soft limit
+    | "duplicate"       // collides with another row inside this rename batch
+    | "collision";      // collides with an existing event NOT in the selection
+
+export interface SequencePreviewRow {
+    readonly Id: string;
+    readonly Old: string;
+    readonly Next: string;
+    readonly Issues: readonly SequencePreviewIssue[];
+}
+
+export interface SequencePreviewSummary {
+    readonly Rows: readonly SequencePreviewRow[];
+    readonly DuplicateCount: number;
+    readonly CollisionCount: number;
+    readonly EmptyCount: number;
+    readonly TooLongCount: number;
+    /** True iff every row is issue-free. */
+    readonly IsValid: boolean;
+}
+
+const SEQUENCE_NAME_MAX_LENGTH = 200;
+
+/**
+ * Computes the new name for every selected event AND flags duplicates,
+ * collisions with non-selected events, and invalid (empty/over-long) names.
+ *
+ *   • `outsideKeywords` are the keywords of events NOT in `selectedEvents`
+ *     (i.e. the rest of the list). Pass `[]` if collision detection is
+ *     not desired. Comparison is case-insensitive + trimmed to mirror how
+ *     users perceive duplicates.
+ */
+export function computeSequencePreview(
+    selectedEvents: ReadonlyArray<{ readonly Id: string; readonly Keyword: string }>,
+    input: SequenceRenameInput,
+    outsideKeywords: ReadonlyArray<string>,
+): SequencePreviewSummary {
+    const norm = (s: string): string => s.trim().toLowerCase();
+    const outside = new Set(outsideKeywords.map(norm).filter(k => k.length > 0));
+
+    const proposed = selectedEvents.map((ev, i) => ({
+        Id: ev.Id,
+        Old: ev.Keyword,
+        Next: renderSequenceName(input, i),
+    }));
+
+    // Count occurrences of each normalised proposed name to find within-batch
+    // duplicates. >1 occurrence ⇒ every occurrence is a duplicate.
+    const counts = new Map<string, number>();
+    for (const p of proposed) {
+        const key = norm(p.Next);
+        if (key.length === 0) continue;
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+
+    let duplicateCount = 0;
+    let collisionCount = 0;
+    let emptyCount = 0;
+    let tooLongCount = 0;
+
+    const rows: SequencePreviewRow[] = proposed.map(p => {
+        const issues: SequencePreviewIssue[] = [];
+        const key = norm(p.Next);
+        if (key.length === 0) {
+            issues.push("empty");
+            emptyCount += 1;
+        }
+        if (p.Next.length > SEQUENCE_NAME_MAX_LENGTH) {
+            issues.push("too-long");
+            tooLongCount += 1;
+        }
+        if (key.length > 0 && (counts.get(key) ?? 0) > 1) {
+            issues.push("duplicate");
+            duplicateCount += 1;
+        }
+        if (key.length > 0 && outside.has(key)) {
+            issues.push("collision");
+            collisionCount += 1;
+        }
+        return { Id: p.Id, Old: p.Old, Next: p.Next, Issues: issues };
+    });
+
+    return {
+        Rows: rows,
+        DuplicateCount: duplicateCount,
+        CollisionCount: collisionCount,
+        EmptyCount: emptyCount,
+        TooLongCount: tooLongCount,
+        IsValid: duplicateCount === 0 && collisionCount === 0 && emptyCount === 0 && tooLongCount === 0,
+    };
+}
+
 /** Returns a fresh, sorted, de-duplicated tag list (case-insensitive). */
 export function mergeTags(
     current: readonly string[] | undefined,

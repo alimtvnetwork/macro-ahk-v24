@@ -364,6 +364,7 @@ function KeywordEventsEditor(): JSX.Element {
                                             key={ev.Id}
                                             isRowSelected={isSelected}
                                             selectedEvents={selectedForMenu}
+                                            allEvents={api.events}
                                             onContextOpenForUnselected={() => {
                                                 eventSelection.handleClick(ev.Id, { shiftKey: false, toggleKey: false });
                                             }}

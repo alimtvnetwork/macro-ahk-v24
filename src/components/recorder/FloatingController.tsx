@@ -124,6 +124,9 @@ export function FloatingController(props: FloatingControllerProps): JSX.Element 
      *  not persist across reloads (cheap to re-open). */
     const [showTree, setShowTree] = useState<boolean>(false);
     const [showHotkey, setShowHotkey] = useState<boolean>(false);
+    /** Auto-on while a session is active so the user immediately sees
+     *  recorded actions stream in. The user can still toggle it off. */
+    const [showActions, setShowActions] = useState<boolean>(true);
 
     useEffect(() => { saveMode(mode); }, [mode]);
     useEffect(() => () => {

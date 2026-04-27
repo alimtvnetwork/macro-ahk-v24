@@ -7,7 +7,7 @@
  * surface via a Dialog trigger.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, CheckCircle2, Circle, Clock, Crosshair, GripVertical, Keyboard, Link2, ListOrdered, Play, Plus, Square, Target, Trash2, XCircle } from "lucide-react";
 import {
     DndContext,
@@ -54,6 +54,7 @@ import {
 import { useKeywordEventPlayback } from "@/hooks/use-keyword-event-playback";
 import { useRecordingSession } from "@/hooks/use-recording-session";
 import { useAutoRunChainAfterRecording } from "@/hooks/use-auto-run-chain-after-recording";
+import { filterKeywordEvents } from "@/lib/keyword-event-search";
 import { KeywordEventStepContextMenu } from "./KeywordEventStepContextMenu";
 import {
     DEFAULT_CHAIN_SETTINGS,

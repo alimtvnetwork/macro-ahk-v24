@@ -176,10 +176,10 @@ export function KeywordEventBulkContextMenu(
                     <ContextMenuSeparator />
                     <ContextMenuItem
                         className="text-destructive focus:text-destructive"
-                        onSelect={handleDelete}
+                        onSelect={() => setDialog("delete")}
                         data-testid="keyword-events-context-delete"
                     >
-                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete…
                     </ContextMenuItem>
                 </ContextMenuContent>
             </ContextMenu>

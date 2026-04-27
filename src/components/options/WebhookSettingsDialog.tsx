@@ -191,25 +191,46 @@ function presentVariant(entry: WebhookDeliveryResult): VariantPresentation {
     return presentFailure(entry);
 }
 
+const CLIP_SEPARATOR = "─".repeat(48);
+const CLIP_EOL = "\r\n";
+
+function variantHeader(entry: WebhookDeliveryResult): string {
+    if (isWebhookSkipped(entry)) return "[SKIPPED] Webhook Delivery";
+    if (isWebhookSuccess(entry)) return "[SUCCESS] Webhook Delivery";
+    return "[FAILURE] Webhook Delivery";
+}
+
+function variantStatusBlock(entry: WebhookDeliveryResult): string {
+    if (isWebhookSkipped(entry)) return describeSkipped(entry);
+    if (isWebhookSuccess(entry)) return describeSuccess(entry);
+    if (isWebhookFailure(entry)) return describeFailure(entry);
+    return "Status: <unknown>";
+}
+
 function buildLogClipboardText(entry: WebhookDeliveryResult): string {
-    const lines: string[] = [
-        `Event: ${entry.Event}`,
-        `Emitted: ${entry.EmittedAt}`,
-        `Duration: ${entry.DurationMs} ms`,
-    ];
-    if (isWebhookSkipped(entry)) {
-        lines.push(describeSkipped(entry));
-    } else if (isWebhookSuccess(entry)) {
-        lines.push(describeSuccess(entry));
-    } else if (isWebhookFailure(entry)) {
-        lines.push(describeFailure(entry));
-    }
+    const sections: string[] = [];
+    sections.push(CLIP_SEPARATOR);
+    sections.push(variantHeader(entry));
+    sections.push(CLIP_SEPARATOR);
+    sections.push(
+        [
+            `Event:    ${entry.Event ?? "<missing>"}`,
+            `Emitted:  ${entry.EmittedAt ?? "<missing>"}`,
+            `Duration: ${entry.DurationMs ?? 0} ms`,
+        ].join(CLIP_EOL),
+    );
+    sections.push(CLIP_SEPARATOR);
+    sections.push(variantStatusBlock(entry));
     const payloadJson = formatPayloadJson(entry);
     if (payloadJson !== null) {
-        lines.push("Payload:");
-        lines.push(payloadJson);
+        sections.push(CLIP_SEPARATOR);
+        sections.push("Payload:");
+        sections.push(payloadJson);
     }
-    return lines.join("\n");
+    sections.push(CLIP_SEPARATOR);
+    // Normalise any embedded \n inside subsections to CRLF for a single
+    // consistent line ending throughout the clipboard payload.
+    return sections.join(CLIP_EOL).replace(/\r?\n/g, CLIP_EOL);
 }
 
 async function copyLogEntry(entry: WebhookDeliveryResult): Promise<void> {

@@ -102,7 +102,7 @@ function KeywordEventsEditor(): JSX.Element {
 
     useEffect(() => () => chainCtrlRef.current?.abort(), []);
 
-    const enabledCount = api.events.filter((e) => e.Enabled && e.Steps.length > 0).length;
+    const enabledCount = api.events.filter((e) => isEventRunnable(e)).length;
 
     const handleAdd = () => {
         const k = newKeyword.trim();
@@ -115,8 +115,10 @@ function KeywordEventsEditor(): JSX.Element {
         chainCtrlRef.current?.abort();
         const ctrl = new AbortController();
         chainCtrlRef.current = ctrl;
-        const runnable = api.events.filter((e) => e.Steps.length > 0);
-        setChainProgress({ current: 0, total: runnable.filter((e) => e.Enabled).length });
+        // Only chain events that are both enabled and free of validation
+        // issues — invalid events would silently no-op or throw mid-chain.
+        const runnable = api.events.filter((e) => isEventRunnable(e));
+        setChainProgress({ current: 0, total: runnable.length });
         setChainRunning(true);
         try {
             await runKeywordEventChain(runnable, {

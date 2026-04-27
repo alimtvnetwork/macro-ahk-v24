@@ -143,11 +143,15 @@ function broadcastErrorCountChange(): void {
         }
         stmt.free();
 
-        chrome.runtime.sendMessage({ type: "ERROR_COUNT_CHANGED", count }).catch(() => {
-            /* no listeners — ignored */
+        chrome.runtime.sendMessage({ type: "ERROR_COUNT_CHANGED", count }).catch((sendErr) => {
+            // No listeners is the common case (popup/options closed). Use debug so
+            // we keep a breadcrumb without polluting the error log on every broadcast.
+            console.debug("[error-handler] ERROR_COUNT_CHANGED broadcast had no receiver:", sendErr);
         });
-    } catch {
-        /* db not ready or no listeners — silently skip */
+    } catch (broadcastErr) {
+        // Last-resort sink: cannot route through logCaughtError because the errors DB
+        // itself may be unavailable here (this function reads from it).
+        console.warn("[error-handler] broadcastErrorCountChange failed — DB not ready or count query threw:", broadcastErr);
     }
 }
 

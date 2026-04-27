@@ -808,7 +808,9 @@ function partitionBySyntax(
             durationMs: Date.now() - startTime,
             errorMessage,
         });
-        logInjectionFailure(script.injectable, projectId, new SyntaxError(syntaxError)).catch(() => {});
+        logInjectionFailure(script.injectable, projectId, new SyntaxError(syntaxError)).catch((logErr) => {
+            logCaughtError(BgLogTag.INJECTION, `logInjectionFailure self-failed for "${script.injectable.name ?? script.injectable.id}" (syntax stage)`, logErr);
+        });
     }
     return { good, syntaxFailures };
 }
@@ -831,7 +833,9 @@ async function injectSingleScript(
     if (syntaxError !== null) {
         const errorMessage = `Script "${script.name}" has a syntax error: ${syntaxError}`;
         console.error("[injection] 3/4 SYNTAX  — %s", errorMessage);
-        logInjectionFailure(script, projectId, new SyntaxError(syntaxError)).catch(() => {});
+        logInjectionFailure(script, projectId, new SyntaxError(syntaxError)).catch((logErr) => {
+            logCaughtError(BgLogTag.INJECTION, `logInjectionFailure self-failed for "${script.name}" (single-script syntax stage)`, logErr);
+        });
         return buildErrorResult(script.id, startTime, new SyntaxError(syntaxError));
     }
 
@@ -876,7 +880,9 @@ async function injectSingleScript(
         logCaughtError(BgLogTag.INJECTION, `4/4 EXECUTE — "${script.name}" failed`, injectionError);
 
         // Fire-and-forget: don't block injection for logging
-        logInjectionFailure(script, projectId, injectionError).catch(() => {});
+        logInjectionFailure(script, projectId, injectionError).catch((logErr) => {
+            logCaughtError(BgLogTag.INJECTION, `logInjectionFailure self-failed for "${script.name}" (execute stage)`, logErr);
+        });
         return buildErrorResult(script.id, startTime, injectionError);
     }
 }
@@ -911,7 +917,9 @@ async function logInjectionSuccess(
                     message: legacyMsg,
                     stack: `Injected version: ${injectedVersion}, Expected: ${EXTENSION_VERSION}, Source: ${codeSource ?? "unknown"}, Code length: ${script.code.length}`,
                 } as MessageRequest);
-            } catch { /* best effort */ }
+            } catch (logErr) {
+                logBgWarnError(BgLogTag.INJECTION, `handleLogError(LEGACY_SCRIPT_INJECTED) failed for "${script.name}" — telemetry suppressed but injection continues`, logErr);
+            }
         }
     }
 
@@ -1136,7 +1144,9 @@ async function bootstrapNamespaceRoot(tabId: number): Promise<void> {
                 },
                 world: "MAIN" as chrome.scripting.ExecutionWorld,
             });
-        } catch { /* best-effort warning */ }
+        } catch (warnErr) {
+            logBgWarnError(BgLogTag.INJECTION, "MAIN-world bootstrap-warning script failed to inject (best-effort console banner suppressed)", warnErr);
+        }
     }
 }
 
@@ -1233,7 +1243,9 @@ async function injectProjectNamespaces(tabId: number, allProjects: StoredProject
         allConfigs = Array.isArray(configResult[STORAGE_KEY_ALL_CONFIGS])
             ? configResult[STORAGE_KEY_ALL_CONFIGS]
             : [];
-    } catch { /* empty */ }
+    } catch (cfgErr) {
+        logBgWarnError(BgLogTag.INJECTION, `chrome.storage.local.get("${STORAGE_KEY_ALL_CONFIGS}") failed — proceeding with empty configs[]`, cfgErr);
+    }
 
     // ✅ 15.8: Batch-read pre-built namespace caches
     const pidArray = [...projectIds];
@@ -1543,7 +1555,11 @@ async function ensureRelayInjected(tabId: number): Promise<void> {
                     const isHealthy = pingObj !== null
                         && (pingObj.isOk === true || pingObj.type === "__PONG__");
                     if (isHealthy) return { status: "healthy" as const };
-                } catch { /* runtime stale */ }
+                } catch (pingErr) {
+                    // Runtime stale — fall through to needs_injection. Breadcrumb only;
+                    // runs in MAIN world, so no namespace logger available.
+                    console.debug("[injection] relay ping failed — runtime stale, marking needs_injection:", pingErr);
+                }
 
                 // Sentinel exists but runtime is stale — clear sentinel for reinjection
                 delete (window as unknown as Record<string, unknown>).__marcoRelayActive;
@@ -1624,7 +1640,7 @@ async function showInjectionToastInTab(
                 // Try SDK toast first
                 const m = (window as unknown as Record<string, Record<string, ((...args: unknown[]) => void)>>).marco;
                 if (m?.notify?.success) {
-                    try { m.notify.success(msg, { duration: 4000 }); return; } catch { /* fall through */ }
+                    try { m.notify.success(msg, { duration: 4000 }); return; } catch (sdkErr) { console.debug("[Marco] SDK toast.success failed, falling through to DOM toast:", sdkErr); }
                 }
 
                 // DOM fallback — self-contained, no dependencies
@@ -1731,7 +1747,7 @@ async function showInjectionFailureToastInTab(
                 // Try SDK toast first
                 const m = (window as unknown as Record<string, Record<string, ((...args: unknown[]) => void)>>).marco;
                 if (m?.notify?.error) {
-                    try { m.notify.error(msg, { duration: 6000 }); return; } catch { /* fall through */ }
+                    try { m.notify.error(msg, { duration: 6000 }); return; } catch (sdkErr) { console.debug("[Marco] SDK toast.error failed, falling through to DOM toast:", sdkErr); }
                 }
 
                 // DOM fallback
@@ -1909,8 +1925,10 @@ async function verifyPostInjectionGlobals(tabId: number): Promise<void> {
                 `Verify stack: ${r.verifyStack}`,
         );
         }
-    } catch {
-        // Verification is best-effort — never block the pipeline
+    } catch (verifyErr) {
+        // Verification is best-effort — never block the pipeline. Emit a warn so the
+        // suppressed verifier failure is at least visible in the diagnostic dump.
+        logBgWarnError(BgLogTag.INJECTION, `Post-injection verifier itself threw on tab ${tabId} — verification skipped`, verifyErr);
     }
 }
 

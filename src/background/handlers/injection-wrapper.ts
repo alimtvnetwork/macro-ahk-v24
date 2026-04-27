@@ -106,7 +106,11 @@ function buildWrappedCode(
         console.error("[Marco] Script " + ${safeScriptId} + " error:", __errMsg, "\\nStack:", __errStack);
         try {
             if(typeof __marcoNotify==="function"){__marcoNotify("Script error: "+__errMsg,"error",8000);}
-        } catch(__ne){}
+        } catch(__ne){
+            // MAIN-world context: namespace Logger unavailable. Surface breadcrumb so the
+            // suppressed notify error is recoverable from devtools console.
+            console.warn("[Marco] __marcoNotify failed for script " + ${safeScriptId} + ":", __ne);
+        }
         try {
             var __ctx = window.marco && window.marco.context ? window.marco.context : null;
 

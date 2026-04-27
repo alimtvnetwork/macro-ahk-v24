@@ -344,12 +344,19 @@ interface ChainSettingsRowProps {
     readonly progress: { current: number; total: number } | null;
     /** True while the auto-run-after-recording chain is in flight. */
     readonly autoRunActive?: boolean;
+    /** Human-readable Run shortcut (e.g. "Ctrl+Enter") for the button tooltip. */
+    readonly runShortcutLabel?: string;
+    /** Human-readable Stop shortcut (e.g. "Esc") for the button tooltip. */
+    readonly stopShortcutLabel?: string;
     readonly onRun: () => void;
     readonly onCancel: () => void;
 }
 
 function ChainSettingsRow(props: ChainSettingsRowProps): JSX.Element {
-    const { settings, onChange, enabledCount, running, progress, autoRunActive, onRun, onCancel } = props;
+    const {
+        settings, onChange, enabledCount, running, progress, autoRunActive,
+        runShortcutLabel, stopShortcutLabel, onRun, onCancel,
+    } = props;
     const pauseDraft = String(settings.PauseMs);
     return (
         <div

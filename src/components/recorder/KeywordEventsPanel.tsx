@@ -77,6 +77,11 @@ import {
     type TimelineEntry,
     type TimelineState,
 } from "@/lib/keyword-event-chain-timeline";
+import {
+    describeRunShortcut,
+    describeStopShortcut,
+    matchChainShortcut,
+} from "@/lib/keyword-event-chain-shortcuts";
 import { cn } from "@/lib/utils";
 
 export interface KeywordEventsPanelProps {
@@ -221,8 +226,41 @@ function KeywordEventsEditor(): JSX.Element {
         api.reorderEvents(String(active.id), String(over.id));
     };
 
+    // Panel-scoped keyboard shortcuts:
+    //   • Ctrl/Cmd+Enter → run the chain (when idle and at least one
+    //     runnable event is enabled, and focus isn't in a text field).
+    //   • Escape         → stop the chain (only while running, and only
+    //     when focus isn't in a text field — see matcher for rationale).
+    // Bound to the editor root so it works from anywhere inside the
+    // dialog without leaking to the rest of the app.
+    const handlePanelKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+        const action = matchChainShortcut(
+            {
+                key: e.key,
+                ctrlKey: e.ctrlKey,
+                metaKey: e.metaKey,
+                altKey: e.altKey,
+                shiftKey: e.shiftKey,
+                target: e.target,
+            },
+            { chainRunning, enabledCount },
+        );
+        if (action === null) { return; }
+        e.preventDefault();
+        e.stopPropagation();
+        if (action === "run") { void handleRunChain(); }
+        else { handleCancelChain(); }
+    };
+
+    const runShortcutLabel = describeRunShortcut();
+    const stopShortcutLabel = describeStopShortcut();
+
     return (
-        <div className="space-y-3" data-testid="keyword-events-panel">
+        <div
+            className="space-y-3"
+            data-testid="keyword-events-panel"
+            onKeyDown={handlePanelKeyDown}
+        >
             <div className="flex items-center gap-2">
                 <Input
                     value={newKeyword}
@@ -244,6 +282,8 @@ function KeywordEventsEditor(): JSX.Element {
                 running={chainRunning}
                 progress={chainProgress}
                 autoRunActive={autoRunActive}
+                runShortcutLabel={runShortcutLabel}
+                stopShortcutLabel={stopShortcutLabel}
                 onRun={() => { void handleRunChain(); }}
                 onCancel={handleCancelChain}
             />
@@ -304,12 +344,19 @@ interface ChainSettingsRowProps {
     readonly progress: { current: number; total: number } | null;
     /** True while the auto-run-after-recording chain is in flight. */
     readonly autoRunActive?: boolean;
+    /** Human-readable Run shortcut (e.g. "Ctrl+Enter") for the button tooltip. */
+    readonly runShortcutLabel?: string;
+    /** Human-readable Stop shortcut (e.g. "Esc") for the button tooltip. */
+    readonly stopShortcutLabel?: string;
     readonly onRun: () => void;
     readonly onCancel: () => void;
 }
 
 function ChainSettingsRow(props: ChainSettingsRowProps): JSX.Element {
-    const { settings, onChange, enabledCount, running, progress, autoRunActive, onRun, onCancel } = props;
+    const {
+        settings, onChange, enabledCount, running, progress, autoRunActive,
+        runShortcutLabel, stopShortcutLabel, onRun, onCancel,
+    } = props;
     const pauseDraft = String(settings.PauseMs);
     return (
         <div
@@ -353,10 +400,19 @@ function ChainSettingsRow(props: ChainSettingsRowProps): JSX.Element {
                             className="h-8"
                             onClick={onCancel}
                             data-testid="keyword-event-chain-cancel"
+                            title={stopShortcutLabel ? `Stop the chain (${stopShortcutLabel})` : "Stop the chain"}
                         >
                             <Square className="h-3.5 w-3.5 mr-1" />
                             Stop
                             {progress !== null ? ` (${progress.current}/${progress.total})` : ""}
+                            {stopShortcutLabel && (
+                                <kbd
+                                    className="ml-2 hidden sm:inline-flex items-center rounded border border-destructive-foreground/30 px-1 text-[9px] font-mono opacity-80"
+                                    data-testid="keyword-event-chain-stop-shortcut"
+                                >
+                                    {stopShortcutLabel}
+                                </kbd>
+                            )}
                         </Button>
                     ) : (
                         <Button
@@ -366,10 +422,22 @@ function ChainSettingsRow(props: ChainSettingsRowProps): JSX.Element {
                             onClick={onRun}
                             disabled={enabledCount === 0}
                             data-testid="keyword-event-chain-run"
-                            title="Run all enabled keyword events sequentially"
+                            title={
+                                runShortcutLabel
+                                    ? `Run all enabled keyword events sequentially (${runShortcutLabel})`
+                                    : "Run all enabled keyword events sequentially"
+                            }
                         >
                             <Play className="h-3.5 w-3.5 mr-1" />
                             Run chain
+                            {runShortcutLabel && (
+                                <kbd
+                                    className="ml-2 hidden sm:inline-flex items-center rounded border border-border px-1 text-[9px] font-mono opacity-80"
+                                    data-testid="keyword-event-chain-run-shortcut"
+                                >
+                                    {runShortcutLabel}
+                                </kbd>
+                            )}
                         </Button>
                     )}
                 </div>

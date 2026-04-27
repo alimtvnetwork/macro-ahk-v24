@@ -53,6 +53,7 @@ import {
     dispatchWebhook,
     getDeliveryLog,
     loadWebhookConfig,
+    repairDeliveryLog,
     saveWebhookConfig,
     type WebhookConfig,
     type WebhookEventKind,
@@ -65,6 +66,19 @@ import {
     isWebhookSkipped,
     isWebhookSuccess,
 } from "@/background/recorder/step-library/result-webhook";
+
+/**
+ * A delivery-log entry is a "corrupt placeholder" when the loader could not
+ * validate the original row and substituted a synthetic failure (see
+ * `buildCorruptPlaceholder` in `result-webhook.ts`). We detect them by the
+ * stable error-message prefix so the Repair button can show an accurate count
+ * without leaking a brittle Kind discriminator.
+ */
+const CORRUPT_PLACEHOLDER_PREFIX = "Corrupt webhook log entry";
+
+function isCorruptPlaceholder(entry: WebhookDeliveryResult): boolean {
+    return isWebhookFailure(entry) && entry.Error.startsWith(CORRUPT_PLACEHOLDER_PREFIX);
+}
 
 interface Props {
     readonly open: boolean;

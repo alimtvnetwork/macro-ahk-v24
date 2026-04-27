@@ -63,7 +63,33 @@ function buildCtxMenuItem(label: string, onClick: () => void): HTMLElement {
 }
 
 /**
+ * Build the clipboard payload for a workspace.
+ *
+ * For PRO_ZERO workspaces (Source = CREDIT_BALANCE), the verbatim
+ * /credit-balance JSON captured during enrichment is appended alongside the
+ * raw /user/workspaces section. For all other plans, only the workspace JSON
+ * is copied (matches legacy behavior).
+ *
+ * Spec: spec/22-app-issues/110-macro-controller-pro-zero-credit-balance.md §10
+ */
+function buildCopyJsonPayload(ws: import('./types').WorkspaceCredit): string {
+    const workspaceJson = JSON.stringify(ws.rawApi, null, 2);
+    const balanceRaw = ws[PRO_ZERO_BALANCE_JSON_FIELD];
+    const source = ws[PRO_ZERO_SOURCE_FIELD];
+    if (source !== MacroCreditSource.CREDIT_BALANCE || typeof balanceRaw !== 'string' || balanceRaw.length === 0) {
+        return workspaceJson;
+    }
+    const wrapped = {
+        Source: MacroCreditSource.CREDIT_BALANCE,
+        Workspace: JSON.parse(workspaceJson) as unknown,
+        CreditBalance: JSON.parse(balanceRaw) as unknown,
+    };
+    return JSON.stringify(wrapped, null, 2);
+}
+
+/**
  * Copy the verbatim raw API JSON for a single workspace to the clipboard.
+ * For pro_0 workspaces, also includes the cached /credit-balance JSON.
  */
 function copyWorkspaceJson(wsId: string, wsName: string): void {
   const perWs = loopCreditState.perWorkspace || [];
@@ -73,7 +99,7 @@ function copyWorkspaceJson(wsId: string, wsName: string): void {
     log('[CopyJSON] No rawApi for wsId=' + wsId, 'warn');
     return;
   }
-  const json = JSON.stringify(ws.rawApi, null, 2);
+  const json = buildCopyJsonPayload(ws);
   navigator.clipboard.writeText(json)
     .then(function () {
       showToast('📋 Copied JSON for "' + wsName + '" (' + json.length + ' chars)', 'success');

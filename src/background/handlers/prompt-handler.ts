@@ -399,6 +399,30 @@ function getFallbackDefaultPrompts(): PromptEntry[] {
 
 let bundledDefaultsCache: PromptEntry[] | null = null;
 
+interface RawDefaultPromptEntry {
+    name?: string;
+    text?: string;
+    category?: string;
+}
+
+function mapRawToPromptEntry(entry: RawDefaultPromptEntry, index: number, now: string): PromptEntry | null {
+    const name = typeof entry.name === "string" ? entry.name : "";
+    const text = typeof entry.text === "string" ? entry.text : "";
+    if (!name || !text) return null;
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    const category = typeof entry.category === "string" && entry.category ? entry.category : undefined;
+    return {
+        id: `default-${slug || index}`,
+        name,
+        text,
+        order: index,
+        isDefault: true,
+        category,
+        createdAt: now,
+        updatedAt: now,
+    } as PromptEntry;
+}
+
 export async function loadBundledDefaultPrompts(): Promise<PromptEntry[] | null> {
     if (bundledDefaultsCache !== null) return bundledDefaultsCache;
 
@@ -407,30 +431,14 @@ export async function loadBundledDefaultPrompts(): Promise<PromptEntry[] | null>
         const response = await fetch(url);
         if (!response.ok) return null;
 
-        const parsed = await response.json() as { prompts?: Array<{ name?: string; text?: string; category?: string }> } | Array<{ name?: string; text?: string; category?: string }>;
-        const rawEntries = Array.isArray(parsed)
+        const parsed = await response.json() as { prompts?: RawDefaultPromptEntry[] } | RawDefaultPromptEntry[];
+        const rawEntries: RawDefaultPromptEntry[] = Array.isArray(parsed)
             ? parsed
             : (Array.isArray(parsed.prompts) ? parsed.prompts : []);
 
         const now = new Date().toISOString();
         const defaults = rawEntries
-            .map((entry, index) => {
-                const name = typeof entry.name === "string" ? entry.name : "";
-                const text = typeof entry.text === "string" ? entry.text : "";
-                if (!name || !text) return null;
-                const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-                const category = typeof entry.category === "string" && entry.category ? entry.category : undefined;
-                return {
-                    id: `default-${slug || index}`,
-                    name,
-                    text,
-                    order: index,
-                    isDefault: true,
-                    category,
-                    createdAt: now,
-                    updatedAt: now,
-                } as PromptEntry;
-            })
+            .map((entry, index) => mapRawToPromptEntry(entry, index, now))
             .filter((entry): entry is PromptEntry => entry !== null);
 
         if (defaults.length === 0) return null;

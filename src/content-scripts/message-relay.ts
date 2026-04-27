@@ -258,9 +258,19 @@ function postResponseToPage(
 function handleBackgroundMessage(
     message: Record<string, unknown>,
     _sender: chrome.runtime.MessageSender,
-    _sendResponse: (response?: unknown) => void,
+    sendResponse: (response?: unknown) => void,
 ): boolean {
     const messageType = message.type as string;
+
+    // ─── Background → Page request/response: workspace probe ───
+    // Used by the "Open Lovable Tabs" panel in macro-controller to ask each
+    // tab what workspace it has detected. We forward to the MAIN-world page
+    // responder via window.postMessage and wait for a matching reply.
+    if (messageType === "PROBE_DETECTED_WORKSPACE") {
+        probeDetectedWorkspaceFromPage(sendResponse);
+        return true; // async response
+    }
+
     const isBroadcast = BROADCAST_TYPES.has(messageType);
 
     if (!isBroadcast) {
@@ -296,6 +306,51 @@ function handleBackgroundMessage(
     }
 
     return false; // No async response needed
+}
+
+/**
+ * Asks the MAIN-world macro-controller (via window.postMessage) for its
+ * detected workspace snapshot, then resolves via sendResponse. Times out
+ * gracefully so a tab without the controller injected never blocks the
+ * background handler.
+ */
+const PROBE_REQUEST_SOURCE = "marco-extension-request";
+const PROBE_RESPONSE_SOURCE = "marco-controller-response";
+const PROBE_TYPE = "GET_DETECTED_WORKSPACE";
+const PROBE_TIMEOUT_MS = 600;
+
+function probeDetectedWorkspaceFromPage(
+    sendResponse: (response?: unknown) => void,
+): void {
+    const requestId = "wsprobe_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+    let settled = false;
+
+    const finish = (payload: unknown, ok: boolean, error?: string): void => {
+        if (settled) return;
+        settled = true;
+        window.removeEventListener("message", onReply);
+        sendResponse({ isOk: ok, payload: payload, errorMessage: error });
+    };
+
+    const onReply = (event: MessageEvent): void => {
+        if (event.source !== window) return;
+        const data = event.data as Record<string, unknown> | null;
+        if (!data) return;
+        if (data.source !== PROBE_RESPONSE_SOURCE) return;
+        if (data.type !== PROBE_TYPE) return;
+        if (data.requestId !== requestId) return;
+        finish(data.payload ?? null, data.payload !== null && data.payload !== undefined,
+            typeof data.errorMessage === "string" ? data.errorMessage : undefined);
+    };
+
+    window.addEventListener("message", onReply);
+    window.postMessage({
+        source: PROBE_REQUEST_SOURCE,
+        type: PROBE_TYPE,
+        requestId: requestId,
+    }, "*");
+
+    setTimeout(() => finish(null, false, "probe timeout — controller not responding"), PROBE_TIMEOUT_MS);
 }
 
 /* ------------------------------------------------------------------ */

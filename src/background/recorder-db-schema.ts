@@ -50,7 +50,8 @@ INSERT OR IGNORE INTO SelectorKind (SelectorKindId, Name)
 VALUES (1, 'XPathFull'), (2, 'XPathRelative'), (3, 'Css'), (4, 'Aria');
 
 INSERT OR IGNORE INTO StepKind (StepKindId, Name)
-VALUES (1, 'Click'), (2, 'Type'), (3, 'Select'), (4, 'JsInline'), (5, 'Wait');
+VALUES (1, 'Click'), (2, 'Type'), (3, 'Select'), (4, 'JsInline'), (5, 'Wait'),
+       (9, 'UrlTabClick');
 
 INSERT OR IGNORE INTO StepStatus (StepStatusId, Name)
 VALUES (1, 'Draft'), (2, 'Active'), (3, 'Disabled');
@@ -213,6 +214,7 @@ export const StepKindId = {
     Select: 3,
     JsInline: 4,
     Wait: 5,
+    UrlTabClick: 9,
 } as const;
 
 export const StepStatusId = {

@@ -232,6 +232,12 @@ export function KeywordEventBulkContextMenu(
                 onOpenChange={(o) => setDialog(o ? "export" : null)}
                 selectedEvents={selectedEvents}
             />
+            <BulkDeleteConfirmDialog
+                open={dialog === "delete"}
+                onOpenChange={(o) => setDialog(o ? "delete" : null)}
+                selectedEvents={selectedEvents}
+                onConfirm={handleDeleteConfirmed}
+            />
         </>
     );
 }

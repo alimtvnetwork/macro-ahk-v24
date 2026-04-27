@@ -26,10 +26,15 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { useRecordingSession } from "@/hooks/use-recording-session";
+import {
+    detectTransport,
+    subscribeRecorderSession,
+    type RecorderSyncTransport,
+} from "@/lib/recorder-session-sync";
 import type {
     RecordedStep,
     RecordedStepKind,
+    RecordingSession,
 } from "@/background/recorder/recorder-session-types";
 
 interface KindMeta {

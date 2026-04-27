@@ -226,8 +226,41 @@ function KeywordEventsEditor(): JSX.Element {
         api.reorderEvents(String(active.id), String(over.id));
     };
 
+    // Panel-scoped keyboard shortcuts:
+    //   • Ctrl/Cmd+Enter → run the chain (when idle and at least one
+    //     runnable event is enabled, and focus isn't in a text field).
+    //   • Escape         → stop the chain (only while running, and only
+    //     when focus isn't in a text field — see matcher for rationale).
+    // Bound to the editor root so it works from anywhere inside the
+    // dialog without leaking to the rest of the app.
+    const handlePanelKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+        const action = matchChainShortcut(
+            {
+                key: e.key,
+                ctrlKey: e.ctrlKey,
+                metaKey: e.metaKey,
+                altKey: e.altKey,
+                shiftKey: e.shiftKey,
+                target: e.target,
+            },
+            { chainRunning, enabledCount },
+        );
+        if (action === null) { return; }
+        e.preventDefault();
+        e.stopPropagation();
+        if (action === "run") { void handleRunChain(); }
+        else { handleCancelChain(); }
+    };
+
+    const runShortcutLabel = describeRunShortcut();
+    const stopShortcutLabel = describeStopShortcut();
+
     return (
-        <div className="space-y-3" data-testid="keyword-events-panel">
+        <div
+            className="space-y-3"
+            data-testid="keyword-events-panel"
+            onKeyDown={handlePanelKeyDown}
+        >
             <div className="flex items-center gap-2">
                 <Input
                     value={newKeyword}
@@ -249,6 +282,8 @@ function KeywordEventsEditor(): JSX.Element {
                 running={chainRunning}
                 progress={chainProgress}
                 autoRunActive={autoRunActive}
+                runShortcutLabel={runShortcutLabel}
+                stopShortcutLabel={stopShortcutLabel}
                 onRun={() => { void handleRunChain(); }}
                 onCancel={handleCancelChain}
             />

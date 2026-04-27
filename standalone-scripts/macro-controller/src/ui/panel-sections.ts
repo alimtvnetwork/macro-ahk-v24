@@ -204,6 +204,8 @@ function _buildToolsCollapsible(
   toolsCol.header.insertBefore(versionBadge, settingsGearBtn);
 
   toolsMasterBody.appendChild(wsHistoryResult.section);
+  const openTabsResult = createOpenTabsSection();
+  toolsMasterBody.appendChild(openTabsResult.section);
   toolsMasterBody.appendChild(toolsSections.xpathSection);
   toolsMasterBody.appendChild(toolsSections.activitySection);
   toolsMasterBody.appendChild(toolsSections.logSection);

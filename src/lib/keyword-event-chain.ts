@@ -173,9 +173,18 @@ export async function runKeywordEventChain(
         if (result.Aborted) { aborted = true; break; }
 
         const isLast = i === enabled.length - 1;
-        if (!isLast && pauseMs > 0) {
-            try { await pause(pauseMs, options.signal); }
-            catch { aborted = true; break; }
+        if (!isLast) {
+            // Per-event override wins over the global pause when set to a
+            // finite, non-negative number. Clamped to the same range as the
+            // global setting so a corrupt value can't hang playback.
+            const override = ev.PauseAfterMs;
+            const effective = (typeof override === "number" && Number.isFinite(override) && override >= 0)
+                ? clampPause(override)
+                : pauseMs;
+            if (effective > 0) {
+                try { await pause(effective, options.signal); }
+                catch { aborted = true; break; }
+            }
         }
     }
 

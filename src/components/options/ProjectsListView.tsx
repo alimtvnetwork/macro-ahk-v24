@@ -49,64 +49,9 @@ interface Props {
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
-
-/**
- * Build a per-category breakdown for the post-import toast description.
- *
- * For each of projects / scripts / configs we report:
- * - matched: items in the bundle that already existed (overwritten/updated).
- * - unmatched: items in the bundle that were new (added).
- * - untouched: items in the workspace not present in the bundle.
- *   In replace mode these get deleted, so untouched is always 0.
- */
-interface CategoryCounts {
-  readonly matched: number;
-  readonly unmatched: number;
-  readonly untouched: number;
-}
-
-function countCategory(items: DiffItem[], existing: number, mode: "merge" | "replace"): CategoryCounts {
-  const matched = items.filter((i) => i.status === "overwrite").length;
-  const unmatched = items.filter((i) => i.status === "new").length;
-  const untouched = mode === "replace" ? 0 : Math.max(0, existing - matched);
-  return { matched, unmatched, untouched };
-}
-
-function formatCategoryLine(label: string, c: CategoryCounts): string {
-  return `${label}: ${c.matched} matched, ${c.unmatched} new, ${c.untouched} untouched`;
-}
-
-/**
- * Canonical render order for the import-summary toast.
- *
- * The toast description MUST always render Projects → Scripts → Configs in
- * this exact order, regardless of how the underlying counting code is
- * refactored. Do not reorder these entries; doing so changes user-visible
- * output and will fail the round-trip toast tests.
- */
-const SUMMARY_CATEGORY_ORDER: ReadonlyArray<{
-  readonly label: "Projects" | "Scripts" | "Configs";
-  readonly pick: (preview: BundlePreview) => { items: DiffItem[]; existing: number };
-}> = [
-  { label: "Projects", pick: (p) => ({ items: p.projectItems, existing: p.existingProjectCount }) },
-  { label: "Scripts", pick: (p) => ({ items: p.scriptItems, existing: p.existingScriptCount }) },
-  { label: "Configs", pick: (p) => ({ items: p.configItems, existing: p.existingConfigCount }) },
-];
-
-function buildImportSummary(preview: BundlePreview, mode: "merge" | "replace"): string {
-  const lines: string[] = [];
-  let totalMatched = 0;
-  let totalUnmatched = 0;
-  for (const entry of SUMMARY_CATEGORY_ORDER) {
-    const { items, existing } = entry.pick(preview);
-    const counts = countCategory(items, existing, mode);
-    lines.push(formatCategoryLine(entry.label, counts));
-    totalMatched += counts.matched;
-    totalUnmatched += counts.unmatched;
-  }
-  lines.push(`Total: ${totalMatched} matched, ${totalUnmatched} new`);
-  return lines.join("\n");
-}
+// buildImportSummary / countCategory / SUMMARY_CATEGORY_ORDER live in
+// src/lib/import-summary.ts so the counting logic is unit-testable
+// without React. See src/lib/__tests__/import-summary.test.ts.
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */

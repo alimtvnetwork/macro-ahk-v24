@@ -177,6 +177,9 @@ export function FloatingController(props: FloatingControllerProps): JSX.Element 
         ? "Start recording"
         : isRecording ? "Pause recording" : "Resume recording";
     const primaryDisabled = isIdle && onStart === undefined;
+    const primaryShortcut = isRecording ? "Ctrl+Alt+;" : "Ctrl+Alt+P";
+    const primaryTooltip = `${primaryAriaLabel} (${primaryShortcut})`;
+    const stopTooltip = isActive ? "Stop recording (Ctrl+Alt+.)" : "Stop recording";
 
     /* ------------------------------------------------------------ */
     /*  Mini mode                                                    */
@@ -186,7 +189,7 @@ export function FloatingController(props: FloatingControllerProps): JSX.Element 
             <FloatingShell mode={mode} onModeChange={setMode} testid="floating-controller-mini">
                 <div className="flex items-center gap-2">
                     <RecordingDot isRecording={isRecording} />
-                    <StopButton armed={stopArmed} onClick={handleStop} compact disabled={!isActive} />
+                    <StopButton armed={stopArmed} onClick={handleStop} compact disabled={!isActive} title={stopTooltip} />
                 </div>
             </FloatingShell>
         );
@@ -208,10 +211,11 @@ export function FloatingController(props: FloatingControllerProps): JSX.Element 
                     data-testid="controller-primary"
                     data-phase={session.Phase}
                     aria-label={primaryAriaLabel}
+                    title={primaryTooltip}
                 >
                     {isRecording ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                 </Button>
-                <StopButton armed={stopArmed} onClick={handleStop} disabled={!isActive} />
+                <StopButton armed={stopArmed} onClick={handleStop} disabled={!isActive} title={stopTooltip} />
                 <span
                     className="text-xs font-mono tabular-nums text-muted-foreground min-w-[3.5rem] text-right"
                     data-testid="controller-elapsed"
@@ -493,8 +497,8 @@ function RecordingDot(props: { isRecording: boolean }): JSX.Element {
     );
 }
 
-function StopButton(props: { armed: boolean; onClick: () => void; compact?: boolean; disabled?: boolean }): JSX.Element {
-    const { armed, onClick, compact, disabled } = props;
+function StopButton(props: { armed: boolean; onClick: () => void; compact?: boolean; disabled?: boolean; title?: string }): JSX.Element {
+    const { armed, onClick, compact, disabled, title } = props;
     return (
         <Button
             size="sm"
@@ -505,6 +509,7 @@ function StopButton(props: { armed: boolean; onClick: () => void; compact?: bool
             data-testid="controller-stop"
             data-armed={armed ? "true" : "false"}
             aria-label={armed ? "Confirm stop recording" : "Stop recording"}
+            title={title}
         >
             <Square className="h-3.5 w-3.5" />
             {!compact ? <span className="ml-1 text-xs">{armed ? "Confirm" : "Stop"}</span> : null}

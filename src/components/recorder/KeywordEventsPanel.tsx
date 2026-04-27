@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Clock, Crosshair, GripVertical, Keyboard, Link2, Play, Plus, Square, Target, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, CheckCircle2, Circle, Clock, Crosshair, GripVertical, Keyboard, Link2, ListOrdered, Play, Plus, Square, Target, Trash2, XCircle } from "lucide-react";
 import {
     DndContext,
     KeyboardSensor,
@@ -67,6 +67,16 @@ import {
     previewToString,
     type DispatchPreview,
 } from "@/lib/keyword-event-dispatch-preview";
+import {
+    EMPTY_TIMELINE,
+    recordChainEnd,
+    recordEventEnd,
+    recordEventStart,
+    recordStep,
+    startTimeline,
+    type TimelineEntry,
+    type TimelineState,
+} from "@/lib/keyword-event-chain-timeline";
 import { cn } from "@/lib/utils";
 
 export interface KeywordEventsPanelProps {
@@ -122,6 +132,10 @@ function KeywordEventsEditor(): JSX.Element {
     const chainCtrlRef = useRef<AbortController | null>(null);
     const [chainRunning, setChainRunning] = useState(false);
     const [chainProgress, setChainProgress] = useState<{ current: number; total: number } | null>(null);
+    // Live timeline log — rebuilt from scratch on every chain run so users
+    // see only the current execution. Kept in component state so React
+    // re-renders as entries stream in via the chain runner's callbacks.
+    const [timeline, setTimeline] = useState<TimelineState>(EMPTY_TIMELINE);
 
     useEffect(() => () => chainCtrlRef.current?.abort(), []);
 
@@ -157,12 +171,30 @@ function KeywordEventsEditor(): JSX.Element {
         const runnable = api.events.filter((e) => isEventRunnable(e));
         setChainProgress({ current: 0, total: runnable.length });
         setChainRunning(true);
+        // Reset and start a fresh timeline. We capture the start time once
+        // here so every offset is anchored to the run, not to React's batch.
+        setTimeline(startTimeline());
+        const total = runnable.length;
         try {
-            await runKeywordEventChain(runnable, {
+            const result = await runKeywordEventChain(runnable, {
                 pauseMs: chain.PauseMs,
                 signal: ctrl.signal,
-                onEventStart: (_ev, i) => setChainProgress((p) => p === null ? p : { ...p, current: i + 1 }),
+                onEventStart: (ev, i) => {
+                    setChainProgress((p) => p === null ? p : { ...p, current: i + 1 });
+                    setTimeline((t) => recordEventStart(t, ev, i, total));
+                },
+                onStep: (step, stepIndex, ev) => {
+                    setTimeline((t) => recordStep(t, ev, step, stepIndex));
+                },
+                onEventEnd: (ev, _i, res) => {
+                    setTimeline((t) => recordEventEnd(t, ev, res));
+                },
             });
+            setTimeline((t) => recordChainEnd(t, {
+                Completed: result.EventsCompleted,
+                Attempted: result.EventsAttempted,
+                Aborted: result.Aborted,
+            }));
         } finally {
             if (chainCtrlRef.current === ctrl) { chainCtrlRef.current = null; }
             setChainRunning(false);

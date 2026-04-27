@@ -715,7 +715,104 @@ The project enforces strict engineering standards (26 rules documented in `spec/
 
 ---
 
+## Troubleshooting
+
+### `vite:load-fallback` ENOENT — module cannot be loaded
+
+**Symptom.** A development build fails partway through with output similar to:
+
+```
+[plugin vite:load-fallback]
+ENOENT: no such file or directory, open
+  '.../src/background/recorder/step-library/result-webhook.ts'
+    at async Object.load (vite/dist/node/chunks/dep-*.js:...)
+    at async PluginDriver.hookFirstAndGetPlugin (rollup/...)
+error during build
+error: script "build:dev" exited with code 1
+```
+
+`vite:load-fallback` is the **last-resort** plugin in Vite's pipeline that
+reads a source file from disk after every other resolver has run. An ENOENT
+here means Rollup *thinks* the file should exist (because some module
+imported it) but the actual disk read failed. There are exactly three causes
+worth checking, in order:
+
+| # | Root cause | How to confirm | Fix |
+|---|------------|----------------|-----|
+| 1 | **The file really is missing** (deleted, renamed, never committed) | `ls src/background/recorder/step-library/result-webhook.ts` | Restore from git history, or update the importer if the rename was intentional. |
+| 2 | **An importer points at a stale path** (typo, wrong alias, drift after refactor) | `rg "result-webhook" src` and inspect every match | Correct the import specifier; prefer the `@/…` alias form. |
+| 3 | **Stale Vite/TS cache** holding a fingerprint of an old file location while the file on disk is fine | The file exists on disk and the importer paths look correct, but the build still fails | Run the cache-clear step below. |
+
+### Built-in guards (run automatically before every build)
+
+Both `pnpm run build` and `pnpm run build:dev` are wired through two
+fail-fast guards so the failure surface is clear *before* Vite starts:
+
+1. **`scripts/prebuild-clean-and-verify.mjs`**
+   - Deletes `node_modules/.vite`, `node_modules/.vite-temp`,
+     `node_modules/.cache`, and any `*.tsbuildinfo` files.
+   - Verifies every expected file in
+     `src/background/recorder/step-library/` is present and non-empty.
+   - Exits non-zero with **exact path · missing item · reason** if anything
+     is wrong.
+2. **`scripts/check-result-webhook.mjs`**
+   - Confirms `result-webhook.ts` exists, is non-empty, and exposes its
+     required named exports (`dispatchWebhook`).
+   - Confirms every known importer of the module still exists.
+
+### Manual cache clear (when to run it)
+
+You should not normally need to clear caches by hand — the prebuild guard
+does it for you. Run a manual clear only when:
+
+- You **switched git branches** with very different dependency or source
+  trees and the next build fails with an ENOENT against a file that
+  obviously exists on disk.
+- You **renamed or moved a file** that other modules import, and a
+  subsequent build still references the old path.
+- You **interrupted a previous build** (Ctrl+C, crashed terminal) and the
+  partial cache may now be inconsistent.
+- A teammate reports the same ENOENT that you cannot reproduce — clearing
+  ensures both of you are starting from the same state.
+
+Manual command:
+
+```bash
+rm -rf node_modules/.vite node_modules/.vite-temp node_modules/.cache \
+       tsconfig*.tsbuildinfo dist
+pnpm run build:dev
+```
+
+### Reproduction helper
+
+If the ENOENT recurs, use the bundled repro entry point — it prints the
+resolved path for `result-webhook` *before* invoking the same dev build:
+
+```bash
+pnpm run repro:build
+# → scripts/repro-build-error.mjs
+```
+
+The same helper is exposed as a **"Reproduce build error"** button in the
+extension's *Diagnostics* view, which copies the command to your clipboard
+and displays the resolved import path.
+
+### When to escalate
+
+If all three of the following are true, treat it as a real bug rather than
+a cache issue and open an issue:
+
+- `pnpm run prebuild:clean-verify` succeeds.
+- `pnpm run check:result-webhook` succeeds.
+- `pnpm run repro:build` still fails with `vite:load-fallback` ENOENT.
+
+Attach the full output of `repro:build` (it includes the resolved absolute
+path, file size, mtime, and importer presence checks) to the issue.
+
+---
+
 ## Author
+
 
 <div align="center">
 

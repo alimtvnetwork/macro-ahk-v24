@@ -225,13 +225,17 @@ export function showSettingsModal(): void {
     error: '',
     graceInput: typeof current.expiryGracePeriodDays === 'number' ? String(current.expiryGracePeriodDays) : '',
     refillInput: typeof current.refillWarningThresholdDays === 'number' ? String(current.refillWarningThresholdDays) : '',
+    proZeroTtlInput: typeof current.proZeroCreditBalanceCacheTtlMinutes === 'number'
+      ? String(current.proZeroCreditBalanceCacheTtlMinutes) : '',
   };
 
   function snapshotInputs(): void {
     const g = el.querySelector<HTMLInputElement>('[data-marco-el="grace"]');
     const r = el.querySelector<HTMLInputElement>('[data-marco-el="refill"]');
+    const p = el.querySelector<HTMLInputElement>('[data-marco-el="proZeroTtl"]');
     if (g) state.graceInput = g.value;
     if (r) state.refillInput = r.value;
+    if (p) state.proZeroTtlInput = p.value;
   }
 
   function rerender(): void {

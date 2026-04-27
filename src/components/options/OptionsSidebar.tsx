@@ -43,7 +43,7 @@ import { useErrorCount } from "@/hooks/use-error-count";
 
 export type SidebarSection =
   | "projects" | "scripts" | "prompts" | "automation" | "updaters" | "storage" | "api" | "library" | "step-groups" | "settings" | "about"
-  | "logging" | "timing" | "data" | "network" | "activity";
+  | "logging" | "timing" | "data" | "network" | "activity" | "audit";
 
 export interface SidebarSelection {
   type: "section" | "project" | "script";

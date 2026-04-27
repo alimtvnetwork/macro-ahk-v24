@@ -22,10 +22,8 @@ const SCOPE_PREFIX = "Popup.";
 export function logError(scope: string, message: string, caught?: unknown): void {
     const fullScope = `${SCOPE_PREFIX}${scope}`;
     if (caught !== undefined) {
-        // eslint-disable-next-line no-console -- Single sanctioned popup-logger fallback site
         console.error(`[${fullScope}] ${message}`, caught);
     } else {
-        // eslint-disable-next-line no-console -- Single sanctioned popup-logger fallback site
         console.error(`[${fullScope}] ${message}`);
     }
 }

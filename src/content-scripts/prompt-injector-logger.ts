@@ -45,10 +45,8 @@ export function logError(scope: string, message: string, caught?: unknown): void
         return;
     }
     if (caught !== undefined) {
-        // eslint-disable-next-line no-console -- Namespace logger unavailable; fallback path
         console.error(`[${fullScope}] ${message}`, caught);
     } else {
-        // eslint-disable-next-line no-console -- Namespace logger unavailable; fallback path
         console.error(`[${fullScope}] ${message}`);
     }
 }

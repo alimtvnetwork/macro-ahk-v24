@@ -406,25 +406,39 @@ function FloatingShell(props: {
     testid: string;
 }): JSX.Element {
     const { mode, onModeChange, children, testid } = props;
+    const { position, isDragging, containerRef, handleProps } = useDraggable();
+    const positioned = position !== null;
     return (
         <div
+            ref={containerRef}
             className={cn(
-                "fixed top-4 right-4 z-[2147483600]",
+                "fixed z-[2147483600]",
+                // Default top-right anchor only when the user hasn't dragged yet.
+                positioned ? null : "top-4 right-4",
                 "rounded-lg border border-border bg-card/95 backdrop-blur",
                 "shadow-lg shadow-black/30 text-card-foreground",
                 "p-2 flex flex-col gap-1",
-                // Smooth size + position transitions when toggling modes.
+                // Smooth size + padding transitions when toggling modes.
+                // (We deliberately omit `top/left` from the transition list so
+                //  drag motion is 1:1 with the pointer — no easing lag.)
                 "transition-[width,min-width,max-width,padding,box-shadow] duration-300 ease-out",
                 "will-change-[width,transform]",
                 mode === "mini" ? "w-auto min-w-0 max-w-[160px]" : "min-w-[260px] max-w-[340px]",
+                isDragging ? "select-none shadow-xl ring-1 ring-primary/40" : null,
             )}
+            style={positioned ? { top: position.y, left: position.x, right: "auto" } : undefined}
             role="region"
             aria-label="Floating recorder controller"
             data-testid={testid}
             data-mode={mode}
+            data-positioned={positioned ? "true" : "false"}
         >
             <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] uppercase tracking-widest text-muted-foreground px-1">
+                <span
+                    {...handleProps}
+                    className="text-[10px] uppercase tracking-widest text-muted-foreground px-1 select-none"
+                    title="Drag to reposition"
+                >
                     Recorder
                 </span>
                 <ModeSwitcher mode={mode} onModeChange={onModeChange} />

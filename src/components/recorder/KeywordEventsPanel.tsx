@@ -47,6 +47,8 @@ import {
     type KeywordEventTarget,
 } from "@/hooks/use-keyword-events";
 import { useKeywordEventPlayback } from "@/hooks/use-keyword-event-playback";
+import { useRecordingSession } from "@/hooks/use-recording-session";
+import { useAutoRunChainAfterRecording } from "@/hooks/use-auto-run-chain-after-recording";
 import {
     DEFAULT_CHAIN_SETTINGS,
     loadChainSettings,

@@ -126,14 +126,27 @@ function buildMissingFailureMessage(probe) {
         return lines.join("\n");
     }).join("\n");
 
+    const relPaths = missing.map((name) => `${STEP_LIB_DIR}/${name}`);
+    const checkoutCmd = `git checkout HEAD -- ${relPaths.join(" ")}`;
+    const restoreCmd = `git restore --source=HEAD --staged --worktree -- ${relPaths.join(" ")}`;
+    const logCmd = `git log --all --diff-filter=D --name-only --pretty=format:"%h %ad %s" --date=short -- ${relPaths.join(" ")}`;
+    const expectedList = EXPECTED_FILES.map((f) => (missing.includes(f) ? "   ✗ " + f + "  (MISSING)" : "   ✓ " + f)).join("\n");
+
     return (
         "Required step-library file(s) missing (after cache-clear fallback retry).\n" +
         "   Directory     : " + dirAbs + "\n" +
         "   Directory URL : " + pathToFileURL(dirAbs).href + "\n" +
         "   Missing items : " + missing.join(", ") + "\n" +
         "   Reason        : These modules are imported by the build graph; absent files trigger ENOENT inside Rollup.\n" +
-        "   Fix           : Restore from git history, or update EXPECTED_FILES in scripts/prebuild-clean-and-verify.mjs if removal was intentional.\n" +
-        "\n   Per-file checks performed:\n" + probeReports
+        "\n   Fix — restore from git (run from repo root):\n" +
+        "       " + checkoutCmd + "\n" +
+        "     or (modern git):\n" +
+        "       " + restoreCmd + "\n" +
+        "     to find the deleting commit:\n" +
+        "       " + logCmd + "\n" +
+        "     If the removal was intentional, edit EXPECTED_FILES in scripts/prebuild-clean-and-verify.mjs.\n" +
+        "\n   EXPECTED_FILES status (" + EXPECTED_FILES.length + " entries):\n" + expectedList +
+        "\n\n   Per-file checks performed:\n" + probeReports
     );
 }
 

@@ -44,6 +44,11 @@ import {
     validateEventSteps,
     validateWait,
 } from "@/lib/keyword-event-validation";
+import {
+    buildDispatchPreview,
+    previewToString,
+    type DispatchPreview,
+} from "@/lib/keyword-event-dispatch-preview";
 import { cn } from "@/lib/utils";
 
 export interface KeywordEventsPanelProps {

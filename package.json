@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "check:result-webhook": "node scripts/check-result-webhook.mjs",
+    "repro:build": "node scripts/repro-build-error.mjs",
     "build": "node scripts/check-result-webhook.mjs && vite build",
     "build:dev": "node scripts/check-result-webhook.mjs && vite build --mode development",
     "lint": "eslint .",

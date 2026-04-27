@@ -66,6 +66,7 @@ const sample: KeywordEvent[] = [
             { Kind: "Wait", Id: "s2", DurationMs: 250 },
         ],
         Tags: ["smoke", "auth"],
+        Category: "Auth",
         PauseAfterMs: 100,
     },
     {
@@ -99,7 +100,7 @@ describe("buildKeywordEventsSqliteDb", () => {
                 .values.map((r) => String(r[1]));
             expect(cols).toEqual([
                 "Id", "Uid", "Keyword", "Description", "Enabled", "Steps",
-                "Target", "Tags", "PauseAfterMs", "SortOrder",
+                "Target", "Tags", "Category", "PauseAfterMs", "SortOrder",
                 "CreatedAt", "UpdatedAt",
             ]);
         } finally {
@@ -107,29 +108,31 @@ describe("buildKeywordEventsSqliteDb", () => {
         }
     });
 
-    it("round-trips events with steps, tags, target, and pause", async () => {
+    it("round-trips events with steps, tags, category, target, and pause", async () => {
         const data = await buildKeywordEventsSqliteDb(sample);
         const db = await openDb(data);
         try {
             const rows = db.exec(
-                "SELECT Uid, Keyword, Enabled, Steps, Tags, Target, PauseAfterMs, SortOrder FROM KeywordEvents ORDER BY SortOrder",
+                "SELECT Uid, Keyword, Enabled, Steps, Tags, Category, Target, PauseAfterMs, SortOrder FROM KeywordEvents ORDER BY SortOrder",
             )[0];
             expect(rows.values).toHaveLength(2);
 
-            const [uid1, kw1, en1, steps1, tags1, target1, pause1, sort1] = rows.values[0];
+            const [uid1, kw1, en1, steps1, tags1, cat1, target1, pause1, sort1] = rows.values[0];
             expect(uid1).toBe("ke-1");
             expect(kw1).toBe("Login");
             expect(en1).toBe(1);
             expect(JSON.parse(String(steps1))).toEqual(sample[0].Steps);
             expect(JSON.parse(String(tags1))).toEqual(["smoke", "auth"]);
+            expect(cat1).toBe("Auth");
             expect(target1).toBeNull();
             expect(pause1).toBe(100);
             expect(sort1).toBe(0);
 
-            const [uid2, , en2, , tags2, target2, pause2] = rows.values[1];
+            const [uid2, , en2, , tags2, cat2, target2, pause2] = rows.values[1];
             expect(uid2).toBe("ke-2");
             expect(en2).toBe(0);
             expect(tags2).toBeNull();
+            expect(cat2).toBeNull();
             expect(JSON.parse(String(target2))).toEqual({ Kind: "Selector", Selector: "#logout" });
             expect(pause2).toBeNull();
         } finally {

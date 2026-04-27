@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
     buildExportPayload,
+    collectCategories,
     formatSequenceNumber,
     mergeTags,
+    normaliseCategory,
     parseTagInput,
     removeTags,
     renderSequenceName,
@@ -59,5 +61,36 @@ describe("buildExportPayload", () => {
         expect(payload.Format).toBe("marco.keyword-events.v1");
         expect(payload.Events).toHaveLength(1);
         expect(typeof payload.ExportedAt).toBe("string");
+    });
+});
+
+describe("normaliseCategory", () => {
+    it("trims and collapses whitespace", () => {
+        expect(normaliseCategory("  Auth   smoke  ")).toBe("Auth smoke");
+    });
+    it("returns undefined for empty / whitespace-only / undefined", () => {
+        expect(normaliseCategory("")).toBeUndefined();
+        expect(normaliseCategory("   \t\n ")).toBeUndefined();
+        expect(normaliseCategory(undefined)).toBeUndefined();
+    });
+    it("preserves case", () => {
+        expect(normaliseCategory("Login Flow")).toBe("Login Flow");
+    });
+});
+
+describe("collectCategories", () => {
+    it("returns unique non-empty categories sorted case-insensitively", () => {
+        const out = collectCategories([
+            { Category: "Auth" },
+            { Category: "  smoke  " },
+            { Category: "auth" },
+            { Category: "" },
+            { Category: undefined },
+            { Category: "Regression" },
+        ]);
+        expect(out).toEqual(["Auth", "Regression", "smoke"]);
+    });
+    it("returns [] when no events have a category", () => {
+        expect(collectCategories([{}, { Category: undefined }, { Category: "" }])).toEqual([]);
     });
 });

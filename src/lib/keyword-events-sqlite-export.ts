@@ -63,6 +63,7 @@ const CREATE_KEYWORD_EVENTS_TABLE = `
     Steps TEXT NOT NULL,
     Target TEXT,
     Tags TEXT,
+    Category TEXT,
     PauseAfterMs INTEGER,
     SortOrder INTEGER NOT NULL DEFAULT 0,
     CreatedAt TEXT NOT NULL,
@@ -104,9 +105,9 @@ function insertKeywordEvents(
 ): void {
     const stmt = db.prepare(`
         INSERT INTO KeywordEvents
-            (Uid, Keyword, Description, Enabled, Steps, Target, Tags,
+            (Uid, Keyword, Description, Enabled, Steps, Target, Tags, Category,
              PauseAfterMs, SortOrder, CreatedAt, UpdatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     events.forEach((ev, i) => {
@@ -118,6 +119,7 @@ function insertKeywordEvents(
             JSON.stringify(ev.Steps ?? []),
             ev.Target === undefined ? null : JSON.stringify(ev.Target),
             ev.Tags === undefined ? null : JSON.stringify(ev.Tags),
+            ev.Category !== undefined && ev.Category !== "" ? ev.Category : null,
             typeof ev.PauseAfterMs === "number" ? ev.PauseAfterMs : null,
             i,
             now,

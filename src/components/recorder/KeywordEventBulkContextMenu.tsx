@@ -246,6 +246,16 @@ export function KeywordEventBulkContextMenu(
                 onOpenChange={(o) => setDialog(o ? "export" : null)}
                 selectedEvents={selectedEvents}
             />
+            <BulkImportDialog
+                open={dialog === "import"}
+                onOpenChange={(o) => setDialog(o ? "import" : null)}
+                selectedEvents={selectedEvents}
+                onApply={(plan) => {
+                    for (const m of plan.matches) {
+                        onUpdateEvent(m.target.Id, buildPatchFromImport(m.source));
+                    }
+                }}
+            />
             <BulkDeleteConfirmDialog
                 open={dialog === "delete"}
                 onOpenChange={(o) => setDialog(o ? "delete" : null)}

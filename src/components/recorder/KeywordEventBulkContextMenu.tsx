@@ -181,6 +181,12 @@ export function KeywordEventBulkContextMenu(
                     >
                         <Download className="mr-2 h-4 w-4" /> Export selected as ZIP…
                     </ContextMenuItem>
+                    <ContextMenuItem
+                        onSelect={() => setDialog("import")}
+                        data-testid="keyword-events-context-import"
+                    >
+                        <Upload className="mr-2 h-4 w-4" /> Update selected from ZIP…
+                    </ContextMenuItem>
                     <ContextMenuSeparator />
                     <ContextMenuItem
                         className="text-destructive focus:text-destructive"

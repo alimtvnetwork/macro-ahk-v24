@@ -42,6 +42,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { StepGroupRow, StepRow } from "@/background/recorder/step-library/db";
 import { StepKindId } from "@/background/recorder/step-library/schema";
 import { stepKindLabel } from "@/hooks/use-step-library";
+import { HotkeyChordCapture } from "@/components/recorder/HotkeyChordCapture";
 
 /* ------------------------------------------------------------------ */
 /*  Public surface                                                     */
@@ -75,6 +76,7 @@ const KIND_OPTIONS: ReadonlyArray<StepKindId> = [
     StepKindId.JsInline,
     StepKindId.Wait,
     StepKindId.RunGroup,
+    StepKindId.Hotkey,
 ];
 
 /**
@@ -96,6 +98,8 @@ function payloadPlaceholderFor(kind: StepKindId): string {
             return '{ "WaitMs": 1000 }';
         case StepKindId.RunGroup:
             return "(payload not used — pick a target group below)";
+        case StepKindId.Hotkey:
+            return '{ "Keys": ["Ctrl+S","Tab","Enter"], "WaitMs": 500 }';
         default:
             return "{ }";
     }
@@ -112,6 +116,11 @@ export default function StepEditorDialog(props: StepEditorDialogProps): JSX.Elem
     const [label, setLabel] = useState("");
     const [payloadJson, setPayloadJson] = useState("");
     const [targetGroupId, setTargetGroupId] = useState<number | null>(null);
+    /** Hotkey-specific state. The chord list + waitMs are serialised
+     *  into PayloadJson on submit; when editing an existing Hotkey we
+     *  hydrate from the stored PayloadJson on open. */
+    const [hotkeyChords, setHotkeyChords] = useState<readonly string[]>([]);
+    const [hotkeyWaitMs, setHotkeyWaitMs] = useState<string>("");
 
     // Reset form whenever the dialog (re-)opens with a new mode.
     useEffect(() => {
@@ -121,11 +130,27 @@ export default function StepEditorDialog(props: StepEditorDialogProps): JSX.Elem
             setLabel("");
             setPayloadJson("");
             setTargetGroupId(null);
+            setHotkeyChords([]);
+            setHotkeyWaitMs("");
         } else {
             setKind(mode.Step.StepKindId);
             setLabel(mode.Step.Label ?? "");
             setPayloadJson(mode.Step.PayloadJson ?? "");
             setTargetGroupId(mode.Step.TargetStepGroupId);
+            // Hydrate hotkey form from PayloadJson when editing.
+            if (mode.Step.StepKindId === StepKindId.Hotkey && mode.Step.PayloadJson !== null) {
+                try {
+                    const parsed = JSON.parse(mode.Step.PayloadJson) as { Keys?: unknown; WaitMs?: unknown };
+                    setHotkeyChords(Array.isArray(parsed.Keys) ? parsed.Keys.filter((k): k is string => typeof k === "string") : []);
+                    setHotkeyWaitMs(typeof parsed.WaitMs === "number" ? String(parsed.WaitMs) : "");
+                } catch {
+                    setHotkeyChords([]);
+                    setHotkeyWaitMs("");
+                }
+            } else {
+                setHotkeyChords([]);
+                setHotkeyWaitMs("");
+            }
         }
     }, [open, mode]);
 
@@ -160,6 +185,30 @@ export default function StepEditorDialog(props: StepEditorDialogProps): JSX.Elem
     }, [groups, mode]);
 
     const handleSubmit = (): void => {
+        // Hotkey kind has its own structured form — synthesise the
+        // PayloadJson from the captured chord list + WaitMs.
+        if (kind === StepKindId.Hotkey) {
+            if (hotkeyChords.length === 0) {
+                toast.error("Add at least one key combination for the Hotkey step.");
+                return;
+            }
+            const waitTrim = hotkeyWaitMs.trim();
+            const waitMs = waitTrim === "" ? undefined : Number(waitTrim);
+            if (waitMs !== undefined && (!Number.isFinite(waitMs) || waitMs < 0)) {
+                toast.error("Wait (ms) must be a non-negative number.");
+                return;
+            }
+            const payload = waitMs === undefined
+                ? { Keys: [...hotkeyChords] }
+                : { Keys: [...hotkeyChords], WaitMs: waitMs };
+            onSubmit({
+                StepKindId: kind,
+                Label: label.trim() === "" ? null : label.trim(),
+                PayloadJson: JSON.stringify(payload),
+                TargetStepGroupId: null,
+            });
+            return;
+        }
         // Light JSON validation when a payload was provided. We allow
         // a blank payload (some kinds don't need one), but reject
         // obvious typos before they round-trip through the DB.
@@ -262,6 +311,32 @@ export default function StepEditorDialog(props: StepEditorDialogProps): JSX.Elem
                                     ))}
                                 </SelectContent>
                             </Select>
+                        </div>
+                    ) : kind === StepKindId.Hotkey ? (
+                        <div className="space-y-3">
+                            <div className="space-y-1">
+                                <Label htmlFor="hotkey-capture">Key combinations</Label>
+                                <HotkeyChordCapture
+                                    id="hotkey-capture"
+                                    value={hotkeyChords}
+                                    onChange={setHotkeyChords}
+                                />
+                                <p className="text-[11px] text-muted-foreground">
+                                    Each chord is dispatched in order during playback (AutoHotkey-style).
+                                    Backspace removes the last chord; Esc stops listening.
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                <Label htmlFor="hotkey-wait">Wait after (ms, optional)</Label>
+                                <Input
+                                    id="hotkey-wait"
+                                    type="number"
+                                    min={0}
+                                    value={hotkeyWaitMs}
+                                    placeholder="e.g. 500"
+                                    onChange={(e) => setHotkeyWaitMs(e.target.value)}
+                                />
+                            </div>
                         </div>
                     ) : (
                         <div className="space-y-1">

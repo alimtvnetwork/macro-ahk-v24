@@ -55,6 +55,13 @@ export interface UseKeywordEventsApi {
     readonly addStep: (eventId: string, step: Omit<KeywordEventStep, "Id">) => void;
     readonly removeStep: (eventId: string, stepId: string) => void;
     readonly moveStep: (eventId: string, stepId: string, direction: "up" | "down") => void;
+    /**
+     * Reorder the persisted events list. `fromId` is the event being dragged,
+     * `toId` is the event it was dropped onto. Both ids must reference
+     * existing events; otherwise the call is a no-op so a stale drag from a
+     * concurrently-removed row cannot corrupt the list.
+     */
+    readonly reorderEvents: (fromId: string, toId: string) => void;
 }
 
 const newId = (): string =>

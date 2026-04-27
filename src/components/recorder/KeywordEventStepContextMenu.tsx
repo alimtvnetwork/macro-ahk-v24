@@ -118,7 +118,13 @@ export function KeywordEventStepContextMenu(
     const {
         children, step, event, selectedStepIds,
         onSetEnabled, onRemove, onRelabel, onAfterRemove,
+        onContextOpenForUnselected,
     } = props;
+
+    const isRowSelected = selectedStepIds.has(step.Id);
+    const handleOpenChange = (open: boolean): void => {
+        if (open && !isRowSelected) onContextOpenForUnselected?.();
+    };
 
     // Resolve the operand list once per render. If the right-clicked row is
     // NOT in the current selection, we operate on just that row — matches

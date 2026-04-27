@@ -32,8 +32,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import {
+    modifiersFromMouseEvent,
+    useShiftClickSelection,
+} from "@/hooks/use-shift-click-selection";
 import {
     Select,
     SelectContent,
@@ -159,6 +164,20 @@ function KeywordEventsEditor(): JSX.Element {
     });
 
     const enabledCount = api.events.filter((e) => isEventRunnable(e)).length;
+
+    // Gmail-style multi-select for the events list. Plain click selects one,
+    // Shift-click extends from anchor, Ctrl/Cmd-click toggles. The set is
+    // pruned automatically when events are deleted/reordered.
+    const eventIds = api.events.map(e => e.Id);
+    const eventSelection = useShiftClickSelection(eventIds);
+    const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform);
+    const handleEventRowClick = (id: string, ev: React.MouseEvent): void => {
+        // Don't hijack clicks that land on inputs/buttons inside the card.
+        const tag = (ev.target as HTMLElement | null)?.tagName?.toLowerCase();
+        if (tag === "input" || tag === "button" || tag === "textarea" || tag === "select" || tag === "label") return;
+        if ((ev.target as HTMLElement | null)?.closest("button,input,textarea,select,label,[role=switch],[role=combobox]")) return;
+        eventSelection.handleClick(id, modifiersFromMouseEvent(ev.nativeEvent, isMac));
+    };
 
     const handleAdd = () => {
         const k = newKeyword.trim();
@@ -292,6 +311,29 @@ function KeywordEventsEditor(): JSX.Element {
 
             <Separator />
 
+            {eventSelection.selected.size > 0 && (
+                <div
+                    className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-xs"
+                    data-testid="keyword-events-selection-toolbar"
+                >
+                    <span className="font-medium" data-testid="keyword-events-selection-count">
+                        {eventSelection.selected.size} selected
+                    </span>
+                    <span className="text-muted-foreground">
+                        Shift-click to extend · Ctrl/Cmd-click to toggle
+                    </span>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="ml-auto h-6 px-2 text-xs"
+                        onClick={eventSelection.clear}
+                        data-testid="keyword-events-selection-clear"
+                    >
+                        Clear
+                    </Button>
+                </div>
+            )}
+
             <ScrollArea className="h-[380px] pr-3">
                 {api.events.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-12">
@@ -314,6 +356,18 @@ function KeywordEventsEditor(): JSX.Element {
                                         event={ev}
                                         isRunning={playback.isRunning(ev.Id)}
                                         currentStepIndex={playback.isRunning(ev.Id) ? playback.currentStepIndex : null}
+                                        selected={eventSelection.isSelected(ev.Id)}
+                                        onRowClick={(e) => handleEventRowClick(ev.Id, e)}
+                                        onToggleSelect={(checked, e) => {
+                                            // Checkbox toggles selection; Shift held while clicking
+                                            // the checkbox extends from anchor like a row click.
+                                            if (e && e.shiftKey) {
+                                                eventSelection.handleClick(ev.Id, { shiftKey: true, toggleKey: false });
+                                            } else {
+                                                eventSelection.handleClick(ev.Id, { shiftKey: false, toggleKey: true });
+                                            }
+                                            void checked;
+                                        }}
                                         onPlay={() => { void playback.play(ev); }}
                                         onCancel={playback.cancel}
                                         onRemove={() => api.removeEvent(ev.Id)}
@@ -651,16 +705,34 @@ interface KeywordEventCardProps {
      * leaving it `undefined` makes the card non-draggable (used by tests).
      */
     readonly dragHandle?: React.ReactNode;
+    /** Whether this event is part of the current multi-selection. */
+    readonly selected?: boolean;
+    /** Click on the card chrome (not on inputs/buttons). Carries modifiers. */
+    readonly onRowClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
+    /** Toggle this event's checkbox. Receives the source mouse event so the
+     *  parent can honour Shift to extend a range from the anchor. */
+    readonly onToggleSelect?: (checked: boolean, mouseEvent?: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
     const {
         event, isRunning, currentStepIndex,
         onPlay, onCancel, onRemove, onUpdate, onAddStep, onRemoveStep, onMoveStep,
-        dragHandle,
+        dragHandle, selected, onRowClick, onToggleSelect,
     } = props;
     const [keyCombo, setKeyCombo] = useState("");
     const [waitMs, setWaitMs] = useState("500");
+
+    // Per-event step multi-selection. Scoped to this card so each event
+    // tracks its own anchor — selecting a step in one event must not
+    // change the selection in another.
+    const stepIds = event.Steps.map(s => s.Id);
+    const stepSelection = useShiftClickSelection(stepIds);
+    const isMacRow = typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform);
+    const handleStepRowClick = (sid: string, ev: React.MouseEvent): void => {
+        if ((ev.target as HTMLElement | null)?.closest("button,input,textarea,select,label")) return;
+        stepSelection.handleClick(sid, modifiersFromMouseEvent(ev.nativeEvent, isMacRow));
+    };
 
     // Live validation drives both inline messages and the disabled state of
     // the Run button + the per-step Add buttons.
@@ -683,11 +755,25 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                 "rounded-md border border-border bg-card/60 p-3 space-y-3 transition-shadow",
                 isRunning && "ring-2 ring-primary shadow-[0_0_0_1px_hsl(var(--primary)/0.3)]",
                 stepIssues.length > 0 && !isRunning && "border-destructive/50",
+                selected && "ring-2 ring-primary/60 bg-primary/5",
             )}
             data-testid={`keyword-event-${event.Id}`}
+            data-selected={selected ? "true" : undefined}
+            onClick={onRowClick}
         >
             <div className="flex items-center gap-2">
                 {dragHandle}
+                {onToggleSelect && (
+                    <Checkbox
+                        checked={!!selected}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleSelect(!selected, e as React.MouseEvent<HTMLButtonElement>);
+                        }}
+                        aria-label={`Select ${event.Keyword}`}
+                        data-testid={`keyword-event-select-${event.Id}`}
+                    />
+                )}
                 <Input
                     value={event.Keyword}
                     onChange={e => onUpdate({ Keyword: e.target.value })}
@@ -774,20 +860,58 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                 {event.Steps.length === 0 && (
                     <p className="text-xs text-muted-foreground italic">No steps yet — add a key press or wait below.</p>
                 )}
+                {stepSelection.selected.size > 0 && (
+                    <div
+                        className="flex items-center gap-2 rounded border border-border/60 bg-muted/30 px-2 py-1 text-[10px]"
+                        data-testid={`keyword-event-step-selection-toolbar-${event.Id}`}
+                    >
+                        <span className="font-medium" data-testid={`keyword-event-step-selection-count-${event.Id}`}>
+                            {stepSelection.selected.size} step{stepSelection.selected.size === 1 ? "" : "s"} selected
+                        </span>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className="ml-auto h-5 px-1.5 text-[10px]"
+                            onClick={(e) => { e.stopPropagation(); stepSelection.clear(); }}
+                            data-testid={`keyword-event-step-selection-clear-${event.Id}`}
+                        >
+                            Clear
+                        </Button>
+                    </div>
+                )}
                 {event.Steps.map((s, i) => {
                     const issue = issuesByIndex.get(i);
+                    const stepSelected = stepSelection.isSelected(s.Id);
                     return (
                         <div
                             key={s.Id}
                             className={cn(
-                                "flex flex-col gap-0.5 rounded bg-muted/40 px-2 py-1.5 text-xs transition-colors",
+                                "flex flex-col gap-0.5 rounded bg-muted/40 px-2 py-1.5 text-xs transition-colors cursor-pointer",
                                 currentStepIndex === i && "bg-primary/15 ring-1 ring-primary/40",
                                 issue && "bg-destructive/10 ring-1 ring-destructive/40",
+                                stepSelected && "bg-primary/20 ring-1 ring-primary/60",
                             )}
                             data-testid={`keyword-event-step-${event.Id}-${i}`}
                             data-invalid={issue ? "true" : undefined}
+                            data-selected={stepSelected ? "true" : undefined}
+                            onClick={(e) => { e.stopPropagation(); handleStepRowClick(s.Id, e); }}
                         >
                             <div className="flex items-center gap-2">
+                                <Checkbox
+                                    checked={stepSelected}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        const me = e as React.MouseEvent<HTMLButtonElement>;
+                                        if (me.shiftKey) {
+                                            stepSelection.handleClick(s.Id, { shiftKey: true, toggleKey: false });
+                                        } else {
+                                            stepSelection.handleClick(s.Id, { shiftKey: false, toggleKey: true });
+                                        }
+                                    }}
+                                    aria-label={`Select step ${i + 1}`}
+                                    data-testid={`keyword-event-step-select-${event.Id}-${i}`}
+                                    className="h-3.5 w-3.5"
+                                />
                                 <Badge variant="outline" className="text-[10px] w-6 justify-center">{i + 1}</Badge>
                                 {s.Kind === "Key" ? (
                                     <>
@@ -801,13 +925,13 @@ function KeywordEventCard(props: KeywordEventCardProps): JSX.Element {
                                     </>
                                 )}
                                 <div className="ml-auto flex items-center gap-0.5">
-                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onMoveStep(s.Id, "up")} disabled={i === 0} aria-label="Move step up">
+                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); onMoveStep(s.Id, "up"); }} disabled={i === 0} aria-label="Move step up">
                                         <ArrowUp className="h-3 w-3" />
                                     </Button>
-                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onMoveStep(s.Id, "down")} disabled={i === event.Steps.length - 1} aria-label="Move step down">
+                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); onMoveStep(s.Id, "down"); }} disabled={i === event.Steps.length - 1} aria-label="Move step down">
                                         <ArrowDown className="h-3 w-3" />
                                     </Button>
-                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => onRemoveStep(s.Id)} aria-label="Remove step">
+                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={(e) => { e.stopPropagation(); onRemoveStep(s.Id); }} aria-label="Remove step">
                                         <Trash2 className="h-3 w-3" />
                                     </Button>
                                 </div>

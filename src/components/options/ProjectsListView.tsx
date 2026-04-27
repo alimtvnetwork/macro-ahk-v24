@@ -30,6 +30,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import type { StoredProject } from "@/hooks/use-projects-scripts";
 import { exportAllAsSqliteZip, exportProjectAsSqliteZip, exportProjectsAsSqliteZip, importFromSqliteZip, mergeFromSqliteZip, previewSqliteZip, type BundlePreview, type DiffItem } from "@/lib/sqlite-bundle";
 import { exportProject } from "@/lib/project-exporter";
+import { buildImportSummary, countCategory, SUMMARY_CATEGORY_ORDER } from "@/lib/import-summary";
 import { toast } from "sonner";
 
 /* ------------------------------------------------------------------ */

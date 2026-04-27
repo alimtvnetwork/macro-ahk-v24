@@ -880,3 +880,129 @@ function SortableKeywordEventCard(props: KeywordEventCardProps): JSX.Element {
         </div>
     );
 }
+
+/* ------------------------------------------------------------------ */
+/*  Per-event pause override                                           */
+/* ------------------------------------------------------------------ */
+
+interface PauseAfterRowProps {
+    readonly eventId: string;
+    readonly value: number | undefined;
+    readonly onChange: (next: number | undefined) => void;
+}
+
+const PAUSE_OVERRIDE_MIN = 0;
+const PAUSE_OVERRIDE_MAX = 60_000;
+
+/**
+ * Compact row that lets the user opt into a per-event pause override that
+ * replaces the chain's global `PauseMs` for the gap *after* this event
+ * finishes. When the toggle is off we strip the field (`onChange(undefined)`)
+ * so the chain runner falls back to the global value. The numeric input is
+ * clamped to the same `[0, 60_000]` ms range as the global setting and
+ * exposes both red/amber inline validation and a `data-status` marker for
+ * tests.
+ */
+function PauseAfterRow(props: PauseAfterRowProps): JSX.Element {
+    const { eventId, value, onChange } = props;
+    const enabled = typeof value === "number" && Number.isFinite(value) && value >= 0;
+    const draftRef = useRef<string>(enabled ? String(value) : String(DEFAULT_CHAIN_SETTINGS.PauseMs));
+    const [draft, setDraft] = useState<string>(draftRef.current);
+
+    // Keep the draft in sync when the persisted value is changed externally
+    // (e.g. another tab updates localStorage and the hook rehydrates).
+    useEffect(() => {
+        if (enabled && String(value) !== draftRef.current) {
+            draftRef.current = String(value);
+            setDraft(draftRef.current);
+        }
+    }, [enabled, value]);
+
+    const parsed = Number(draft);
+    const draftValid = draft.trim() !== ""
+        && !Number.isNaN(parsed)
+        && Number.isFinite(parsed)
+        && parsed >= PAUSE_OVERRIDE_MIN
+        && parsed <= PAUSE_OVERRIDE_MAX;
+
+    const handleToggle = (checked: boolean): void => {
+        if (!checked) {
+            onChange(undefined);
+            return;
+        }
+        // Re-enabling restores the last good draft (or the global default).
+        const restore = draftValid ? Math.floor(parsed) : DEFAULT_CHAIN_SETTINGS.PauseMs;
+        draftRef.current = String(restore);
+        setDraft(draftRef.current);
+        onChange(restore);
+    };
+
+    const handleDraftChange = (raw: string): void => {
+        setDraft(raw);
+        if (!enabled) { return; }
+        const n = Number(raw);
+        if (raw.trim() === "" || Number.isNaN(n) || !Number.isFinite(n)) { return; }
+        const clamped = Math.max(PAUSE_OVERRIDE_MIN, Math.min(PAUSE_OVERRIDE_MAX, Math.floor(n)));
+        draftRef.current = String(clamped);
+        onChange(clamped);
+    };
+
+    return (
+        <div
+            className={cn(
+                "rounded border border-border/60 bg-muted/20 p-2 space-y-1.5",
+                enabled && "border-primary/40",
+            )}
+            data-testid={`keyword-event-pause-after-${eventId}`}
+            data-enabled={enabled ? "true" : "false"}
+        >
+            <div className="flex items-center gap-2">
+                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                <Label
+                    htmlFor={`kev-pause-toggle-${eventId}`}
+                    className="text-xs font-medium cursor-pointer"
+                >
+                    Override chain pause after this event
+                </Label>
+                <Switch
+                    id={`kev-pause-toggle-${eventId}`}
+                    checked={enabled}
+                    onCheckedChange={handleToggle}
+                    aria-label="Override chain pause after this event"
+                    data-testid={`keyword-event-pause-after-toggle-${eventId}`}
+                    className="ml-auto"
+                />
+            </div>
+            {enabled ? (
+                <div className="flex items-center gap-2">
+                    <Input
+                        type="number"
+                        min={PAUSE_OVERRIDE_MIN}
+                        max={PAUSE_OVERRIDE_MAX}
+                        step={50}
+                        value={draft}
+                        onChange={(e) => handleDraftChange(e.target.value)}
+                        className={cn(
+                            "h-7 w-24 text-xs",
+                            !draftValid && "border-destructive focus-visible:ring-destructive",
+                        )}
+                        aria-label="Pause after this event in milliseconds"
+                        aria-invalid={!draftValid ? true : undefined}
+                        data-testid={`keyword-event-pause-after-input-${eventId}`}
+                    />
+                    <span className="text-[10px] text-muted-foreground">ms</span>
+                    <p className="text-[10px] text-muted-foreground ml-auto max-w-xs text-right">
+                        {draftValid
+                            ? "Replaces the chain's global pause for the gap after this event."
+                            : `Enter a number between ${PAUSE_OVERRIDE_MIN} and ${PAUSE_OVERRIDE_MAX}.`}
+                    </p>
+                </div>
+            ) : (
+                <p className="text-[10px] text-muted-foreground">
+                    Off — uses the chain's global pause setting.
+                </p>
+            )}
+        </div>
+    );
+}
+

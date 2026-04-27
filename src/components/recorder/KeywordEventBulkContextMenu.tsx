@@ -90,7 +90,7 @@ export function KeywordEventBulkContextMenu(
     props: KeywordEventBulkContextMenuProps,
 ): JSX.Element {
     const {
-        children, selectedEvents, isRowSelected, onContextOpenForUnselected,
+        children, selectedEvents, allEvents, isRowSelected, onContextOpenForUnselected,
         onUpdateEvent, onRemoveEvent, onClearSelection,
     } = props;
 

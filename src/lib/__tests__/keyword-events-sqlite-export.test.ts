@@ -66,6 +66,7 @@ const sample: KeywordEvent[] = [
             { Kind: "Wait", Id: "s2", DurationMs: 250 },
         ],
         Tags: ["smoke", "auth"],
+        Category: "Auth",
         PauseAfterMs: 100,
     },
     {
@@ -99,7 +100,7 @@ describe("buildKeywordEventsSqliteDb", () => {
                 .values.map((r) => String(r[1]));
             expect(cols).toEqual([
                 "Id", "Uid", "Keyword", "Description", "Enabled", "Steps",
-                "Target", "Tags", "PauseAfterMs", "SortOrder",
+                "Target", "Tags", "Category", "PauseAfterMs", "SortOrder",
                 "CreatedAt", "UpdatedAt",
             ]);
         } finally {

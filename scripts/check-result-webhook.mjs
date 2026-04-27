@@ -11,12 +11,15 @@
  * actionable message including exact file paths.
  */
 
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const MODULE_PATH = join(ROOT, "src/background/recorder/step-library/result-webhook.ts");
+const MODULE_REL = "src/background/recorder/step-library/result-webhook.ts";
+const MODULE_PATH = join(ROOT, MODULE_REL);
+const SEARCH_DIR = dirname(MODULE_PATH);
+const SEARCH_GLOB = `${SEARCH_DIR}/result-webhook.{ts,tsx,mts,cts,js,mjs,cjs,jsx}`;
 const REQUIRED_EXPORTS = ["dispatchWebhook"];
 const KNOWN_IMPORTERS = [
     "src/background/recorder/step-library/index.ts",
@@ -30,13 +33,29 @@ function fail(msg) {
     process.exit(1);
 }
 
+function listSiblings(dir) {
+    try {
+        return readdirSync(dir)
+            .filter((n) => /^result-webhook\b/i.test(n))
+            .map((n) => `      - ${n}`)
+            .join("\n") || "      (none — directory contains no `result-webhook*` entries)";
+    } catch (err) {
+        return `      (could not read directory: ${err instanceof Error ? err.message : String(err)})`;
+    }
+}
+
 // 1. File must exist
 if (!existsSync(MODULE_PATH)) {
     fail(
         `Missing module file.\n` +
+        `   Working dir   : ${process.cwd()}\n` +
+        `   Repo root     : ${ROOT}\n` +
+        `   Search dir    : ${SEARCH_DIR}\n` +
+        `   Search glob   : ${SEARCH_GLOB}\n` +
         `   Expected path : ${MODULE_PATH}\n` +
-        `   Missing item  : src/background/recorder/step-library/result-webhook.ts\n` +
-        `   Reason        : The result-webhook module is imported by core code but the file is absent.\n` +
+        `   Missing item  : ${MODULE_REL}\n` +
+        `   Siblings found:\n${listSiblings(SEARCH_DIR)}\n` +
+        `   Reason        : The result-webhook module is imported by core code but the file is absent at the expected path under the working directory.\n` +
         `   Fix           : Restore the file from git history or recreate the module with the expected exports: ${REQUIRED_EXPORTS.join(", ")}.`
     );
 }
@@ -78,7 +97,10 @@ const missingImporters = KNOWN_IMPORTERS.filter((rel) => !existsSync(join(ROOT, 
 if (missingImporters.length > 0) {
     fail(
         `Known importer file(s) missing — update KNOWN_IMPORTERS in this script if files were intentionally removed.\n` +
-        `   Missing paths : ${missingImporters.map((p) => join(ROOT, p)).join("\n                   ")}\n` +
+        `   Working dir   : ${process.cwd()}\n` +
+        `   Repo root     : ${ROOT}\n` +
+        `   Search glob   : ${ROOT}/{${KNOWN_IMPORTERS.join(",")}}\n` +
+        `   Missing paths :\n${missingImporters.map((p) => `      - ${join(ROOT, p)}`).join("\n")}\n` +
         `   Reason        : The guard tracks importers explicitly so silent drift cannot mask a broken import graph.`
     );
 }

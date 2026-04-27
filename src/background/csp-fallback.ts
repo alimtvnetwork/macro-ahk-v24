@@ -8,7 +8,7 @@
 
 import { transitionHealth } from "./health-handler";
 import { handleGetSettings } from "./handlers/settings-handler";
-import { logBgWarnError, logCaughtError, BgLogTag} from "./bg-logger";
+import { logBgWarnError, logCaughtError, logSampledDebug, BgLogTag} from "./bg-logger";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -28,27 +28,53 @@ export interface CspInjectionResult {
 /*  Shared helpers                                                     */
 /* ------------------------------------------------------------------ */
 
-function appendNodeToTarget(target: Element, node: Node): boolean {
+/**
+ * Single-step DOM-append attempt with sampled-debug breadcrumb on failure.
+ * Returns true on success, false on caught exception. The breadcrumb keys
+ * are stable per-strategy so repeated DOM-hostility issues collapse into
+ * a handful of debug lines per SW lifetime.
+ */
+function tryAppendStrategy(
+    label: string,
+    fallbackHint: string,
+    operation: () => void,
+): boolean {
     try {
-        Node.prototype.appendChild.call(target, node);
+        operation();
         return true;
-    } catch {
-        try {
-            Node.prototype.insertBefore.call(target, node, null);
-            return true;
-        } catch {
-            if (node.nodeType === Node.ELEMENT_NODE) {
-                try {
-                    Element.prototype.insertAdjacentElement.call(target, "beforeend", node as Element);
-                    return true;
-                } catch {
-                    return false;
-                }
-            }
-            return false;
-        }
+    } catch (err) {
+        logSampledDebug(
+            BgLogTag.CSP_FALLBACK,
+            `appendNodeToTarget:${label}`,
+            `${label} failed — ${fallbackHint}`,
+            err instanceof Error ? err : String(err),
+        );
+        return false;
     }
 }
+
+function appendNodeToTarget(target: Element, node: Node): boolean {
+    if (tryAppendStrategy(
+        "appendChild",
+        "trying insertBefore (DOM patched by host page)",
+        () => { Node.prototype.appendChild.call(target, node); },
+    )) return true;
+
+    if (tryAppendStrategy(
+        "insertBefore",
+        "trying insertAdjacentElement",
+        () => { Node.prototype.insertBefore.call(target, node, null); },
+    )) return true;
+
+    if (node.nodeType !== Node.ELEMENT_NODE) return false;
+
+    return tryAppendStrategy(
+        "insertAdjacent",
+        "DOM is hostile, giving up",
+        () => { Element.prototype.insertAdjacentElement.call(target, "beforeend", node as Element); },
+    );
+}
+
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -237,7 +263,6 @@ async function executeInMainWorld(code: string): Promise<string> {
         // CRITICAL: appendNodeToTarget must be inlined here because this function
         // is serialized by chrome.scripting.executeScript — outer-scope references
         // are NOT available in the target page context. See spec/22-app-issues/92-*.md
-        // eslint-disable-next-line sonarjs/no-identical-functions
         const appendNode = (node: Node): boolean => {
             try {
                 Node.prototype.appendChild.call(target, node);
@@ -402,7 +427,13 @@ async function isLegacyInjectionForced(): Promise<boolean> {
     try {
         const { settings } = await handleGetSettings();
         return settings.forceLegacyInjection === true;
-    } catch {
+    } catch (settingsErr) {
+        logSampledDebug(
+            BgLogTag.CSP_FALLBACK,
+            "isLegacyInjectionForced",
+            "handleGetSettings unavailable — defaulting forceLegacyInjection=false",
+            settingsErr instanceof Error ? settingsErr : String(settingsErr),
+        );
         return false;
     }
 }

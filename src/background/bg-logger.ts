@@ -168,3 +168,60 @@ export function logBgWarnError(
         console.warn(`${tag} ${message}`);
     }
 }
+
+/* ------------------------------------------------------------------ */
+/*  Sampled debug emitter (Wave 4 P1 breadcrumbs)                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Per-key counters for `logSampledDebug`. Resets only on service-worker
+ * cold start, so each "expected fallback" surfaces at most a handful of
+ * times per SW lifetime — enough for forensics, never enough to flood
+ * SQLite or the DevTools console.
+ */
+const sampledCounters = new Map<string, number>();
+
+/** How many emissions per key are allowed during a SW lifetime. */
+const SAMPLED_DEBUG_BUDGET = 3;
+
+/**
+ * Logs a `console.debug` breadcrumb gated by a per-key budget. Use this for
+ * P1 "documented fallback" sites that fire inside tight loops (CSP fallback
+ * chain, table-introspection probes, per-tab auth scans). The first
+ * `SAMPLED_DEBUG_BUDGET` calls per `key` emit; subsequent calls are dropped
+ * silently so high-frequency paths do not spam the log.
+ *
+ * Breadcrumbs are intentionally console-only — they are diagnostic, not
+ * persisted to the Errors table.
+ *
+ * @param tag      BgLogTag identifying the module
+ * @param key      Stable identifier for the call-site (file:line or short slug)
+ * @param message  Human-readable description of the fallback
+ * @param error    Optional caught error to attach
+ */
+export function logSampledDebug(
+    tag: string,
+    key: string,
+    message: string,
+    error?: CaughtError,
+): void {
+    const fullKey = `${tag}::${key}`;
+    const seen = sampledCounters.get(fullKey) ?? 0;
+    if (seen >= SAMPLED_DEBUG_BUDGET) return;
+    sampledCounters.set(fullKey, seen + 1);
+
+    const suffix = seen === SAMPLED_DEBUG_BUDGET - 1
+        ? " (further occurrences suppressed)"
+        : "";
+    if (error !== undefined) {
+        console.debug(`${tag} ${message}${suffix}`, error);
+    } else {
+        console.debug(`${tag} ${message}${suffix}`);
+    }
+}
+
+/** Test-only: clears the sampled-debug counters between unit tests. */
+export function _resetSampledDebugCountersForTest(): void {
+    sampledCounters.clear();
+}
+

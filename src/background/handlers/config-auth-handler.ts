@@ -14,7 +14,7 @@ import {
     resolveConfigCascade,
     getRemoteFetchStatus,
 } from "../remote-config-fetcher";
-import { logBgWarnError, logCaughtError, BgLogTag} from "../bg-logger";
+import { logBgWarnError, logCaughtError, logSampledDebug, BgLogTag} from "../bg-logger";
 import {
     buildCookieUrlCandidates,
     readCookieValueFromCandidates,
@@ -102,7 +102,13 @@ async function resolveSessionCookieNamesFromProjects(_projectId?: string | null)
             sessionNames: [...new Set([...sessionNamesFromBindings, ...SESSION_COOKIE_NAME_CANDIDATES])],
             refreshNames: [...new Set([...refreshNamesFromBindings, ...REFRESH_COOKIE_NAME_CANDIDATES])],
         };
-    } catch {
+    } catch (bindingsErr) {
+        logSampledDebug(
+            BgLogTag.CONFIG_AUTH,
+            "getCookieNames",
+            "Project cookie bindings unavailable — falling back to default candidate name lists",
+            bindingsErr instanceof Error ? bindingsErr : String(bindingsErr),
+        );
         return {
             sessionNames: SESSION_COOKIE_NAME_CANDIDATES,
             refreshNames: REFRESH_COOKIE_NAME_CANDIDATES,
@@ -510,7 +516,13 @@ async function getActiveTabUrl(): Promise<string | null> {
         });
 
         return tabs[0]?.url ?? null;
-    } catch {
+    } catch (queryErr) {
+        logSampledDebug(
+            BgLogTag.CONFIG_AUTH,
+            "getActiveTabUrl",
+            "chrome.tabs.query(active,currentWindow) failed — returning null URL",
+            queryErr instanceof Error ? queryErr : String(queryErr),
+        );
         return null;
     }
 }
@@ -648,7 +660,13 @@ function extractSignedUrlTokenFromUrl(url: string | null | undefined): string | 
         return token && isLikelyJwt(token)
             ? token
             : null;
-    } catch {
+    } catch (urlErr) {
+        logSampledDebug(
+            BgLogTag.CONFIG_AUTH,
+            "extractSignedUrlTokenFromUrl",
+            "URL parse failed for signed-URL token extraction — input was not a valid URL",
+            urlErr instanceof Error ? urlErr : String(urlErr),
+        );
         return null;
     }
 }

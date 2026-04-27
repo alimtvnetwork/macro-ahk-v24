@@ -34,7 +34,7 @@ import { configureUserScriptWorld } from "./csp-fallback";
 import { markInitialized, drainBuffer } from "./message-buffer";
 import { cacheScriptCode, getCachedScriptCode, purgeStaleEntries, syncCacheWithBuildId, invalidateCacheOnDeploy } from "./injection-cache";
 import { invalidateNamespaceCache } from "./namespace-cache";
-import { logCaughtError, logBgWarnError, BgLogTag} from "./bg-logger";
+import { logCaughtError, logBgWarnError, logSampledDebug, BgLogTag} from "./bg-logger";
 
 const BUILD_META_URL = "build-meta.json";
 
@@ -195,8 +195,14 @@ async function persistBootFailure(step: string, err: unknown): Promise<void> {
             wasmProbe: getWasmProbeResult(),
         };
         await chrome.storage.local.set({ marco_last_boot_failure: payload });
-    } catch {
+    } catch (storageErr) {
         // Storage may be unavailable during catastrophic boot failure.
+        logSampledDebug(
+            BgLogTag.BOOT,
+            "persistBootFailure",
+            "chrome.storage.local.set(marco_last_boot_failure) unavailable — banner will rely on in-memory state only",
+            storageErr instanceof Error ? storageErr : String(storageErr),
+        );
     }
 }
 
@@ -245,7 +251,13 @@ async function readCurrentBuildId(): Promise<string | null> {
         return typeof meta.buildId === "string" && meta.buildId.length > 0
             ? meta.buildId
             : null;
-    } catch {
+    } catch (metaErr) {
+        logSampledDebug(
+            BgLogTag.BOOT,
+            "readCurrentBuildId",
+            `fetch(${BUILD_META_URL}) failed — assuming no buildId (cache will use the in-memory token)`,
+            metaErr instanceof Error ? metaErr : String(metaErr),
+        );
         return null;
     }
 }
@@ -256,12 +268,26 @@ function clearAllLogsAndErrors(): void {
         const logsDb = getLogsDb();
         logsDb.run("DELETE FROM Logs");
         logsDb.run("DELETE FROM Sessions");
-    } catch { /* logs DB not ready */ }
+    } catch (logsErr) {
+        logSampledDebug(
+            BgLogTag.BOOT,
+            "clearAllLogsAndErrors:logs",
+            "logs DB not ready during freshStart — DELETE skipped (DB will be re-seeded on next boot)",
+            logsErr instanceof Error ? logsErr : String(logsErr),
+        );
+    }
 
     try {
         const errorsDb = getErrorsDb();
         errorsDb.run("DELETE FROM Errors");
-    } catch { /* errors DB not ready */ }
+    } catch (errorsErr) {
+        logSampledDebug(
+            BgLogTag.BOOT,
+            "clearAllLogsAndErrors:errors",
+            "errors DB not ready during freshStart — DELETE skipped (DB will be re-seeded on next boot)",
+            errorsErr instanceof Error ? errorsErr : String(errorsErr),
+        );
+    }
 
     markLoggingDirty();
 }

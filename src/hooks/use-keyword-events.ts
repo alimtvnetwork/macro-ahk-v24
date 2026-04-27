@@ -93,6 +93,7 @@ export function useKeywordEvents(): UseKeywordEventsApi {
             Description: description,
             Steps: [],
             Enabled: true,
+            Target: DEFAULT_KEYWORD_EVENT_TARGET,
         };
         setEvents(prev => [...prev, next]);
         return id;

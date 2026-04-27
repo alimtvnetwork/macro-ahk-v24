@@ -48,6 +48,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { StorageRuntimePanels } from "./StorageRuntimePanels";
+import { logError } from "./options-logger";
 
 const JsonSchemaTab = lazy(() =>
   import("./project-database/JsonSchemaTab").then(m => ({ default: m.JsonSchemaTab }))

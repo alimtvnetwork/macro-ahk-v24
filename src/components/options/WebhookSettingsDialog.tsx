@@ -72,6 +72,37 @@ function formatTime(iso: string): string {
     }
 }
 
+function buildLogClipboardText(entry: WebhookDeliveryResult): string {
+    const skipped = isWebhookSkipped(entry);
+    const success = isWebhookSuccess(entry);
+    const lines: string[] = [
+        `Event: ${entry.Event}`,
+        `Emitted: ${entry.EmittedAt}`,
+        `Duration: ${entry.DurationMs} ms`,
+    ];
+    if (skipped) {
+        lines.push("Status: Skipped");
+        lines.push(`Skip reason: ${entry.SkipReason}`);
+    } else if (success) {
+        lines.push(`Status: OK (HTTP ${entry.Status})`);
+    } else {
+        const httpPart = entry.Status !== undefined && entry.Status !== null ? ` (HTTP ${entry.Status})` : "";
+        lines.push(`Status: Failed${httpPart}`);
+        lines.push(`Error: ${entry.Error}`);
+    }
+    return lines.join("\n");
+}
+
+async function copyLogEntry(entry: WebhookDeliveryResult): Promise<void> {
+    const text = buildLogClipboardText(entry);
+    try {
+        await navigator.clipboard.writeText(text);
+        toast.success("Webhook details copied");
+    } catch (err) {
+        toast.error(`Copy failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+}
+
 export default function WebhookSettingsDialog({ open, onOpenChange }: Props) {
     const [draft, setDraft] = useState<WebhookConfig>(DEFAULT_WEBHOOK_CONFIG);
     const [log, setLog] = useState<ReadonlyArray<WebhookDeliveryResult>>([]);

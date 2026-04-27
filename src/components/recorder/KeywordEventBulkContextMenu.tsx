@@ -112,9 +112,10 @@ export function KeywordEventBulkContextMenu(
         for (const ev of selectedEvents) onUpdateEvent(ev.Id, { Enabled: enabled });
     };
 
-    const handleDelete = (): void => {
+    const handleDeleteConfirmed = (): void => {
         for (const ev of selectedEvents) onRemoveEvent(ev.Id);
         onClearSelection();
+        setDialog(null);
     };
 
     return (

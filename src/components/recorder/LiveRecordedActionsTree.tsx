@@ -59,7 +59,17 @@ export interface LiveRecordedActionsTreeProps {
 
 export function LiveRecordedActionsTree(props: LiveRecordedActionsTreeProps): JSX.Element {
     const { className, onStepClick } = props;
-    const { session } = useRecordingSession();
+
+    // Subscribe directly to the shared backend transport so this tree
+    // stays in lockstep with the active session even if no parent
+    // (Options page, Floating Controller) is currently mounted.
+    const [session, setSession] = useState<RecordingSession | null>(null);
+    const [transport, setTransport] = useState<RecorderSyncTransport>(() => detectTransport());
+    useEffect(() => {
+        setTransport(detectTransport());
+        return subscribeRecorderSession(setSession);
+    }, []);
+
     const steps = session?.Steps ?? [];
     const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
 
@@ -77,6 +87,7 @@ export function LiveRecordedActionsTree(props: LiveRecordedActionsTreeProps): JS
 
     const isRecording = session?.Phase === "Recording";
     const isPaused = session?.Phase === "Paused";
+
 
     return (
         <div

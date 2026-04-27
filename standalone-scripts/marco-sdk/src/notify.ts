@@ -292,7 +292,7 @@ function showToast(message: string, level: ToastLevel = "error", opts: ToastOpts
         if (opts.stack) copyText += "\n\nStack:\n" + opts.stack;
         navigator.clipboard.writeText(copyText).then(
             () => { copyBtn.textContent = "\u2713"; setTimeout(() => { copyBtn.textContent = "\uD83D\uDCCB"; }, 1500); },
-            () => { /* fallback */ const ta = document.createElement("textarea"); ta.value = copyText; ta.style.cssText = "position:fixed;opacity:0;"; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); copyBtn.textContent = "\u2713"; } catch { /* */ } document.body.removeChild(ta); setTimeout(() => { copyBtn.textContent = "\uD83D\uDCCB"; }, 1500); },
+            () => { /* fallback */ const ta = document.createElement("textarea"); ta.value = copyText; ta.style.cssText = "position:fixed;opacity:0;"; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); copyBtn.textContent = "\u2713"; } catch { /* */ } document.body.removeChild(ta); setTimeout(() => { copyBtn.textContent = "\uD83D\uDCCB"; }, 1500); }, // allow-swallow: execCommand fallback for old browsers; UI continues regardless
         );
     };
 
@@ -328,7 +328,7 @@ function showToast(message: string, level: ToastLevel = "error", opts: ToastOpts
     // Error-level: trigger stop-loop callback
     if (level === "error" && !_errorStopTriggered && !opts.noStop && _stopLoopFn) {
         _errorStopTriggered = true;
-        try { _stopLoopFn(); } catch { /* */ }
+        try { _stopLoopFn(); } catch { /* */ } // allow-swallow: stop-loop callback errors must not block toast pipeline
         setTimeout(() => { _errorStopTriggered = false; }, 5000);
     }
 

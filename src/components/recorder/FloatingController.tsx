@@ -46,6 +46,7 @@ import { useStepLibrary } from "@/hooks/use-step-library";
 import { useRecorderSelection } from "@/hooks/use-recorder-selection";
 import { useDraggable } from "@/hooks/use-draggable";
 import { openExtensionOptions } from "@/lib/open-extension-options";
+import { loadPanelToggles, savePanelToggles } from "@/lib/controller-panel-toggles";
 import { StepKindId } from "@/background/recorder/step-library/schema";
 
 /* ------------------------------------------------------------------ */

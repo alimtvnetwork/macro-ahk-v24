@@ -12,7 +12,7 @@ import { loadOrCreateFromOpfs, saveToOpfs, loadFromStorage } from "./db-persiste
 import { ensureMetaTables, META_TABLES_SCHEMA } from "./schema-meta-engine";
 import { DEFAULT_PROJECT_DATABASES, type DefaultDatabaseDef } from "../types/default-databases";
 import { wrapDatabaseWithBindSafety } from "./sqlite-bind-safety";
-import { RECORDER_DB_SCHEMA, applyParamsJsonMigration } from "./recorder-db-schema";
+import { RECORDER_DB_SCHEMA, applyParamsJsonMigration, applyChainColumnsMigration } from "./recorder-db-schema";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -114,6 +114,8 @@ export async function initProjectDb(slug: string, extraSchema?: string): Promise
 
     // Spec 19.4 — ensure Step.ParamsJson exists on legacy DBs (no-op on fresh).
     applyParamsJsonMigration(db);
+    // Phase 14 — ensure Step chain columns + StepTag exist on legacy DBs.
+    applyChainColumnsMigration(db);
 
     // Ensure default databases (KV, Meta) exist on every project init
     ensureDefaultDatabases(db, slug);

@@ -268,6 +268,8 @@ interface ChainSettingsRowProps {
     readonly enabledCount: number;
     readonly running: boolean;
     readonly progress: { current: number; total: number } | null;
+    /** True while the auto-run-after-recording chain is in flight. */
+    readonly autoRunActive?: boolean;
     readonly onRun: () => void;
     readonly onCancel: () => void;
 }

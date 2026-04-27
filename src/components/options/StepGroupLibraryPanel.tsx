@@ -91,6 +91,7 @@ import { Switch } from "@/components/ui/switch";
 import { Toaster } from "@/components/ui/sonner";
 
 import { stepKindLabel, useStepLibrary } from "@/hooks/use-step-library";
+import { useRecorderSelection } from "@/hooks/use-recorder-selection";
 import {
     decodeNullableNumber,
     decodeNumberSet,

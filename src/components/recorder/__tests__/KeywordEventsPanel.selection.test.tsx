@@ -36,6 +36,7 @@ function eventCards(): HTMLElement[] {
         const tid = el.getAttribute("data-testid") ?? "";
         if (!tid.startsWith("keyword-event-")) return false;
         if (tid.startsWith("keyword-event-step")) return false;
+        if (tid.startsWith("keyword-event-sortable-")) return false;
         if (tid.startsWith("keyword-events-")) return false;
         // The outer card hosts the keyword input directly.
         return !!el.querySelector("input[aria-label='Keyword']");

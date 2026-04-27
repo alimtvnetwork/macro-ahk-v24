@@ -165,6 +165,20 @@ function KeywordEventsEditor(): JSX.Element {
 
     const enabledCount = api.events.filter((e) => isEventRunnable(e)).length;
 
+    // Gmail-style multi-select for the events list. Plain click selects one,
+    // Shift-click extends from anchor, Ctrl/Cmd-click toggles. The set is
+    // pruned automatically when events are deleted/reordered.
+    const eventIds = api.events.map(e => e.Id);
+    const eventSelection = useShiftClickSelection(eventIds);
+    const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform);
+    const handleEventRowClick = (id: string, ev: React.MouseEvent): void => {
+        // Don't hijack clicks that land on inputs/buttons inside the card.
+        const tag = (ev.target as HTMLElement | null)?.tagName?.toLowerCase();
+        if (tag === "input" || tag === "button" || tag === "textarea" || tag === "select" || tag === "label") return;
+        if ((ev.target as HTMLElement | null)?.closest("button,input,textarea,select,label,[role=switch],[role=combobox]")) return;
+        eventSelection.handleClick(id, modifiersFromMouseEvent(ev.nativeEvent, isMac));
+    };
+
     const handleAdd = () => {
         const k = newKeyword.trim();
         if (!k) return;

@@ -19,10 +19,20 @@
  */
 
 import { STORAGE_KEY_ALL_PROJECTS } from "../../shared/constants";
-import type { StoredProject } from "../../shared/project-types";
+import type { StoredProject, UrlRule } from "../../shared/project-types";
 import { getTabInjections } from "../state-manager";
+import { isUrlMatch } from "../url-matcher";
 
 export type DetectedWorkspaceSource = "api" | "cache" | "dom" | "none";
+
+export interface MatchedRuleInfo {
+    /** The rule's pattern (e.g. "https://*.lovable.app/*"). */
+    pattern: string;
+    /** The rule's match strategy. */
+    matchType: UrlRule["matchType"];
+    /** How this rule was identified: replayed from the live injection record, or freshly evaluated against the URL. */
+    origin: "injection-record" | "evaluated";
+}
 
 export interface OpenLovableTabInfo {
     /** Chrome tab id; null if Chrome did not assign one. */
@@ -47,6 +57,8 @@ export interface OpenLovableTabInfo {
     detectedWorkspaceSource: DetectedWorkspaceSource | null;
     /** Why the probe did not return data — null on success, a short reason on failure. */
     probeError: string | null;
+    /** Which project URL rule the tab matched (when any). Lets the panel explain why this binding was chosen. */
+    matchedRule: MatchedRuleInfo | null;
 }
 
 export interface OpenLovableTabsResponse {

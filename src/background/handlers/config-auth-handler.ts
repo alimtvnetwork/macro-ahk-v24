@@ -591,10 +591,7 @@ async function readSupabaseJwtFromPlatformTabs(tabUrlHint?: string): Promise<str
                                 if (val.startsWith("eyJ") && val.split(".").length === 3) return val;
                             }
                         }
-                    } catch (lsErr) {
-                        // localStorage may be unavailable (sandboxed iframes, restricted contexts).
-                        console.debug("[config-auth] localStorage scan unavailable in this MAIN-world context:", lsErr);
-                    }
+                    } catch (lsErr) { console.debug("[config-auth] localStorage scan unavailable:", lsErr); }
                     return null;
                 },
             });

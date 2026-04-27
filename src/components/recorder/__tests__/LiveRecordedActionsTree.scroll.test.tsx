@@ -110,14 +110,22 @@ describe("LiveRecordedActionsTree — selection scroll", () => {
     });
 
     it("applies a transient pulsing highlight to the active row", async () => {
-        vi.useFakeTimers();
         const view = render(<LiveRecordedActionsTree selectedStepId="s-2" />);
+        // Two flushes: first delivers the session, second runs the
+        // selection-effect that flips the pulse state.
+        await act(async () => { await Promise.resolve(); });
         await act(async () => { await Promise.resolve(); });
 
         const row = view.getByTestId("live-action-s-2").closest("li") as HTMLLIElement;
         expect(row.getAttribute("data-pulsing")).toBe("true");
 
+        vi.useFakeTimers();
         await act(async () => { vi.advanceTimersByTime(1300); });
+        // Note: the pulse timer was scheduled before fake timers were installed,
+        // so we just verify the attribute eventually clears via real timers.
+        vi.useRealTimers();
+        await new Promise((resolve) => setTimeout(resolve, 1300));
+        await act(async () => { await Promise.resolve(); });
         expect(row.getAttribute("data-pulsing")).toBeNull();
     });
 

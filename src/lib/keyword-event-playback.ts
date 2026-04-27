@@ -149,7 +149,7 @@ export async function runKeywordEvent(
         return { Completed: false, StepsRun: 0, Aborted: false };
     }
 
-    const target = resolveTarget(options.target);
+    const target = resolveTarget(options.target, event.Target);
     let stepsRun = 0;
 
     try {

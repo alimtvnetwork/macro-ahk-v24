@@ -10,10 +10,20 @@
  * abort scripted playback when the user hits Stop.
  */
 
-import type { KeywordEvent, KeywordEventStep } from "@/hooks/use-keyword-events";
+import {
+    DEFAULT_KEYWORD_EVENT_TARGET,
+    type KeywordEvent,
+    type KeywordEventStep,
+    type KeywordEventTarget,
+} from "@/hooks/use-keyword-events";
 
 export interface PlaybackOptions {
-    /** Optional target. Falls back to document.activeElement, then document.body. */
+    /**
+     * Explicit override target. When provided, **always wins** over the
+     * event's own `Target` config — used by tests and by callers that need to
+     * route playback to a specific in-page element regardless of the event's
+     * stored preference. When omitted, the event's `Target` is resolved.
+     */
     readonly target?: EventTarget | null;
     /** Abort the playback mid-sequence. */
     readonly signal?: AbortSignal;

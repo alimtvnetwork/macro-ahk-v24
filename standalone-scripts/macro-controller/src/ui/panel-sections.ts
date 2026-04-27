@@ -41,6 +41,7 @@ import {
 } from './sections';
 import { showSettingsDialog } from './settings-ui';
 import { buildHotReloadSection, checkAndRestoreReinjectState } from './hot-reload-section';
+import { createOpenTabsSection } from './section-open-tabs';
 import { injectSkeletonStyles, createStatusSkeleton } from './skeleton';
 import { getPromptsConfig, sendToExtension } from './prompt-manager';
 import { registerKeyboardHandlers } from './keyboard-handlers';

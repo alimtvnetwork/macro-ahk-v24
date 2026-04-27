@@ -19,13 +19,13 @@ import type {
     RecordingSession,
 } from "@/background/recorder/recorder-session-types";
 
-function makeStep(overrides: Partial<RecordedStep> & { StepId: string; Index: number }): RecordedStep {
+function makeStep(stepId: string, index: number): RecordedStep {
     return {
-        StepId: overrides.StepId,
-        Index: overrides.Index,
+        StepId: stepId,
+        Index: index,
         Kind: "Click",
-        Label: `Step ${overrides.Index}`,
-        VariableName: `var${overrides.Index}`,
+        Label: `Step ${index}`,
+        VariableName: `var${index}`,
         Selector: {
             XPathFull: "/html/body",
             XPathRelative: null,
@@ -33,7 +33,6 @@ function makeStep(overrides: Partial<RecordedStep> & { StepId: string; Index: nu
             Strategy: "Positional",
         },
         CapturedAt: "2026-04-27T00:00:00.000Z",
-        ...overrides,
     };
 }
 

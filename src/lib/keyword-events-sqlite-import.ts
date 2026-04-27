@@ -238,10 +238,18 @@ export async function readKeywordEventsSqliteDb(
 ): Promise<KeywordEventsImportResult> {
     const db = await initDb(data);
     try {
+        // Structural check first — gives a more actionable error than the
+        // bundle_kind probe below when the .db is from a different exporter
+        // (or when Meta itself is missing).
+        assertKeywordEventsSchema(db);
+
         const bundleKind = readMeta(db, "bundle_kind");
         if (bundleKind !== KEYWORD_EVENTS_BUNDLE_KIND) {
             throw new Error(
-                `Not a keyword-events bundle (Meta.bundle_kind = ${bundleKind ?? "null"})`,
+                `Not a keyword-events bundle: Meta.bundle_kind = `
+                + `${bundleKind ?? "null"} (expected `
+                + `'${KEYWORD_EVENTS_BUNDLE_KIND}'). The schema matches but `
+                + `this file was tagged as a different export type.`,
             );
         }
         return {

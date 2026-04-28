@@ -223,7 +223,13 @@ jobs:
         with:
           node-version: 20
 
+      - name: Preflight · actionable wiring report (prints exact files to create)
+        env:
+          CI: 'true'
+        run: node scripts/preflight-standalone-wiring.mjs
+
       - name: Strict standalone-registry check (fails on ANY wiring gap)
+        if: always()
         env:
           CI: 'true'
         run: node scripts/report-standalone-registry.mjs --strict

@@ -159,6 +159,7 @@ export function setStepTagsRow(
     names: ReadonlyArray<string>,
 ): ReadonlyArray<string> {
     const unique = dedupeTags(names);
+    assertTagSetSize(unique.length);
     db.run("DELETE FROM StepTag WHERE StepId = ?", [stepId]);
     for (const name of unique) {
         db.run("INSERT INTO StepTag (StepId, Name) VALUES (?, ?)", [stepId, name]);

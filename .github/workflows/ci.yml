@@ -1895,3 +1895,93 @@ jobs:
           name: playwright-artifacts
           path: test-results/artifacts
           retention-days: 7
+
+  # ════════════════════════════════════════════════════════════
+  # Registry-required build stubs.
+  #
+  # These jobs satisfy the strict standalone registry checker
+  # (`scripts/report-standalone-registry.mjs --strict`) which requires a
+  # `build-<scriptName>:` job for every project under standalone-scripts/.
+  # They run the dedicated `pnpm run build:<name>` script and upload the
+  # resulting dist as a `<name>-dist` artifact for downstream consumers.
+  # ════════════════════════════════════════════════════════════
+
+  build-marco-sdk:
+    name: Build · marco-sdk
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: pnpm/action-setup@v4
+        with: { version: 9, run_install: false }
+      - name: Install dependencies
+        run: pnpm install --prefer-offline --no-frozen-lockfile
+      - name: Build marco-sdk
+        run: pnpm run build:marco-sdk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marco-sdk-dist
+          path: standalone-scripts/marco-sdk/dist/
+          retention-days: 1
+
+  build-lovable-common:
+    name: Build · lovable-common
+    needs: build-marco-sdk
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: pnpm/action-setup@v4
+        with: { version: 9, run_install: false }
+      - name: Install dependencies
+        run: pnpm install --prefer-offline --no-frozen-lockfile
+      - name: Build lovable-common
+        run: pnpm run build:lovable-common
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lovable-common-dist
+          path: standalone-scripts/lovable-common/dist/
+          retention-days: 1
+
+  build-lovable-owner-switch:
+    name: Build · lovable-owner-switch
+    needs: build-lovable-common
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: pnpm/action-setup@v4
+        with: { version: 9, run_install: false }
+      - name: Install dependencies
+        run: pnpm install --prefer-offline --no-frozen-lockfile
+      - name: Build lovable-owner-switch
+        run: pnpm run build:lovable-owner-switch
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lovable-owner-switch-dist
+          path: standalone-scripts/lovable-owner-switch/dist/
+          retention-days: 1
+
+  build-lovable-user-add:
+    name: Build · lovable-user-add
+    needs: build-lovable-common
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: pnpm/action-setup@v4
+        with: { version: 9, run_install: false }
+      - name: Install dependencies
+        run: pnpm install --prefer-offline --no-frozen-lockfile
+      - name: Build lovable-user-add
+        run: pnpm run build:lovable-user-add
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lovable-user-add-dist
+          path: standalone-scripts/lovable-user-add/dist/
+          retention-days: 1

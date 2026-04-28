@@ -506,6 +506,92 @@ jobs:
         run: npx tsc --noEmit --incremental --tsBuildInfoFile .cache/tsbuildinfo/macro.tsbuildinfo -p tsconfig.macro.build.json
 
   # ════════════════════════════════════════════════════════════
+  # Job 0b2: Typecheck App (main React app + node tooling)
+  #
+  # Runs `tsc --noEmit` against every project referenced by the root
+  # solution-style `tsconfig.json` (currently `tsconfig.app.json` and
+  # `tsconfig.node.json`). The existing `typecheck-standalone` job
+  # only covers `standalone-scripts/**` — the main `src/**` tree was
+  # NEVER typechecked in CI, which is exactly how
+  # `ParseDeliveryBaseResult`-style mismatches reached main without
+  # tripping a gate.
+  #
+  # Always runs (no `paths:` filter) — the user's directive was
+  # explicit: "ALWAYS runs TypeScript typecheck and fails the build
+  # immediately on any type errors". This job listed in
+  # build-extension's `needs:` so a type error blocks the merge even
+  # if downstream builds happen to be re-run from cache.
+  #
+  # Sequential, fail-fast (Core no-retry policy). First project with
+  # errors aborts the job. Inline `::error::` annotations point at
+  # the offending file:line so PR diff surfaces the issue.
+  #
+  # Cache strategy mirrors typecheck-standalone: shared `.cache/
+  # tsbuildinfo/` directory keyed on the union of every covered
+  # tsconfig + the source trees they cover. Cached cold runs land
+  # in ~10s.
+  # ════════════════════════════════════════════════════════════
+  typecheck-app:
+    name: Preflight · Typecheck (App)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      - name: Get pnpm store path
+        id: pnpm-store
+        shell: bash
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml', '**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-nm-typecheck-app-${{ hashFiles('**/pnpm-lock.yaml', '**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nm-typecheck-app-
+
+      - name: Cache TypeScript incremental build info (app)
+        uses: actions/cache@v4
+        with:
+          path: .cache/tsbuildinfo
+          key: ${{ runner.os }}-tsbuildinfo-app-${{ hashFiles('tsconfig.json', 'tsconfig.app.json', 'tsconfig.node.json', 'src/**/*.ts', 'src/**/*.tsx', 'vite.config.ts') }}
+          restore-keys: |
+            ${{ runner.os }}-tsbuildinfo-app-
+
+      - name: Ensure tsbuildinfo cache dir exists
+        run: mkdir -p .cache/tsbuildinfo
+
+      - name: Install dependencies
+        run: pnpm install --prefer-offline --no-frozen-lockfile
+
+      - name: Strict TypeScript gate (app + node)
+        run: pnpm run typecheck
+
+  # ════════════════════════════════════════════════════════════
   # Job 0c: ESLint Standalone Scripts — fast-fail lint guard
   #
   # Runs ESLint scoped to standalone-scripts/ (macro-controller,

@@ -105,6 +105,7 @@ export default function RecorderVisualisationPanel({ projectSlug }: Props) {
                 await reload();
             } catch (err) {
                 toast.error(err instanceof Error ? err.message : "Failed to delete step");
+            }
         },
         [projectSlug, reload],
     );

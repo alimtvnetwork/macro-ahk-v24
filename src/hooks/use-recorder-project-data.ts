@@ -32,7 +32,24 @@ export interface StepRow {
     readonly IsBreakpoint: number;
     readonly CapturedAt: string;
     readonly UpdatedAt: string;
+    /* Phase 14 chain fields (server returns them on every RECORDER_STEP_LIST). */
+    readonly Description: string | null;
+    readonly IsDisabled: number;
+    readonly RetryCount: number;
+    readonly TimeoutMs: number | null;
+    readonly OnSuccessProjectId: string | null;
+    readonly OnFailureProjectId: string | null;
 }
+
+export interface StepMetaPatch {
+    readonly Label?: string;
+    readonly Description?: string | null;
+    readonly IsDisabled?: boolean;
+    readonly RetryCount?: number;
+    readonly TimeoutMs?: number | null;
+}
+
+export type StepLinkSlot = "OnSuccessProjectId" | "OnFailureProjectId";
 
 export interface SelectorRow {
     readonly SelectorId: number;
@@ -72,6 +89,18 @@ interface HookResult {
     error: string | null;
     reload: () => Promise<void>;
     loadSelectors: (stepId: number) => Promise<ReadonlyArray<SelectorRow>>;
+    /** Phase 14 — per-step tag cache, keyed by StepId. */
+    tagsByStep: ReadonlyMap<number, ReadonlyArray<string>>;
+    /** Patch step meta and splice the returned row into local state. */
+    updateStepMeta: (stepId: number, patch: StepMetaPatch) => Promise<void>;
+    /** Replace the tag set for a step and cache the returned list. */
+    setStepTags: (stepId: number, tags: ReadonlyArray<string>) => Promise<void>;
+    /** Set/clear OnSuccessProjectId or OnFailureProjectId for a step. */
+    setStepLink: (
+        stepId: number,
+        slot: StepLinkSlot,
+        targetProjectSlug: string | null,
+    ) => Promise<void>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -82,6 +111,9 @@ export function useRecorderProjectData(projectSlug: string): HookResult {
     const [data, setData] = useState<RecorderProjectData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [tagsByStep, setTagsByStep] = useState<ReadonlyMap<number, ReadonlyArray<string>>>(
+        new Map(),
+    );
 
     const reload = useCallback(async () => {
         if (!projectSlug) return;
@@ -131,9 +163,83 @@ export function useRecorderProjectData(projectSlug: string): HookResult {
         [projectSlug],
     );
 
+    /* -------- Phase 14 — local-state refresh helpers ----------------- */
+
+    const spliceStep = useCallback((updated: StepRow) => {
+        setData((prev) => {
+            if (prev === null) return prev;
+            return {
+                ...prev,
+                steps: prev.steps.map((s) => (s.StepId === updated.StepId ? updated : s)),
+            };
+        });
+    }, []);
+
+    const updateStepMeta = useCallback(
+        async (stepId: number, patch: StepMetaPatch) => {
+            const res = await sendMessage<{ isOk: true; step: StepRow }>({
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                type: "RECORDER_STEP_UPDATE_META" as any,
+                projectSlug,
+                stepId,
+                patch,
+            });
+            spliceStep(res.step);
+        },
+        [projectSlug, spliceStep],
+    );
+
+    const setStepTags = useCallback(
+        async (stepId: number, tags: ReadonlyArray<string>) => {
+            const res = await sendMessage<{ isOk: true; tags: ReadonlyArray<string> }>({
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                type: "RECORDER_STEP_TAGS_SET" as any,
+                projectSlug,
+                stepId,
+                tags,
+            });
+            setTagsByStep((prev) => {
+                const next = new Map(prev);
+                next.set(stepId, res.tags);
+                return next;
+            });
+        },
+        [projectSlug],
+    );
+
+    const setStepLink = useCallback(
+        async (
+            stepId: number,
+            slot: StepLinkSlot,
+            targetProjectSlug: string | null,
+        ) => {
+            const res = await sendMessage<{ isOk: true; step: StepRow }>({
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                type: "RECORDER_STEP_LINK_SET" as any,
+                projectSlug,
+                stepId,
+                slot,
+                targetProjectSlug,
+            });
+            spliceStep(res.step);
+        },
+        [projectSlug, spliceStep],
+    );
+
     useEffect(() => {
         void reload();
     }, [reload]);
 
-    return { data, loading, error, reload, loadSelectors };
+    return {
+        data,
+        loading,
+        error,
+        reload,
+        loadSelectors,
+        tagsByStep,
+        updateStepMeta,
+        setStepTags,
+        setStepLink,
+    };
 }
+

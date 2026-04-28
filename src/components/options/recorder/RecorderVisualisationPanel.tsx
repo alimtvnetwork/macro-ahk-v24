@@ -30,7 +30,17 @@ interface Props {
 }
 
 export default function RecorderVisualisationPanel({ projectSlug }: Props) {
-    const { data, loading, error, reload, loadSelectors } = useRecorderProjectData(projectSlug);
+    const {
+        data,
+        loading,
+        error,
+        reload,
+        loadSelectors,
+        tagsByStep,
+        updateStepMeta,
+        setStepTags,
+        setStepLink,
+    } = useRecorderProjectData(projectSlug);
     const [selectedStepId, setSelectedStepId] = useState<number | null>(null);
     const [selectors, setSelectors] = useState<ReadonlyArray<SelectorRow>>([]);
     const [selectorsLoading, setSelectorsLoading] = useState(false);
@@ -100,6 +110,54 @@ export default function RecorderVisualisationPanel({ projectSlug }: Props) {
         [projectSlug, reload],
     );
 
+    /* -------- Phase 14 — meta / tags / link refreshers --------------- */
+
+    const handleDescriptionSave = useCallback(
+        async (stepId: number, description: string | null) => {
+            try {
+                await updateStepMeta(stepId, { Description: description });
+                toast.success("Description updated");
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Failed to update description");
+                throw err;
+            }
+        },
+        [updateStepMeta],
+    );
+
+    const handleTagsSave = useCallback(
+        async (stepId: number, tags: ReadonlyArray<string>) => {
+            try {
+                await setStepTags(stepId, tags);
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Failed to update tags");
+                throw err;
+            }
+        },
+        [setStepTags],
+    );
+
+    const handleLinkChange = useCallback(
+        async (
+            stepId: number,
+            slot: "OnSuccessProjectId" | "OnFailureProjectId",
+            targetProjectSlug: string | null,
+        ) => {
+            try {
+                await setStepLink(stepId, slot, targetProjectSlug);
+                toast.success(
+                    targetProjectSlug === null
+                        ? `${slot} cleared`
+                        : `${slot} → ${targetProjectSlug}`,
+                );
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Failed to update link");
+                throw err;
+            }
+        },
+        [setStepLink],
+    );
+
     if (loading) {
         return (
             <div className="flex items-center gap-2 text-xs text-muted-foreground p-4">
@@ -165,7 +223,11 @@ export default function RecorderVisualisationPanel({ projectSlug }: Props) {
                             selectors={selectors}
                             dataSources={data.dataSources}
                             bindings={data.bindings}
+                            tags={tagsByStep.get(selectedStep.StepId) ?? []}
                             onRename={handleRename}
+                            onDescriptionSave={handleDescriptionSave}
+                            onTagsSave={handleTagsSave}
+                            onLinkChange={handleLinkChange}
                         />
                     )}
                 </div>

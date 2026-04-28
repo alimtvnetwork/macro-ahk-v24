@@ -74,6 +74,61 @@ const MAX_ANNOTATIONS = Number.parseInt(
 const rel = (p) => relative(REPO_ROOT, p) || p;
 
 /* ------------------------------------------------------------------ */
+/*  SchemaVersion contract.                                             */
+/*                                                                      */
+/*  Loaded from `standalone-scripts/types/instruction/primitives/       */
+/*  schema-version.json` — the single source of truth shared with the   */
+/*  TypeScript runtime (`schema-version.ts` mirror). Loading here keeps */
+/*  this script dep-free (no TS parser) while still failing CI the      */
+/*  moment a project's `instruction.json` declares an unsupported       */
+/*  SchemaVersion (e.g. "2.0" before the runtime knows how to read it). */
+/* ------------------------------------------------------------------ */
+
+const SCHEMA_VERSION_CONTRACT_PATH = resolve(
+    STANDALONE_DIR,
+    "types/instruction/primitives/schema-version.json",
+);
+
+function loadSchemaVersionContract() {
+    if (!existsSync(SCHEMA_VERSION_CONTRACT_PATH)) {
+        throw new Error(
+            `SchemaVersion contract missing at ${rel(SCHEMA_VERSION_CONTRACT_PATH)} ` +
+            `— restore from schema-version.ts or git history`,
+        );
+    }
+    const raw = JSON.parse(readFileSync(SCHEMA_VERSION_CONTRACT_PATH, "utf-8"));
+    if (typeof raw.pattern !== "string"
+        || !Array.isArray(raw.supported)
+        || raw.supported.length === 0
+        || typeof raw.current !== "string") {
+        throw new Error(
+            `SchemaVersion contract malformed at ${rel(SCHEMA_VERSION_CONTRACT_PATH)} ` +
+            `— expected { pattern: string, supported: string[≥1], current: string }`,
+        );
+    }
+    let pattern;
+    try { pattern = new RegExp(raw.pattern); }
+    catch (err) {
+        throw new Error(
+            `SchemaVersion contract has invalid regex pattern ${JSON.stringify(raw.pattern)}: ${err.message}`,
+        );
+    }
+    if (!raw.supported.includes(raw.current)) {
+        throw new Error(
+            `SchemaVersion contract drift: current="${raw.current}" not in supported=${JSON.stringify(raw.supported)}`,
+        );
+    }
+    return {
+        pattern,
+        patternSource: raw.pattern,
+        supported: raw.supported,
+        current: raw.current,
+    };
+}
+
+const SCHEMA_VERSION_CONTRACT = loadSchemaVersionContract();
+
+/* ------------------------------------------------------------------ */
 /*  Schema (PascalCase canonical).                                      */
 /*                                                                      */
 /*  Each schema node is one of:                                          */
@@ -214,7 +269,7 @@ const ProjectInstructionSchema = {
     required: ["SchemaVersion", "Name", "DisplayName", "Version", "Description", "World", "Dependencies", "LoadOrder", "Seed", "Assets"],
     optional: ["IsGlobal", "XPaths"],
     properties: {
-        SchemaVersion: { kind: "string" },
+        SchemaVersion: { kind: "schemaVersion" },
         Name: { kind: "string" },
         DisplayName: { kind: "string" },
         Version: { kind: "string" },

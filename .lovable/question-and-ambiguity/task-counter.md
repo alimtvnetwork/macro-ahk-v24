@@ -18,6 +18,7 @@ Timestamps use **Asia/Kuala_Lumpur** per `mem://localization/timezone`.
 | 1 | 2026-04-28 | Persist No-Questions Mode spec to `.lovable/prompts/04-no-questions.md`, create `.lovable/prompts.md` index, create this counter file. | none |
 | 2 | 2026-04-28 | Add clean-build option (`scripts/clean-build.mjs` + `scripts/run-with-env.mjs` + 4 npm scripts) to wipe all build caches and force fresh filesystem reads. | [28 — Clean-build scope](./28-clean-build-scope.md) |
 | 3 | 2026-04-28 | Add CI typecheck gate (`scripts/typecheck-app.mjs` + `pnpm run typecheck` + `typecheck-app` job in ci.yml, wired into `build-extension` `needs:`) covering `tsconfig.app.json` + `tsconfig.node.json`. | [29 — Typecheck App scope](./29-typecheck-app-gate-scope.md) |
+| 4 | 2026-04-28 | Enable pre-commit ESLint hook for `standalone-scripts/**` (zero-dep native git hook via `scripts/install-git-hooks.mjs` + `scripts/lint-staged-standalone.mjs`; auto-installed by `prepare` lifecycle; worktree-aware). | [30 — Pre-commit hook tooling](./30-precommit-hook-tooling.md) |
 
 ## Notes
 
@@ -27,4 +28,4 @@ Timestamps use **Asia/Kuala_Lumpur** per `mem://localization/timezone`.
   ambiguities directly to `.lovable/question-and-ambiguity/` but
   did not increment a counter, because no counter file existed
   yet). Subsequent tasks increment from 2.
-- 37 tasks remaining in the window after task 3.
+- 36 tasks remaining in the window after task 4.

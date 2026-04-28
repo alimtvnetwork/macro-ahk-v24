@@ -2,7 +2,7 @@
 
 <img src="docs/assets/marco-logo.png" alt="Marco Extension Logo" width="128" height="128" />
 
-# Marco Chrome Extension
+# <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/windows8/windows8-original.svg" alt="Windows" width="28" height="28" align="center" /> Marco Chrome Extension
 
 > **Browser automation for workspace management, credit monitoring, and AI-driven macro execution** — built as a Manifest V3 Chrome extension with a modular standalone script architecture.
 
@@ -23,17 +23,26 @@
 
 ---
 
-## Install
+## <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/windows8/windows8-original.svg" alt="Windows" width="22" height="22" align="center" /> Install
 
-Run this single line in your terminal — it downloads, verifies, and installs the latest pinned release of Marco:
+Marco is a **Windows-first** project. Run this single line in **PowerShell** — it downloads, verifies, and installs the latest pinned release:
+
+```powershell
+irm https://github.com/alimtvnetwork/macro-ahk-v24/releases/download/v2.158.0/install.ps1 | iex
+```
+
+<details>
+<summary>Linux / macOS (Bash)</summary>
 
 ```bash
 curl -fsSL https://github.com/alimtvnetwork/macro-ahk-v24/releases/download/v2.158.0/install.sh | bash
 ```
 
+</details>
+
 **Pinned version:** `v2.158.0` &nbsp;•&nbsp; **Macro Controller:** `v7.41`
 
-> Prefer PowerShell, the auto-update channel, or a custom directory? See **[Quick Start](#quick-start)** below for every install variant, flags, exit codes, and checksum behavior.
+> Prefer the auto-update channel, a custom directory, or full flag reference? See **[Quick Start](#quick-start)** below for every install variant, flags, exit codes, and checksum behavior.
 
 ---
 

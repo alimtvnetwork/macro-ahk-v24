@@ -40,7 +40,24 @@ export default tseslint.config(
       "sonarjs/prefer-immediate-return": "warn",
       "sonarjs/no-small-switch": "warn",
       "sonarjs/no-gratuitous-expressions": "warn",
-      "sonarjs/no-nested-template-literals": "warn",
+
+      // ── Template-literal standardization ─────────────────────────────
+      // `no-nested-template-literals` was previously "warn" and tripped
+      // CI only because of `--max-warnings=0`. Promoting to "error" makes
+      // the intent explicit in the config itself, so a future contributor
+      // who relaxes `--max-warnings` (or runs ESLint locally without it)
+      // still gets a hard failure on nested back-tick interpolations.
+      // Companion guard `scripts/check-no-nested-template-literals.mjs`
+      // hard-pins the same rule on `run-summary-types.ts` even if this
+      // line is ever softened.
+      "sonarjs/no-nested-template-literals": "error",
+      // Standardize on template literals for any string concatenation that
+      // already mixes a literal with a variable (`"x" + foo` → `` `x${foo}` ``).
+      // Pure literal joins like `"a" + "b"` are NOT flagged.
+      "prefer-template": "error",
+      // Forbid useless backticks like `` `plain string` `` — keep template
+      // literals reserved for actual interpolation or multi-line strings.
+      "no-useless-concat": "error",
 
       // --- Function size (matches 25-line standard) ---
       "max-lines-per-function": ["warn", {

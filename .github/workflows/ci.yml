@@ -66,6 +66,35 @@ jobs:
         run: node scripts/report-spec-links-ci.mjs
 
   # ════════════════════════════════════════════════════════════
+  # Job 0a0b: Nested-template-literal scanner — fast-fail guard
+  #
+  # Targets `standalone-scripts/lovable-common/src/report/run-summary-types.ts`
+  # (and any future entries in TARGETS[] inside the scanner). Hard-pins
+  # the no-nested-template-literals rule for that file even if someone
+  # relaxes the project-wide ESLint sonarjs/* config later.
+  #
+  # No install, no node_modules — pure Node + fs. Returns in <100ms.
+  # Listed in `build-extension.needs:` so a violation blocks merge.
+  # ════════════════════════════════════════════════════════════
+  no-nested-template-literals:
+    name: Preflight · No Nested Template Literals
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Scan for nested template literals
+        run: node scripts/check-no-nested-template-literals.mjs
+
+  # ════════════════════════════════════════════════════════════
   # Job 0a1: Contract-checker wiring lint — pre-merge guard
   #
   # Discovers every `scripts/check-*-contract*.mjs` validator and fails
@@ -1649,7 +1678,7 @@ jobs:
   # ════════════════════════════════════════════════════════════
   build-extension:
     name: Build · Chrome Extension
-    needs: [spec-links, contract-checkers-wired, cicd-index-sync, pascalcase-instruction-migration, report-standalone-registry, readme-conventions, typecheck-app, typecheck-standalone, lint-standalone, build-sdk, build-xpath, build-payment-banner-hider, build-macro-controller, build-prompts, casing-instruction-json]
+    needs: [spec-links, no-nested-template-literals, contract-checkers-wired, cicd-index-sync, pascalcase-instruction-migration, report-standalone-registry, readme-conventions, typecheck-app, typecheck-standalone, lint-standalone, build-sdk, build-xpath, build-payment-banner-hider, build-macro-controller, build-prompts, casing-instruction-json]
     runs-on: ubuntu-latest
 
     steps:

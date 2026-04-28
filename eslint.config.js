@@ -40,7 +40,20 @@ export default tseslint.config(
       "sonarjs/prefer-immediate-return": "warn",
       "sonarjs/no-small-switch": "warn",
       "sonarjs/no-gratuitous-expressions": "warn",
-      "sonarjs/no-nested-template-literals": "warn",
+
+      // ── Template-literal standardization ─────────────────────────────
+      // `no-nested-template-literals` was previously "warn" and tripped
+      // CI only because of `--max-warnings=0`. Promoting to "error" makes
+      // the intent explicit in the config itself, so a future contributor
+      // who relaxes `--max-warnings` (or runs ESLint locally without it)
+      // still gets a hard failure on nested back-tick interpolations.
+      // Companion guard `scripts/check-no-nested-template-literals.mjs`
+      // hard-pins the same rule on `run-summary-types.ts` even if this
+      // line is ever softened.
+      "sonarjs/no-nested-template-literals": "error",
+      // Forbid useless concatenation like `"foo" + "bar"` — pure-literal joins
+      // that should just be one string. Hard error: zero violations today.
+      "no-useless-concat": "error",
 
       // --- Function size (matches 25-line standard) ---
       "max-lines-per-function": ["warn", {
@@ -112,6 +125,38 @@ export default tseslint.config(
     files: ["skipped/**/*.{js,ts}"],
     rules: {
       // Archived / inactive scripts — skip all linting
+    },
+  },
+  // ── Legacy paths with pre-existing `no-nested-template-literals` debt ──
+  //
+  // Every file in this list contains at least one nested template literal
+  // (`` `outer ${`inner ${x}`} ` ``) that predates the rule promotion to
+  // "error". Demote to "warn" here so:
+  //   - NEW code (any file outside this list) gets the hard gate the user
+  //     asked for ("prevent nested template literals in new code").
+  //   - These specific files still surface the warning in IDE + lint
+  //     output and remain on the migration backlog (tracked in plan.md
+  //     "Lint debt — nested template literals").
+  //   - CI's `--max-warnings=0` still flags the warnings — but the
+  //     `lint-standalone` job is scoped to `standalone-scripts/**`, and
+  //     none of these legacy files live there, so the existing CI lint
+  //     budget is unaffected.
+  // The companion `scripts/check-no-nested-template-literals.mjs` keeps
+  // its own pinned TARGETS[] list — adding a file here does NOT remove
+  // it from the hard-pinned scanner.
+  {
+    files: [
+      "src/background/recorder/failure-logger.ts",
+      "src/background/recorder/field-reference-resolver.ts",
+      "src/background/recorder/step-library/csv-parse.ts",
+      "src/components/options/StepGroupLibraryPanel.tsx",
+      "src/components/recorder/SelectorComparisonPanel.tsx",
+      "src/components/recorder/SelectorTesterPanel.tsx",
+      "src/components/recorder/failure-toast.ts",
+      "src/components/recorder/selector-replay-trace.ts",
+    ],
+    rules: {
+      "sonarjs/no-nested-template-literals": "warn",
     },
   },
 );

@@ -75,7 +75,7 @@ const rel = (p) => relative(REPO_ROOT, p) || p;
 /*   { kind:"object", required: string[], optional?: string[],           */
 /*     properties: { [key]: <schema> },                                  */
 /*     additionalKeysAllowed?: boolean (default false),                  */
-/*     allowedAdditionalKeyPattern?: RegExp /* lowercase binding ids */ }*/
+/*     additionalValueSchema?: <schema> }                                */
 /* ------------------------------------------------------------------ */
 
 const TargetUrlSchema = {

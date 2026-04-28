@@ -14,13 +14,14 @@
  *   node scripts/render-db-diagrams.mjs
  */
 
-import { readdirSync, mkdirSync, existsSync } from "node:fs";
+import { readdirSync, mkdirSync, existsSync, statSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { resolve, join, basename, extname } from "node:path";
 
 const ROOT = resolve(process.cwd());
 const DIAGRAMS_DIR = join(ROOT, "spec/23-database/diagrams");
 const IMAGES_DIR = join(ROOT, "spec/23-database/images");
+const CHECK_ONLY = process.argv.includes("--check");
 
 if (!existsSync(DIAGRAMS_DIR)) {
     console.error(`[render-db-diagrams] Missing source folder: ${DIAGRAMS_DIR}`);

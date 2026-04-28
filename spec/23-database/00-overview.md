@@ -27,6 +27,8 @@ land in [`./images/`](./images/) via `node scripts/render-db-diagrams.mjs`.
 | 02 | Project DB / Macro Recorder (Phase 14) | [diagrams/02-project-recorder-db.mmd](./diagrams/02-project-recorder-db.mmd) | [images/02-project-recorder-db.png](./images/02-project-recorder-db.png) |
 | 03 | Step Group Library | [diagrams/03-step-group-library.mmd](./diagrams/03-step-group-library.mmd) | [images/03-step-group-library.png](./images/03-step-group-library.png) |
 | 04 | Storage layers overview (4-tier) | [diagrams/04-storage-layers.mmd](./diagrams/04-storage-layers.mmd) | [images/04-storage-layers.png](./images/04-storage-layers.png) |
+| 05 | Overall schema ERD (Extension DB + Project DB combined) | [diagrams/05-overall-schema-erd.mmd](./diagrams/05-overall-schema-erd.mmd) | [images/05-overall-schema-erd.png](./images/05-overall-schema-erd.png) |
+| 06 | Key tables & relationships (focused recorder/replay subset) | [diagrams/06-key-tables-relationships.mmd](./diagrams/06-key-tables-relationships.mmd) | [images/06-key-tables-relationships.png](./images/06-key-tables-relationships.png) |
 
 Visual style follows `mem://style/diagram-visual-standards` — XMind-inspired
 dark aesthetic, top-down (`flowchart TD`) where applicable, PascalCase node

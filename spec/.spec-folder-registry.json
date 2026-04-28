@@ -109,6 +109,21 @@
       "mustHaveOverview": true
     },
     {
+      "path": "spec/23-database",
+      "kind": "core",
+      "mustHaveOverview": true
+    },
+    {
+      "path": "spec/23-database/diagrams",
+      "kind": "core",
+      "mustHaveOverview": false
+    },
+    {
+      "path": "spec/23-database/images",
+      "kind": "core",
+      "mustHaveOverview": false
+    },
+    {
       "path": "spec/99-archive",
       "kind": "archive-root",
       "mustHaveOverview": false,

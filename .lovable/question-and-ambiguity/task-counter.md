@@ -16,6 +16,7 @@ Timestamps use **Asia/Kuala_Lumpur** per `mem://localization/timezone`.
 | # | Date (KL) | Task summary | Ambiguity log |
 |---|-----------|--------------|---------------|
 | 1 | 2026-04-28 | Persist No-Questions Mode spec to `.lovable/prompts/04-no-questions.md`, create `.lovable/prompts.md` index, create this counter file. | none |
+| 2 | 2026-04-28 | Add clean-build option (`scripts/clean-build.mjs` + `scripts/run-with-env.mjs` + 4 npm scripts) to wipe all build caches and force fresh filesystem reads. | [28 — Clean-build scope](./28-clean-build-scope.md) |
 
 ## Notes
 
@@ -25,4 +26,4 @@ Timestamps use **Asia/Kuala_Lumpur** per `mem://localization/timezone`.
   ambiguities directly to `.lovable/question-and-ambiguity/` but
   did not increment a counter, because no counter file existed
   yet). Subsequent tasks increment from 2.
-- 39 tasks remaining in the window after this one.
+- 38 tasks remaining in the window after task 2.

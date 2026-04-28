@@ -30,6 +30,7 @@
     "hooks:lint-staged": "node scripts/lint-staged-standalone.mjs",
     "hooks:lint-all-standalone": "node scripts/lint-staged-standalone.mjs --all",
     "check:no-nested-tpl": "node scripts/check-no-nested-template-literals.mjs",
+    "lint:run-summary-types": "eslint --max-warnings=0 standalone-scripts/lovable-common/src/report/run-summary-types.ts",
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test",

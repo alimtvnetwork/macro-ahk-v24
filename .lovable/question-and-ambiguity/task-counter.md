@@ -22,6 +22,7 @@ Timestamps use **Asia/Kuala_Lumpur** per `mem://localization/timezone`.
 | 5 | 2026-04-28 | Add nested-template-literal scanner (`scripts/check-no-nested-template-literals.mjs` + `pnpm run check:no-nested-tpl` + new `no-nested-template-literals` CI job + pre-commit hook integration), pinned to `run-summary-types.ts`. | [31 — Nested-tpl scanner mechanism](./31-nested-tpl-scanner-mechanism.md) |
 | 6 | 2026-04-28 | Promote `sonarjs/no-nested-template-literals` to `error` in `eslint.config.js`; add `no-useless-concat: error`; demote 8 legacy files to `warn` so new code gets the hard gate. | [32 — Template lint rule scope](./32-template-lint-rule-scope.md) |
 | 7 | 2026-04-28 | Document the refactor contract (`detailSuffix` empty-or-fragment pattern + `head` array `.join("\n")` pattern) as an in-file JSDoc block above the text renderers in `run-summary-types.ts`, with ✅/❌ examples and snapshot-test reminder. | [33 — Refactor doc placement](./33-refactor-doc-location.md) |
+| 8 | 2026-04-28 | Add `eslint-run-summary-types` Preflight CI job (`--max-warnings=0`) pinned to `standalone-scripts/lovable-common/src/report/run-summary-types.ts` + `pnpm run lint:run-summary-types` npm script; wired into `build-extension.needs:` to catch ESLint *config drift* the scanner cannot see. | [34 — ESLint pin on run-summary-types.ts](./34-eslint-pin-run-summary-types.md) |
 
 ## Notes
 
@@ -31,4 +32,4 @@ Timestamps use **Asia/Kuala_Lumpur** per `mem://localization/timezone`.
   ambiguities directly to `.lovable/question-and-ambiguity/` but
   did not increment a counter, because no counter file existed
   yet). Subsequent tasks increment from 2.
-- 33 tasks remaining in the window after task 7.
+- 32 tasks remaining in the window after task 8.

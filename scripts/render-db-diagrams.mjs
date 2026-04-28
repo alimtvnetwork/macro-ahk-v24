@@ -40,10 +40,51 @@ if (sources.length === 0) {
     process.exit(0);
 }
 
-console.log(`[render-db-diagrams] Rendering ${sources.length} diagram(s) → ${IMAGES_DIR}`);
+console.log(
+    `[render-db-diagrams] ${CHECK_ONLY ? "Checking" : "Rendering"} ${sources.length} diagram(s) → ${IMAGES_DIR}`,
+);
 
 /** Output formats per source file. SVG is vector, PNG is raster. */
 const FORMATS = ["png", "svg"];
+
+if (CHECK_ONLY) {
+    /**
+     * Drift check — every .mmd MUST have sibling .png + .svg, and each image
+     * mtime MUST be >= source mtime. Sequential, fail-fast (no retry/backoff,
+     * honoring mem://constraints/no-retry-policy).
+     */
+    let drift = 0;
+    for (const src of sources) {
+        const srcPath = join(DIAGRAMS_DIR, src);
+        const srcMtime = statSync(srcPath).mtimeMs;
+        const stem = basename(src, extname(src));
+        for (const fmt of FORMATS) {
+            const outPath = join(IMAGES_DIR, `${stem}.${fmt}`);
+            if (!existsSync(outPath)) {
+                drift += 1;
+                console.error(`  ✖ MISSING: ${outPath}`);
+                console.error(`    Source : ${srcPath}`);
+                console.error(`    Reason : sibling ${fmt.toUpperCase()} export not found`);
+                continue;
+            }
+            const outMtime = statSync(outPath).mtimeMs;
+            if (outMtime < srcMtime) {
+                drift += 1;
+                console.error(`  ✖ STALE  : ${outPath}`);
+                console.error(`    Source : ${srcPath}`);
+                console.error(`    Reason : source modified after image (re-run \`npm run db:diagrams\`)`);
+            } else {
+                console.log(`  ✓ ${stem}.${fmt}`);
+            }
+        }
+    }
+    if (drift > 0) {
+        console.error(`[render-db-diagrams] ${drift} drift issue(s). Run \`npm run db:diagrams\` to regenerate.`);
+        process.exit(1);
+    }
+    console.log("[render-db-diagrams] Images in sync with sources.");
+    process.exit(0);
+}
 
 let failures = 0;
 for (const src of sources) {

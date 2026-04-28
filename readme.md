@@ -6,23 +6,16 @@
 
 > **Browser automation for workspace management, credit monitoring, and AI-driven macro execution** — built as a Manifest V3 Chrome extension with a modular standalone script architecture.
 
-<!-- Build & Release -->
+<!-- All badges on a single line -->
+<p>
 <a href="https://github.com/alimtvnetwork/macro-ahk-v24/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/alimtvnetwork/macro-ahk-v24/ci.yml?branch=main&label=CI&logo=github&style=flat-square" alt="CI" /></a>
-
-<!-- Repo activity -->
 <a href="https://github.com/alimtvnetwork/macro-ahk-v24/issues"><img src="https://img.shields.io/github/issues/alimtvnetwork/macro-ahk-v24?style=flat-square&logo=github" alt="Issues" /></a>
 <a href="https://github.com/alimtvnetwork/macro-ahk-v24/pulls"><img src="https://img.shields.io/github/issues-pr/alimtvnetwork/macro-ahk-v24?style=flat-square&logo=github" alt="Pull Requests" /></a>
 <a href="https://github.com/alimtvnetwork/macro-ahk-v24"><img src="https://img.shields.io/github/repo-size/alimtvnetwork/macro-ahk-v24?style=flat-square" alt="Repo Size" /></a>
-
-<!-- Community -->
-<!-- (intentionally empty — see mem://constraints/no-static-mockup-badges) -->
-
-<!-- Code-quality -->
 <a href="https://github.com/alimtvnetwork/macro-ahk-v24/issues?q=is%3Aissue+label%3Asecurity"><img src="https://img.shields.io/github/issues-search/alimtvnetwork/macro-ahk-v24?query=is%3Aissue%20label%3Asecurity&label=security&style=flat-square&logo=github" alt="Security Issues" /></a>
 <a href="https://github.com/alimtvnetwork/macro-ahk-v24/pulls?q=is%3Apr+label%3Adependencies"><img src="https://img.shields.io/github/issues-pr-raw/alimtvnetwork/macro-ahk-v24?label=dependency%20PRs&style=flat-square&logo=dependabot" alt="Dependency PRs" /></a>
-
-<!-- Stack & standards -->
 <a href="#license"><img src="https://img.shields.io/github/license/alimtvnetwork/macro-ahk-v24?style=flat-square" alt="License" /></a>
+</p>
 
 <img src="docs/assets/marco-extension-hero.png" alt="Marco Chrome Extension — Projects view inside the options page" width="820" />
 

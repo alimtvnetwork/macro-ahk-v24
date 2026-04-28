@@ -23,19 +23,31 @@
 
 ---
 
-## <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/windows8/windows8-original.svg" alt="Windows" width="28" height="28" align="center" /> Install
+## Install
 
-### 🪟 Windows · PowerShell
+Marco is a **Windows-first** project. The commands below auto-update to the **latest** release. Prefer a pinned version? Use the second block.
 
-Marco is a **Windows-first** project. Run this single line in **PowerShell** — it downloads, verifies, and installs the latest pinned release:
+### 🪟 Windows · PowerShell (latest)
 
 ```powershell
+irm https://raw.githubusercontent.com/alimtvnetwork/macro-ahk-v24/main/scripts/install.ps1 | iex
+```
+
+### 🐧 macOS · Linux · Bash (latest)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/alimtvnetwork/macro-ahk-v24/main/scripts/install.sh | bash
+```
+
+### 📌 Pinned version (`v2.158.0`)
+
+```powershell
+# Windows · PowerShell
 irm https://github.com/alimtvnetwork/macro-ahk-v24/releases/download/v2.158.0/install.ps1 | iex
 ```
 
-### 🐧 macOS · Linux · Bash
-
 ```bash
+# macOS · Linux · Bash
 curl -fsSL https://github.com/alimtvnetwork/macro-ahk-v24/releases/download/v2.158.0/install.sh | bash
 ```
 

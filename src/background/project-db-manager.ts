@@ -50,6 +50,10 @@ CREATE TABLE IF NOT EXISTS ProjectSchema (
 let SQL: SqlJs | null = null;
 const projectDbs = new Map<string, SqlJsDatabase>();
 const dirtySet = new Set<string>();
+// Tracks slugs whose Phase 14 chain-columns migration has already been applied
+// in this background-worker lifetime. Prevents the cache-hit fast path from
+// silently skipping the migration on cached DB handles (see initProjectDb).
+const chainMigrationApplied = new Set<string>();
 let persistenceMode: PersistenceMode = "memory";
 const flushTimers = new Map<string, ReturnType<typeof setTimeout>>();
 

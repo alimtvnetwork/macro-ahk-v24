@@ -105,7 +105,21 @@ function storageKey(slug: string): string {
 
 export async function initProjectDb(slug: string, extraSchema?: string): Promise<ProjectDbManager> {
     const existing = projectDbs.get(slug);
-    if (existing) return buildProjectManager(slug);
+    if (existing) {
+        // Cache-hit fast path. The DB handle is already loaded, but we still
+        // guarantee the Phase 14 chain-columns migration has run for this slug
+        // in this worker lifetime. This guards against scenarios where the DB
+        // was first opened by an early-boot caller (e.g. seeder) before the
+        // recorder schema migrations were registered, or where the cache was
+        // populated by a code path that bypassed initProjectDb's migration
+        // block. The `chainMigrationApplied` set keeps this O(1) and idempotent
+        // so repeated initProjectDb() calls remain effectively free.
+        if (!chainMigrationApplied.has(slug)) {
+            applyChainColumnsMigration(existing);
+            chainMigrationApplied.add(slug);
+        }
+        return buildProjectManager(slug);
+    }
 
     const sql = await ensureSqlJs();
     // Recorder schema is idempotent — applied to every project DB so that
@@ -120,6 +134,7 @@ export async function initProjectDb(slug: string, extraSchema?: string): Promise
     applyParamsJsonMigration(db);
     // Phase 14 — ensure Step chain columns + StepTag exist on legacy DBs.
     applyChainColumnsMigration(db);
+    chainMigrationApplied.add(slug);
 
     // Ensure default databases (KV, Meta) exist on every project init
     ensureDefaultDatabases(db, slug);

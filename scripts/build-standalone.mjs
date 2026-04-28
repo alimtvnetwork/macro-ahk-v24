@@ -231,36 +231,49 @@ const SHARED_PREREQS = [
     { label: "check-version-sync",           cmd: "node", args: ["scripts/check-version-sync.mjs"] },
 ];
 
-const viteModeFlag = BUILD_MODE === "development" ? ["--mode", "development"] : [];
-
 /** Three bundle builds — fan out in parallel after prereqs succeed.
- *  Use `npx` for tsc/vite so they resolve from node_modules/.bin without
- *  relying on shell PATH activation (works identically on Windows + POSIX).
+ *  Each job is wrapped by `scripts/cached-build.mjs` which:
+ *    • computes a content hash of src/ + tsconfig + vite-config + lockfile
+ *    • on HIT: restores standalone-scripts/<name>/dist/ from .cache/ in <100ms
+ *    • on MISS: runs the inner tsc + vite + post-snapshot chain, then snapshots dist/
+ *  The inner shell command is what would have run before (npx tsc + npx vite + node post)
+ *  so cache misses behave exactly like the pre-cache pipeline.
+ *  Bypass with STANDALONE_BUILD_NO_CACHE=1; force-rebuild with STANDALONE_BUILD_FORCE=1.
  */
+const viteModeFlagStr = BUILD_MODE === "development" ? " --mode development" : "";
+function cachedJob(name, innerShell) {
+    return {
+        name,
+        steps: [
+            {
+                label: `cached-build (${name})`,
+                cmd: "node",
+                args: [
+                    "scripts/cached-build.mjs",
+                    `--name=${name}`,
+                    `--mode=${BUILD_MODE}`,
+                    "--",
+                    "sh",
+                    "-c",
+                    innerShell,
+                ],
+            },
+        ],
+    };
+}
 const PARALLEL_JOBS = [
-    {
-        name: "marco-sdk",
-        steps: [
-            { label: "tsc --noEmit (sdk)", cmd: "npx", args: ["--no-install", "tsc", "--noEmit", "-p", "tsconfig.sdk.json"] },
-            { label: "vite build (sdk)",   cmd: "npx", args: ["--no-install", "vite", "build", "--config", "vite.config.sdk.ts", ...viteModeFlag] },
-            { label: "generate-dts",       cmd: "node", args: ["scripts/generate-dts.mjs"] },
-        ],
-    },
-    {
-        name: "xpath",
-        steps: [
-            { label: "tsc --noEmit (xpath)", cmd: "npx", args: ["--no-install", "tsc", "--noEmit", "-p", "tsconfig.xpath.json"] },
-            { label: "vite build (xpath)",   cmd: "npx", args: ["--no-install", "vite", "build", "--config", "vite.config.xpath.ts", ...viteModeFlag] },
-        ],
-    },
-    {
-        name: "macro-controller",
-        steps: [
-            { label: "tsc --noEmit (macro)",  cmd: "npx", args: ["--no-install", "tsc", "--noEmit", "-p", "tsconfig.macro.build.json"] },
-            { label: "vite build (macro)",    cmd: "npx", args: ["--no-install", "vite", "build", "--config", "vite.config.macro.ts", ...viteModeFlag] },
-            { label: "sync-macro-controller-legacy", cmd: "node", args: ["scripts/sync-macro-controller-legacy.mjs"] },
-        ],
-    },
+    cachedJob(
+        "marco-sdk",
+        `npx --no-install tsc --noEmit -p tsconfig.sdk.json && npx --no-install vite build --config vite.config.sdk.ts${viteModeFlagStr} && node scripts/generate-dts.mjs`,
+    ),
+    cachedJob(
+        "xpath",
+        `npx --no-install tsc --noEmit -p tsconfig.xpath.json && npx --no-install vite build --config vite.config.xpath.ts${viteModeFlagStr}`,
+    ),
+    cachedJob(
+        "macro-controller",
+        `npx --no-install tsc --noEmit -p tsconfig.macro.build.json && npx --no-install vite build --config vite.config.macro.ts${viteModeFlagStr} && node scripts/sync-macro-controller-legacy.mjs`,
+    ),
 ];
 
 /* ------------------------------------------------------------------ */

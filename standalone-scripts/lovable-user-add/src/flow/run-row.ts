@@ -60,6 +60,42 @@ const isStepASuccess = (stepA: StepAResult): boolean => {
     return stepA.Error === null && stepA.Membership !== null && stepA.WorkspaceId !== null;
 };
 
+const handleStepAFailure = (
+    ctx: UserAddRowContext, sink: UserAddLogSink, store: UserAddRowStateStore,
+    startedAt: number, errorMessage: string,
+): Promise<UserAddRowResult> => {
+    logStep(ctx, sink, UserAddLogPhase.StepA, UserAddLogSeverity.Error, `Step A failed: ${errorMessage}`);
+    return finalizeUserAddRow(ctx, sink, store, buildRowFailure({
+        rowIndex: ctx.Row.RowIndex, startedAt,
+        outcome: UserAddRowOutcomeCode.StepAFailed,
+        error: errorMessage,
+        stepBRan: false, stepASucceeded: false, workspaceId: null, userId: null,
+    }));
+};
+
+const runStepBPhase = async (
+    ctx: UserAddRowContext, sink: UserAddLogSink, store: UserAddRowStateStore,
+    startedAt: number, workspaceId: string, userId: string,
+): Promise<UserAddRowResult> => {
+    const stepB = await runStepB(ctx.Api, { WorkspaceId: workspaceId, UserId: userId });
+
+    if (stepB.Error !== null) {
+        logStep(ctx, sink, UserAddLogPhase.StepB, UserAddLogSeverity.Error, `Step B promote failed: ${stepB.Error}`);
+        logNoRollback(ctx, sink, workspaceId, userId);
+        return finalizeUserAddRow(ctx, sink, store, buildRowFailure({
+            rowIndex: ctx.Row.RowIndex, startedAt,
+            outcome: UserAddRowOutcomeCode.StepBFailedMemberAdded,
+            error: stepB.Error, stepBRan: true, stepASucceeded: true,
+            workspaceId, userId,
+        }));
+    }
+
+    logStep(ctx, sink, UserAddLogPhase.StepB, UserAddLogSeverity.Info, "Step B PUT promote ok");
+    return finalizeUserAddRow(ctx, sink, store, buildRowSuccess({
+        rowIndex: ctx.Row.RowIndex, startedAt, stepBRan: true, workspaceId, userId,
+    }));
+};
+
 export const runUserAddRow = async (
     ctx: UserAddRowContext, sink: UserAddLogSink, store: UserAddRowStateStore,
 ): Promise<UserAddRowResult> => {
@@ -67,12 +103,8 @@ export const runUserAddRow = async (
     noteEditorNormalization(ctx, sink);
 
     if (ctx.Row.RoleCode === null) {
-        return finalizeUserAddRow(ctx, sink, store, buildRowFailure({
-            rowIndex: ctx.Row.RowIndex, startedAt,
-            outcome: UserAddRowOutcomeCode.StepAFailed,
-            error: "RoleCode missing on row and no DefaultRoleCode applied",
-            stepBRan: false, stepASucceeded: false, workspaceId: null, userId: null,
-        }));
+        return handleStepAFailure(ctx, sink, store, startedAt,
+            "RoleCode missing on row and no DefaultRoleCode applied");
     }
 
     const stepA = await runStepA(ctx.Api, {
@@ -81,15 +113,8 @@ export const runUserAddRow = async (
     });
 
     if (!isStepASuccess(stepA) || stepA.Membership === null || stepA.WorkspaceId === null) {
-        logStep(ctx, sink, UserAddLogPhase.StepA, UserAddLogSeverity.Error,
-            `Step A failed: ${stepA.Error ?? "no membership returned"}`);
-
-        return finalizeUserAddRow(ctx, sink, store, buildRowFailure({
-            rowIndex: ctx.Row.RowIndex, startedAt,
-            outcome: UserAddRowOutcomeCode.StepAFailed,
-            error: stepA.Error ?? "Step A returned null membership",
-            stepBRan: false, stepASucceeded: false, workspaceId: null, userId: null,
-        }));
+        return handleStepAFailure(ctx, sink, store, startedAt,
+            stepA.Error ?? "Step A returned null membership");
     }
 
     logStep(ctx, sink, UserAddLogPhase.StepA, UserAddLogSeverity.Info,
@@ -102,27 +127,5 @@ export const runUserAddRow = async (
         }));
     }
 
-    const stepB = await runStepB(ctx.Api, {
-        WorkspaceId: stepA.WorkspaceId, UserId: stepA.Membership.UserId,
-    });
-
-    if (stepB.Error !== null) {
-        logStep(ctx, sink, UserAddLogPhase.StepB, UserAddLogSeverity.Error,
-            `Step B promote failed: ${stepB.Error}`);
-        logNoRollback(ctx, sink, stepA.WorkspaceId, stepA.Membership.UserId);
-
-        return finalizeUserAddRow(ctx, sink, store, buildRowFailure({
-            rowIndex: ctx.Row.RowIndex, startedAt,
-            outcome: UserAddRowOutcomeCode.StepBFailedMemberAdded,
-            error: stepB.Error, stepBRan: true, stepASucceeded: true,
-            workspaceId: stepA.WorkspaceId, userId: stepA.Membership.UserId,
-        }));
-    }
-
-    logStep(ctx, sink, UserAddLogPhase.StepB, UserAddLogSeverity.Info, "Step B PUT promote ok");
-
-    return finalizeUserAddRow(ctx, sink, store, buildRowSuccess({
-        rowIndex: ctx.Row.RowIndex, startedAt, stepBRan: true,
-        workspaceId: stepA.WorkspaceId, userId: stepA.Membership.UserId,
-    }));
+    return runStepBPhase(ctx, sink, store, startedAt, stepA.WorkspaceId, stepA.Membership.UserId);
 };

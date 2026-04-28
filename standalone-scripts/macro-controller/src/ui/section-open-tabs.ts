@@ -49,27 +49,19 @@ interface OpenLovableTabsResponseView {
 
 const PANEL_ID = 'loop-open-tabs-panel';
 
-export function createOpenTabsSection(): OpenTabsSectionResult {
-    const col = createCollapsibleSection('🪟 Open Lovable Tabs', 'ml_collapse_open_tabs');
-
-    const panel = document.createElement('div');
-    panel.id = PANEL_ID;
-    panel.style.cssText = 'padding:4px;background:rgba(0,0,0,.5);border:1px solid #1e3a5f;border-radius:3px;max-height:160px;overflow-y:auto;';
-    panel.innerHTML = renderEmpty('Click to load.');
-
+function createRefreshButton(onRefresh: () => void): HTMLButtonElement {
     const refreshBtn = document.createElement('button');
     refreshBtn.type = 'button';
     refreshBtn.textContent = '⟳ Refresh';
     refreshBtn.style.cssText = 'margin-top:4px;padding:2px 8px;background:#1e3a5f;color:#cbd5e1;border:1px solid #3b6fa0;border-radius:3px;font-size:9px;cursor:pointer;';
     refreshBtn.onclick = function (e: Event): void {
         e.stopPropagation();
-        void refresh();
+        onRefresh();
     };
+    return refreshBtn;
+}
 
-    col.body.appendChild(panel);
-    col.body.appendChild(refreshBtn);
-
-    // Event delegation: per-row "Copy URL" buttons emit data-copy-url.
+function attachCopyDelegation(panel: HTMLElement): void {
     panel.addEventListener('click', function (e: Event): void {
         const target = e.target as HTMLElement | null;
         if (!target) return;
@@ -80,6 +72,15 @@ export function createOpenTabsSection(): OpenTabsSectionResult {
         if (!url) return;
         void copyToClipboard(url, btn);
     });
+}
+
+export function createOpenTabsSection(): OpenTabsSectionResult {
+    const col = createCollapsibleSection('🪟 Open Lovable Tabs', 'ml_collapse_open_tabs');
+
+    const panel = document.createElement('div');
+    panel.id = PANEL_ID;
+    panel.style.cssText = 'padding:4px;background:rgba(0,0,0,.5);border:1px solid #1e3a5f;border-radius:3px;max-height:160px;overflow-y:auto;';
+    panel.innerHTML = renderEmpty('Click to load.');
 
     async function refresh(): Promise<void> {
         panel.innerHTML = renderEmpty('Loading…');
@@ -98,6 +99,10 @@ export function createOpenTabsSection(): OpenTabsSectionResult {
             panel.innerHTML = renderError(msg);
         }
     }
+
+    col.body.appendChild(panel);
+    col.body.appendChild(createRefreshButton(function () { void refresh(); }));
+    attachCopyDelegation(panel);
 
     // Auto-refresh on first expand and on each subsequent expand.
     const origClick = col.header.onclick as (() => void) | null;
@@ -133,33 +138,32 @@ function renderList(tabs: ReadonlyArray<OpenLovableTabInfoView>, capturedAt: str
     return html;
 }
 
-function renderRow(t: OpenLovableTabInfoView): string {
-    const titleSafe = escapeHtml(t.title || '(untitled)');
-    const urlSafe = escapeHtml(shortenUrl(t.url));
-
-    // Workspace label priority:
-    //   1. matched stored project name (projectName)
-    //   2. detected workspace name reported by the tab's controller (probe)
-    //   3. fallback "unknown / not bound"
-    let wsLabel: string;
+function buildWorkspaceLabel(t: OpenLovableTabInfoView): string {
     if (t.projectName !== null) {
         const tag = t.bindingSource === 'probe'
             ? ' <span style="color:#9ca3af;font-size:8px;">(via probe)</span>'
             : '';
-        wsLabel = '<span style="color:#10b981;">' + escapeHtml(t.projectName) + '</span>' + tag;
-    } else if (t.detectedWorkspaceName) {
+        return '<span style="color:#10b981;">' + escapeHtml(t.projectName) + '</span>' + tag;
+    }
+    if (t.detectedWorkspaceName) {
         const sourceTag = t.detectedWorkspaceSource
             ? ' <span style="color:#9ca3af;font-size:8px;">(' + escapeHtml(t.detectedWorkspaceSource) + ')</span>'
             : '';
-        wsLabel = '<span style="color:#fbbf24;">' + escapeHtml(t.detectedWorkspaceName) + '</span>' + sourceTag;
-    } else {
-        const reason = t.probeError
-            ? 'no controller (' + t.probeError + ')'
-            : (t.bindingSource === 'injection' ? 'unknown project' : 'not bound');
-        wsLabel = '<span style="color:#9ca3af;font-style:italic;" title="' + escapeHtml(reason) + '">'
-            + escapeHtml(reason.length > 40 ? reason.slice(0, 40) + '…' : reason)
-            + '</span>';
+        return '<span style="color:#fbbf24;">' + escapeHtml(t.detectedWorkspaceName) + '</span>' + sourceTag;
     }
+    const reason = t.probeError
+        ? 'no controller (' + t.probeError + ')'
+        : (t.bindingSource === 'injection' ? 'unknown project' : 'not bound');
+    const truncated = reason.length > 40 ? reason.slice(0, 40) + '…' : reason;
+    return '<span style="color:#9ca3af;font-style:italic;" title="' + escapeHtml(reason) + '">'
+        + escapeHtml(truncated)
+        + '</span>';
+}
+
+function renderRow(t: OpenLovableTabInfoView): string {
+    const titleSafe = escapeHtml(t.title || '(untitled)');
+    const urlSafe = escapeHtml(shortenUrl(t.url));
+    const wsLabel = buildWorkspaceLabel(t);
 
     const activeBadge = t.active
         ? '<span style="color:#fbbf24;margin-right:4px;" title="Active in window">●</span>'

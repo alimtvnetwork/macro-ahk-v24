@@ -49,27 +49,19 @@ interface OpenLovableTabsResponseView {
 
 const PANEL_ID = 'loop-open-tabs-panel';
 
-export function createOpenTabsSection(): OpenTabsSectionResult {
-    const col = createCollapsibleSection('🪟 Open Lovable Tabs', 'ml_collapse_open_tabs');
-
-    const panel = document.createElement('div');
-    panel.id = PANEL_ID;
-    panel.style.cssText = 'padding:4px;background:rgba(0,0,0,.5);border:1px solid #1e3a5f;border-radius:3px;max-height:160px;overflow-y:auto;';
-    panel.innerHTML = renderEmpty('Click to load.');
-
+function createRefreshButton(onRefresh: () => void): HTMLButtonElement {
     const refreshBtn = document.createElement('button');
     refreshBtn.type = 'button';
     refreshBtn.textContent = '⟳ Refresh';
     refreshBtn.style.cssText = 'margin-top:4px;padding:2px 8px;background:#1e3a5f;color:#cbd5e1;border:1px solid #3b6fa0;border-radius:3px;font-size:9px;cursor:pointer;';
     refreshBtn.onclick = function (e: Event): void {
         e.stopPropagation();
-        void refresh();
+        onRefresh();
     };
+    return refreshBtn;
+}
 
-    col.body.appendChild(panel);
-    col.body.appendChild(refreshBtn);
-
-    // Event delegation: per-row "Copy URL" buttons emit data-copy-url.
+function attachCopyDelegation(panel: HTMLElement): void {
     panel.addEventListener('click', function (e: Event): void {
         const target = e.target as HTMLElement | null;
         if (!target) return;
@@ -80,6 +72,15 @@ export function createOpenTabsSection(): OpenTabsSectionResult {
         if (!url) return;
         void copyToClipboard(url, btn);
     });
+}
+
+export function createOpenTabsSection(): OpenTabsSectionResult {
+    const col = createCollapsibleSection('🪟 Open Lovable Tabs', 'ml_collapse_open_tabs');
+
+    const panel = document.createElement('div');
+    panel.id = PANEL_ID;
+    panel.style.cssText = 'padding:4px;background:rgba(0,0,0,.5);border:1px solid #1e3a5f;border-radius:3px;max-height:160px;overflow-y:auto;';
+    panel.innerHTML = renderEmpty('Click to load.');
 
     async function refresh(): Promise<void> {
         panel.innerHTML = renderEmpty('Loading…');
@@ -98,6 +99,10 @@ export function createOpenTabsSection(): OpenTabsSectionResult {
             panel.innerHTML = renderError(msg);
         }
     }
+
+    col.body.appendChild(panel);
+    col.body.appendChild(createRefreshButton(function () { void refresh(); }));
+    attachCopyDelegation(panel);
 
     // Auto-refresh on first expand and on each subsequent expand.
     const origClick = col.header.onclick as (() => void) | null;

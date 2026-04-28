@@ -705,6 +705,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --prefer-offline --no-frozen-lockfile
 
+      - name: Cache standalone build · marco-sdk
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/standalone-builds/marco-sdk
+            .cache/tsbuildinfo/marco-sdk.tsbuildinfo
+          key: ${{ runner.os }}-stdbuild-marco-sdk-${{ hashFiles('standalone-scripts/marco-sdk/src/**', 'standalone-scripts/marco-sdk/instruction.ts', 'standalone-scripts/marco-sdk/package.json', 'tsconfig.marco-sdk.json', 'tsconfig.sdk.json', 'tsconfig.xpath.json', 'tsconfig.macro.build.json', 'tsconfig.payment-banner-hider.json', 'vite.config.marco-sdk.ts', 'vite.config.sdk.ts', 'vite.config.xpath.ts', 'vite.config.macro.ts', 'vite.config.payment-banner-hider.ts', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stdbuild-marco-sdk-
+
       - name: Build Marco SDK
         run: pnpm run build:sdk
 
@@ -771,6 +781,16 @@ jobs:
         with:
           name: sdk-dist
           path: standalone-scripts/marco-sdk/dist/
+
+      - name: Cache standalone build · xpath
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/standalone-builds/xpath
+            .cache/tsbuildinfo/xpath.tsbuildinfo
+          key: ${{ runner.os }}-stdbuild-xpath-${{ hashFiles('standalone-scripts/xpath/src/**', 'standalone-scripts/xpath/instruction.ts', 'standalone-scripts/xpath/package.json', 'tsconfig.xpath.json', 'tsconfig.sdk.json', 'tsconfig.xpath.json', 'tsconfig.macro.build.json', 'tsconfig.payment-banner-hider.json', 'vite.config.xpath.ts', 'vite.config.sdk.ts', 'vite.config.xpath.ts', 'vite.config.macro.ts', 'vite.config.payment-banner-hider.ts', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stdbuild-xpath-
 
       - name: Build XPath
         run: pnpm run build:xpath
@@ -853,6 +873,16 @@ jobs:
           key: ${{ runner.os }}-macro-less-${{ hashFiles('standalone-scripts/macro-controller/less/**/*.less', 'scripts/compile-less.mjs', 'pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-macro-less-
+
+      - name: Cache standalone build · macro-controller
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/standalone-builds/macro-controller
+            .cache/tsbuildinfo/macro-controller.tsbuildinfo
+          key: ${{ runner.os }}-stdbuild-macro-controller-${{ hashFiles('standalone-scripts/macro-controller/src/**', 'standalone-scripts/macro-controller/instruction.ts', 'standalone-scripts/macro-controller/package.json', 'tsconfig.macro-controller.json', 'tsconfig.sdk.json', 'tsconfig.xpath.json', 'tsconfig.macro.build.json', 'tsconfig.payment-banner-hider.json', 'vite.config.macro-controller.ts', 'vite.config.sdk.ts', 'vite.config.xpath.ts', 'vite.config.macro.ts', 'vite.config.payment-banner-hider.ts', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stdbuild-macro-controller-
 
       - name: Build Macro Controller
         run: pnpm run build:macro-controller
@@ -985,6 +1015,16 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --prefer-offline --no-frozen-lockfile
+
+      - name: Cache standalone build · payment-banner-hider
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/standalone-builds/payment-banner-hider
+            .cache/tsbuildinfo/payment-banner-hider.tsbuildinfo
+          key: ${{ runner.os }}-stdbuild-payment-banner-hider-${{ hashFiles('standalone-scripts/payment-banner-hider/src/**', 'standalone-scripts/payment-banner-hider/instruction.ts', 'standalone-scripts/payment-banner-hider/package.json', 'tsconfig.payment-banner-hider.json', 'tsconfig.sdk.json', 'tsconfig.xpath.json', 'tsconfig.macro.build.json', 'tsconfig.payment-banner-hider.json', 'vite.config.payment-banner-hider.ts', 'vite.config.sdk.ts', 'vite.config.xpath.ts', 'vite.config.macro.ts', 'vite.config.payment-banner-hider.ts', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stdbuild-payment-banner-hider-
 
       - name: Build Payment Banner Hider
         run: pnpm run build:payment-banner-hider
@@ -1924,6 +1964,16 @@ jobs:
         with: { version: 9, run_install: false }
       - name: Install dependencies
         run: pnpm install --prefer-offline --no-frozen-lockfile
+      - name: Cache standalone build · marco-sdk
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/standalone-builds/marco-sdk
+            .cache/tsbuildinfo/marco-sdk.tsbuildinfo
+          key: ${{ runner.os }}-stdbuild-marco-sdk-${{ hashFiles('standalone-scripts/marco-sdk/src/**', 'standalone-scripts/marco-sdk/instruction.ts', 'standalone-scripts/marco-sdk/package.json', 'tsconfig.marco-sdk.json', 'tsconfig.sdk.json', 'tsconfig.xpath.json', 'tsconfig.macro.build.json', 'tsconfig.payment-banner-hider.json', 'vite.config.marco-sdk.ts', 'vite.config.sdk.ts', 'vite.config.xpath.ts', 'vite.config.macro.ts', 'vite.config.payment-banner-hider.ts', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stdbuild-marco-sdk-
+
       - name: Build marco-sdk
         run: pnpm run build:marco-sdk
       - uses: actions/upload-artifact@v4
@@ -1944,6 +1994,16 @@ jobs:
         with: { version: 9, run_install: false }
       - name: Install dependencies
         run: pnpm install --prefer-offline --no-frozen-lockfile
+      - name: Cache standalone build · lovable-common
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/standalone-builds/lovable-common
+            .cache/tsbuildinfo/lovable-common.tsbuildinfo
+          key: ${{ runner.os }}-stdbuild-lovable-common-${{ hashFiles('standalone-scripts/lovable-common/src/**', 'standalone-scripts/lovable-common/instruction.ts', 'standalone-scripts/lovable-common/package.json', 'tsconfig.lovable-common.json', 'tsconfig.sdk.json', 'tsconfig.xpath.json', 'tsconfig.macro.build.json', 'tsconfig.payment-banner-hider.json', 'vite.config.lovable-common.ts', 'vite.config.sdk.ts', 'vite.config.xpath.ts', 'vite.config.macro.ts', 'vite.config.payment-banner-hider.ts', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stdbuild-lovable-common-
+
       - name: Build lovable-common
         run: pnpm run build:lovable-common
       - uses: actions/upload-artifact@v4
@@ -1964,6 +2024,16 @@ jobs:
         with: { version: 9, run_install: false }
       - name: Install dependencies
         run: pnpm install --prefer-offline --no-frozen-lockfile
+      - name: Cache standalone build · lovable-owner-switch
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/standalone-builds/lovable-owner-switch
+            .cache/tsbuildinfo/lovable-owner-switch.tsbuildinfo
+          key: ${{ runner.os }}-stdbuild-lovable-owner-switch-${{ hashFiles('standalone-scripts/lovable-owner-switch/src/**', 'standalone-scripts/lovable-owner-switch/instruction.ts', 'standalone-scripts/lovable-owner-switch/package.json', 'tsconfig.lovable-owner-switch.json', 'tsconfig.sdk.json', 'tsconfig.xpath.json', 'tsconfig.macro.build.json', 'tsconfig.payment-banner-hider.json', 'vite.config.lovable-owner-switch.ts', 'vite.config.sdk.ts', 'vite.config.xpath.ts', 'vite.config.macro.ts', 'vite.config.payment-banner-hider.ts', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stdbuild-lovable-owner-switch-
+
       - name: Build lovable-owner-switch
         run: pnpm run build:lovable-owner-switch
       - uses: actions/upload-artifact@v4
@@ -1984,6 +2054,16 @@ jobs:
         with: { version: 9, run_install: false }
       - name: Install dependencies
         run: pnpm install --prefer-offline --no-frozen-lockfile
+      - name: Cache standalone build · lovable-user-add
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/standalone-builds/lovable-user-add
+            .cache/tsbuildinfo/lovable-user-add.tsbuildinfo
+          key: ${{ runner.os }}-stdbuild-lovable-user-add-${{ hashFiles('standalone-scripts/lovable-user-add/src/**', 'standalone-scripts/lovable-user-add/instruction.ts', 'standalone-scripts/lovable-user-add/package.json', 'tsconfig.lovable-user-add.json', 'tsconfig.sdk.json', 'tsconfig.xpath.json', 'tsconfig.macro.build.json', 'tsconfig.payment-banner-hider.json', 'vite.config.lovable-user-add.ts', 'vite.config.sdk.ts', 'vite.config.xpath.ts', 'vite.config.macro.ts', 'vite.config.payment-banner-hider.ts', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stdbuild-lovable-user-add-
+
       - name: Build lovable-user-add
         run: pnpm run build:lovable-user-add
       - uses: actions/upload-artifact@v4

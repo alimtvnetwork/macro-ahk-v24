@@ -274,42 +274,162 @@ function typeOf(value) {
     return typeof value;
 }
 
-function validate(value, schema, path, violations) {
+/**
+ * Pretty-preview a received value for an error message. Keeps strings
+ * short (≤40 chars), shows numbers/bools verbatim, and prints a one-line
+ * shape summary for objects/arrays so the operator can eyeball "what
+ * did the validator actually see" without scrolling the JSON dump.
+ */
+function previewValue(value) {
+    const t = typeOf(value);
+    if (t === "null" || t === "undefined") return t;
+    if (t === "string") {
+        const max = 40;
+        const truncated = value.length > max ? `${value.slice(0, max)}…` : value;
+        return JSON.stringify(truncated);
+    }
+    if (t === "number" || t === "boolean") return String(value);
+    if (t === "array") return `array(len=${value.length})`;
+    // object
+    const keys = Object.keys(value);
+    const head = keys.slice(0, 4).join(",");
+    const tail = keys.length > 4 ? `,…+${keys.length - 4}` : "";
+    return `object{${head}${tail}}`;
+}
+
+/**
+ * Pull a stable "identity" from an object so a violation deep in
+ * `Assets.Scripts[3].ConfigBinding` can be reported as
+ * `near Scripts[3] {File:"foo.js"}` instead of forcing the operator to
+ * count array indices in the JSON dump. Tries common identity keys in
+ * priority order; falls back to the first 2 string-valued keys.
+ */
+const IDENTITY_KEYS = [
+    "Name", "name",
+    "Key", "key",
+    "File", "file",
+    "Id", "id",
+    "Code", "code",
+    "Url", "url", "TargetUrl", "targetUrl",
+];
+
+function identityHint(parents) {
+    // Walk parents from nearest object up; return the first object that
+    // has a recognisable identity field. Skip arrays — the index is
+    // already in `path`.
+    for (let i = parents.length - 1; i >= 0; i--) {
+        const p = parents[i];
+        if (!p || typeof p.value !== "object" || Array.isArray(p.value)) continue;
+        for (const k of IDENTITY_KEYS) {
+            const v = p.value[k];
+            if (typeof v === "string" && v.length > 0) {
+                const max = 40;
+                const trimmed = v.length > max ? `${v.slice(0, max)}…` : v;
+                return ` (near ${p.label} {${k}:${JSON.stringify(trimmed)}})`;
+            }
+        }
+    }
+    return "";
+}
+
+/** Levenshtein distance, capped — used for "did you mean?" suggestions. */
+function editDistance(a, b) {
+    if (a === b) return 0;
+    const al = a.length, bl = b.length;
+    if (al === 0) return bl;
+    if (bl === 0) return al;
+    let prev = new Array(bl + 1);
+    let curr = new Array(bl + 1);
+    for (let j = 0; j <= bl; j++) prev[j] = j;
+    for (let i = 1; i <= al; i++) {
+        curr[0] = i;
+        for (let j = 1; j <= bl; j++) {
+            const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
+            curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+        }
+        [prev, curr] = [curr, prev];
+    }
+    return prev[bl];
+}
+
+function suggestClosest(input, candidates) {
+    if (candidates.length === 0) return null;
+    const lcInput = input.toLowerCase();
+    let best = null;
+    let bestDist = Infinity;
+    for (const cand of candidates) {
+        const d = editDistance(lcInput, cand.toLowerCase());
+        if (d < bestDist) { bestDist = d; best = cand; }
+    }
+    // Suggest only if reasonably close: ≤ 2 edits OR ≤ 1/3 of input length.
+    const threshold = Math.max(2, Math.floor(input.length / 3));
+    return bestDist <= threshold ? best : null;
+}
+
+function validate(value, schema, path, violations, parents = []) {
+    const hint = () => identityHint(parents);
+
     if (schema.kind === "string") {
         if (typeof value !== "string") {
-            violations.push({ path, message: `expected string, got ${typeOf(value)}` });
+            violations.push({
+                path,
+                message: `expected string, got ${typeOf(value)} (received ${previewValue(value)})${hint()}`,
+            });
             return;
         }
         if (schema.enum && !schema.enum.includes(value)) {
-            violations.push({ path, message: `value "${value}" not in enum [${schema.enum.join(", ")}]` });
+            const closest = suggestClosest(value, schema.enum);
+            const didYouMean = closest ? ` — did you mean "${closest}"?` : "";
+            violations.push({
+                path,
+                message: `value "${value}" not in enum [${schema.enum.join(", ")}]${didYouMean}${hint()}`,
+            });
         }
         return;
     }
     if (schema.kind === "number") {
         if (typeof value !== "number" || !Number.isFinite(value)) {
-            violations.push({ path, message: `expected finite number, got ${typeOf(value)}` });
+            violations.push({
+                path,
+                message: `expected finite number, got ${typeOf(value)} (received ${previewValue(value)})${hint()}`,
+            });
         }
         return;
     }
     if (schema.kind === "boolean") {
         if (typeof value !== "boolean") {
-            violations.push({ path, message: `expected boolean, got ${typeOf(value)}` });
+            violations.push({
+                path,
+                message: `expected boolean, got ${typeOf(value)} (received ${previewValue(value)})${hint()}`,
+            });
         }
         return;
     }
     if (schema.kind === "array") {
         if (!Array.isArray(value)) {
-            violations.push({ path, message: `expected array, got ${typeOf(value)}` });
+            violations.push({
+                path,
+                message: `expected array, got ${typeOf(value)} (received ${previewValue(value)})${hint()}`,
+            });
             return;
         }
+        // Push a synthetic parent labelled by the array path so deeply
+        // nested errors can still report ancestor identity.
+        const arrayLabel = path.split(".").pop() || path;
+        const nextParents = parents.concat([{ value, label: arrayLabel }]);
         for (let i = 0; i < value.length; i++) {
-            validate(value[i], schema.items, `${path}[${i}]`, violations);
+            const elemLabel = `${arrayLabel}[${i}]`;
+            const elemParents = nextParents.concat([{ value: value[i], label: elemLabel }]);
+            validate(value[i], schema.items, `${path}[${i}]`, violations, elemParents);
         }
         return;
     }
     if (schema.kind === "object") {
         if (value === null || typeof value !== "object" || Array.isArray(value)) {
-            violations.push({ path, message: `expected object, got ${typeOf(value)}` });
+            violations.push({
+                path,
+                message: `expected object, got ${typeOf(value)} (received ${previewValue(value)})${hint()}`,
+            });
             return;
         }
         const knownKeys = new Set([
@@ -319,22 +439,39 @@ function validate(value, schema, path, violations) {
         ]);
         for (const required of schema.required ?? []) {
             if (!(required in value)) {
-                violations.push({ path, message: `missing required key "${required}"` });
+                const presentKeys = Object.keys(value);
+                const presentSummary = presentKeys.length === 0
+                    ? "(empty object)"
+                    : `present keys: [${presentKeys.slice(0, 8).join(", ")}${presentKeys.length > 8 ? `, …+${presentKeys.length - 8}` : ""}]`;
+                violations.push({
+                    path,
+                    message: `missing required key "${required}" — ${presentSummary}${hint()}`,
+                });
             }
         }
+        const objLabel = path.split(".").pop() || path;
+        const childParents = parents.concat([{ value, label: objLabel }]);
         for (const [k, v] of Object.entries(value)) {
             if (knownKeys.has(k)) {
                 const subSchema = schema.properties?.[k];
-                if (subSchema) validate(v, subSchema, `${path}.${k}`, violations);
+                if (subSchema) validate(v, subSchema, `${path}.${k}`, violations, childParents);
                 continue;
             }
             if (schema.additionalKeysAllowed) {
                 if (schema.additionalValueSchema) {
-                    validate(v, schema.additionalValueSchema, `${path}.${k}`, violations);
+                    validate(v, schema.additionalValueSchema, `${path}.${k}`, violations, childParents);
                 }
                 continue;
             }
-            violations.push({ path, message: `unknown key "${k}" (closed schema)` });
+            const closest = suggestClosest(k, [...knownKeys]);
+            const didYouMean = closest ? ` — did you mean "${closest}"?` : "";
+            const allowed = knownKeys.size > 0
+                ? ` (allowed: [${[...knownKeys].slice(0, 8).join(", ")}${knownKeys.size > 8 ? `, …+${knownKeys.size - 8}` : ""}])`
+                : "";
+            violations.push({
+                path,
+                message: `unknown key "${k}" (closed schema)${didYouMean}${allowed}${hint()}`,
+            });
         }
     }
 }

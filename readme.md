@@ -57,7 +57,7 @@ curl -fsSL https://github.com/alimtvnetwork/macro-ahk-v24/releases/download/v2.1
 
 **Pinned version:** `v2.158.0` &nbsp;•&nbsp; **Macro Controller:** `v7.41`
 
-> Prefer the auto-update channel, a custom directory, or full flag reference? See **[Quick Start](#quick-start)** below for every install variant, flags, exit codes, and checksum behavior.
+> Jump straight to your platform: **[🪟 Install on Windows (PowerShell)](#-install-on-windows-powershell)** &nbsp;•&nbsp; **[🐧 Install on Linux / macOS (Bash)](#-install-on-linux--macos-bash)** &nbsp;•&nbsp; **[Full Quick Start](#quick-start)**
 
 ---
 
@@ -71,7 +71,37 @@ In short: Marco is the project that came out of taking "let me just automate thi
 
 ## Quick Start
 
-### One-Liner Install
+Pick your platform — each section is a self-contained install path with the recommended one-liner, flags, and a link to the deeper reference.
+
+### 🪟 Install on Windows (PowerShell)
+
+**Recommended path.** Open **PowerShell** (Win + X → "Windows PowerShell" or "Terminal") and run:
+
+```powershell
+irm https://github.com/alimtvnetwork/macro-ahk-v24/releases/download/v2.158.0/install.ps1 | iex
+```
+
+- 🔒 Pinned to `v2.158.0` — see [Pinned to a specific release](#-pinned-to-a-specific-release) to change versions
+- 🌊 Want auto-update? Use the [latest channel](#-latest-channel-auto-update) one-liner
+- 📁 Custom install folder? See [Custom Directory Install](#custom-directory-install)
+- 🚩 Full flag list, exit codes, checksum behavior → [Installer Options](#installer-options)
+
+### 🐧 Install on Linux / macOS (Bash)
+
+Open your terminal and run:
+
+```bash
+curl -fsSL https://github.com/alimtvnetwork/macro-ahk-v24/releases/download/v2.158.0/install.sh | bash
+```
+
+- 🔒 Pinned to `v2.158.0` — see [Pinned to a specific release](#-pinned-to-a-specific-release) for other tags
+- 🌊 Auto-update channel → [latest channel](#-latest-channel-auto-update)
+- 📁 Custom install folder? See [Custom Directory Install](#custom-directory-install)
+- 🚩 Full flag list, exit codes, checksum behavior → [Installer Options](#installer-options)
+
+---
+
+### One-Liner Install (all variants)
 
 The unified installer auto-derives the pinned version from its download URL. Use a **release-asset URL** to pin to that exact release, or use **`raw.githubusercontent.com/.../main/`** for the auto-update channel.
 

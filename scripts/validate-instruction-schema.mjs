@@ -442,6 +442,45 @@ function validate(value, schema, path, violations, parents = []) {
         }
         return;
     }
+    if (schema.kind === "schemaVersion") {
+        // Composite check: must be a string, must match the dotted
+        // MAJOR.MINOR pattern from schema-version.json, AND must be in
+        // the supported list. Each failure mode produces a distinct,
+        // actionable message so a "1" typo, a "2.0" pre-bump, and a
+        // numeric `1.0` literal each report a different remediation.
+        const { pattern, patternSource, supported, current } = SCHEMA_VERSION_CONTRACT;
+        if (typeof value !== "string") {
+            violations.push({
+                path,
+                message:
+                    `expected SchemaVersion string (one of [${supported.join(", ")}]), ` +
+                    `got ${typeOf(value)} (received ${previewValue(value)})${hint()}`,
+            });
+            return;
+        }
+        if (!pattern.test(value)) {
+            violations.push({
+                path,
+                message:
+                    `SchemaVersion "${value}" does not match required pattern /${patternSource}/ ` +
+                    `(expected dotted MAJOR.MINOR like "${current}")${hint()}`,
+            });
+            return;
+        }
+        if (!supported.includes(value)) {
+            const closest = suggestClosest(value, supported);
+            const didYouMean = closest ? ` — did you mean "${closest}"?` : "";
+            violations.push({
+                path,
+                message:
+                    `SchemaVersion "${value}" is not supported by this build ` +
+                    `(supported: [${supported.join(", ")}], current: "${current}")${didYouMean}` +
+                    ` — bump standalone-scripts/types/instruction/primitives/schema-version.{ts,json} ` +
+                    `if this is an intentional rollout${hint()}`,
+            });
+        }
+        return;
+    }
     if (schema.kind === "number") {
         if (typeof value !== "number" || !Number.isFinite(value)) {
             violations.push({

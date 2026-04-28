@@ -47,17 +47,42 @@ interface Props {
     ) => Promise<void>;
 }
 
-export function RecorderStepDetail({ step, selectors, dataSources, bindings, onRename }: Props) {
+export function RecorderStepDetail({
+    step,
+    selectors,
+    dataSources,
+    bindings,
+    tags,
+    onRename,
+    onDescriptionSave,
+    onTagsSave,
+    onLinkChange,
+}: Props) {
     const [draftName, setDraftName] = useState(step.VariableName);
     const [renameError, setRenameError] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
+    const [draftDesc, setDraftDesc] = useState(step.Description ?? "");
+    const [descSaving, setDescSaving] = useState(false);
+    const [descError, setDescError] = useState<string | null>(null);
+
+    const [draftTag, setDraftTag] = useState("");
+    const [tagsError, setTagsError] = useState<string | null>(null);
+
+    const [linkError, setLinkError] = useState<string | null>(null);
+
     useEffect(() => {
         setDraftName(step.VariableName);
         setRenameError(null);
-    }, [step.StepId, step.VariableName]);
+        setDraftDesc(step.Description ?? "");
+        setDescError(null);
+        setDraftTag("");
+        setTagsError(null);
+        setLinkError(null);
+    }, [step.StepId, step.VariableName, step.Description]);
 
     const isDirty = draftName !== step.VariableName;
+    const isDescDirty = draftDesc !== (step.Description ?? "");
     const binding = bindings.find((b) => b.StepId === step.StepId) ?? null;
     const boundDs = binding ? dataSources.find((d) => d.DataSourceId === binding.DataSourceId) : null;
 
@@ -71,6 +96,55 @@ export function RecorderStepDetail({ step, selectors, dataSources, bindings, onR
             setRenameError(err instanceof Error ? err.message : String(err));
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleDescSave = async () => {
+        if (!isDescDirty) return;
+        setDescSaving(true);
+        setDescError(null);
+        try {
+            const trimmed = draftDesc.trim();
+            await onDescriptionSave(step.StepId, trimmed.length === 0 ? null : trimmed);
+        } catch (err) {
+            setDescError(err instanceof Error ? err.message : String(err));
+        } finally {
+            setDescSaving(false);
+        }
+    };
+
+    const handleAddTag = async () => {
+        const next = draftTag.trim();
+        if (next.length === 0) return;
+        if (tags.includes(next)) {
+            setDraftTag("");
+            return;
+        }
+        setTagsError(null);
+        try {
+            await onTagsSave(step.StepId, [...tags, next]);
+            setDraftTag("");
+        } catch (err) {
+            setTagsError(err instanceof Error ? err.message : String(err));
+        }
+    };
+
+    const handleRemoveTag = async (name: string) => {
+        setTagsError(null);
+        try {
+            await onTagsSave(step.StepId, tags.filter((t) => t !== name));
+        } catch (err) {
+            setTagsError(err instanceof Error ? err.message : String(err));
+        }
+    };
+
+    const handleLinkSave = async (slot: StepLinkSlot, raw: string) => {
+        setLinkError(null);
+        try {
+            const trimmed = raw.trim();
+            await onLinkChange(step.StepId, slot, trimmed.length === 0 ? null : trimmed);
+        } catch (err) {
+            setLinkError(err instanceof Error ? err.message : String(err));
         }
     };
 

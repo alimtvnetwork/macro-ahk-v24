@@ -231,8 +231,6 @@ const SHARED_PREREQS = [
     { label: "check-version-sync",           cmd: "node", args: ["scripts/check-version-sync.mjs"] },
 ];
 
-const viteModeFlag = BUILD_MODE === "development" ? ["--mode", "development"] : [];
-
 /** Three bundle builds — fan out in parallel after prereqs succeed.
  *  Each job is wrapped by `scripts/cached-build.mjs` which:
  *    • computes a content hash of src/ + tsconfig + vite-config + lockfile

@@ -30,7 +30,17 @@ interface Props {
 }
 
 export default function RecorderVisualisationPanel({ projectSlug }: Props) {
-    const { data, loading, error, reload, loadSelectors } = useRecorderProjectData(projectSlug);
+    const {
+        data,
+        loading,
+        error,
+        reload,
+        loadSelectors,
+        tagsByStep,
+        updateStepMeta,
+        setStepTags,
+        setStepLink,
+    } = useRecorderProjectData(projectSlug);
     const [selectedStepId, setSelectedStepId] = useState<number | null>(null);
     const [selectors, setSelectors] = useState<ReadonlyArray<SelectorRow>>([]);
     const [selectorsLoading, setSelectorsLoading] = useState(false);

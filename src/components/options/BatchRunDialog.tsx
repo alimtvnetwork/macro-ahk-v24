@@ -184,7 +184,7 @@ export default function BatchRunDialog(props: BatchRunDialogProps) {
                     const failureReason = runResult !== null && !runResult.Ok
                         ? runResult.Reason
                         : undefined;
-                    const failedStepId = runResult !== null && !runResult.Ok
+                    const failedStepId = runResult !== null && !runResult.Ok && runResult.FailedStepId !== null
                         ? runResult.FailedStepId
                         : undefined;
                     void dispatchWebhook(

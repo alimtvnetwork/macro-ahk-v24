@@ -21,6 +21,7 @@ Timestamps use **Asia/Kuala_Lumpur** per `mem://localization/timezone`.
 | 4 | 2026-04-28 | Enable pre-commit ESLint hook for `standalone-scripts/**` (zero-dep native git hook via `scripts/install-git-hooks.mjs` + `scripts/lint-staged-standalone.mjs`; auto-installed by `prepare` lifecycle; worktree-aware). | [30 — Pre-commit hook tooling](./30-precommit-hook-tooling.md) |
 | 5 | 2026-04-28 | Add nested-template-literal scanner (`scripts/check-no-nested-template-literals.mjs` + `pnpm run check:no-nested-tpl` + new `no-nested-template-literals` CI job + pre-commit hook integration), pinned to `run-summary-types.ts`. | [31 — Nested-tpl scanner mechanism](./31-nested-tpl-scanner-mechanism.md) |
 | 6 | 2026-04-28 | Promote `sonarjs/no-nested-template-literals` to `error` in `eslint.config.js`; add `no-useless-concat: error`; demote 8 legacy files to `warn` so new code gets the hard gate. | [32 — Template lint rule scope](./32-template-lint-rule-scope.md) |
+| 7 | 2026-04-28 | Document the refactor contract (`detailSuffix` empty-or-fragment pattern + `head` array `.join("\n")` pattern) as an in-file JSDoc block above the text renderers in `run-summary-types.ts`, with ✅/❌ examples and snapshot-test reminder. | [33 — Refactor doc placement](./33-refactor-doc-location.md) |
 
 ## Notes
 
@@ -30,4 +31,4 @@ Timestamps use **Asia/Kuala_Lumpur** per `mem://localization/timezone`.
   ambiguities directly to `.lovable/question-and-ambiguity/` but
   did not increment a counter, because no counter file existed
   yet). Subsequent tasks increment from 2.
-- 34 tasks remaining in the window after task 6.
+- 33 tasks remaining in the window after task 7.

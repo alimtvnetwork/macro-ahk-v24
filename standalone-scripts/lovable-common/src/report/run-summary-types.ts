@@ -75,6 +75,60 @@ const STATUS_LABEL: Readonly<Record<RunSummaryRowStatus, string>> = Object.freez
     [RunSummaryRowStatus.PartiallySucceeded]: "◐",
 });
 
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Refactor contract for the text renderers (KEEP THIS PATTERN)
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * The Markdown text output is intentionally built from **flat string pieces**,
+ * never from nested template literals. Two conventions MUST be preserved by
+ * future edits so the output stays byte-identical and the
+ * `sonarjs/no-nested-template-literals` lint rule (promoted to `error` in
+ * `eslint.config.js`) and `pnpm run check:no-nested-tpl` scanner stay green:
+ *
+ * 1. **`detailSuffix` / `error` / `notices` pattern** — any optional segment
+ *    is materialised into a *plain `string` variable first* (empty string when
+ *    absent, " — ${value}" / "\n  Error: ${value}" when present). The outer
+ *    template literal then interpolates that variable directly. This avoids
+ *    a `${cond ? `…${x}…` : ""}` nested template, which is the exact shape
+ *    the scanner forbids in this file.
+ *
+ *      ✅  const detailSuffix = a.Detail === null ? "" : ` — ${a.Detail}`;
+ *          return `    - [${a.Outcome}] ${a.Code}${detailSuffix}`;
+ *
+ *      ❌  return `    - [${a.Outcome}] ${a.Code}${a.Detail === null ? "" : ` — ${a.Detail}`}`;
+ *
+ * 2. **`head` array + `.join("\n")` pattern** — multi-line headers are built
+ *    as an array of single-line string literals joined with `"\n"`, NOT as
+ *    one giant backtick block with embedded newlines and nested
+ *    interpolations. Long lines are composed via `+` string concatenation of
+ *    single-interpolation template literals (each `${…}` lives in its own
+ *    flat backtick segment), which keeps every interpolation top-level.
+ *
+ *      ✅  const head = [
+ *              `# Run Summary — ${summary.Script}`,
+ *              `Task: ${summary.TaskId}`,
+ *              `Total: ${c.Total} | ` +
+ *              `Succeeded: ${c.Succeeded} | ` +
+ *              `Failed: ${c.Failed}`,
+ *          ].join("\n");
+ *
+ *      ❌  const head = `# Run Summary — ${summary.Script}
+ *          Task: ${summary.TaskId}
+ *          Total: ${c.Total} | Succeeded: ${`${c.Succeeded}`}`;
+ *
+ * If you need to add a new optional line, follow pattern (1): create a
+ * `xSuffix` / `xBlock` variable that is `""` when absent and the formatted
+ * fragment when present, then interpolate it once into the final return. If
+ * you need to add a new header line, append a string to the `head` array.
+ *
+ * Output stability: the Markdown text is consumed by operators and by JSON
+ * round-trip diff tooling — any whitespace or punctuation change is a
+ * breaking change. Snapshot tests in `standalone-scripts/lovable-common`
+ * pin the exact bytes; run `pnpm --filter lovable-common test` after edits.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
 export const renderRunSummaryAsJson = (summary: RunSummary): string => {
     return JSON.stringify(summary, null, 2);
 };

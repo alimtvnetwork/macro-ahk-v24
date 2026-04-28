@@ -24,6 +24,7 @@ Timestamps use **Asia/Kuala_Lumpur** per `mem://localization/timezone`.
 | 7 | 2026-04-28 | Document the refactor contract (`detailSuffix` empty-or-fragment pattern + `head` array `.join("\n")` pattern) as an in-file JSDoc block above the text renderers in `run-summary-types.ts`, with ✅/❌ examples and snapshot-test reminder. | [33 — Refactor doc placement](./33-refactor-doc-location.md) |
 | 8 | 2026-04-28 | Add `eslint-run-summary-types` Preflight CI job (`--max-warnings=0`) pinned to `standalone-scripts/lovable-common/src/report/run-summary-types.ts` + `pnpm run lint:run-summary-types` npm script; wired into `build-extension.needs:` to catch ESLint *config drift* the scanner cannot see. | [34 — ESLint pin on run-summary-types.ts](./34-eslint-pin-run-summary-types.md) |
 | 9 | 2026-04-28 | Fix uppercase `.md` CI failure: rename `spec/31-macro-recorder/LlmGuide.md` → `llm-guide.md` and `.lovable/question-and-ambiguity/README.md` → `readme.md`; update 4 spec + 2 prompt filename references; preserve the `LlmGuide` identifier in code/H1/glossary. | [35 — Uppercase .md rename](./35-uppercase-md-rename.md) |
+| 10 | 2026-04-28 | Close 4 contract gaps in `scripts/validate-instruction-schema.mjs` `main()`: per-project requires `src/instruction.ts` (exit 2), per-project missing `dist/` exits 2 immediately, repo-wide zero-discovery exits 2, top-level try/catch exits 3 on uncaught throws + GH annotation on summary failure. | [36 — Validator main() completeness](./36-validator-main-completeness.md) |
 
 ## Notes
 
@@ -33,4 +34,4 @@ Timestamps use **Asia/Kuala_Lumpur** per `mem://localization/timezone`.
   ambiguities directly to `.lovable/question-and-ambiguity/` but
   did not increment a counter, because no counter file existed
   yet). Subsequent tasks increment from 2.
-- 31 tasks remaining in the window after task 9.
+- 30 tasks remaining in the window after task 10.

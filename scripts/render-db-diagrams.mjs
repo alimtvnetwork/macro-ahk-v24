@@ -51,6 +51,7 @@ for (const src of sources) {
             "-t", "dark",
             "-b", "#222222",
             "--width", "1600",
+            "-p", join(DIAGRAMS_DIR, ".puppeteer.json"),
         ],
         { stdio: "inherit", shell: process.platform === "win32" },
     );

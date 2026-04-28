@@ -23,6 +23,21 @@
 
 ---
 
+<div align="center">
+
+<p>
+<img src="https://img.shields.io/badge/Windows-First-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows-First" />
+<img src="https://img.shields.io/badge/PowerShell-Recommended-5391FE?style=for-the-badge&logo=powershell&logoColor=white" alt="PowerShell Recommended" />
+<img src="https://img.shields.io/badge/Chrome-Extension-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Chrome Extension" />
+<img src="https://img.shields.io/badge/AutoHotkey-Sidecar-334455?style=for-the-badge&logo=autohotkey&logoColor=white" alt="AutoHotkey Sidecar" />
+</p>
+
+<sub><strong>Marco runs best on Windows.</strong> The PowerShell one-liner below is the recommended path — Bash is provided for Linux/macOS users.</sub>
+
+</div>
+
+---
+
 ## <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/windows8/windows8-original.svg" alt="Windows" width="22" height="22" align="center" /> Install
 
 Marco is a **Windows-first** project. Run this single line in **PowerShell** — it downloads, verifies, and installs the latest pinned release:

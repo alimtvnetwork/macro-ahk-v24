@@ -138,33 +138,32 @@ function renderList(tabs: ReadonlyArray<OpenLovableTabInfoView>, capturedAt: str
     return html;
 }
 
-function renderRow(t: OpenLovableTabInfoView): string {
-    const titleSafe = escapeHtml(t.title || '(untitled)');
-    const urlSafe = escapeHtml(shortenUrl(t.url));
-
-    // Workspace label priority:
-    //   1. matched stored project name (projectName)
-    //   2. detected workspace name reported by the tab's controller (probe)
-    //   3. fallback "unknown / not bound"
-    let wsLabel: string;
+function buildWorkspaceLabel(t: OpenLovableTabInfoView): string {
     if (t.projectName !== null) {
         const tag = t.bindingSource === 'probe'
             ? ' <span style="color:#9ca3af;font-size:8px;">(via probe)</span>'
             : '';
-        wsLabel = '<span style="color:#10b981;">' + escapeHtml(t.projectName) + '</span>' + tag;
-    } else if (t.detectedWorkspaceName) {
+        return '<span style="color:#10b981;">' + escapeHtml(t.projectName) + '</span>' + tag;
+    }
+    if (t.detectedWorkspaceName) {
         const sourceTag = t.detectedWorkspaceSource
             ? ' <span style="color:#9ca3af;font-size:8px;">(' + escapeHtml(t.detectedWorkspaceSource) + ')</span>'
             : '';
-        wsLabel = '<span style="color:#fbbf24;">' + escapeHtml(t.detectedWorkspaceName) + '</span>' + sourceTag;
-    } else {
-        const reason = t.probeError
-            ? 'no controller (' + t.probeError + ')'
-            : (t.bindingSource === 'injection' ? 'unknown project' : 'not bound');
-        wsLabel = '<span style="color:#9ca3af;font-style:italic;" title="' + escapeHtml(reason) + '">'
-            + escapeHtml(reason.length > 40 ? reason.slice(0, 40) + '…' : reason)
-            + '</span>';
+        return '<span style="color:#fbbf24;">' + escapeHtml(t.detectedWorkspaceName) + '</span>' + sourceTag;
     }
+    const reason = t.probeError
+        ? 'no controller (' + t.probeError + ')'
+        : (t.bindingSource === 'injection' ? 'unknown project' : 'not bound');
+    const truncated = reason.length > 40 ? reason.slice(0, 40) + '…' : reason;
+    return '<span style="color:#9ca3af;font-style:italic;" title="' + escapeHtml(reason) + '">'
+        + escapeHtml(truncated)
+        + '</span>';
+}
+
+function renderRow(t: OpenLovableTabInfoView): string {
+    const titleSafe = escapeHtml(t.title || '(untitled)');
+    const urlSafe = escapeHtml(shortenUrl(t.url));
+    const wsLabel = buildWorkspaceLabel(t);
 
     const activeBadge = t.active
         ? '<span style="color:#fbbf24;margin-right:4px;" title="Active in window">●</span>'

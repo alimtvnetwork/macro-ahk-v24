@@ -28,6 +28,12 @@ const STEPS = [
     hint: "Cache clear + step-library verification. If this fails, the forensic dump above lists the exact path, statSync result, and sibling files. Restore the missing file from git or update EXPECTED_FILES.",
   },
   {
+    name: "check:step-library-files",
+    cmd: "node",
+    args: ["scripts/check-step-library-files.mjs"],
+    hint: "Validates every expected step-library source file before Vite runs. Restore missing files from source control, or update EXPECTED_STEP_LIBRARY_FILES if a removal was intentional.",
+  },
+  {
     name: "check:result-webhook",
     cmd: "node",
     args: ["scripts/check-result-webhook.mjs"],

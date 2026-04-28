@@ -46,6 +46,28 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
+/**
+ * PROJECTS array — canonical registry of every standalone-scripts project
+ * recognised by the orchestrator and the standalone registry checker
+ * (`scripts/report-standalone-registry.mjs`). Keep in sync with the per-folder
+ * directories under `standalone-scripts/`.
+ *
+ * Note: not every entry below has its own PARALLEL_JOBS step yet — some
+ * (lovable-common, lovable-owner-switch, lovable-user-add, payment-banner-hider)
+ * are built by their dedicated `pnpm run build:<name>` scripts called from CI
+ * jobs and from the `build:extension` chain. Listing them here keeps the
+ * registry checker green without forcing a parallel orchestrator step.
+ */
+export const PROJECTS = [
+    "marco-sdk",
+    "xpath",
+    "macro-controller",
+    "payment-banner-hider",
+    "lovable-common",
+    "lovable-owner-switch",
+    "lovable-user-add",
+];
+
 const args = process.argv.slice(2);
 const modeArg = args.find((a) => a.startsWith("--mode="));
 const BUILD_MODE = modeArg ? modeArg.split("=")[1] : "production";

@@ -25,6 +25,9 @@ const REQUIRED_ARTIFACTS = {
   "macro-controller": ["macro-looping.js", "instruction.json", "instruction.compat.json"],
   "xpath": ["xpath.js", "instruction.json", "instruction.compat.json"],
   "payment-banner-hider": ["payment-banner-hider.js", "payment-banner-hider.css", "instruction.json", "instruction.compat.json"],
+  "lovable-common": ["lovable-common.js", "instruction.json"],
+  "lovable-owner-switch": ["lovable-owner-switch.js", "instruction.json"],
+  "lovable-user-add": ["lovable-user-add.js", "instruction.json"],
 };
 
 let failed = false;

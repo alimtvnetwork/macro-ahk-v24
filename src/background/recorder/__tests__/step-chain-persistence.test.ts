@@ -22,6 +22,11 @@ import {
     setStepTagsRow,
     listStepTagsRow,
     setStepLinkRow,
+    MAX_RETRY_COUNT,
+    MAX_TIMEOUT_MS,
+    MAX_LABEL_LENGTH,
+    MAX_DESCRIPTION_LENGTH,
+    MAX_TAGS_PER_STEP,
 } from "../step-chain-persistence";
 
 let SQL: Awaited<ReturnType<typeof initSqlJs>>;
@@ -152,5 +157,68 @@ describe("step-chain-persistence — setStepLinkRow", () => {
         expect(trimmed.OnSuccessProjectId).toBe("proj-x");
         const cleared = setStepLinkRow(db, step.StepId, "OnSuccessProjectId", "   ");
         expect(cleared.OnSuccessProjectId).toBeNull();
+    });
+});
+
+describe("step-chain-persistence — Phase 14 spec validation", () => {
+    it("rejects RetryCount above MAX_RETRY_COUNT", () => {
+        const db = freshDb();
+        const step = insertStepRow(db, draft("A"));
+        expect(() => updateStepMetaRow(db, step.StepId, { RetryCount: MAX_RETRY_COUNT + 1 }))
+            .toThrow(/RetryCount exceeds/);
+    });
+
+    it("rejects TimeoutMs above MAX_TIMEOUT_MS", () => {
+        const db = freshDb();
+        const step = insertStepRow(db, draft("A"));
+        expect(() => updateStepMetaRow(db, step.StepId, { TimeoutMs: MAX_TIMEOUT_MS + 1 }))
+            .toThrow(/TimeoutMs exceeds/);
+    });
+
+    it("rejects empty / oversize Label and oversize Description", () => {
+        const db = freshDb();
+        const step = insertStepRow(db, draft("A"));
+        expect(() => updateStepMetaRow(db, step.StepId, { Label: "   " })).toThrow(/Label cannot be empty/);
+        expect(() => updateStepMetaRow(db, step.StepId, { Label: "x".repeat(MAX_LABEL_LENGTH + 1) }))
+            .toThrow(/Label exceeds/);
+        expect(() => updateStepMetaRow(db, step.StepId, { Description: "x".repeat(MAX_DESCRIPTION_LENGTH + 1) }))
+            .toThrow(/Description exceeds/);
+    });
+
+    it("rejects non-boolean IsDisabled", () => {
+        const db = freshDb();
+        const step = insertStepRow(db, draft("A"));
+        expect(() => updateStepMetaRow(db, step.StepId, { IsDisabled: 1 as unknown as boolean }))
+            .toThrow(/IsDisabled must be a boolean/);
+    });
+
+    it("rejects tag names with invalid characters", () => {
+        const db = freshDb();
+        const step = insertStepRow(db, draft("A"));
+        expect(() => setStepTagsRow(db, step.StepId, ["bad/tag"])).toThrow(/invalid characters/);
+        expect(() => setStepTagsRow(db, step.StepId, ["bad,tag"])).toThrow(/invalid characters/);
+    });
+
+    it("rejects tag sets larger than MAX_TAGS_PER_STEP", () => {
+        const db = freshDb();
+        const step = insertStepRow(db, draft("A"));
+        const oversize = Array.from({ length: MAX_TAGS_PER_STEP + 1 }, (_, i) => `tag${i}`);
+        expect(() => setStepTagsRow(db, step.StepId, oversize)).toThrow(/Tag set exceeds/);
+    });
+
+    it("rejects project slugs with invalid characters", () => {
+        const db = freshDb();
+        const step = insertStepRow(db, draft("A"));
+        expect(() => setStepLinkRow(db, step.StepId, "OnSuccessProjectId", "has space"))
+            .toThrow(/invalid characters/);
+        expect(() => setStepLinkRow(db, step.StepId, "OnFailureProjectId", "bad/slug"))
+            .toThrow(/invalid characters/);
+    });
+
+    it("rejects project slugs longer than 128 chars", () => {
+        const db = freshDb();
+        const step = insertStepRow(db, draft("A"));
+        expect(() => setStepLinkRow(db, step.StepId, "OnSuccessProjectId", "a".repeat(129)))
+            .toThrow(/exceeds 128/);
     });
 });

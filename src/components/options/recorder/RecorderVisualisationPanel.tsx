@@ -223,7 +223,11 @@ export default function RecorderVisualisationPanel({ projectSlug }: Props) {
                             selectors={selectors}
                             dataSources={data.dataSources}
                             bindings={data.bindings}
+                            tags={tagsByStep.get(selectedStep.StepId) ?? []}
                             onRename={handleRename}
+                            onDescriptionSave={handleDescriptionSave}
+                            onTagsSave={handleTagsSave}
+                            onLinkChange={handleLinkChange}
                         />
                     )}
                 </div>

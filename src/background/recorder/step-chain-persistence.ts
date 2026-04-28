@@ -105,8 +105,12 @@ export function updateStepMetaRow(
     patch: StepMetaPatch,
 ): PersistedStep {
     if (patch.Label !== undefined) assertLabel(patch.Label);
+    if (patch.Description !== undefined) assertDescription(patch.Description ?? null);
     if (patch.RetryCount !== undefined) assertRetry(patch.RetryCount);
     if (patch.TimeoutMs !== undefined) assertTimeout(patch.TimeoutMs);
+    if (patch.IsDisabled !== undefined && typeof patch.IsDisabled !== "boolean") {
+        throw new Error(`IsDisabled must be a boolean; got ${typeof patch.IsDisabled}`);
+    }
 
     const sets: string[] = [];
     const params: Array<string | number | null> = [];

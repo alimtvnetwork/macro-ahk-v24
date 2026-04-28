@@ -54,100 +54,34 @@ function runReport() {
 }
 
 /**
- * For a given gap, return:
- *   { fixFile, action, snippet? }
- * action is a one-line imperative; snippet (optional) is multi-line content
- * to drop into a brand-new file.
+ * Normalise a single gap entry from the upstream JSON report into
+ *   { locationKey, locationLabel, file, at, action, snippet? }
+ * The upstream schema (1.1+) emits gap objects with shape:
+ *   { location, label, reason, fix: { file, at, snippet? } }
+ * We pass through verbatim — the report is the single source of truth for
+ * remediation text, so we never re-template what it already provides.
  */
-function describeFix(scriptName, locationKey, registry) {
-    const meta = registry[locationKey] ?? { fixFile: null, label: locationKey };
-    switch (locationKey) {
-        case "pkgScript":
-            return {
-                fixFile: "package.json",
-                action: `Add to "scripts": "build:${scriptName}": "node scripts/check-axios-version.mjs && node scripts/compile-instruction.mjs standalone-scripts/${scriptName} && tsc --noEmit -p tsconfig.${scriptName}.json && vite build --config vite.config.${scriptName}.ts && echo Built ${scriptName}.js"`,
-            };
-        case "pkgExtensionChain":
-            return {
-                fixFile: "package.json",
-                action: `Append " && pnpm run build:${scriptName}" to the "build:extension" script chain`,
-            };
-        case "buildStandalone":
-            return {
-                fixFile: "scripts/build-standalone.mjs",
-                action: `Add "${scriptName}" to the exported PROJECTS array`,
-            };
-        case "checkDist":
-            return {
-                fixFile: "scripts/check-standalone-dist.mjs",
-                action: `Add "${scriptName}" entry to REQUIRED_ARTIFACTS (expects standalone-scripts/${scriptName}/dist/${scriptName}.js + instruction.json)`,
-            };
-        case "tsconfig":
-            return {
-                fixFile: `tsconfig.${scriptName}.json`,
-                action: `CREATE this file at repo root`,
-                snippet:
-                    `{\n` +
-                    `    "extends": "./tsconfig.standalone.base.json",\n` +
-                    `    "compilerOptions": {\n` +
-                    `        "outDir": "standalone-scripts/${scriptName}/dist"\n` +
-                    `    },\n` +
-                    `    "include": ["standalone-scripts/${scriptName}/src/**/*.ts"]\n` +
-                    `}\n`,
-            };
-        case "viteConfig":
-            return {
-                fixFile: `vite.config.${scriptName}.ts`,
-                action: `CREATE this file at repo root`,
-                snippet:
-                    `import { defineConfig } from "vite";\n` +
-                    `import path from "node:path";\n\n` +
-                    `export default defineConfig({\n` +
-                    `    build: {\n` +
-                    `        outDir: path.resolve(__dirname, "standalone-scripts/${scriptName}/dist"),\n` +
-                    `        emptyOutDir: false,\n` +
-                    `        sourcemap: false,\n` +
-                    `        lib: {\n` +
-                    `            entry: path.resolve(__dirname, "standalone-scripts/${scriptName}/src/index.ts"),\n` +
-                    `            name: "${scriptName.replace(/-([a-z])/g, (_, c) => c.toUpperCase())}",\n` +
-                    `            formats: ["iife"],\n` +
-                    `            fileName: () => "${scriptName}.js",\n` +
-                    `        },\n` +
-                    `        rollupOptions: { output: { extend: true } },\n` +
-                    `    },\n` +
-                    `});\n`,
-            };
-        case "ciJob":
-            return {
-                fixFile: ".github/workflows/ci.yml",
-                action: `Add a job named "build-${scriptName}" that runs "pnpm run build:${scriptName}" and uploads standalone-scripts/${scriptName}/dist/ as artifact "${scriptName}-dist"`,
-                snippet:
-                    `  build-${scriptName}:\n` +
-                    `    name: Build · ${scriptName}\n` +
-                    `    needs: setup\n` +
-                    `    runs-on: ubuntu-latest\n` +
-                    `    steps:\n` +
-                    `      - uses: actions/checkout@v4\n` +
-                    `      - uses: actions/setup-node@v4\n` +
-                    `        with: { node-version: 20 }\n` +
-                    `      - uses: pnpm/action-setup@v4\n` +
-                    `        with: { version: 9, run_install: false }\n` +
-                    `      - name: Install dependencies\n` +
-                    `        run: pnpm install --prefer-offline --no-frozen-lockfile\n` +
-                    `      - name: Build ${scriptName}\n` +
-                    `        run: pnpm run build:${scriptName}\n` +
-                    `      - uses: actions/upload-artifact@v4\n` +
-                    `        with:\n` +
-                    `          name: ${scriptName}-dist\n` +
-                    `          path: standalone-scripts/${scriptName}/dist/\n` +
-                    `          retention-days: 1\n`,
-            };
-        default:
-            return {
-                fixFile: meta.fixFile ?? "(unknown)",
-                action: `Wire "${scriptName}" into ${meta.label ?? locationKey}`,
-            };
+function normaliseGap(gap, registry) {
+    if (typeof gap === "string") {
+        const meta = registry[gap] ?? {};
+        return {
+            locationKey: gap,
+            locationLabel: meta.label ?? gap,
+            file: meta.fixFile ?? "(unknown)",
+            at: "(unspecified)",
+            action: `Wire into ${meta.label ?? gap}`,
+            snippet: null,
+        };
     }
+    const fix = gap.fix ?? {};
+    return {
+        locationKey: gap.location ?? "(unknown)",
+        locationLabel: gap.label ?? gap.location ?? "(unknown)",
+        file: fix.file ?? "(unknown)",
+        at: fix.at ?? "(unspecified)",
+        action: gap.reason ?? `Wire into ${gap.label ?? gap.location}`,
+        snippet: typeof fix.snippet === "string" && fix.snippet.length > 0 ? fix.snippet : null,
+    };
 }
 
 function main() {
@@ -173,21 +107,22 @@ function main() {
 
     for (const script of gappy) {
         console.log(`▸ ${script.name}  (${script.gaps.length} gap${script.gaps.length === 1 ? "" : "s"})`);
-        for (const gapKey of script.gaps) {
-            const fix = describeFix(script.name, gapKey, registry);
-            console.log(`    • ${gapKey}`);
-            console.log(`        file   : ${fix.fixFile}`);
-            console.log(`        action : ${fix.action}`);
-            if (fix.snippet) {
+        for (const rawGap of script.gaps) {
+            const gap = normaliseGap(rawGap, registry);
+            console.log(`    • ${gap.locationKey}  —  ${gap.locationLabel}`);
+            console.log(`        file   : ${gap.file}`);
+            console.log(`        at     : ${gap.at}`);
+            console.log(`        action : ${gap.action}`);
+            if (gap.snippet) {
                 console.log(`        snippet:`);
-                for (const line of fix.snippet.split("\n")) {
-                    if (line.length > 0) console.log(`            ${line}`);
+                for (const line of gap.snippet.split("\n")) {
+                    console.log(`            ${line}`);
                 }
             }
             // GitHub Actions inline annotation
             if (process.env.GITHUB_ACTIONS === "true") {
-                const title = `Standalone wiring gap: ${script.name} · ${gapKey}`;
-                console.log(`::error file=${fix.fixFile},title=${title}::${fix.action}`);
+                const title = `Standalone wiring gap: ${script.name} · ${gap.locationKey}`;
+                console.log(`::error file=${gap.file},title=${title}::${gap.action}`);
             }
         }
         console.log("");

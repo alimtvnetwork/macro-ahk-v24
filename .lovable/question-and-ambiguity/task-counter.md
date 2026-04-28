@@ -19,6 +19,7 @@ Timestamps use **Asia/Kuala_Lumpur** per `mem://localization/timezone`.
 | 2 | 2026-04-28 | Add clean-build option (`scripts/clean-build.mjs` + `scripts/run-with-env.mjs` + 4 npm scripts) to wipe all build caches and force fresh filesystem reads. | [28 — Clean-build scope](./28-clean-build-scope.md) |
 | 3 | 2026-04-28 | Add CI typecheck gate (`scripts/typecheck-app.mjs` + `pnpm run typecheck` + `typecheck-app` job in ci.yml, wired into `build-extension` `needs:`) covering `tsconfig.app.json` + `tsconfig.node.json`. | [29 — Typecheck App scope](./29-typecheck-app-gate-scope.md) |
 | 4 | 2026-04-28 | Enable pre-commit ESLint hook for `standalone-scripts/**` (zero-dep native git hook via `scripts/install-git-hooks.mjs` + `scripts/lint-staged-standalone.mjs`; auto-installed by `prepare` lifecycle; worktree-aware). | [30 — Pre-commit hook tooling](./30-precommit-hook-tooling.md) |
+| 5 | 2026-04-28 | Add nested-template-literal scanner (`scripts/check-no-nested-template-literals.mjs` + `pnpm run check:no-nested-tpl` + new `no-nested-template-literals` CI job + pre-commit hook integration), pinned to `run-summary-types.ts`. | [31 — Nested-tpl scanner mechanism](./31-nested-tpl-scanner-mechanism.md) |
 
 ## Notes
 
@@ -28,4 +29,4 @@ Timestamps use **Asia/Kuala_Lumpur** per `mem://localization/timezone`.
   ambiguities directly to `.lovable/question-and-ambiguity/` but
   did not increment a counter, because no counter file existed
   yet). Subsequent tasks increment from 2.
-- 36 tasks remaining in the window after task 4.
+- 35 tasks remaining in the window after task 5.

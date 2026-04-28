@@ -11,6 +11,7 @@
     "check:step-library-files": "node scripts/check-step-library-files.mjs",
     "check:result-webhook": "node scripts/check-result-webhook.mjs",
     "check:result-webhook-imports": "node scripts/check-result-webhook-imports.mjs",
+    "check:build-health": "node scripts/check-build-health.mjs",
     "check:no-swallowed-errors": "node scripts/check-no-swallowed-errors.mjs",
     "check:no-swallowed-errors:strict": "node scripts/check-no-swallowed-errors.mjs --strict",
     "check:no-swallowed-errors:update-baseline": "node scripts/check-no-swallowed-errors.mjs --update-baseline",

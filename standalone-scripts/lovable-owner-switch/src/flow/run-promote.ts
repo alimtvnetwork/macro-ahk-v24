@@ -61,11 +61,10 @@ const failingStep = (caught: unknown, fallback: PromoteStepCode): PromoteStepCod
 };
 
 const tagAndThrow = (caught: unknown, fallback: PromoteStepCode): never => {
-    const tagged = Object.assign(
+    throw Object.assign(
         new Error(caught instanceof Error ? caught.message : String(caught)),
         { step: failingStep(caught, fallback) },
     ) as StepTaggedError;
-    throw tagged;
 };
 
 const runChain = async (

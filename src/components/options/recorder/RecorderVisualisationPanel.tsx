@@ -105,9 +105,56 @@ export default function RecorderVisualisationPanel({ projectSlug }: Props) {
                 await reload();
             } catch (err) {
                 toast.error(err instanceof Error ? err.message : "Failed to delete step");
-            }
         },
         [projectSlug, reload],
+    );
+
+    /* -------- Phase 14 — meta / tags / link refreshers --------------- */
+
+    const handleDescriptionSave = useCallback(
+        async (stepId: number, description: string | null) => {
+            try {
+                await updateStepMeta(stepId, { Description: description });
+                toast.success("Description updated");
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Failed to update description");
+                throw err;
+            }
+        },
+        [updateStepMeta],
+    );
+
+    const handleTagsSave = useCallback(
+        async (stepId: number, tags: ReadonlyArray<string>) => {
+            try {
+                await setStepTags(stepId, tags);
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Failed to update tags");
+                throw err;
+            }
+        },
+        [setStepTags],
+    );
+
+    const handleLinkChange = useCallback(
+        async (
+            stepId: number,
+            slot: "OnSuccessProjectId" | "OnFailureProjectId",
+            targetProjectSlug: string | null,
+        ) => {
+            try {
+                await setStepLink(stepId, slot, targetProjectSlug);
+                toast.success(
+                    targetProjectSlug === null
+                        ? `${slot} cleared`
+                        : `${slot} → ${targetProjectSlug}`,
+                );
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Failed to update link");
+                throw err;
+            }
+        },
+        [setStepLink],
     );
 
     if (loading) {

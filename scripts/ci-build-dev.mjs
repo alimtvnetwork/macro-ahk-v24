@@ -25,7 +25,7 @@ const STEPS = [
     name: "prebuild:clean-verify",
     cmd: "node",
     args: ["scripts/prebuild-clean-and-verify.mjs"],
-    hint: "Cache clear + step-library verification. If this fails, the forensic dump above lists the exact path, statSync result, and sibling files. Restore the missing file from git or update EXPECTED_FILES.",
+    hint: "Cache clear + step-library verification. If this fails, the forensic dump above lists exact paths, missing items, and reasoning. Restore the missing file from source control or update EXPECTED_STEP_LIBRARY_FILES.",
   },
   {
     name: "check:step-library-files",

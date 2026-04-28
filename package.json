@@ -107,7 +107,8 @@
     "test:installer:resolver": "bash tests/installer/resolver.test.sh",
     "test:installer:mock": "bash tests/installer/mock-server.test.sh",
     "test:installer:deferred-delete": "bash tests/installer/deferred-delete.test.sh",
-    "test:installer:deferred-delete-sim": "bash tests/installer/deferred-delete-sim.test.sh"
+    "test:installer:deferred-delete-sim": "bash tests/installer/deferred-delete-sim.test.sh",
+    "preflight:standalone": "node scripts/preflight-standalone-wiring.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

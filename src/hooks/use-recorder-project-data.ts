@@ -32,7 +32,24 @@ export interface StepRow {
     readonly IsBreakpoint: number;
     readonly CapturedAt: string;
     readonly UpdatedAt: string;
+    /* Phase 14 chain fields (server returns them on every RECORDER_STEP_LIST). */
+    readonly Description: string | null;
+    readonly IsDisabled: number;
+    readonly RetryCount: number;
+    readonly TimeoutMs: number | null;
+    readonly OnSuccessProjectId: string | null;
+    readonly OnFailureProjectId: string | null;
 }
+
+export interface StepMetaPatch {
+    readonly Label?: string;
+    readonly Description?: string | null;
+    readonly IsDisabled?: boolean;
+    readonly RetryCount?: number;
+    readonly TimeoutMs?: number | null;
+}
+
+export type StepLinkSlot = "OnSuccessProjectId" | "OnFailureProjectId";
 
 export interface SelectorRow {
     readonly SelectorId: number;

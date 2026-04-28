@@ -13,11 +13,14 @@ import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { X } from "lucide-react";
 import type {
     StepRow,
     SelectorRow,
     DataSourceRow,
     FieldBindingRow,
+    StepLinkSlot,
 } from "@/hooks/use-recorder-project-data";
 
 const SELECTOR_KIND_LABEL: Record<number, string> = {
@@ -32,7 +35,16 @@ interface Props {
     selectors: ReadonlyArray<SelectorRow>;
     dataSources: ReadonlyArray<DataSourceRow>;
     bindings: ReadonlyArray<FieldBindingRow>;
+    /** Cached tag list for this step (from the hook). */
+    tags: ReadonlyArray<string>;
     onRename: (stepId: number, newName: string) => Promise<void>;
+    onDescriptionSave: (stepId: number, description: string | null) => Promise<void>;
+    onTagsSave: (stepId: number, tags: ReadonlyArray<string>) => Promise<void>;
+    onLinkChange: (
+        stepId: number,
+        slot: StepLinkSlot,
+        targetProjectSlug: string | null,
+    ) => Promise<void>;
 }
 
 export function RecorderStepDetail({ step, selectors, dataSources, bindings, onRename }: Props) {

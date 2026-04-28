@@ -26,8 +26,14 @@ All sources follow `mem://style/diagram-visual-standards`:
 ## Render
 
 ```bash
+npm run db:diagrams        # regenerate every PNG + SVG
+npm run db:diagrams:check  # CI-friendly drift check (fails if any image is missing or older than its source)
+# equivalent direct invocation:
 node scripts/render-db-diagrams.mjs
 ```
 
-Writes both `.png` and `.svg` for every `.mmd` into `../images/`. Uses
-`npx @mermaid-js/mermaid-cli` on demand — no permanent dev dependency.
+`db:diagrams` writes both `.png` and `.svg` for every `.mmd` into
+`../images/`. Uses `npx @mermaid-js/mermaid-cli` on demand — no permanent
+dev dependency. Sequential and fail-fast (no retry/backoff), per
+`mem://constraints/no-retry-policy`.
+

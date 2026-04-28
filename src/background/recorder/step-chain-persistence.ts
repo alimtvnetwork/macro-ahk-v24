@@ -212,9 +212,15 @@ export function setStepLinkRow(
 
 function normaliseProjectSlug(raw: string | null): string | null {
     if (raw === null) return null;
+    if (typeof raw !== "string") throw new Error("Project slug must be a string or null");
     const trimmed = raw.trim();
     if (trimmed.length === 0) return null;
-    if (trimmed.length > 128) throw new Error(`Project slug exceeds 128 chars: ${trimmed.length}`);
+    if (trimmed.length > MAX_SLUG_LENGTH) {
+        throw new Error(`Project slug exceeds ${MAX_SLUG_LENGTH} chars: ${trimmed.length}`);
+    }
+    if (!PROJECT_SLUG_PATTERN.test(trimmed)) {
+        throw new Error(`Project slug contains invalid characters (allowed: A-Z a-z 0-9 _ - .): "${trimmed}"`);
+    }
     return trimmed;
 }
 

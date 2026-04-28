@@ -12,10 +12,15 @@
  * expected file is missing. Cache deletion failures are non-fatal (logged).
  */
 
-import { existsSync, rmSync, statSync, readdirSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { waitForBuildLock } from "./lib/build-lock.mjs";
+import {
+    EXPECTED_STEP_LIBRARY_FILES,
+    STEP_LIBRARY_DIR,
+    verifyStepLibraryFilesOrFail,
+} from "./lib/step-library-file-guard.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -26,27 +31,6 @@ const CACHE_PATHS = [
     "tsconfig.app.tsbuildinfo",
     "tsconfig.tsbuildinfo",
     "tsconfig.node.tsbuildinfo",
-];
-
-const STEP_LIB_DIR = "src/background/recorder/step-library";
-const EXPECTED_FILES = [
-    "csv-mapping.ts",
-    "csv-parse.ts",
-    "db.ts",
-    "export-bundle.ts",
-    "export-error-explainer.ts",
-    "group-inputs.ts",
-    "hotkey-executor.ts",
-    "import-bundle.ts",
-    "import-error-explainer.ts",
-    "index.ts",
-    "input-source.ts",
-    "replay-bridge.ts",
-    "result-webhook.ts",
-    "run-batch.ts",
-    "run-group-runner.ts",
-    "schema.ts",
-    "step-wait.ts",
 ];
 
 function fail(msg) {

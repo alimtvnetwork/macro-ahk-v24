@@ -1,9 +1,17 @@
 {
   "extends": "./tsconfig.macro.json",
   "compilerOptions": {
-    "types": ["chrome"]
+    "types": [
+      "chrome"
+    ],
+    "incremental": true,
+    "tsBuildInfoFile": ".cache/tsbuildinfo/macro-controller.tsbuildinfo"
   },
-  "include": ["standalone-scripts/macro-controller/src/**/*.ts", "standalone-scripts/types/**/*.ts", "standalone-scripts/types/**/*.d.ts"],
+  "include": [
+    "standalone-scripts/macro-controller/src/**/*.ts",
+    "standalone-scripts/types/**/*.ts",
+    "standalone-scripts/types/**/*.d.ts"
+  ],
   "exclude": [
     "node_modules",
     "standalone-scripts/macro-controller/dist",

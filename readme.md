@@ -21,7 +21,27 @@
 
 </div>
 
-**Current Version:** v2.158.0 | **Macro Controller:** v7.41
+---
+
+## Install
+
+Run this single line in your terminal — it downloads, verifies, and installs the latest pinned release of Marco:
+
+```bash
+curl -fsSL https://github.com/alimtvnetwork/macro-ahk-v24/releases/download/v2.158.0/install.sh | bash
+```
+
+**Pinned version:** `v2.158.0` &nbsp;•&nbsp; **Macro Controller:** `v7.41`
+
+> Prefer PowerShell, the auto-update channel, or a custom directory? See **[Quick Start](#quick-start)** below for every install variant, flags, exit codes, and checksum behavior.
+
+---
+
+## About Marco
+
+Marco started as a small itch. **Alim** wanted to automate a few repetitive things on Chrome using **AutoHotkey** — just keystrokes and clicks at first. One script led to another, and soon he was recording flows, parameterizing them, and wiring them into proper programs. What began as a Windows-only AHK helper grew into a full browser-side automation runtime: a Manifest V3 Chrome extension with a modular standalone-script architecture, deterministic XPath replay, credit-aware loop control, and an AutoHotkey sidecar that still drives the Windows side.
+
+In short: Marco is the project that came out of taking "let me just automate this one thing" seriously.
 
 ---
 

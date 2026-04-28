@@ -289,6 +289,7 @@ export async function dropProjectDb(slug: string): Promise<void> {
         projectDbs.delete(slug);
     }
     dirtySet.delete(slug);
+    chainMigrationApplied.delete(slug);
     const timer = flushTimers.get(slug);
     if (timer) {
         clearTimeout(timer);

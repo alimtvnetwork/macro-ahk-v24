@@ -114,4 +114,24 @@ if (eslintResult.status !== 0) {
 }
 
 console.log("[pre-commit] OK — standalone-scripts lint clean.");
+
+/* ---------------------------------------------------------------- */
+/*  4. Hard-pinned scanner: no nested template literals              */
+/* ---------------------------------------------------------------- */
+// Always run (no staged-file filter) — TARGETS[] is small + scan is
+// <100ms. Catches sonarjs-class regressions in pinned files even if
+// the developer didn't stage that file (e.g. it was reverted partly
+// in a different commit).
+const nestedTplResult = spawnSync("node", ["scripts/check-no-nested-template-literals.mjs"], {
+    cwd: REPO_ROOT,
+    stdio: "inherit",
+    env: process.env,
+});
+if (nestedTplResult.status !== 0) {
+    console.error("");
+    console.error(`[pre-commit] FAIL — nested-template-literal scanner reported violations (exit ${nestedTplResult.status}).`);
+    console.error("[pre-commit] Bypass (audited in git log): git commit --no-verify");
+    process.exit(nestedTplResult.status ?? 1);
+}
+
 process.exit(0);

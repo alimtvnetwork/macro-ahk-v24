@@ -51,13 +51,6 @@ export default tseslint.config(
       // hard-pins the same rule on `run-summary-types.ts` even if this
       // line is ever softened.
       "sonarjs/no-nested-template-literals": "error",
-      // Standardize on template literals for any string concatenation that
-      // already mixes a literal with a variable (`"x" + foo` → `` `x${foo}` ``).
-      // Kept at "warn" because the codebase has 1500+ pre-existing call sites;
-      // the warning surfaces in IDE + lint output so NEW code is steered toward
-      // template literals while existing code can be migrated incrementally.
-      // Promote to "error" once the backlog is drained (tracked in plan.md).
-      "prefer-template": "warn",
       // Forbid useless concatenation like `"foo" + "bar"` — pure-literal joins
       // that should just be one string. Hard error: zero violations today.
       "no-useless-concat": "error",

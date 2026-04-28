@@ -372,7 +372,7 @@ already shipped (FailureReportsPanel) reuses no new plumbing.
 4. UI: step inspector gains a `UrlTabClick` editor (URL, mode, pattern
    dialect, optional selector).
 5. Spec rollups: append §1, §2, §3 acceptance criteria into
-   `97-acceptance-criteria.md` and the `LlmGuide.md` cookbook.
+   `97-acceptance-criteria.md` and the `llm-guide.md` cookbook.
 
 ---
 

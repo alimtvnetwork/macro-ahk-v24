@@ -71,7 +71,7 @@ Future files (added per phase):
 | 09 | `09-step-persistence-and-replay.md` |
 | 10 | `10-project-visualisation.md` |
 | 11 | `11-inline-js-step.md` |
-| 12 | `LlmGuide.md` + `97-acceptance-criteria.md` |
+| 12 | `llm-guide.md` + `97-acceptance-criteria.md` |
 
 ---
 

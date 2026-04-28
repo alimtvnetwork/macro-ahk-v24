@@ -51,7 +51,7 @@ The matching memory pointer lives at
 - Keep each note **under 200 words** for quick review.
 - Include a timestamp (`Asia/Kuala_Lumpur` per
   `mem://localization/timezone`).
-- Append one bullet to `.lovable/question-and-ambiguity/README.md`
+- Append one bullet to `.lovable/question-and-ambiguity/readme.md`
   pointing at the new file.
 
 ---
@@ -102,4 +102,4 @@ The matching memory pointer lives at
   `mem://preferences/question-asking-style`.
 - Counter file: `.lovable/question-and-ambiguity/task-counter.md`.
 - Index of logged ambiguities:
-  `.lovable/question-and-ambiguity/README.md`.
+  `.lovable/question-and-ambiguity/readme.md`.

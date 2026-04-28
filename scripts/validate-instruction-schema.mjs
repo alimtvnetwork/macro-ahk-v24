@@ -37,6 +37,15 @@
  *       emitted (one per violation, capped) when GITHUB_ACTIONS=true.
  *   2 — repo layout broken (missing standalone-scripts/) or a referenced
  *       project lacks dist/ artifacts (mirrors check-instruction-json-casing).
+ *       In per-project mode (folder argument supplied) a missing dist/
+ *       exits 2 immediately. In repo-wide mode a missing dist/ for one
+ *       project counts toward the exit-1 summary so a single un-built
+ *       sibling does not mask other projects' schema violations.
+ *       Also fires when repo-wide discovery returns zero projects (a
+ *       sparse-checkout / misconfiguration safeguard).
+ *   3 — validator itself crashed (uncaught throw inside main). Treated
+ *       as fail-closed so a future schema refactor cannot accidentally
+ *       pass green via a swallowed rejection.
  *
  * Design notes:
  *   • Hand-rolled validator (no ajv) to keep zero external deps in the

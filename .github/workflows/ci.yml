@@ -1351,6 +1351,11 @@ jobs:
       - name: Run truncation fixture tests (counts + line snapshot)
         run: node --test scripts/__tests__/check-instruction-json-casing-truncation.test.mjs scripts/__tests__/check-instruction-json-casing-truncation-snapshot.test.mjs
 
+  # ════════════════════════════════════════════════════════════
+  # Casing matrix — validate instruction.json casing per project
+  # (Referenced by build-extension `needs:` as `casing-instruction-json`.)
+  # ════════════════════════════════════════════════════════════
+  casing-instruction-json:
     name: "Casing · ${{ matrix.project }}"
     runs-on: ubuntu-latest
     # Restrict to the two events that gate merges to main:

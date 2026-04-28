@@ -484,11 +484,33 @@ function main() {
             console.error(`❌ Project folder not found: ${folderArg}`);
             process.exit(2);
         }
+        // Per-project mode: the folder must be a real standalone project,
+        // i.e. it must contain `src/instruction.ts`. Without this check
+        // the script silently "validates" arbitrary directories and exits
+        // 0 with `Scanned: 1 project(s), 0 artifact(s)` — a false green.
+        const instructionSource = join(full, "src", "instruction.ts");
+        if (!existsSync(instructionSource)) {
+            console.error(
+                `❌ Not a standalone project (missing ${rel(instructionSource)})`,
+            );
+            process.exit(2);
+        }
         projects = [{ name: folderArg.split("/").pop(), full }];
     } else {
         projects = listProjects();
         if (projects === null) {
             console.error(`❌ Repo layout broken: ${rel(STANDALONE_DIR)} not found`);
+            process.exit(2);
+        }
+        // Repo-wide mode: an empty discovery is suspicious — treat as a
+        // layout failure (exit 2), not a clean pass. Without this guard
+        // a misconfigured CI checkout (e.g. sparse-checkout dropping
+        // standalone-scripts/*/src/) would produce a false green.
+        if (projects.length === 0) {
+            console.error(
+                `❌ No standalone projects discovered under ${rel(STANDALONE_DIR)} ` +
+                `(no src/instruction.ts files found)`,
+            );
             process.exit(2);
         }
     }
@@ -498,6 +520,11 @@ function main() {
 
     let totalFailures = 0;
     let totalArtifacts = 0;
+    // Per-project exit-code contract: in per-project (single-folder) mode,
+    // a missing dist/ is itself a layout error (exit 2 per the header
+    // docstring). In repo-wide mode we keep going and fold it into the
+    // exit-1 summary so one un-built sibling doesn't mask other failures.
+    const isPerProject = Boolean(folderArg);
 
     for (const project of projects) {
         const distDir = join(project.full, "dist");
@@ -506,7 +533,12 @@ function main() {
 
         console.log(`\n• ${project.name}`);
         if (!existsSync(distDir)) {
-            console.error(`  ❌ Missing dist/ — run compile-instruction.mjs first`);
+            const msg = `  ❌ Missing dist/ — run compile-instruction.mjs first`;
+            console.error(msg);
+            annotate(rel(distDir), "Missing dist/ — run compile-instruction.mjs first");
+            if (isPerProject) {
+                process.exit(2);
+            }
             totalFailures++;
             continue;
         }
@@ -527,8 +559,33 @@ function main() {
         console.log("✅ All instruction artifacts pass schema validation");
         process.exit(0);
     }
-    console.log(`❌ ${totalFailures} artifact(s) failed schema validation`);
+    const failMsg = `❌ ${totalFailures} artifact(s) failed schema validation`;
+    console.log(failMsg);
+    if (IS_GITHUB_ACTIONS) {
+        process.stdout.write(
+            `::error title=Instruction schema validation failed::` +
+            `${ghEscape(failMsg)} (scanned ${projects.length} project(s), ` +
+            `${totalArtifacts} artifact(s))\n`,
+        );
+    }
     process.exit(1);
 }
 
-main();
+try {
+    main();
+} catch (err) {
+    // Defence-in-depth: any uncaught throw inside main() (schema bug,
+    // fs race, malformed JSON the parser missed) MUST surface as a hard
+    // failure with a stable exit code (3) rather than a silent green
+    // exit. Without this guard, a thrown TypeError from a future schema
+    // refactor would crash with exit 0 in some Node versions on CI
+    // runners that swallow the rejection.
+    const msg = err && err.stack ? err.stack : String(err);
+    console.error(`❌ Validator crashed: ${msg}`);
+    if (IS_GITHUB_ACTIONS) {
+        process.stdout.write(
+            `::error title=Instruction schema validator crashed::${ghEscape(msg)}\n`,
+        );
+    }
+    process.exit(3);
+}

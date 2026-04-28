@@ -1,12 +1,15 @@
 /**
- * Marco Extension — Recorder Step Detail (Phase 10)
+ * Marco Extension — Recorder Step Detail (Phase 10 + 14)
  *
  * Right-pane detail view for one selected Step:
  *   - Variable rename (PascalCase free-text, server enforces uniqueness)
+ *   - Description / tag chips / cross-project links (Phase 14)
  *   - Persisted Selector rows (primary highlighted)
  *   - Bound DataSource column (if any)
  *
- * Selector + binding rows are read from props; rename calls back to parent.
+ * All edits route to handlers passed by `RecorderVisualisationPanel`, which
+ * in turn use the hook's local-state splice helpers — so the row re-renders
+ * with the latest Description, tags, and link targets without a full reload.
  */
 
 import { useEffect, useState } from "react";
@@ -173,6 +176,109 @@ export function RecorderStepDetail({
                 </div>
             </section>
 
+            {/* Description (Phase 14) */}
+            <section className="space-y-2">
+                <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    Description
+                </h3>
+                <Textarea
+                    value={draftDesc}
+                    onChange={(e) => setDraftDesc(e.target.value)}
+                    rows={2}
+                    placeholder="Optional notes about this step…"
+                    className="text-xs"
+                />
+                <div className="flex items-center gap-2">
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleDescSave}
+                        disabled={!isDescDirty || descSaving}
+                    >
+                        {descSaving ? "Saving…" : "Save description"}
+                    </Button>
+                    {descError && (
+                        <span className="text-xs text-destructive font-mono">{descError}</span>
+                    )}
+                </div>
+            </section>
+
+            {/* Tags (Phase 14) */}
+            <section className="space-y-2">
+                <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    Tags ({tags.length})
+                </h3>
+                <div className="flex flex-wrap gap-1.5">
+                    {tags.length === 0 && (
+                        <span className="text-xs text-muted-foreground italic">No tags.</span>
+                    )}
+                    {tags.map((t) => (
+                        <Badge
+                            key={t}
+                            variant="secondary"
+                            className="gap-1 pl-2 pr-1 py-0.5 text-[10px] font-mono"
+                        >
+                            {t}
+                            <button
+                                type="button"
+                                onClick={() => void handleRemoveTag(t)}
+                                aria-label={`Remove tag ${t}`}
+                                className="hover:text-destructive"
+                            >
+                                <X className="h-3 w-3" />
+                            </button>
+                        </Badge>
+                    ))}
+                </div>
+                <div className="flex gap-2">
+                    <Input
+                        value={draftTag}
+                        onChange={(e) => setDraftTag(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                                e.preventDefault();
+                                void handleAddTag();
+                            }
+                        }}
+                        placeholder="Add tag…"
+                        className="font-mono text-xs h-8"
+                    />
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleAddTag}
+                        disabled={draftTag.trim().length === 0}
+                    >
+                        Add
+                    </Button>
+                </div>
+                {tagsError && (
+                    <p className="text-xs text-destructive font-mono">{tagsError}</p>
+                )}
+            </section>
+
+            {/* Cross-project links (Phase 14) */}
+            <section className="space-y-2">
+                <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    Cross-project links
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <LinkSlotEditor
+                        label="On success → project"
+                        initialValue={step.OnSuccessProjectId ?? ""}
+                        onSave={(v) => handleLinkSave("OnSuccessProjectId", v)}
+                    />
+                    <LinkSlotEditor
+                        label="On failure → project"
+                        initialValue={step.OnFailureProjectId ?? ""}
+                        onSave={(v) => handleLinkSave("OnFailureProjectId", v)}
+                    />
+                </div>
+                {linkError && (
+                    <p className="text-xs text-destructive font-mono">{linkError}</p>
+                )}
+            </section>
+
             {/* Selectors */}
             <section className="space-y-2">
                 <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
@@ -239,6 +345,61 @@ export function RecorderStepDetail({
                     </div>
                 )}
             </section>
+        </div>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/*  LinkSlotEditor — small inline input for one cross-project slot     */
+/* ------------------------------------------------------------------ */
+
+interface LinkSlotEditorProps {
+    label: string;
+    initialValue: string;
+    onSave: (value: string) => Promise<void>;
+}
+
+function LinkSlotEditor({ label, initialValue, onSave }: LinkSlotEditorProps) {
+    const [draft, setDraft] = useState(initialValue);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        setDraft(initialValue);
+    }, [initialValue]);
+
+    const isDirty = draft !== initialValue;
+
+    const handleClick = async () => {
+        if (!isDirty) return;
+        setSaving(true);
+        try {
+            await onSave(draft);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="space-y-1">
+            <label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                {label}
+            </label>
+            <div className="flex gap-1.5">
+                <Input
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    placeholder="project-slug or empty"
+                    className="font-mono text-xs h-8"
+                />
+                <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleClick}
+                    disabled={!isDirty || saving}
+                >
+                    {saving ? "…" : "Save"}
+                </Button>
+            </div>
         </div>
     );
 }

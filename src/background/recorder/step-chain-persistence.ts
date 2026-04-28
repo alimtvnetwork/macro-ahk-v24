@@ -31,26 +31,68 @@ export interface StepMetaPatch {
 export type StepLinkSlot = "OnSuccessProjectId" | "OnFailureProjectId";
 
 /* ------------------------------------------------------------------ */
-/*  Validation helpers (each < 8 lines)                                */
+/*  Validation constants & helpers (Phase 14 spec constraints)         */
 /* ------------------------------------------------------------------ */
+
+/** Upper bound on RetryCount — prevents runaway replay loops. */
+export const MAX_RETRY_COUNT = 50;
+/** Upper bound on TimeoutMs — 10 minutes per step attempt. */
+export const MAX_TIMEOUT_MS = 600_000;
+/** Max length of Step.Label. */
+export const MAX_LABEL_LENGTH = 200;
+/** Max length of Step.Description. */
+export const MAX_DESCRIPTION_LENGTH = 2_000;
+/** Max number of tags attachable to a single step. */
+export const MAX_TAGS_PER_STEP = 32;
+/** Max length of a single tag name. */
+export const MAX_TAG_LENGTH = 64;
+/** Max length of a cross-project link slug. */
+export const MAX_SLUG_LENGTH = 128;
+/** Tag names: alphanumeric, dash, underscore, dot, space (1..MAX_TAG_LENGTH). */
+const TAG_NAME_PATTERN = /^[A-Za-z0-9_\-. ]+$/;
+/** Project slug: alphanumeric, dash, underscore, dot. */
+const PROJECT_SLUG_PATTERN = /^[A-Za-z0-9_.\-]+$/;
 
 function assertRetry(n: number): void {
     if (!Number.isInteger(n) || n < 0) throw new Error(`RetryCount must be a non-negative integer; got ${n}`);
+    if (n > MAX_RETRY_COUNT) throw new Error(`RetryCount exceeds ${MAX_RETRY_COUNT}; got ${n}`);
 }
 
 function assertTimeout(n: number | null): void {
     if (n === null) return;
     if (!Number.isInteger(n) || n <= 0) throw new Error(`TimeoutMs must be a positive integer or null; got ${n}`);
+    if (n > MAX_TIMEOUT_MS) throw new Error(`TimeoutMs exceeds ${MAX_TIMEOUT_MS}ms; got ${n}`);
 }
 
 function assertLabel(s: string): void {
-    if (s.trim().length === 0) throw new Error("Label cannot be empty");
+    if (typeof s !== "string") throw new Error("Label must be a string");
+    const trimmed = s.trim();
+    if (trimmed.length === 0) throw new Error("Label cannot be empty");
+    if (trimmed.length > MAX_LABEL_LENGTH) {
+        throw new Error(`Label exceeds ${MAX_LABEL_LENGTH} chars: ${trimmed.length}`);
+    }
+}
+
+function assertDescription(s: string | null): void {
+    if (s === null) return;
+    if (typeof s !== "string") throw new Error("Description must be a string or null");
+    if (s.length > MAX_DESCRIPTION_LENGTH) {
+        throw new Error(`Description exceeds ${MAX_DESCRIPTION_LENGTH} chars: ${s.length}`);
+    }
 }
 
 function assertTagName(s: string): void {
+    if (typeof s !== "string") throw new Error("Tag name must be a string");
     const trimmed = s.trim();
     if (trimmed.length === 0) throw new Error("Tag name cannot be empty");
-    if (trimmed.length > 64) throw new Error(`Tag name exceeds 64 chars: ${trimmed.length}`);
+    if (trimmed.length > MAX_TAG_LENGTH) throw new Error(`Tag name exceeds ${MAX_TAG_LENGTH} chars: ${trimmed.length}`);
+    if (!TAG_NAME_PATTERN.test(trimmed)) {
+        throw new Error(`Tag name contains invalid characters (allowed: A-Z a-z 0-9 _ - . space): "${trimmed}"`);
+    }
+}
+
+function assertTagSetSize(n: number): void {
+    if (n > MAX_TAGS_PER_STEP) throw new Error(`Tag set exceeds ${MAX_TAGS_PER_STEP} entries; got ${n}`);
 }
 
 /* ------------------------------------------------------------------ */

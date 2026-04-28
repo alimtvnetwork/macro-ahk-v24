@@ -38,7 +38,7 @@
 
 ---
 
-## <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/windows8/windows8-original.svg" alt="Windows" width="22" height="22" align="center" /> Install
+## <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/windows8/windows8-original.svg" alt="Windows" width="28" height="28" align="center" /> Install
 
 Marco is a **Windows-first** project. Run this single line in **PowerShell** — it downloads, verifies, and installs the latest pinned release:
 

@@ -95,6 +95,72 @@ jobs:
         run: node scripts/check-no-nested-template-literals.mjs
 
   # ════════════════════════════════════════════════════════════
+  # Job 0a0c: ESLint pin on run-summary-types.ts
+  #
+  # Belt-and-braces companion to `no-nested-template-literals` above.
+  # The custom scanner is fast (no install, <100ms) but only models
+  # backtick nesting. This job runs the *real* ESLint (eslint.config.js
+  # with `sonarjs/no-nested-template-literals: error`) against the one
+  # file we have promised will never regress, with `--max-warnings=0`
+  # so even the legacy-file `warn` override (if someone ever adds this
+  # path to it) cannot mask a regression here.
+  #
+  # If the rule is ever relaxed project-wide, or the file is moved into
+  # a `warn` override block by mistake, this job goes red — the scanner
+  # alone would still pass, so this second gate is the one that catches
+  # config drift specifically.
+  # ════════════════════════════════════════════════════════════
+  eslint-run-summary-types:
+    name: Preflight · ESLint · run-summary-types.ts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      - name: Get pnpm store path
+        id: pnpm-store
+        shell: bash
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml', '**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            standalone-scripts/*/node_modules
+          key: ${{ runner.os }}-nm-ext-${{ hashFiles('**/pnpm-lock.yaml', '**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nm-ext-
+
+      - name: Install root dependencies
+        run: pnpm install --prefer-offline --no-frozen-lockfile
+
+      - name: ESLint pinned file (zero warnings, sonarjs nested-template error)
+        run: pnpm run lint:run-summary-types
+
+  # ════════════════════════════════════════════════════════════
   # Job 0a1: Contract-checker wiring lint — pre-merge guard
   #
   # Discovers every `scripts/check-*-contract*.mjs` validator and fails
@@ -1678,7 +1744,7 @@ jobs:
   # ════════════════════════════════════════════════════════════
   build-extension:
     name: Build · Chrome Extension
-    needs: [spec-links, no-nested-template-literals, contract-checkers-wired, cicd-index-sync, pascalcase-instruction-migration, report-standalone-registry, readme-conventions, typecheck-app, typecheck-standalone, lint-standalone, build-sdk, build-xpath, build-payment-banner-hider, build-macro-controller, build-prompts, casing-instruction-json]
+    needs: [spec-links, no-nested-template-literals, eslint-run-summary-types, contract-checkers-wired, cicd-index-sync, pascalcase-instruction-migration, report-standalone-registry, readme-conventions, typecheck-app, typecheck-standalone, lint-standalone, build-sdk, build-xpath, build-payment-banner-hider, build-macro-controller, build-prompts, casing-instruction-json]
     runs-on: ubuntu-latest
 
     steps:

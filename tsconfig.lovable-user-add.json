@@ -3,7 +3,11 @@
     "target": "ES2020",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "strict": true,
     "noEmit": true,
     "esModuleInterop": true,
@@ -14,9 +18,15 @@
     "allowJs": true,
     "baseUrl": ".",
     "paths": {
-      "@lovable-user-add/*": ["standalone-scripts/lovable-user-add/src/*"],
-      "@lovable-common/*": ["standalone-scripts/lovable-common/src/*"]
-    }
+      "@lovable-user-add/*": [
+        "standalone-scripts/lovable-user-add/src/*"
+      ],
+      "@lovable-common/*": [
+        "standalone-scripts/lovable-common/src/*"
+      ]
+    },
+    "incremental": true,
+    "tsBuildInfoFile": ".cache/tsbuildinfo/lovable-user-add.tsbuildinfo"
   },
   "include": [
     "standalone-scripts/lovable-user-add/src/**/*.ts",
@@ -24,5 +34,9 @@
     "standalone-scripts/types/**/*.ts",
     "standalone-scripts/types/**/*.d.ts"
   ],
-  "exclude": ["node_modules", "standalone-scripts/lovable-user-add/dist", "**/__tests__/**"]
+  "exclude": [
+    "node_modules",
+    "standalone-scripts/lovable-user-add/dist",
+    "**/__tests__/**"
+  ]
 }

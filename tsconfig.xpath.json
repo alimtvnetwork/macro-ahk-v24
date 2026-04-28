@@ -3,7 +3,11 @@
     "target": "ES2020",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "strict": true,
     "noEmit": true,
     "esModuleInterop": true,
@@ -14,9 +18,20 @@
     "allowJs": true,
     "baseUrl": ".",
     "paths": {
-      "@xpath/*": ["standalone-scripts/xpath/src/*"]
-    }
+      "@xpath/*": [
+        "standalone-scripts/xpath/src/*"
+      ]
+    },
+    "incremental": true,
+    "tsBuildInfoFile": ".cache/tsbuildinfo/xpath.tsbuildinfo"
   },
-  "include": ["standalone-scripts/xpath/src/**/*.ts", "standalone-scripts/types/**/*.ts", "standalone-scripts/types/**/*.d.ts"],
-  "exclude": ["node_modules", "standalone-scripts/xpath/dist"]
+  "include": [
+    "standalone-scripts/xpath/src/**/*.ts",
+    "standalone-scripts/types/**/*.ts",
+    "standalone-scripts/types/**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "standalone-scripts/xpath/dist"
+  ]
 }

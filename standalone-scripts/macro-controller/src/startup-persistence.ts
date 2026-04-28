@@ -48,19 +48,33 @@ interface IdleCallbackWindow {
   cancelIdleCallback?: (handle: number) => void;
 }
 
+const REINJECT_DELAY_MS = 500;
+const IDLE_TIMEOUT_MS = 1000;
+
+function describeObserveTarget(target: Element): string {
+  if (target === document.body) return 'document.body';
+  return target.tagName + (target.id ? '#' + target.id : '');
+}
+
+function attachVisibilityHandler(createUI: () => void): void {
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState !== 'visible') return;
+    const isMissing = !document.getElementById(IDS.SCRIPT_MARKER) || !document.getElementById(IDS.CONTAINER);
+    if (isMissing) {
+      log('visibilitychange: UI missing — re-injecting', 'check');
+      tryReinjectUI(createUI);
+    }
+  });
+}
+
 /** Install MutationObserver + visibilitychange listener for SPA persistence. */
 export function setupPersistenceObserver(createUI: () => void): void {
   let reinjectTimer: ReturnType<typeof setTimeout> | null = null;
   let reinjectIdleHandle: number | null = null;
-  const REINJECT_DELAY_MS = 500;
-  const IDLE_TIMEOUT_MS = 1000;
   const idleWin = window as unknown as IdleCallbackWindow;
 
   function cancelPending(): void {
-    if (reinjectTimer) {
-      clearTimeout(reinjectTimer);
-      reinjectTimer = null;
-    }
+    if (reinjectTimer) { clearTimeout(reinjectTimer); reinjectTimer = null; }
     if (reinjectIdleHandle !== null && idleWin.cancelIdleCallback) {
       idleWin.cancelIdleCallback(reinjectIdleHandle);
       reinjectIdleHandle = null;
@@ -69,8 +83,6 @@ export function setupPersistenceObserver(createUI: () => void): void {
 
   function scheduleReinject(): void {
     cancelPending();
-    // PERF-13: debounce burst, then yield to idle frame so busy SPA pages
-    // (e.g. infinite-scroll feeds) do not pay the check cost mid-render.
     reinjectTimer = setTimeout(function () {
       reinjectTimer = null;
       const run = function (): void {
@@ -86,7 +98,6 @@ export function setupPersistenceObserver(createUI: () => void): void {
     }, REINJECT_DELAY_MS);
   }
 
-  // MC-04 fix: Use childList-only (no subtree) on a narrow parent.
   const observer = new MutationObserver(function (_mutations: MutationRecord[]) {
     const isBothPresent = !!document.getElementById(IDS.SCRIPT_MARKER) && !!document.getElementById(IDS.CONTAINER);
     if (isBothPresent) return;
@@ -95,16 +106,7 @@ export function setupPersistenceObserver(createUI: () => void): void {
 
   const observeTarget = document.querySelector('main') || document.querySelector('#root') || document.body;
   observer.observe(observeTarget, { childList: true });
-  log('MutationObserver installed on ' + (observeTarget === document.body ? 'document.body' : observeTarget.tagName + (observeTarget.id ? '#' + observeTarget.id : '')) + ' (childList only) for UI persistence', 'success');
+  log('MutationObserver installed on ' + describeObserveTarget(observeTarget) + ' (childList only) for UI persistence', 'success');
 
-  document.addEventListener('visibilitychange', function () {
-    const isVisible = document.visibilityState === 'visible';
-    if (isVisible) {
-      const isMissing = !document.getElementById(IDS.SCRIPT_MARKER) || !document.getElementById(IDS.CONTAINER);
-      if (isMissing) {
-        log('visibilitychange: UI missing — re-injecting', 'check');
-        tryReinjectUI(createUI);
-      }
-    }
-  });
+  attachVisibilityHandler(createUI);
 }

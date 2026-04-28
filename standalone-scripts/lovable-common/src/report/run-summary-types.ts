@@ -85,7 +85,10 @@ const renderActions = (actions: ReadonlyArray<RunSummaryAction>): string => {
     }
 
     return actions
-        .map((a) => `    - [${a.Outcome}] ${a.Code}${a.Detail === null ? "" : ` — ${a.Detail}`}`)
+        .map((a) => {
+            const detailSuffix = a.Detail === null ? "" : ` — ${a.Detail}`;
+            return `    - [${a.Outcome}] ${a.Code}${detailSuffix}`;
+        })
         .join("\n");
 };
 
@@ -120,9 +123,10 @@ export const renderRunSummaryAsText = (summary: RunSummary): string => {
     ].join("\n");
 
     const body = summary.Rows.map(renderRow).join("\n\n");
+    const noticeLines = summary.Notices.map((n) => `- ${n}`).join("\n");
     const notices = summary.Notices.length === 0
         ? ""
-        : `\n\n## Notices\n${summary.Notices.map((n) => `- ${n}`).join("\n")}`;
+        : `\n\n## Notices\n${noticeLines}`;
 
     return `${head}\n${body}${notices}\n`;
 };

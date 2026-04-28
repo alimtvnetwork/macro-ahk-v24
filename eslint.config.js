@@ -62,6 +62,11 @@ export default tseslint.config(
       // that should just be one string. Hard error: zero violations today.
       "no-useless-concat": "error",
 
+      // Disallow back-tick template literals that contain no interpolation
+      // and no newline — keep `…` reserved for actual templating, use
+      // regular quotes for plain string constants.
+      "quotes": ["off"], // delegated to TS-ESLint variant below
+
       // --- Function size (matches 25-line standard) ---
       "max-lines-per-function": ["warn", {
         max: 25,

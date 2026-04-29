@@ -15,7 +15,7 @@ import { injectDatabaseStyles } from './database-modal-styles';
 import { loadTables } from './database-modal-data';
 import { DomId } from '../types';
 /** Open (or toggle) the database browser modal. */
-// eslint-disable-next-line max-lines-per-function
+ 
 export function showDatabaseModal(): void {
   const existing = document.getElementById(DomId.DatabaseModal);
   const isAlreadyOpen = existing !== null;

@@ -10,7 +10,7 @@ import { log } from '../logging';
 import { SAMPLE_SCHEMA } from './database-json-types';
 
 /** Trigger a browser download of the schema reference markdown. */
-// eslint-disable-next-line max-lines-per-function
+ 
 export function downloadSchemaDocs(): void {
   const md = `# Marco DB JSON Schema Reference
 

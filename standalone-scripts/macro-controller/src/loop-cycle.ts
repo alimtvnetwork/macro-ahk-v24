@@ -337,7 +337,7 @@ function handleDelegateTimeout(): boolean {
 // runCycle — API-based credit check
 // ============================================
 
-// eslint-disable-next-line max-lines-per-function
+ 
 export function runCycle(): void {
   if (!state.running) {
     state.__cycleInFlight = false;

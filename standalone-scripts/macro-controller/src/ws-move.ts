@@ -326,7 +326,7 @@ async function executeMove(
 // executeSwitchContext — fallback GET request when no project ID
 // ============================================
 
-// eslint-disable-next-line max-lines-per-function -- fallback context-switch flow: fetch + parse + retry-once all need shared scope
+ 
 async function executeSwitchContext(
   targetWorkspaceId: string,
   targetWorkspaceName: string,

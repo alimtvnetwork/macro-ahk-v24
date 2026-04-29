@@ -753,6 +753,24 @@ jobs:
       - name: Install dependencies
         run: pnpm install --prefer-offline --no-frozen-lockfile
 
+      # Diagnostics: print exact commit SHA, Node/pnpm/ESLint versions, and the
+      # lint command line. Makes mismatches between local and CI obvious when
+      # warnings appear to disagree across runs.
+      - name: Lint diagnostics (commit, versions, command)
+        run: |
+          echo "::group::Lint environment diagnostics"
+          echo "Git commit SHA   : ${{ github.sha }}"
+          echo "Git ref          : ${{ github.ref }}"
+          echo "Short SHA        : $(git rev-parse --short HEAD)"
+          echo "HEAD commit      : $(git log -1 --oneline)"
+          echo "Node version     : $(node --version)"
+          echo "pnpm version     : $(pnpm --version)"
+          echo "npx version      : $(npx --version)"
+          echo "ESLint version   : $(npx eslint --version)"
+          echo "ESLint config    : $(ls eslint.config.* 2>/dev/null || echo '(none at root)')"
+          echo "Lint command     : npx eslint standalone-scripts --max-warnings=0 --format=stylish"
+          echo "::endgroup::"
+
       # Stylish format → human-readable in the Actions log.
       # Compact format → piped to a one-liner that emits GitHub
       # annotations so each violation shows up on the PR diff.

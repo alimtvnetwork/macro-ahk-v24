@@ -140,7 +140,7 @@ export async function resolveWorkspaceId(): Promise<string | null> {
 // fetchCreditBalance — GET /workspaces/{id}/credit-balance
 // Uses marco.api.credits.fetchBalance()
 // ============================================
-// eslint-disable-next-line max-lines-per-function
+ 
 export async function fetchCreditBalance(
   workspaceId?: string,
   isRetry?: boolean,

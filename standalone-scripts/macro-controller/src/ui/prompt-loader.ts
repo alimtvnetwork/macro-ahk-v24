@@ -253,7 +253,7 @@ function finishLegacyLoad(
   return null;
 }
 
-// eslint-disable-next-line max-lines-per-function
+ 
 export function loadPromptsFromJson(): Promise<PromptEntry[] | null> {
   const loadStartMs = Date.now();
 

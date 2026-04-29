@@ -23,7 +23,7 @@ let dismissTimer: ReturnType<typeof setTimeout> | null = null;
  * Show the standalone startup toast immediately.
  * Safe to call multiple times — will replace any existing startup toast.
  */
-// eslint-disable-next-line max-lines-per-function
+ 
 export function showStartupToast(version: string): void {
   removeStartupToast(); // idempotent
 

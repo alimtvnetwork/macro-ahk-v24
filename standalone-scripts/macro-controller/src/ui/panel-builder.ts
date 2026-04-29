@@ -104,7 +104,7 @@ class CreateUIState {
 
 const createUIState = new CreateUIState();
 
-// eslint-disable-next-line max-lines-per-function
+ 
 export function createUI(deps: PanelBuilderDeps): void {
   let container = getByXPath(CONFIG.CONTROLS_XPATH);
   if (!container) {

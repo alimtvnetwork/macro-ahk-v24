@@ -135,7 +135,7 @@ export function buildTaskNextPanel(makeField: MakeFieldFn): TaskNextPanelResult 
 
 // ── Logging Panel ──
 
-// eslint-disable-next-line max-lines-per-function
+ 
 export function buildLoggingPanel(deps: SettingsDeps): LoggingPanelResult {
   const { btnStyle, showToast } = deps;
   const panel = document.createElement('div');

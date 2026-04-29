@@ -546,7 +546,7 @@ function renderErrorList(): void {
   }
 }
 
-// eslint-disable-next-line max-lines-per-function -- DOM construction; splitting loses structural context
+ 
 function buildErrorItem(error: OverlayError): HTMLElement {
   const item = document.createElement('div');
   item.className = 'eo-item';

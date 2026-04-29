@@ -146,7 +146,7 @@ function _assembleTitleRow(titleRow: HTMLElement, els: Record<string, HTMLElemen
 // Displays project name from API or DOM — click to re-detect workspace
 // ============================================
 
-// eslint-disable-next-line max-lines-per-function -- workspace badge with click-to-detect, shimmer fallback, hover states
+ 
 function buildWorkspaceNameBadge(deps: PanelBuilderDeps): HTMLElement {
   const wsNameEl = document.createElement('div');
   wsNameEl.id = 'loop-title-ws-name';

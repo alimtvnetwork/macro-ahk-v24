@@ -207,7 +207,7 @@ export class BulkRenameManager {
   }
 
   // CQ16: Extracted from bulkRename closure → private method
-  // eslint-disable-next-line max-lines-per-function
+   
   private _doNextRename(
     idx: number,
     entries: BulkRenameEntry[],

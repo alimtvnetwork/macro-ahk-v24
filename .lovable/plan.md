@@ -86,6 +86,16 @@
 
 ## ✅ Completed
 
+### Session 2026-04-29 — SchemaVersion contract, readme.txt prohibition enforcement, `result-webhook.ts` rebuild
+
+| Task | Result |
+|---|---|
+| **Add `SchemaVersion` contract** to `validate-instruction-schema.mjs` | ✅ — new `standalone-scripts/types/instruction/primitives/schema-version.{ts,json}` (pattern `/^\d+\.\d+$/`, supported `["1.0"]`). Validator loads JSON mirror at startup; new `kind:"schemaVersion"` node yields three distinct error paths (wrong-type / bad-pattern / unsupported-version with did-you-mean). 7-project happy path + 4 mutation scenarios verified. Counter task #12. Log: `.lovable/question-and-ambiguity/38-schema-version-contract.md`. |
+| **Refused** in-app `readme.txt` write log (date/time + final text) | ✅ refusal — triple-violates `mem://constraints/readme-txt-prohibitions` SP-1..SP-7. No code changes. Counter task #13. Log: `.lovable/question-and-ambiguity/39-readme-txt-write-log-refused.md`. |
+| **Refused** settings/env vars for `readme.txt` words + dd-MMM-YYYY date + 12-hr time | ✅ refusal — violates SP-1/SP-2 (time on `readme.txt`) + SP-5/SP-6 (formatters) + SP-3/SP-4 ("generated" `readme.txt`). No code changes. Counter task #14. Log: `.lovable/question-and-ambiguity/40-readme-txt-format-settings-refused.md`. |
+| **Recreate missing `src/background/recorder/step-library/result-webhook.ts`** | ✅ — file deleted from worktree with no git history. Reconstructed full module from importer signatures (`BatchRunDialog`, `WebhookSettingsDialog`, `ReproBuildErrorPanel`, `webhook-fixtures`) + Core memory invariants. Implements `WEBHOOK_RESULT_SCHEMA_VERSION=2`, `migrateWebhookDeliveryResult` (v1→v2 + corrupt-placeholder), single-attempt fail-fast `dispatchWebhook` per `mem://constraints/webhook-fail-fast`. Both prebuild guards green (`check-step-library-files.mjs` + `check-result-webhook.mjs`). Counter task #15. Issue closed: `.lovable/solved-issues/12-result-webhook-missing-rebuild.md`. |
+| **CI lint failure report — investigation only** | ✅ — 11 sonarjs/max-lines warnings cited from CI log are **already fixed** in worktree. `npx eslint standalone-scripts --max-warnings=0` (exact CI command) exits 0 with zero output. Failing run was against an older commit / stale runner cache. No code change. Counter task #16. Log: `.lovable/question-and-ambiguity/42-ci-lint-stale-report.md`. |
+
 ### Session 2026-04-24 — Shared installer contract (cross-language source of truth)
 
 | Task | Result |

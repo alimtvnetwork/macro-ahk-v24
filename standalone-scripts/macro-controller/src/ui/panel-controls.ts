@@ -288,7 +288,7 @@ interface PromptsDropdownResult {
   taskNextDeps: TaskNextDeps;
 }
 
-// eslint-disable-next-line max-lines-per-function
+ 
 function buildPromptsDropdown(_deps: PanelBuilderDeps, btnStyle: string): PromptsDropdownResult {
   const promptsContainer = document.createElement('div');
   promptsContainer.style.cssText = 'position:relative;display:inline-block;';

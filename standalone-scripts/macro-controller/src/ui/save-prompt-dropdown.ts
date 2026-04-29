@@ -85,7 +85,7 @@ function renderDropdownItems(
 }
 
 /** Render the full chatbox prompts dropdown content. */
-// eslint-disable-next-line max-lines-per-function
+ 
 export function renderChatboxPromptsDropdown(dropdown: HTMLElement, deps: SavePromptDeps): void {
   dropdown.innerHTML = '<div style="padding:10px 14px;color:#9ca3af;font-size:12px;text-align:center;">⏳ Loading prompts…</div>';
 

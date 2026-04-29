@@ -164,7 +164,7 @@ function _buildWsDropdown(deps: PanelBuilderDeps): { wsDropSection: HTMLElement 
   });
 }
 
-// eslint-disable-next-line max-lines-per-function
+ 
 function _buildToolsCollapsible(
   _deps: PanelBuilderDeps, btnStyle: string, taskNextDeps: TaskNextDeps,
   toolsSections: ReturnType<typeof buildToolsSections>,

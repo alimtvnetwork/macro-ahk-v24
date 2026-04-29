@@ -25,7 +25,11 @@ on:
       - main
 
 concurrency:
-  group: ci-main-${{ github.sha }}
+  # Group by ref (branch or PR head) so a fresh push to the same
+  # branch/PR cancels any in-progress run instead of letting two
+  # commits race to completion. Falls back to SHA for non-branch
+  # events (tags, manual dispatch) so unrelated runs don't collide.
+  group: ci-${{ github.workflow }}-${{ github.ref || github.sha }}
   cancel-in-progress: true
 
 permissions:
@@ -714,7 +718,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          # fetch-depth: 0 → full history so `git log`/`git rev-parse`
+          # in the diagnostics step have real data, and so any
+          # blame/baseline lint checks see the full ancestry.
+          fetch-depth: 0
+          # clean: true → wipes any pre-existing workspace files
+          # (defense against self-hosted/cached-runner residue) so
+          # ESLint always lints exactly what's at HEAD.
+          clean: true
+          # Always check out the ref the workflow was triggered for,
+          # not a merge commit GitHub may have synthesised.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

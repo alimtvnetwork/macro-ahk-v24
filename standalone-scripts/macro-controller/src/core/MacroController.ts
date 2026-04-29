@@ -220,7 +220,7 @@ export class MacroController {
    * Build a detailed, copyable error for unregistered managers.
    * Includes registered status, namespace factory availability, stack trace, and diagnostics.
    */
-  // eslint-disable-next-line max-lines-per-function
+   
   private _notRegisteredError(managerName: string): Error {
     const registered = {
       auth: !!this._auth,

@@ -79,7 +79,7 @@ interface CreditBarOpts {
   marginTop?: string;
 }
 
-// eslint-disable-next-line max-lines-per-function
+ 
 export function renderCreditBar(opts: CreditBarOpts): string {
   const tc = opts.totalCredits || 0;
   const av = opts.available || 0;

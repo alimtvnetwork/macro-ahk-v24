@@ -211,7 +211,7 @@ function _buildVariableReference(body: HTMLElement): void {
 }
 
 // ── Category Select ──
-// eslint-disable-next-line max-lines-per-function
+ 
 function _buildCategorySelect(initialData: Record<string, unknown>): { catWrap: HTMLElement; catSelect: HTMLSelectElement; catCustomInput: HTMLInputElement } {
   const catLabel = document.createElement('label');
   catLabel.textContent = 'Category (optional)';
@@ -273,7 +273,7 @@ function _buildCategorySelect(initialData: Record<string, unknown>): { catWrap: 
 }
 
 // ── Prompt Modal Footer ──
-// eslint-disable-next-line max-lines-per-function
+ 
 function _buildPromptModalFooter(
   isEdit: boolean,
   editPrompt: EditablePrompt | null,

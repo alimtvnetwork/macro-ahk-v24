@@ -71,12 +71,6 @@ export default tseslint.config(
     },
   },
   {
-    files: ["standalone-scripts/macro-controller/src/**/*.ts"],
-    rules: {
-      "max-lines-per-function": ["warn", { max: 60, skipBlankLines: true, skipComments: true }],
-    },
-  },
-  {
     files: ["tests/**/*.{ts,tsx}", "**/__tests__/**/*.{ts,tsx}", "standalone-scripts/**/src/__tests__/**/*.{ts,tsx}", "chrome-extension/tests/**/*.{ts,tsx}"],
     rules: {
       "react-hooks/rules-of-hooks": "off",
@@ -116,9 +110,21 @@ export default tseslint.config(
   // --- Standalone scripts (non-controller) — raise to 50 ---
   {
     files: ["standalone-scripts/**/src/**/*.ts"],
-    ignores: ["standalone-scripts/**/__tests__/**"],
+    ignores: [
+      "standalone-scripts/**/__tests__/**",
+      "standalone-scripts/macro-controller/**",
+    ],
     rules: {
       "max-lines-per-function": ["warn", { max: 50, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  // --- Macro controller — raised to 60 (declared AFTER the generic
+  //     standalone-scripts override so it wins in flat-config order) ---
+  {
+    files: ["standalone-scripts/macro-controller/src/**/*.ts"],
+    ignores: ["standalone-scripts/macro-controller/**/__tests__/**"],
+    rules: {
+      "max-lines-per-function": ["warn", { max: 60, skipBlankLines: true, skipComments: true }],
     },
   },
   {

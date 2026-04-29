@@ -569,7 +569,7 @@ function resolveTier1Workspace(tier1Data: MarkViewedResponse): boolean {
 
 // Retry policy: first retry forces cookie refresh, second retry is the final pass.
 
-// eslint-disable-next-line max-lines-per-function -- retry orchestration with cookie fallback and async chaining
+ 
 function scheduleWorkspaceRetry(attempt: number): void {
   const isExhausted = attempt > STARTUP_WS_MAX_RETRIES;
   if (isExhausted) {

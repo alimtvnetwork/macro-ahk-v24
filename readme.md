@@ -622,6 +622,15 @@ Pushing to a `release/*` branch (e.g., `release/v2.117.0`) automatically:
 
 **No email or notification is sent** — check the [Releases page](https://github.com/alimtvnetwork/macro-ahk-v24/releases) for status.
 
+### Re-running CI lint
+
+If the **`Preflight · ESLint (Standalone Scripts)`** job fails or shows
+stale warnings, follow the step-by-step guide:
+[`docs/ci/rerun-standalone-lint.md`](docs/ci/rerun-standalone-lint.md).
+It covers re-running the job on the latest commit, verifying the SHA
+via the diagnostics step, reproducing the lint locally, and clearing
+the GitHub Actions cache (UI + `gh` CLI) when warnings persist.
+
 ### Release Assets
 
 | Asset | Description |
